@@ -81,9 +81,35 @@ async function fetchRealData(symbol, years) {
 (async function initData() {
   try {
     dataLoading = true;
-    allData = await fetchRealData('QQQ', 10);
-    dataLoading = false;
-    console.log(`✓ Loaded ${allData.length} days of real QQQ data from local server`);
+    
+    // Check localStorage cache first
+    const cacheKey = 'qqq_data_cache';
+    const cacheTimeKey = 'qqq_data_cache_time';
+    const cached = localStorage.getItem(cacheKey);
+    const cacheTime = localStorage.getItem(cacheTimeKey);
+    const now = Date.now();
+    const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+    
+    // Use cache if it exists and is less than 24 hours old
+    if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) {
+      allData = JSON.parse(cached);
+      dataLoading = false;
+      console.log(`✓ Loaded ${allData.length} days of QQQ data from cache`);
+    } else {
+      // Fetch fresh data
+      allData = await fetchRealData('QQQ', 25);
+      dataLoading = false;
+      
+      // Store in cache
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(allData));
+        localStorage.setItem(cacheTimeKey, now.toString());
+        console.log(`✓ Loaded ${allData.length} days of real QQQ data from local server (cached)`);
+      } catch (e) {
+        console.warn('Failed to cache data:', e);
+        console.log(`✓ Loaded ${allData.length} days of real QQQ data from local server`);
+      }
+    }
     
     if (typeof updateAll === 'function') {
       setSliderPos(currentLeverage);
@@ -654,11 +680,53 @@ function removeSeries() {
 }
 
 function getFiltered(period) {
-  const yrsMap = { '1Y': 1, '3Y': 3, '5Y': 5, '10Y': 10, 'MAX': 10 };
-  const yrs = yrsMap[period] || 1;
-  const cut = new Date(); cut.setFullYear(cut.getFullYear() - yrs);
+  const cut = new Date();
+  let years;
+  
+  switch(period) {
+    case '1M':
+      cut.setMonth(cut.getMonth() - 1);
+      years = 1/12;
+      break;
+    case '3M':
+      cut.setMonth(cut.getMonth() - 3);
+      years = 3/12;
+      break;
+    case '6M':
+      cut.setMonth(cut.getMonth() - 6);
+      years = 6/12;
+      break;
+    case '1Y':
+      cut.setFullYear(cut.getFullYear() - 1);
+      years = 1;
+      break;
+    case '3Y':
+      cut.setFullYear(cut.getFullYear() - 3);
+      years = 3;
+      break;
+    case '5Y':
+      cut.setFullYear(cut.getFullYear() - 5);
+      years = 5;
+      break;
+    case '10Y':
+      cut.setFullYear(cut.getFullYear() - 10);
+      years = 10;
+      break;
+    case '25Y':
+      cut.setFullYear(cut.getFullYear() - 25);
+      years = 25;
+      break;
+    case 'MAX':
+      cut.setFullYear(cut.getFullYear() - 25);
+      years = 25;
+      break;
+    default:
+      cut.setFullYear(cut.getFullYear() - 1);
+      years = 1;
+  }
+  
   const cutStr = cut.toISOString().split('T')[0];
-  return { data: allData.filter(d => d.time >= cutStr), years: yrs };
+  return { data: allData.filter(d => d.time >= cutStr), years: years };
 }
 
 
