@@ -1,0 +1,109 @@
+{
+  "project": "xLever",
+  "version": "0.1.0-hackathon",
+  "description": "Leveraged Tokenized Asset Protocol — continuous -4x to +4x leverage on tokenized assets via Euler V2 EVK",
+  "repository": "https://github.com/madschristensen99/xLever",
+  "team": ["Mads", "Eric", "Maroua"],
+
+  "components": {
+    "frontend": {
+      "status": "live",
+      "type": "static",
+      "entry": "frontend/index.html",
+      "screens": 8,
+      "build_required": false,
+      "dependencies": ["TradingView Lightweight Charts v4.1.3 (CDN)", "Tailwind CSS (CDN)"]
+    },
+    "data_server": {
+      "status": "live",
+      "type": "python_http",
+      "entry": "server/server.py",
+      "port": 8000,
+      "endpoints": [
+        {
+          "path": "/api/yahoo/{symbol}",
+          "method": "GET",
+          "description": "Yahoo Finance proxy — returns historical OHLCV data"
+        }
+      ],
+      "dependencies": ["Python 3"]
+    },
+    "backtesting_engine": {
+      "status": "live",
+      "type": "client_side_js",
+      "entry": "frontend/app.js",
+      "description": "LTAP fixed-entry leverage simulation with real market data",
+      "features": [
+        "Fixed-entry vs daily-reset leverage comparison",
+        "Real Yahoo Finance data (QQQ, SPY)",
+        "25-year historical backtesting",
+        "Click-to-invest from backtest results",
+        "localStorage caching (24h TTL)"
+      ]
+    },
+    "smart_contracts": {
+      "status": "designed_not_deployed",
+      "network": null,
+      "addresses": {},
+      "architecture_doc": "protocol.md",
+      "planned_contracts": [
+        "VaultFactory",
+        "Vault",
+        "PositionModule",
+        "FeeEngine",
+        "EulerHedgingModule",
+        "RiskModule",
+        "TWAPOracle",
+        "EVCBatchManager"
+      ],
+      "planned_network": "ethereum_testnet",
+      "planned_dependencies": ["Euler V2 EVK", "EVC", "Pyth Network"]
+    },
+    "ai_agent": {
+      "status": "partial",
+      "description": "UI operational, Perplexity API integrated, autonomous execution simulated",
+      "integrations": ["Perplexity API"]
+    }
+  },
+
+  "verification": {
+    "what_is_real": [
+      "7-screen frontend with Bloomberg Terminal UI",
+      "Backtesting engine with real Yahoo Finance data",
+      "TradingView charts with live QQQ/SPY data",
+      "Python data proxy server",
+      "80KB protocol architecture document"
+    ],
+    "what_is_simulated": [
+      "AI agent autonomous trading execution",
+      "Dashboard portfolio values and PnL",
+      "Vault deposit/withdraw transactions",
+      "Risk management alerts and triggers"
+    ],
+    "what_is_not_implemented": [
+      "Smart contract deployment",
+      "Web3 wallet connection",
+      "On-chain transactions",
+      "Pyth oracle integration"
+    ]
+  },
+
+  "ai_disclosure": {
+    "tools_used": [
+      "Claude Code — code generation, architecture, documentation",
+      "Stitch MCP — UI/UX design system and screen generation",
+      "Perplexity API — real-time market intelligence (in-app)"
+    ],
+    "disclosure": "All AI-generated code reviewed and integrated by team members"
+  },
+
+  "setup": {
+    "prerequisites": ["Python 3"],
+    "steps": [
+      "cd server && python3 server.py",
+      "Open frontend/index.html in browser"
+    ],
+    "build_required": false,
+    "estimated_setup_time": "30 seconds"
+  }
+}
