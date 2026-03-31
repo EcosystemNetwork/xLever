@@ -1,4 +1,162 @@
 // ═══════════════════════════════════════════════════════════
+// WALLET CONNECTION (VIEM)
+// ═══════════════════════════════════════════════════════════
+
+let walletClient = null;
+let publicClient = null;
+let connectedAddress = null;
+
+// Token contract addresses
+const TOKEN_ADDRESSES = {
+  USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943',
+  wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
+  wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
+};
+
+// Minimal ERC-20 ABI for balanceOf
+const ERC20_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }]
+  },
+  {
+    name: 'decimals',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint8' }]
+  }
+];
+
+async function fetchBalances() {
+  if (!connectedAddress || !publicClient) return;
+
+  try {
+    // Fetch ETH balance
+    const ethBalance = await publicClient.getBalance({ 
+      address: connectedAddress 
+    });
+    const { formatEther, formatUnits } = window.viem;
+    document.getElementById('ethBalance').textContent = parseFloat(formatEther(ethBalance)).toFixed(4);
+
+    // Fetch USDC balance
+    const usdcBalance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [connectedAddress]
+    });
+    document.getElementById('usdcBalance').textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2);
+
+    // Fetch wQQQx balance
+    const wqqqxBalance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.wQQQx,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [connectedAddress]
+    });
+    document.getElementById('wqqqxBalance').textContent = parseFloat(formatUnits(wqqqxBalance, 18)).toFixed(4);
+
+    // Fetch wSPYx balance
+    const wspyxBalance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.wSPYx,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [connectedAddress]
+    });
+    document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4);
+
+    console.log('✓ Balances updated');
+  } catch (error) {
+    console.error('Failed to fetch balances:', error);
+  }
+}
+
+async function connectWallet() {
+  try {
+    if (!window.ethereum) {
+      alert('Please install MetaMask or another Web3 wallet to connect.');
+      return;
+    }
+
+    const accounts = await window.ethereum.request({ 
+      method: 'eth_requestAccounts' 
+    });
+    
+    if (accounts.length === 0) {
+      throw new Error('No accounts found');
+    }
+
+    const { createWalletClient, createPublicClient, custom, http, mainnet } = window.viem;
+    
+    walletClient = createWalletClient({
+      chain: mainnet,
+      transport: custom(window.ethereum)
+    });
+
+    publicClient = createPublicClient({
+      chain: mainnet,
+      transport: http('https://ink-sepolia.drpc.org')
+    });
+
+    connectedAddress = accounts[0];
+    
+    updateWalletUI();
+    await fetchBalances();
+    
+    localStorage.setItem('walletConnected', 'true');
+    console.log('✓ Wallet connected:', connectedAddress);
+    
+  } catch (error) {
+    console.error('Failed to connect wallet:', error);
+    alert('Failed to connect wallet. Please try again.');
+  }
+}
+
+function disconnectWallet() {
+  walletClient = null;
+  connectedAddress = null;
+  localStorage.removeItem('walletConnected');
+  updateWalletUI();
+  console.log('✓ Wallet disconnected');
+}
+
+function updateWalletUI() {
+  const connectBtn = document.getElementById('connectWalletBtn');
+  const walletInfo = document.getElementById('walletInfo');
+  const walletAddress = document.getElementById('walletAddress');
+  
+  if (connectedAddress) {
+    connectBtn.style.display = 'none';
+    walletInfo.style.display = 'flex';
+    walletAddress.textContent = `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`;
+  } else {
+    connectBtn.style.display = 'block';
+    walletInfo.style.display = 'none';
+  }
+}
+
+// Listen for account changes
+if (window.ethereum) {
+  window.ethereum.on('accountsChanged', (accounts) => {
+    if (accounts.length === 0) {
+      disconnectWallet();
+    } else {
+      connectedAddress = accounts[0];
+      updateWalletUI();
+      console.log('✓ Account changed:', connectedAddress);
+    }
+  });
+
+  window.ethereum.on('chainChanged', () => {
+    window.location.reload();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 // DATA LAYER
 // Replace generateQQQData with fetchRealData for production
 // ═══════════════════════════════════════════════════════════
@@ -34,13 +192,17 @@ function generateQQQData(years) {
 
 let allData = [];
 let dataLoading = true;
+let currentTicker = 'QQQ';
+let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
+let entryDateIndex = 0;
+const MIN_LEV = -4.0, MAX_LEV = 4.0;
 
 async function fetchRealData(symbol, years) {
   try {
     const endDate = Math.floor(Date.now() / 1000);
     const startDate = endDate - (years * 365 * 24 * 60 * 60);
     
-    const API_BASE_URL = 'https://api.wrapsynth.com';
+    const API_BASE_URL = 'http://localhost:8000';
     const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
     
     const resp = await fetch(url);
@@ -77,36 +239,55 @@ async function fetchRealData(symbol, years) {
   }
 }
 
-// Initialize data on page load
-(async function initData() {
+async function loadTickerData(ticker) {
   try {
     dataLoading = true;
-    allData = await fetchRealData('QQQ', 10);
-    dataLoading = false;
-    console.log(`✓ Loaded ${allData.length} days of real QQQ data from api.wrapsynth.com`);
     
-    if (typeof updateAll === 'function') {
-      setSliderPos(currentLeverage);
-      updateAll();
+    const cacheKey = `${ticker.toLowerCase()}_data_cache`;
+    const cacheTimeKey = `${ticker.toLowerCase()}_data_cache_time`;
+    const cached = localStorage.getItem(cacheKey);
+    const cacheTime = localStorage.getItem(cacheTimeKey);
+    const now = Date.now();
+    const cacheMaxAge = 24 * 60 * 60 * 1000;
+    
+    if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) {
+      allData = JSON.parse(cached);
+      dataLoading = false;
+      console.log(`✓ Loaded ${allData.length} days of ${ticker} data from cache`);
+    } else {
+      allData = await fetchRealData(ticker, 25);
+      dataLoading = false;
+      
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(allData));
+        localStorage.setItem(cacheTimeKey, now.toString());
+        console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server (cached)`);
+      } catch (e) {
+        console.warn('Failed to cache data:', e);
+        console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server`);
+      }
     }
+    
+    entryDateIndex = 0;
+    updateAll();
   } catch (error) {
-    console.error('Failed to load real data, using synthetic fallback:', error);
-    allData = generateQQQData(10);
+    console.error('Failed to load data:', error);
     dataLoading = false;
-    
-    if (typeof updateAll === 'function') {
-      setSliderPos(currentLeverage);
-      updateAll();
-    }
+    alert('Error loading data. Please check your connection and refresh the page.');
   }
-})();
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  await loadTickerData(currentTicker);
+  setSliderPos(currentLeverage);
+});
 
 // ═══════════════════════════════════════════════════
 // LEVERAGE ENGINE - LTAP Protocol (Constant from Entry)
 // ═══════════════════════════════════════════════════
 
 function getLTAPFee(leverage) {
-  if (leverage === 0) return 0;
+  if (leverage === 0 || Math.abs(leverage) === 1.0) return 0;
   return 0.005 + 0.005 * Math.abs(leverage - 1);
 }
 
@@ -640,13 +821,11 @@ const chart = LightweightCharts.createChart(chartEl, {
     horzLine: { color: '#555970', width: 1, style: 2, labelBackgroundColor: '#1a1d26' },
   },
   rightPriceScale: { borderColor: '#252833', scaleMargins: { top: 0.15, bottom: 0.08 } },
-  timeScale: { borderColor: '#252833', timeVisible: false, rightOffset: 5 },
+  timeScale: { borderColor: '#252833', timeVisible: false, rightOffset: 0, fixLeftEdge: false, fixRightEdge: false },
   handleScroll: { vertTouchDrag: false },
 });
 
 let levAreaSeries = null, levCandleSeries = null, levLineSeries = null, baseSeries = null, depositRefSeries = null;
-let currentChartType = 'area', currentLeverage = 2.0, currentPeriod = '1Y';
-const MIN_LEV = -4.0, MAX_LEV = 4.0;
 
 function removeSeries() {
   [levAreaSeries, levCandleSeries, levLineSeries, baseSeries, depositRefSeries].forEach(s => { if (s) chart.removeSeries(s); });
@@ -654,31 +833,83 @@ function removeSeries() {
 }
 
 function getFiltered(period) {
-  const yrsMap = { '1Y': 1, '3Y': 3, '5Y': 5, '10Y': 10, 'MAX': 10 };
-  const yrs = yrsMap[period] || 1;
-  const cut = new Date(); cut.setFullYear(cut.getFullYear() - yrs);
+  const cut = new Date();
+  let years;
+  
+  switch(period) {
+    case '1M':
+      cut.setMonth(cut.getMonth() - 1);
+      years = 1/12;
+      break;
+    case '3M':
+      cut.setMonth(cut.getMonth() - 3);
+      years = 3/12;
+      break;
+    case '6M':
+      cut.setMonth(cut.getMonth() - 6);
+      years = 6/12;
+      break;
+    case '1Y':
+      cut.setFullYear(cut.getFullYear() - 1);
+      years = 1;
+      break;
+    case '3Y':
+      cut.setFullYear(cut.getFullYear() - 3);
+      years = 3;
+      break;
+    case '5Y':
+      cut.setFullYear(cut.getFullYear() - 5);
+      years = 5;
+      break;
+    case '10Y':
+      cut.setFullYear(cut.getFullYear() - 10);
+      years = 10;
+      break;
+    case '25Y':
+      cut.setFullYear(cut.getFullYear() - 25);
+      years = 25;
+      break;
+    case 'MAX':
+      cut.setFullYear(cut.getFullYear() - 25);
+      years = 25;
+      break;
+    default:
+      cut.setFullYear(cut.getFullYear() - 1);
+      years = 1;
+  }
+  
   const cutStr = cut.toISOString().split('T')[0];
-  return { data: allData.filter(d => d.time >= cutStr), years: yrs };
+  return { data: allData.filter(d => d.time >= cutStr), years: years };
 }
 
 
 function updateAll() {
   const { data, years } = getFiltered(currentPeriod);
+  console.log(`Period: ${currentPeriod}, Data points: ${data.length}, Years: ${years}, First date: ${data[0]?.time}, Last date: ${data[data.length-1]?.time}`);
   if (data.length < 2) return;
 
   const isShort = currentLeverage < 0;
   const absMag = Math.abs(currentLeverage);
 
+  // Use entryDateIndex for backtesting from a specific point
+  const backtestData = data.slice(entryDateIndex);
+  if (backtestData.length < 2) {
+    entryDateIndex = 0;
+    return updateAll();
+  }
+
   const normBase = data.map(d => ({ time: d.time, value: +d.close.toFixed(4) }));
-  const levResult = simulateProtocol(data, absMag, isShort, false);
-  const levOHLCResult = simulateProtocolOHLC(data, absMag, isShort, false);
-  const dailyResetResult = applyDailyResetLeverage(data, absMag, isShort);
-  const noFeeResult = simulateProtocol(data, absMag, isShort, true);
+  const levResult = simulateProtocol(backtestData, absMag, isShort, false);
+  const levOHLCResult = simulateProtocolOHLC(backtestData, absMag, isShort, false);
+  const dailyResetResult = applyDailyResetLeverage(backtestData, absMag, isShort);
+  const noFeeResult = simulateProtocol(backtestData, absMag, isShort, true);
 
   const levLine = levResult.data;
   const levOHLC = levOHLCResult.data;
   const dailyResetLine = dailyResetResult.data;
   const noFeeLine = noFeeResult.data;
+  
+  console.log(`First lev value: ${levLine[0]?.value}, Last lev value: ${levLine[levLine.length-1]?.value}`);
 
   const finalPnL = levLine[levLine.length - 1].value - levLine[0].value;
   const isProfitable = finalPnL >= 0;
@@ -696,13 +927,13 @@ function updateAll() {
   baseSeries = chart.addLineSeries({ color: '#555970', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
   baseSeries.setData(normBase);
 
-  const entryPrice = normBase[0].value;
+  const entryPrice = normBase[entryDateIndex].value;
   depositRefSeries = chart.addLineSeries({
     color: '#ffffff15', lineWidth: 1, lineStyle: 2,
     crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false
   });
   depositRefSeries.setData([
-    { time: data[0].time, value: entryPrice },
+    { time: backtestData[0].time, value: entryPrice },
     { time: data[data.length - 1].time, value: entryPrice }
   ]);
 
@@ -761,13 +992,32 @@ function updateAll() {
       });
     }
 
+    // Add entry point marker if not at start
+    if (entryDateIndex > 0) {
+      markers.push({
+        time: backtestData[0].time,
+        position: 'belowBar',
+        color: '#7c4dff',
+        shape: 'circle',
+        text: `Entry: $${entryPrice.toFixed(2)}`
+      });
+    }
+
     if (markers.length > 0) {
       markers.sort((a, b) => a.time.localeCompare(b.time));
       activeSeries.setMarkers(markers);
     }
   }
 
-  chart.timeScale().fitContent();
+  // Force chart to show all data
+  if (data.length > 0) {
+    chart.timeScale().setVisibleLogicalRange({
+      from: 0,
+      to: data.length - 1,
+    });
+  } else {
+    chart.timeScale().fitContent();
+  }
 
   const levStats = calcStats(levLine, years);
   const baseLineStats = calcStats(normBase, years);
@@ -816,11 +1066,11 @@ function updateAll() {
       : '0';
 
   if (absMag === 0) {
-    document.getElementById('overlayLabel').innerHTML = `QQQ — <span style="color:#555970">CASH</span> 0× (No exposure)`;
+    document.getElementById('overlayLabel').innerHTML = `${currentTicker} — <span style="color:#555970">CASH</span> 0× (No exposure)`;
   } else if (absMag < 0.5 && absMag > 0) {
-    document.getElementById('overlayLabel').innerHTML = `Leveraged QQQ — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
+    document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
   } else {
-    document.getElementById('overlayLabel').innerHTML = `Leveraged QQQ — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
+    document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
   }
   const pct = levStats.totalReturn * 100;
   const chEl = document.getElementById('overlayChange');
@@ -867,9 +1117,19 @@ function updateAll() {
   vsDailyEl.textContent = (vsDaily >= 0 ? '+' : '') + vsDaily.toFixed(1) + '%';
   vsDailyEl.className = 'stat-value ' + (vsDaily >= 0 ? 'positive' : 'negative');
 
-  document.getElementById('dynamicTicker').textContent = `QQQ × ${signedDisplay}`;
+  document.getElementById('dynamicTicker').textContent = `${currentTicker} × ${signedDisplay}`;
   document.getElementById('levDisplay').textContent = `${signedDisplay}×`;
   document.getElementById('mobileLevDisplay').textContent = `${signedDisplay}×`;
+  
+  document.getElementById('legendBase').textContent = `${currentTicker} (1×)`;
+  document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`;
+  document.getElementById('dataSourceTicker').textContent = currentTicker;
+  
+  const tickerNames = {
+    'QQQ': 'QQQ (Nasdaq-100)',
+    'SPY': 'SPY (S&P 500)'
+  };
+  document.getElementById('underlyingName').textContent = tickerNames[currentTicker] || currentTicker;
 
   const fmt = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
   const cls = v => v >= 0 ? 'positive' : 'negative';
@@ -879,15 +1139,15 @@ function updateAll() {
   
   document.getElementById('compLev').textContent = fmt(levStats.totalReturn);
   document.getElementById('compLev').className = 'comp-return ' + cls(levStats.totalReturn);
-  document.getElementById('compLevTicker').textContent = `QQQ ${signedDisplay}× (Protocol)`;
+  document.getElementById('compLevTicker').textContent = `${currentTicker} ${signedDisplay}× (Protocol)`;
   
   document.getElementById('compDaily').textContent = fmt(dailyResetStats.totalReturn);
   document.getElementById('compDaily').className = 'comp-return ' + cls(dailyResetStats.totalReturn);
-  document.getElementById('compDailyTicker').textContent = `QQQ ${signedDisplay}× (Daily)`;
+  document.getElementById('compDailyTicker').textContent = `${currentTicker} ${signedDisplay}× (Daily)`;
   
   document.getElementById('compNoFee').textContent = fmt(noFeeStats.totalReturn);
   document.getElementById('compNoFee').className = 'comp-return ' + cls(noFeeStats.totalReturn);
-  document.getElementById('compNoFeeTicker').textContent = `QQQ ${signedDisplay}× (No Fees)`;
+  document.getElementById('compNoFeeTicker').textContent = `${currentTicker} ${signedDisplay}× (No Fees)`;
 
   const annualFee = getLTAPFee(absMag);
   document.getElementById('annualFee').textContent = (annualFee * 100).toFixed(1) + '% APR';
@@ -1076,8 +1336,42 @@ document.addEventListener('touchmove', e => {
 document.addEventListener('mouseup', () => activeSlider = null);
 document.addEventListener('touchend', () => activeSlider = null);
 
+// Chart click handler for backtesting entry point selection
+chart.subscribeClick((param) => {
+  if (!param.time) return;
+  
+  const { data } = getFiltered(currentPeriod);
+  const clickedIndex = data.findIndex(d => d.time === param.time);
+  
+  if (clickedIndex >= 0) {
+    entryDateIndex = clickedIndex;
+    console.log(`Entry date set to: ${data[clickedIndex].time} (index ${clickedIndex})`);
+    updateAll();
+  }
+});
+
+// Double-click to reset entry to start
+chartEl.addEventListener('dblclick', () => {
+  if (entryDateIndex !== 0) {
+    entryDateIndex = 0;
+    console.log('Entry date reset to start');
+    updateAll();
+  }
+});
+
+// Wallet connection event listeners
+document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
+document.getElementById('disconnectBtn').addEventListener('click', disconnectWallet);
+
+document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { 
+  if (b.dataset.ticker === currentTicker) return;
+  document.querySelectorAll('.ticker-select-btn').forEach(x => x.classList.remove('active')); 
+  b.classList.add('active'); 
+  currentTicker = b.dataset.ticker; 
+  await loadTickerData(currentTicker); 
+}));
 document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); }));
-document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; updateAll(); }));
+document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); }));
 document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); }));
 
 new ResizeObserver(() => { 

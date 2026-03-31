@@ -79,6 +79,12 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
   - [ ] Backtesting framework
   - [ ] Paper trading mode
   - [ ] Performance metrics
+- [ ] **Demo Video (Maroua)** - Create compelling demo video (<2 minutes)
+  - [ ] Script and storyboard
+  - [ ] Screen recordings of xLever interface
+  - [ ] AI agent in action demonstration
+  - [ ] Voiceover explaining key features
+  - [ ] Final editing and polish
 
 #### Key Technical Requirements
 - **Perplexity API:** Real-time market intelligence, news, and sentiment analysis
