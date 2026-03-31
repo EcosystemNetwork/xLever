@@ -1,0 +1,20 @@
+{
+  "name": "xlever-local",
+  "version": "1.0.0",
+  "description": "Continuous leverage from **-4x to +4x** on tokenized assets, built on **Euler V2 EVK** — no liquidation risk, no volatility decay.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@reown/appkit": "^1.8.19",
+    "@reown/appkit-adapter-wagmi": "^1.8.19",
+    "@tanstack/query-core": "^5.96.0",
+    "viem": "^2.47.6",
+    "vite": "^8.0.3",
+    "wagmi": "^3.6.0"
+  }
+}

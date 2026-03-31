@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever Risk Management Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "background": "#0a0b0e",
+                        "surface-container-lowest": "#0d0e11",
+                        "surface-container": "#1f1f23",
+                        "tertiary-fixed-dim": "#00e475",
+                        "tertiary": "#00e475",
+                        "primary-fixed": "#e8deff",
+                        "inverse-on-surface": "#303034",
+                        "surface": "#121316",
+                        "on-secondary": "#002e6a",
+                        "on-primary-container": "#fcf6ff",
+                        "on-tertiary-fixed": "#00210b",
+                        "on-primary-fixed-variant": "#4f00d0",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#005226",
+                        "on-primary-fixed": "#20005f",
+                        "primary-fixed-dim": "#cdbdff",
+                        "on-error": "#690005",
+                        "surface-container-low": "#1b1b1f",
+                        "secondary-fixed": "#d8e2ff",
+                        "on-secondary-fixed": "#001a42",
+                        "tertiary-fixed": "#62ff96",
+                        "error": "#ff5252",
+                        "surface-container-highest": "#343538",
+                        "outline-variant": "#252833",
+                        "secondary": "#adc6ff",
+                        "surface-container-high": "#292a2d",
+                        "on-surface": "#e3e2e6",
+                        "inverse-primary": "#6833ea",
+                        "secondary-container": "#0066da",
+                        "on-primary": "#370096",
+                        "tertiary-container": "#008441",
+                        "on-secondary-fixed-variant": "#004495",
+                        "on-background": "#e3e2e6",
+                        "on-secondary-container": "#e6ecff",
+                        "surface-dim": "#121316",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "primary-container": "#7c4dff",
+                        "on-surface-variant": "#cac3d8",
+                        "on-tertiary-container": "#e8ffe7",
+                        "inverse-surface": "#e3e2e6",
+                        "surface-tint": "#cdbdff",
+                        "surface-variant": "#343538",
+                        "on-tertiary": "#003918",
+                        "primary": "#cdbdff",
+                        "outline": "#948ea1",
+                        "surface-bright": "#38393c",
+                        "on-error-container": "#ffdad6",
+                        "warning": "#ffd740"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["DM Sans"],
+                        "label": ["DM Sans"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .tabular-numbers { font-variant-numeric: tabular-nums; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0b0e; }
+        ::-webkit-scrollbar-thumb { background: #252833; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30 antialiased overflow-x-hidden">
+<!-- TopNavBar Execution -->
+<nav class="bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50">
+  <div class="flex items-center gap-10">
+    <span class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter"><span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span></span>
+    <div class="hidden md:flex gap-1 items-center">
+      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="01-dashboard.html">Dashboard</a>
+      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="02-trading-terminal.html">Trading</a>
+      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="03-ai-agent-operations.html">AI Agents</a>
+      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="04-vault-management.html">Vaults</a>
+      <a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="05-risk-management.html">Risk</a>
+      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="06-analytics-backtesting.html">Analytics</a>
+      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="07-operations-control.html">Operations</a>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
+      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
+      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ethereum · Solana</span>
+    </div>
+    <button class="flex items-center gap-2 px-3 py-1.5 bg-[#12141a] border border-[#252833] rounded hover:border-[#7c4dff] transition-colors">
+      <span class="material-symbols-outlined text-[#7c4dff] text-sm">account_balance_wallet</span>
+      <span class="font-['JetBrains_Mono'] text-xs text-[#8b8fa3]">Connect</span>
+    </button>
+  </div>
+</nav>
+<!-- SideNavBar Execution -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#0a0b0e] border-r border-[#1f1f23] pt-20 flex flex-col hidden lg:flex">
+<div class="px-6 mb-8">
+<h3 class="font-['DM_Sans'] text-xs font-medium uppercase tracking-widest text-[#7c4dff]">Terminal Tools</h3>
+<p class="text-[10px] text-[#555970] uppercase tracking-tighter">Institutional Grade</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-6 py-3 bg-[#1f1f23] text-[#cdbdff] border-l-2 border-[#7c4dff] font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-sm">grid_view</span> Heatmap
+            </a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-sm">reorder</span> Liquidation Ladder
+            </a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-sm">show_chart</span> Drawdown Analysis
+            </a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-sm">security</span> Auto-Deleverage
+            </a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="lg:ml-64 pt-20 pb-12 px-6">
+<!-- 1. Risk Summary Header -->
+<header class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Portfolio VaR (95%)</div>
+<div class="font-mono text-xl text-error">-$42,891</div>
+</div>
+<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Max Drawdown</div>
+<div class="font-mono text-xl text-warning">-12.4%</div>
+</div>
+<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Margin Utilization</div>
+<div class="flex items-center gap-3">
+<div class="font-mono text-xl text-warning">67%</div>
+<div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-warning w-[67%]"></div>
+</div>
+</div>
+</div>
+<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Health Factor</div>
+<div class="font-mono text-xl text-tertiary">1.84</div>
+</div>
+<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Liquidation Distance</div>
+<div class="font-mono text-xl text-tertiary">34.2%</div>
+</div>
+</header>
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
+<!-- 2. Left: Portfolio Risk Heatmap (Bento-style Grid) -->
+<section class="xl:col-span-7 bg-surface-container-low border border-outline-variant rounded-lg p-6">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline text-lg tracking-tight uppercase">Asset Correlation Matrix</h2>
+<span class="text-[10px] font-mono text-outline">Real-time Analysis</span>
+</div>
+<div class="grid grid-cols-6 gap-1 font-mono text-[10px]">
+<div class="p-2"></div>
+<div class="p-2 text-center text-outline">QQQx</div>
+<div class="p-2 text-center text-outline">NVDAx</div>
+<div class="p-2 text-center text-outline">TSLAx</div>
+<div class="p-2 text-center text-outline">SPYx</div>
+<div class="p-2 text-center text-outline">AAPLx</div>
+<!-- Row QQQx -->
+<div class="p-2 flex items-center text-outline">QQQx</div>
+<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
+<div class="h-12 flex items-center justify-center bg-error/60 text-white border border-white/5">0.82</div>
+<div class="h-12 flex items-center justify-center bg-error/40 text-white border border-white/5">0.75</div>
+<div class="h-12 flex items-center justify-center bg-error/80 text-white border border-white/5">0.91</div>
+<div class="h-12 flex items-center justify-center bg-warning/40 text-white border border-white/5">0.54</div>
+<!-- Row NVDAx -->
+<div class="p-2 flex items-center text-outline">NVDAx</div>
+<div class="h-12 flex items-center justify-center bg-error/60 text-white border border-white/5">0.82</div>
+<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
+<div class="h-12 flex items-center justify-center bg-error/70 text-white border border-white/5">0.88</div>
+<div class="h-12 flex items-center justify-center bg-warning/50 text-white border border-white/5">0.62</div>
+<div class="h-12 flex items-center justify-center bg-error/50 text-white border border-white/5">0.78</div>
+<!-- Row TSLAx -->
+<div class="p-2 flex items-center text-outline">TSLAx</div>
+<div class="h-12 flex items-center justify-center bg-error/40 text-white border border-white/5">0.75</div>
+<div class="h-12 flex items-center justify-center bg-error/70 text-white border border-white/5">0.88</div>
+<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
+<div class="h-12 flex items-center justify-center bg-warning/30 text-white border border-white/5">0.45</div>
+<div class="h-12 flex items-center justify-center bg-warning/60 text-white border border-white/5">0.69</div>
+<!-- Row SPYx -->
+<div class="p-2 flex items-center text-outline">SPYx</div>
+<div class="h-12 flex items-center justify-center bg-error/80 text-white border border-white/5">0.91</div>
+<div class="h-12 flex items-center justify-center bg-warning/50 text-white border border-white/5">0.62</div>
+<div class="h-12 flex items-center justify-center bg-warning/30 text-white border border-white/5">0.45</div>
+<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
+<div class="h-12 flex items-center justify-center bg-tertiary/20 text-white border border-white/5">0.12</div>
+<!-- Row AAPLx -->
+<div class="p-2 flex items-center text-outline">AAPLx</div>
+<div class="h-12 flex items-center justify-center bg-warning/40 text-white border border-white/5">0.54</div>
+<div class="h-12 flex items-center justify-center bg-error/50 text-white border border-white/5">0.78</div>
+<div class="h-12 flex items-center justify-center bg-warning/60 text-white border border-white/5">0.69</div>
+<div class="h-12 flex items-center justify-center bg-tertiary/20 text-white border border-white/5">0.12</div>
+<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
+</div>
+</section>
+<!-- 2. Right: Liquidation Price Ladder -->
+<section class="xl:col-span-5 bg-surface-container-low border border-outline-variant rounded-lg p-6 relative overflow-hidden">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline text-lg tracking-tight uppercase">Liquidation Ladder</h2>
+<div class="flex gap-2">
+<span class="px-2 py-0.5 rounded-full bg-error/10 text-error font-mono text-[9px]">CRITICAL</span>
+</div>
+</div>
+<div class="relative h-[300px] border-l border-outline-variant ml-12">
+<!-- Current Price Indicator -->
+<div class="absolute top-[20%] left-0 w-full h-[1px] bg-primary/40 flex items-center">
+<div class="absolute -left-12 font-mono text-[10px] text-primary tabular-numbers">$487.23</div>
+<div class="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-mono ml-4 rounded">MARKET PRICE</div>
+</div>
+<!-- Ladder Markers -->
+<div class="absolute top-[35%] left-0 w-full h-[1px] bg-tertiary/20 flex items-center">
+<div class="absolute -left-12 font-mono text-[10px] text-tertiary tabular-numbers">$442.10</div>
+<div class="px-2 py-0.5 bg-tertiary/10 text-tertiary text-[9px] font-mono ml-4 rounded border border-tertiary/30">L-QQQx-01 SAFE</div>
+</div>
+<div class="absolute top-[60%] left-0 w-full h-[1px] bg-warning/30 flex items-center">
+<div class="absolute -left-12 font-mono text-[10px] text-warning tabular-numbers">$389.12</div>
+<div class="px-2 py-0.5 bg-warning/10 text-warning text-[9px] font-mono ml-4 rounded border border-warning/30">L-NVDAx-02 WARNING</div>
+</div>
+<div class="absolute top-[85%] left-0 w-full h-[1px] bg-error flex items-center">
+<div class="absolute -left-12 font-mono text-[10px] text-error font-bold tabular-numbers">$312.50</div>
+<div class="px-2 py-0.5 bg-error/20 text-error text-[9px] font-mono ml-4 rounded border border-error/50">L-TSLAx-MAX DANGER</div>
+</div>
+<!-- Vertical Gradient Axis -->
+<div class="absolute left-0 top-0 h-full w-2 bg-gradient-to-b from-tertiary via-warning to-error opacity-40"></div>
+</div>
+</section>
+</div>
+<!-- 3. Drawdown Analysis (Full Width Area Chart) -->
+<section class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h2 class="font-headline text-lg tracking-tight uppercase">Historical Drawdown %</h2>
+<p class="text-xs text-outline font-medium">Position-weighted trailing 180D volatility</p>
+</div>
+<div class="flex gap-4 font-mono text-[10px]">
+<div class="flex items-center gap-2"><div class="w-2 h-2 bg-error"></div> Drawdown</div>
+<div class="flex items-center gap-2"><div class="w-2 h-2 bg-surface-container-highest"></div> Baseline</div>
+</div>
+</div>
+<div class="relative h-48 w-full">
+<!-- Zero Line -->
+<div class="absolute top-0 left-0 w-full h-[1px] bg-outline/40"></div>
+<!-- Simulated Area Chart -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M0,0 L10,0 L15,12 L20,8 L25,25 L30,18 L35,45 L40,32 L45,28 L50,65 L55,40 L60,35 L65,15 L70,10 L75,12 L80,5 L85,0 L100,0 L100,0 L0,0 Z" fill="rgba(255, 82, 82, 0.15)" stroke="#ff5252" stroke-width="1.5"></path>
+<line stroke="#ff5252" stroke-dasharray="2,2" x1="35" x2="35" y1="0" y2="45"></line>
+<line stroke="#ff5252" stroke-dasharray="2,2" x1="50" x2="50" y1="0" y2="65"></line>
+</svg>
+<!-- Annotations -->
+<div class="absolute left-[34%] top-[50%] -translate-x-1/2">
+<div class="bg-surface-container-high border border-outline-variant px-2 py-1 rounded">
+<span class="text-[9px] font-mono text-error">-4.5% Flash Crash</span>
+</div>
+</div>
+<div class="absolute left-[49%] top-[70%] -translate-x-1/2">
+<div class="bg-surface-container-high border border-outline-variant px-2 py-1 rounded">
+<span class="text-[9px] font-mono text-error">-12.4% Max DD Event</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between mt-4 font-mono text-[9px] text-outline px-2">
+<span>JAN 2024</span>
+<span>FEB 2024</span>
+<span>MAR 2024</span>
+<span>APR 2024</span>
+<span>MAY 2024</span>
+<span>JUN 2024</span>
+</div>
+</section>
+<!-- 4. Auto-Deleverage Cascade -->
+<section class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
+<h2 class="font-headline text-lg tracking-tight uppercase mb-6">Auto-Deleverage Safety Cascade</h2>
+<div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+<div class="p-4 border-l-4 border-tertiary bg-surface-container-high rounded flex flex-col justify-between">
+<div>
+<div class="text-[10px] font-bold text-tertiary uppercase">Level 1</div>
+<div class="text-xs text-outline mt-1 italic">Soft Adjustment</div>
+</div>
+<div class="mt-4">
+<div class="font-mono text-lg tabular-numbers">10% <span class="text-[10px]">REDUCE</span></div>
+<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -5.0%</div>
+</div>
+</div>
+<div class="p-4 border-l-4 border-warning bg-surface-container-high rounded flex flex-col justify-between">
+<div>
+<div class="text-[10px] font-bold text-warning uppercase">Level 2</div>
+<div class="text-xs text-outline mt-1 italic">Margin Relief</div>
+</div>
+<div class="mt-4">
+<div class="font-mono text-lg tabular-numbers">25% <span class="text-[10px]">REDUCE</span></div>
+<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -10.0%</div>
+</div>
+</div>
+<div class="p-4 border-l-4 border-orange-500 bg-surface-container-high rounded flex flex-col justify-between">
+<div>
+<div class="text-[10px] font-bold text-orange-500 uppercase">Level 3</div>
+<div class="text-xs text-outline mt-1 italic">Aggressive De-risk</div>
+</div>
+<div class="mt-4">
+<div class="font-mono text-lg tabular-numbers">50% <span class="text-[10px]">REDUCE</span></div>
+<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -15.0%</div>
+</div>
+</div>
+<div class="p-4 border-l-4 border-error bg-surface-container-high rounded flex flex-col justify-between">
+<div>
+<div class="text-[10px] font-bold text-error uppercase">Level 4</div>
+<div class="text-xs text-outline mt-1 italic">Emergency Halt</div>
+</div>
+<div class="mt-4">
+<div class="font-mono text-lg tabular-numbers">75% <span class="text-[10px]">REDUCE</span></div>
+<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -20.0%</div>
+</div>
+</div>
+<div class="p-4 border-l-4 border-red-900 bg-surface-container-high rounded flex flex-col justify-between">
+<div>
+<div class="text-[10px] font-bold text-red-900 uppercase">Level 5</div>
+<div class="text-xs text-outline mt-1 italic">Full Liquidation</div>
+</div>
+<div class="mt-4">
+<div class="font-mono text-lg tabular-numbers">100% <span class="text-[10px]">REDUCE</span></div>
+<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -25.0%</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. Margin Utilization Table -->
+<section class="bg-surface-container-low border border-outline-variant rounded-lg overflow-hidden">
+<div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
+<h2 class="font-headline text-lg tracking-tight uppercase">Position Risk Breakdown</h2>
+<button class="text-[10px] uppercase font-bold text-primary tracking-widest flex items-center gap-1 hover:opacity-80">
+<span class="material-symbols-outlined text-xs">download</span> EXPORT CSV
+                </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-mono text-[11px] border-collapse">
+<thead class="bg-surface-container-high text-outline uppercase tracking-tighter">
+<tr>
+<th class="px-6 py-3 font-medium">Asset</th>
+<th class="px-6 py-3 font-medium text-right">Position Size</th>
+<th class="px-6 py-3 font-medium text-right">Margin Used</th>
+<th class="px-6 py-3 font-medium text-right">Utilization %</th>
+<th class="px-6 py-3 font-medium text-right">Health Factor</th>
+<th class="px-6 py-3 font-medium text-right">Liq. Price</th>
+<th class="px-6 py-3 font-medium text-center">Risk Level</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-bold flex items-center gap-2">
+<span class="w-1 h-3 bg-tertiary"></span> QQQx 3× Long
+                            </td>
+<td class="px-6 py-4 text-right tabular-numbers">500 QQQx</td>
+<td class="px-6 py-4 text-right tabular-numbers">$243,615</td>
+<td class="px-6 py-4 text-right tabular-numbers">42.1%</td>
+<td class="px-6 py-4 text-right text-tertiary tabular-numbers">2.41</td>
+<td class="px-6 py-4 text-right tabular-numbers text-outline">$312.50</td>
+<td class="px-6 py-4 text-center">
+<span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary text-[9px] font-bold">LOW</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-bold flex items-center gap-2">
+<span class="w-1 h-3 bg-warning"></span> NVDAx 2× Long
+                            </td>
+<td class="px-6 py-4 text-right tabular-numbers">300 NVDAx</td>
+<td class="px-6 py-4 text-right tabular-numbers">$51,459</td>
+<td class="px-6 py-4 text-right tabular-numbers">78.5%</td>
+<td class="px-6 py-4 text-right text-warning tabular-numbers">1.15</td>
+<td class="px-6 py-4 text-right tabular-numbers text-outline">$102.92</td>
+<td class="px-6 py-4 text-center">
+<span class="px-2 py-1 rounded bg-warning/10 text-warning text-[9px] font-bold">MEDIUM</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-bold flex items-center gap-2">
+<span class="w-1 h-3 bg-error"></span> TSLAx 2× Short
+                            </td>
+<td class="px-6 py-4 text-right tabular-numbers">100 TSLAx</td>
+<td class="px-6 py-4 text-right tabular-numbers">$28,044</td>
+<td class="px-6 py-4 text-right tabular-numbers">92.1%</td>
+<td class="px-6 py-4 text-right text-error tabular-numbers">1.04</td>
+<td class="px-6 py-4 text-right tabular-numbers text-outline">$364.57</td>
+<td class="px-6 py-4 text-center">
+<span class="px-2 py-1 rounded bg-error/10 text-error text-[9px] font-bold">HIGH</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-bold flex items-center gap-2">
+<span class="w-1 h-3 bg-tertiary"></span> SPYx 1.5× Long
+                            </td>
+<td class="px-6 py-4 text-right tabular-numbers">50 SPYx</td>
+<td class="px-6 py-4 text-right tabular-numbers">$32,591</td>
+<td class="px-6 py-4 text-right tabular-numbers">21.4%</td>
+<td class="px-6 py-4 text-right text-tertiary tabular-numbers">3.88</td>
+<td class="px-6 py-4 text-right tabular-numbers text-outline">$520.00</td>
+<td class="px-6 py-4 text-center">
+<span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary text-[9px] font-bold">LOW</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 font-bold flex items-center gap-2">
+<span class="w-1 h-3 bg-warning"></span> COINx 2× Long
+                            </td>
+<td class="px-6 py-4 text-right tabular-numbers">100 COINx</td>
+<td class="px-6 py-4 text-right tabular-numbers">$16,997</td>
+<td class="px-6 py-4 text-right tabular-numbers">65.2%</td>
+<td class="px-6 py-4 text-right text-warning tabular-numbers">1.45</td>
+<td class="px-6 py-4 text-right tabular-numbers text-outline">$101.98</td>
+<td class="px-6 py-4 text-center">
+<span class="px-2 py-1 rounded bg-warning/10 text-warning text-[9px] font-bold">MEDIUM</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+<!-- Footer Execution -->
+<footer class="fixed bottom-0 w-full flex justify-between items-center px-4 py-1 h-8 bg-[#1f1f23] border-t border-[#292a2d] z-50">
+<div class="flex items-center gap-4">
+<span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#00e676]">Network: Mainnet | Block: 19482734 | Gas: 12 Gwei</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">System Status</a>
+<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">API Docs</a>
+<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">Support</a>
+</div>
+</footer>
+</body></html>
