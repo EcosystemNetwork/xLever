@@ -1,0 +1,3 @@
+[submodule "evc"]
+	path = evc
+	url = https://github.com/euler-xyz/ethereum-vault-connector.git
