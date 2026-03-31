@@ -1,4 +1,162 @@
 // ═══════════════════════════════════════════════════════════
+// WALLET CONNECTION (VIEM)
+// ═══════════════════════════════════════════════════════════
+
+let walletClient = null;
+let publicClient = null;
+let connectedAddress = null;
+
+// Token contract addresses
+const TOKEN_ADDRESSES = {
+  USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943',
+  wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
+  wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
+};
+
+// Minimal ERC-20 ABI for balanceOf
+const ERC20_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }]
+  },
+  {
+    name: 'decimals',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint8' }]
+  }
+];
+
+async function fetchBalances() {
+  if (!connectedAddress || !publicClient) return;
+
+  try {
+    // Fetch ETH balance
+    const ethBalance = await publicClient.getBalance({ 
+      address: connectedAddress 
+    });
+    const { formatEther, formatUnits } = window.viem;
+    document.getElementById('ethBalance').textContent = parseFloat(formatEther(ethBalance)).toFixed(4);
+
+    // Fetch USDC balance
+    const usdcBalance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [connectedAddress]
+    });
+    document.getElementById('usdcBalance').textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2);
+
+    // Fetch wQQQx balance
+    const wqqqxBalance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.wQQQx,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [connectedAddress]
+    });
+    document.getElementById('wqqqxBalance').textContent = parseFloat(formatUnits(wqqqxBalance, 18)).toFixed(4);
+
+    // Fetch wSPYx balance
+    const wspyxBalance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.wSPYx,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [connectedAddress]
+    });
+    document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4);
+
+    console.log('✓ Balances updated');
+  } catch (error) {
+    console.error('Failed to fetch balances:', error);
+  }
+}
+
+async function connectWallet() {
+  try {
+    if (!window.ethereum) {
+      alert('Please install MetaMask or another Web3 wallet to connect.');
+      return;
+    }
+
+    const accounts = await window.ethereum.request({ 
+      method: 'eth_requestAccounts' 
+    });
+    
+    if (accounts.length === 0) {
+      throw new Error('No accounts found');
+    }
+
+    const { createWalletClient, createPublicClient, custom, http, mainnet } = window.viem;
+    
+    walletClient = createWalletClient({
+      chain: mainnet,
+      transport: custom(window.ethereum)
+    });
+
+    publicClient = createPublicClient({
+      chain: mainnet,
+      transport: http('https://ink-sepolia.drpc.org')
+    });
+
+    connectedAddress = accounts[0];
+    
+    updateWalletUI();
+    await fetchBalances();
+    
+    localStorage.setItem('walletConnected', 'true');
+    console.log('✓ Wallet connected:', connectedAddress);
+    
+  } catch (error) {
+    console.error('Failed to connect wallet:', error);
+    alert('Failed to connect wallet. Please try again.');
+  }
+}
+
+function disconnectWallet() {
+  walletClient = null;
+  connectedAddress = null;
+  localStorage.removeItem('walletConnected');
+  updateWalletUI();
+  console.log('✓ Wallet disconnected');
+}
+
+function updateWalletUI() {
+  const connectBtn = document.getElementById('connectWalletBtn');
+  const walletInfo = document.getElementById('walletInfo');
+  const walletAddress = document.getElementById('walletAddress');
+  
+  if (connectedAddress) {
+    connectBtn.style.display = 'none';
+    walletInfo.style.display = 'flex';
+    walletAddress.textContent = `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`;
+  } else {
+    connectBtn.style.display = 'block';
+    walletInfo.style.display = 'none';
+  }
+}
+
+// Listen for account changes
+if (window.ethereum) {
+  window.ethereum.on('accountsChanged', (accounts) => {
+    if (accounts.length === 0) {
+      disconnectWallet();
+    } else {
+      connectedAddress = accounts[0];
+      updateWalletUI();
+      console.log('✓ Account changed:', connectedAddress);
+    }
+  });
+
+  window.ethereum.on('chainChanged', () => {
+    window.location.reload();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 // DATA LAYER
 // Replace generateQQQData with fetchRealData for production
 // ═══════════════════════════════════════════════════════════
@@ -1200,6 +1358,10 @@ chartEl.addEventListener('dblclick', () => {
     updateAll();
   }
 });
+
+// Wallet connection event listeners
+document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
+document.getElementById('disconnectBtn').addEventListener('click', disconnectWallet);
 
 document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { 
   if (b.dataset.ticker === currentTicker) return;
