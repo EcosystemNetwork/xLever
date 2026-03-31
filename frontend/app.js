@@ -40,7 +40,7 @@ async function fetchRealData(symbol, years) {
     const endDate = Math.floor(Date.now() / 1000);
     const startDate = endDate - (years * 365 * 24 * 60 * 60);
     
-    const API_BASE_URL = 'https://api.wrapsynth.com';
+    const API_BASE_URL = 'http://localhost:8000';
     const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
     
     const resp = await fetch(url);
@@ -83,7 +83,7 @@ async function fetchRealData(symbol, years) {
     dataLoading = true;
     allData = await fetchRealData('QQQ', 10);
     dataLoading = false;
-    console.log(`✓ Loaded ${allData.length} days of real QQQ data from api.wrapsynth.com`);
+    console.log(`✓ Loaded ${allData.length} days of real QQQ data from local server`);
     
     if (typeof updateAll === 'function') {
       setSliderPos(currentLeverage);
