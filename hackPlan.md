@@ -49,6 +49,11 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 
 #### Tasks
 - [ ] Design AI agent architecture and decision-making framework
+- [ ] Integrate Perplexity API for real-time information access
+  - [ ] Set up API credentials and connection
+  - [ ] Implement market news and sentiment analysis
+  - [ ] Real-time event monitoring (earnings, macro events, etc.)
+  - [ ] Context-aware decision making with current market conditions
 - [ ] Implement position entry/exit logic
   - [ ] Leverage selection algorithm (-4× to +4×)
   - [ ] Entry timing and signal processing
@@ -76,6 +81,7 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
   - [ ] Performance metrics
 
 #### Key Technical Requirements
+- **Perplexity API:** Real-time market intelligence, news, and sentiment analysis
 - Integration with Euler V2 vaults via smart contracts
 - Pyth oracle integration for price feeds (15-minute TWAP)
 - Support for both long and short positions
@@ -96,6 +102,7 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 ### External Dependencies
 - **Euler V2 EVK:** Core vault infrastructure
 - **Pyth Network:** Price oracle (15-minute TWAP)
+- **Perplexity API:** Real-time market intelligence and news for AI agent
 - **xStocks:** xQQQ tokenized asset
 - **USDC:** Base collateral asset
 
