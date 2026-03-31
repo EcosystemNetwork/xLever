@@ -34,6 +34,9 @@ function generateQQQData(years) {
 
 let allData = [];
 let dataLoading = true;
+let currentTicker = 'QQQ';
+let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
+const MIN_LEV = -4.0, MAX_LEV = 4.0;
 
 async function fetchRealData(symbol, years) {
   try {
@@ -77,62 +80,54 @@ async function fetchRealData(symbol, years) {
   }
 }
 
-// Initialize data on page load
-(async function initData() {
+async function loadTickerData(ticker) {
   try {
     dataLoading = true;
     
-    // Check localStorage cache first
-    const cacheKey = 'qqq_data_cache';
-    const cacheTimeKey = 'qqq_data_cache_time';
+    const cacheKey = `${ticker.toLowerCase()}_data_cache`;
+    const cacheTimeKey = `${ticker.toLowerCase()}_data_cache_time`;
     const cached = localStorage.getItem(cacheKey);
     const cacheTime = localStorage.getItem(cacheTimeKey);
     const now = Date.now();
-    const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+    const cacheMaxAge = 24 * 60 * 60 * 1000;
     
-    // Use cache if it exists and is less than 24 hours old
     if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) {
       allData = JSON.parse(cached);
       dataLoading = false;
-      console.log(`✓ Loaded ${allData.length} days of QQQ data from cache`);
+      console.log(`✓ Loaded ${allData.length} days of ${ticker} data from cache`);
     } else {
-      // Fetch fresh data
-      allData = await fetchRealData('QQQ', 25);
+      allData = await fetchRealData(ticker, 25);
       dataLoading = false;
       
-      // Store in cache
       try {
         localStorage.setItem(cacheKey, JSON.stringify(allData));
         localStorage.setItem(cacheTimeKey, now.toString());
-        console.log(`✓ Loaded ${allData.length} days of real QQQ data from local server (cached)`);
+        console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server (cached)`);
       } catch (e) {
         console.warn('Failed to cache data:', e);
-        console.log(`✓ Loaded ${allData.length} days of real QQQ data from local server`);
+        console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server`);
       }
     }
     
-    if (typeof updateAll === 'function') {
-      setSliderPos(currentLeverage);
-      updateAll();
-    }
+    updateAll();
   } catch (error) {
-    console.error('Failed to load real data, using synthetic fallback:', error);
-    allData = generateQQQData(10);
+    console.error('Failed to load data:', error);
     dataLoading = false;
-    
-    if (typeof updateAll === 'function') {
-      setSliderPos(currentLeverage);
-      updateAll();
-    }
+    alert('Error loading data. Please check your connection and refresh the page.');
   }
-})();
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  await loadTickerData(currentTicker);
+  setSliderPos(currentLeverage);
+});
 
 // ═══════════════════════════════════════════════════
 // LEVERAGE ENGINE - LTAP Protocol (Constant from Entry)
 // ═══════════════════════════════════════════════════
 
 function getLTAPFee(leverage) {
-  if (leverage === 0) return 0;
+  if (leverage === 0 || Math.abs(leverage) === 1.0) return 0;
   return 0.005 + 0.005 * Math.abs(leverage - 1);
 }
 
@@ -666,13 +661,11 @@ const chart = LightweightCharts.createChart(chartEl, {
     horzLine: { color: '#555970', width: 1, style: 2, labelBackgroundColor: '#1a1d26' },
   },
   rightPriceScale: { borderColor: '#252833', scaleMargins: { top: 0.15, bottom: 0.08 } },
-  timeScale: { borderColor: '#252833', timeVisible: false, rightOffset: 5 },
+  timeScale: { borderColor: '#252833', timeVisible: false, rightOffset: 0, fixLeftEdge: false, fixRightEdge: false },
   handleScroll: { vertTouchDrag: false },
 });
 
 let levAreaSeries = null, levCandleSeries = null, levLineSeries = null, baseSeries = null, depositRefSeries = null;
-let currentChartType = 'area', currentLeverage = 2.0, currentPeriod = '1Y';
-const MIN_LEV = -4.0, MAX_LEV = 4.0;
 
 function removeSeries() {
   [levAreaSeries, levCandleSeries, levLineSeries, baseSeries, depositRefSeries].forEach(s => { if (s) chart.removeSeries(s); });
@@ -732,6 +725,7 @@ function getFiltered(period) {
 
 function updateAll() {
   const { data, years } = getFiltered(currentPeriod);
+  console.log(`Period: ${currentPeriod}, Data points: ${data.length}, Years: ${years}, First date: ${data[0]?.time}, Last date: ${data[data.length-1]?.time}`);
   if (data.length < 2) return;
 
   const isShort = currentLeverage < 0;
@@ -747,6 +741,8 @@ function updateAll() {
   const levOHLC = levOHLCResult.data;
   const dailyResetLine = dailyResetResult.data;
   const noFeeLine = noFeeResult.data;
+  
+  console.log(`First lev value: ${levLine[0]?.value}, Last lev value: ${levLine[levLine.length-1]?.value}`);
 
   const finalPnL = levLine[levLine.length - 1].value - levLine[0].value;
   const isProfitable = finalPnL >= 0;
@@ -835,7 +831,15 @@ function updateAll() {
     }
   }
 
-  chart.timeScale().fitContent();
+  // Force chart to show all data
+  if (data.length > 0) {
+    chart.timeScale().setVisibleLogicalRange({
+      from: 0,
+      to: data.length - 1,
+    });
+  } else {
+    chart.timeScale().fitContent();
+  }
 
   const levStats = calcStats(levLine, years);
   const baseLineStats = calcStats(normBase, years);
@@ -884,11 +888,11 @@ function updateAll() {
       : '0';
 
   if (absMag === 0) {
-    document.getElementById('overlayLabel').innerHTML = `QQQ — <span style="color:#555970">CASH</span> 0× (No exposure)`;
+    document.getElementById('overlayLabel').innerHTML = `${currentTicker} — <span style="color:#555970">CASH</span> 0× (No exposure)`;
   } else if (absMag < 0.5 && absMag > 0) {
-    document.getElementById('overlayLabel').innerHTML = `Leveraged QQQ — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
+    document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
   } else {
-    document.getElementById('overlayLabel').innerHTML = `Leveraged QQQ — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
+    document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
   }
   const pct = levStats.totalReturn * 100;
   const chEl = document.getElementById('overlayChange');
@@ -935,9 +939,19 @@ function updateAll() {
   vsDailyEl.textContent = (vsDaily >= 0 ? '+' : '') + vsDaily.toFixed(1) + '%';
   vsDailyEl.className = 'stat-value ' + (vsDaily >= 0 ? 'positive' : 'negative');
 
-  document.getElementById('dynamicTicker').textContent = `QQQ × ${signedDisplay}`;
+  document.getElementById('dynamicTicker').textContent = `${currentTicker} × ${signedDisplay}`;
   document.getElementById('levDisplay').textContent = `${signedDisplay}×`;
   document.getElementById('mobileLevDisplay').textContent = `${signedDisplay}×`;
+  
+  document.getElementById('legendBase').textContent = `${currentTicker} (1×)`;
+  document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`;
+  document.getElementById('dataSourceTicker').textContent = currentTicker;
+  
+  const tickerNames = {
+    'QQQ': 'QQQ (Nasdaq-100)',
+    'SPY': 'SPY (S&P 500)'
+  };
+  document.getElementById('underlyingName').textContent = tickerNames[currentTicker] || currentTicker;
 
   const fmt = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
   const cls = v => v >= 0 ? 'positive' : 'negative';
@@ -947,15 +961,15 @@ function updateAll() {
   
   document.getElementById('compLev').textContent = fmt(levStats.totalReturn);
   document.getElementById('compLev').className = 'comp-return ' + cls(levStats.totalReturn);
-  document.getElementById('compLevTicker').textContent = `QQQ ${signedDisplay}× (Protocol)`;
+  document.getElementById('compLevTicker').textContent = `${currentTicker} ${signedDisplay}× (Protocol)`;
   
   document.getElementById('compDaily').textContent = fmt(dailyResetStats.totalReturn);
   document.getElementById('compDaily').className = 'comp-return ' + cls(dailyResetStats.totalReturn);
-  document.getElementById('compDailyTicker').textContent = `QQQ ${signedDisplay}× (Daily)`;
+  document.getElementById('compDailyTicker').textContent = `${currentTicker} ${signedDisplay}× (Daily)`;
   
   document.getElementById('compNoFee').textContent = fmt(noFeeStats.totalReturn);
   document.getElementById('compNoFee').className = 'comp-return ' + cls(noFeeStats.totalReturn);
-  document.getElementById('compNoFeeTicker').textContent = `QQQ ${signedDisplay}× (No Fees)`;
+  document.getElementById('compNoFeeTicker').textContent = `${currentTicker} ${signedDisplay}× (No Fees)`;
 
   const annualFee = getLTAPFee(absMag);
   document.getElementById('annualFee').textContent = (annualFee * 100).toFixed(1) + '% APR';
@@ -1144,6 +1158,13 @@ document.addEventListener('touchmove', e => {
 document.addEventListener('mouseup', () => activeSlider = null);
 document.addEventListener('touchend', () => activeSlider = null);
 
+document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { 
+  if (b.dataset.ticker === currentTicker) return;
+  document.querySelectorAll('.ticker-select-btn').forEach(x => x.classList.remove('active')); 
+  b.classList.add('active'); 
+  currentTicker = b.dataset.ticker; 
+  await loadTickerData(currentTicker); 
+}));
 document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); }));
 document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; updateAll(); }));
 document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); }));

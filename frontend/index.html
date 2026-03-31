@@ -12,6 +12,10 @@
 <div class="header">
   <div class="header-left">
     <div class="logo">x<span>Lever</span></div>
+    <div class="ticker-selector">
+      <button class="ticker-select-btn active" data-ticker="QQQ">QQQ</button>
+      <button class="ticker-select-btn" data-ticker="SPY">SPY</button>
+    </div>
     <div class="ticker-badge"><div class="ticker-dot"></div><span id="dynamicTicker">QQQ × 2.0</span></div>
   </div>
   <div class="header-right">
@@ -46,7 +50,7 @@
         <div class="price-change" id="overlayChange">+0.00%</div>
         <div class="legend-row">
           <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span id="legendLev">2.0× Leveraged</span></div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--text-muted)"></div><span>QQQ (1×)</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--text-muted)"></div><span id="legendBase">QQQ (1×)</span></div>
           <div class="legend-item"><div class="legend-dot" style="background:#ffffff15"></div><span>Entry Deposit</span></div>
         </div>
       </div>
@@ -89,7 +93,7 @@
     <div class="panel-section">
       <div class="panel-title">Strategy Details</div>
       <div class="strategy-card">
-        <div class="row"><span class="row-label">Underlying</span><span class="row-value">QQQ (Nasdaq-100)</span></div>
+        <div class="row"><span class="row-label">Underlying</span><span class="row-value" id="underlyingName">QQQ (Nasdaq-100)</span></div>
         <div class="row"><span class="row-label">Leverage Type</span><span class="row-value">Constant from Entry</span></div>
         <div class="row"><span class="row-label">Rebalance</span><span class="row-value">On User Adjust</span></div>
         <div class="row"><span class="row-label">Annual Fee</span><span class="row-value" id="annualFee">1.0% APR</span></div>
@@ -110,7 +114,7 @@
     <div class="panel-section">
       <div class="panel-title">Performance Comparison</div>
       <div class="comparison-grid">
-        <div class="comp-badge"><div class="comp-ticker">QQQ 1×</div><div class="comp-return positive" id="compQQQ">+0.0%</div><div class="comp-label">Base Underlying</div></div>
+        <div class="comp-badge"><div class="comp-ticker" id="compBaseTicker">QQQ 1×</div><div class="comp-return positive" id="compQQQ">+0.0%</div><div class="comp-label">Base Underlying</div></div>
         <div class="comp-badge active-comp"><div class="comp-ticker" id="compLevTicker">QQQ 2.0× (Protocol)</div><div class="comp-return" id="compLev">+0.0%</div><div class="comp-label">Full Simulation</div></div>
         <div class="comp-badge"><div class="comp-ticker" id="compDailyTicker">QQQ 2.0× (Daily Reset)</div><div class="comp-return" id="compDaily">+0.0%</div><div class="comp-label">TQQQ-Style Compounding</div></div>
         <div class="comp-badge"><div class="comp-ticker" id="compNoFeeTicker">QQQ 2.0× (No Fees)</div><div class="comp-return" id="compNoFee">+0.0%</div><div class="comp-label">No Fees (Protocol)</div></div>
@@ -125,7 +129,7 @@
     <div class="panel-section">
       <div class="panel-title">Data Source</div>
       <div class="api-notice">
-        Backtesting uses real QQQ data from Yahoo Finance. 
+        Backtesting uses real <span id="dataSourceTicker">QQQ</span> data from Yahoo Finance. 
         The simulation models: auto-deleverage cascade (5 levels based on 
         underlying asset drawdown from peak), re-leverage on recovery 
         (1.0× steps, 5-day cooldown), execution slippage on leverage 
