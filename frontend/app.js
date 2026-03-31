@@ -37,7 +37,7 @@ let dataLoading = true;
 let currentTicker = 'QQQ';
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
 let entryDateIndex = 0;
-const MIN_LEV = -10.0, MAX_LEV = 10.0;
+const MIN_LEV = -4.0, MAX_LEV = 4.0;
 
 async function fetchRealData(symbol, years) {
   try {
