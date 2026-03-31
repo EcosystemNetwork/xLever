@@ -1,3 +1,35 @@
+# xLever Contracts (Euler Vault Kit Fork)
+
+**This is a fork of [Euler Vault Kit](https://github.com/euler-xyz/euler-vault-kit) with custom xLever protocol contracts.**
+
+## xLever Custom Contracts
+
+The xLever protocol contracts are located in:
+- **`src/xLever/`** - Core xLever protocol contracts
+  - `Vault.sol` - Main vault contract with leverage tracking
+  - `VaultFactory.sol` - Factory for deploying vaults
+  - `VaultSimple.sol` - Simplified vault (under 24KB contract size limit)
+  - `modules/EulerHedgingModule.sol` - **Leverage looping module** for real 3x positions via Euler V2
+  - `modules/` - Fee engine, junior tranche, position tracking, risk management
+  - `libraries/DataTypes.sol` - Shared data structures
+  - `interfaces/` - Protocol interfaces
+
+- **`script/`** - Deployment scripts for xLever
+  - `DeployXLever.s.sol` - Deploy xLever vaults
+  - `DeployEulerVaults.s.sol` - Deploy Euler vaults with 75%/87% LTV
+  - `DeployHedgingModule.s.sol` - Deploy hedging modules
+  - `TestLeverageLooping.s.sol` - Test leverage looping on-chain
+
+- **`test/`** - Test suite
+  - `VaultSimple.t.sol` - Unit tests for simplified vault
+  - `EulerHedging.t.sol` - Unit tests for hedging module
+
+## Deployed Contracts (Ink Sepolia)
+
+See the main [xLever README](../README.md) for all deployed contract addresses.
+
+---
+
 # Euler Vault Kit
 
 The Euler Vault Kit is a system for constructing credit vaults. Credit vaults are ERC-4626 vaults with added borrowing functionality. Unlike typical ERC-4626 vaults which earn yield by actively investing deposited funds, credit vaults are passive lending pools. See the [whitepaper](https://docs.euler.finance/euler-vault-kit-white-paper/) for more details.
