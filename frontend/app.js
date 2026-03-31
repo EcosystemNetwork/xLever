@@ -36,7 +36,8 @@ let allData = [];
 let dataLoading = true;
 let currentTicker = 'QQQ';
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
-const MIN_LEV = -4.0, MAX_LEV = 4.0;
+let entryDateIndex = 0;
+const MIN_LEV = -10.0, MAX_LEV = 10.0;
 
 async function fetchRealData(symbol, years) {
   try {
@@ -109,6 +110,7 @@ async function loadTickerData(ticker) {
       }
     }
     
+    entryDateIndex = 0;
     updateAll();
   } catch (error) {
     console.error('Failed to load data:', error);
@@ -731,11 +733,18 @@ function updateAll() {
   const isShort = currentLeverage < 0;
   const absMag = Math.abs(currentLeverage);
 
+  // Use entryDateIndex for backtesting from a specific point
+  const backtestData = data.slice(entryDateIndex);
+  if (backtestData.length < 2) {
+    entryDateIndex = 0;
+    return updateAll();
+  }
+
   const normBase = data.map(d => ({ time: d.time, value: +d.close.toFixed(4) }));
-  const levResult = simulateProtocol(data, absMag, isShort, false);
-  const levOHLCResult = simulateProtocolOHLC(data, absMag, isShort, false);
-  const dailyResetResult = applyDailyResetLeverage(data, absMag, isShort);
-  const noFeeResult = simulateProtocol(data, absMag, isShort, true);
+  const levResult = simulateProtocol(backtestData, absMag, isShort, false);
+  const levOHLCResult = simulateProtocolOHLC(backtestData, absMag, isShort, false);
+  const dailyResetResult = applyDailyResetLeverage(backtestData, absMag, isShort);
+  const noFeeResult = simulateProtocol(backtestData, absMag, isShort, true);
 
   const levLine = levResult.data;
   const levOHLC = levOHLCResult.data;
@@ -760,13 +769,13 @@ function updateAll() {
   baseSeries = chart.addLineSeries({ color: '#555970', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
   baseSeries.setData(normBase);
 
-  const entryPrice = normBase[0].value;
+  const entryPrice = normBase[entryDateIndex].value;
   depositRefSeries = chart.addLineSeries({
     color: '#ffffff15', lineWidth: 1, lineStyle: 2,
     crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false
   });
   depositRefSeries.setData([
-    { time: data[0].time, value: entryPrice },
+    { time: backtestData[0].time, value: entryPrice },
     { time: data[data.length - 1].time, value: entryPrice }
   ]);
 
@@ -822,6 +831,17 @@ function updateAll() {
         color: '#ff5252',
         shape: 'arrowDown',
         text: 'LIQUIDATED'
+      });
+    }
+
+    // Add entry point marker if not at start
+    if (entryDateIndex > 0) {
+      markers.push({
+        time: backtestData[0].time,
+        position: 'belowBar',
+        color: '#7c4dff',
+        shape: 'circle',
+        text: `Entry: $${entryPrice.toFixed(2)}`
       });
     }
 
@@ -1158,6 +1178,29 @@ document.addEventListener('touchmove', e => {
 document.addEventListener('mouseup', () => activeSlider = null);
 document.addEventListener('touchend', () => activeSlider = null);
 
+// Chart click handler for backtesting entry point selection
+chart.subscribeClick((param) => {
+  if (!param.time) return;
+  
+  const { data } = getFiltered(currentPeriod);
+  const clickedIndex = data.findIndex(d => d.time === param.time);
+  
+  if (clickedIndex >= 0) {
+    entryDateIndex = clickedIndex;
+    console.log(`Entry date set to: ${data[clickedIndex].time} (index ${clickedIndex})`);
+    updateAll();
+  }
+});
+
+// Double-click to reset entry to start
+chartEl.addEventListener('dblclick', () => {
+  if (entryDateIndex !== 0) {
+    entryDateIndex = 0;
+    console.log('Entry date reset to start');
+    updateAll();
+  }
+});
+
 document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { 
   if (b.dataset.ticker === currentTicker) return;
   document.querySelectorAll('.ticker-select-btn').forEach(x => x.classList.remove('active')); 
@@ -1166,7 +1209,7 @@ document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener(
   await loadTickerData(currentTicker); 
 }));
 document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); }));
-document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; updateAll(); }));
+document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); }));
 document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); }));
 
 new ResizeObserver(() => { 
