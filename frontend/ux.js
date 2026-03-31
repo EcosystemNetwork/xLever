@@ -198,9 +198,11 @@ const XModal = (() => {
     });
   }
 
-  function showTransactionProgress(modal, details, sideColor, isLong) {
+  async function showTransactionProgress(modal, details, sideColor, isLong) {
     const actionsEl = modal.querySelector('#x-modal-actions');
     const sideLabel = isLong ? 'LONG' : 'SHORT';
+    const contracts = window.xLeverContracts;
+    const isLive = contracts && contracts.ADDRESSES.vault;
 
     // Replace buttons with progress
     actionsEl.innerHTML = `
@@ -211,47 +213,85 @@ const XModal = (() => {
       </div>
     `;
 
-    // Simulate transaction steps
-    const steps = [
-      { delay: 1200, status: 'Signing Transaction...', sub: 'Confirming in wallet' },
-      { delay: 2400, status: 'Broadcasting to Network...', sub: 'Tx submitted, awaiting confirmation' },
-      { delay: 3800, status: 'Confirming on Chain...', sub: 'Block confirmation 1/2' },
-    ];
+    const updateStatus = (status, sub) => {
+      const statusEl = document.getElementById('x-tx-status');
+      const subEl = document.getElementById('x-tx-sub');
+      if (statusEl) statusEl.textContent = status;
+      if (subEl) subEl.textContent = sub;
+    };
 
-    steps.forEach(step => {
-      setTimeout(() => {
-        const statusEl = document.getElementById('x-tx-status');
-        const subEl = document.getElementById('x-tx-sub');
-        if (statusEl) statusEl.textContent = step.status;
-        if (subEl) subEl.textContent = step.sub;
-      }, step.delay);
-    });
+    let txHash = null;
+    let explorerUrl = null;
 
-    // Success state
-    setTimeout(() => {
-      actionsEl.innerHTML = `
-        <div style="width:100%; text-align:center; padding:8px 0;">
-          <div style="width:48px; height:48px; border-radius:50%; background:${sideColor}15; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-            <span class="material-symbols-outlined" style="color:${sideColor}; font-size:28px; font-variation-settings:'FILL' 1;">check_circle</span>
+    if (isLive) {
+      // ─── REAL TRANSACTION PATH ───
+      try {
+        updateStatus('Approving USDC...', 'Waiting for wallet signature');
+        updateStatus('Opening Position...', 'Confirm in your wallet');
+        const result = await contracts.openPosition(
+          details.size.toString(),
+          details.leverage
+        );
+        txHash = result.hash;
+        explorerUrl = contracts.getExplorerUrl(txHash);
+      } catch (err) {
+        actionsEl.innerHTML = `
+          <div style="width:100%; text-align:center; padding:8px 0;">
+            <div style="width:48px; height:48px; border-radius:50%; background:#ff525215; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+              <span class="material-symbols-outlined" style="color:#ff5252; font-size:28px;">error</span>
+            </div>
+            <div style="font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:#ff5252;">Transaction Failed</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px; max-width:340px; word-break:break-all;">${err.shortMessage || err.message}</div>
+            <button id="x-modal-done" style="display:block; width:100%; margin-top:16px; padding:12px; border-radius:6px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; background:#1f1f23; border:1px solid #252833; color:#e3e2e6;">Close</button>
           </div>
-          <div style="font-family:'DM Sans',sans-serif; font-size:16px; font-weight:700; color:#e3e2e6;">Position Opened</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa3; margin-top:4px;">
-            ${details.asset} ${sideLabel} ${Math.abs(details.leverage).toFixed(1)}x &middot; $${details.size.toLocaleString()}
-          </div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:8px; background:#0d0e11; padding:6px 12px; border-radius:4px; display:inline-block;">
-            Tx: 0x${generateFakeHash()}
-          </div>
-          <button id="x-modal-done" style="
-            display:block; width:100%; margin-top:16px; padding:12px; border-radius:6px;
-            font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700;
-            cursor:pointer; background:#1f1f23; border:1px solid #252833; color:#e3e2e6;
-            transition:all 0.2s;
-          ">Done</button>
+        `;
+        document.getElementById('x-modal-done')?.addEventListener('click', close);
+        XToast.show('Transaction failed: ' + (err.shortMessage || err.message), 'error');
+        return;
+      }
+    } else {
+      // ─── SIMULATED PATH (no vault deployed yet) ───
+      const steps = [
+        { delay: 1200, status: 'Signing Transaction...', sub: 'Confirming in wallet' },
+        { delay: 2400, status: 'Broadcasting to Network...', sub: 'Tx submitted, awaiting confirmation' },
+        { delay: 3800, status: 'Confirming on Chain...', sub: 'Block confirmation 1/2' },
+      ];
+      for (const step of steps) {
+        await new Promise(r => setTimeout(r, step.delay - (steps.indexOf(step) > 0 ? steps[steps.indexOf(step)-1].delay : 0)));
+        updateStatus(step.status, step.sub);
+      }
+      await new Promise(r => setTimeout(r, 1200));
+      txHash = '0x' + generateFakeHash();
+    }
+
+    // ─── SUCCESS STATE ───
+    const txDisplay = explorerUrl
+      ? `<a href="${explorerUrl}" target="_blank" style="color:#7c4dff; text-decoration:underline;">Tx: ${txHash.slice(0, 10)}...${txHash.slice(-6)}</a>`
+      : `Tx: ${txHash}`;
+
+    actionsEl.innerHTML = `
+      <div style="width:100%; text-align:center; padding:8px 0;">
+        <div style="width:48px; height:48px; border-radius:50%; background:${sideColor}15; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+          <span class="material-symbols-outlined" style="color:${sideColor}; font-size:28px; font-variation-settings:'FILL' 1;">check_circle</span>
         </div>
-      `;
-      document.getElementById('x-modal-done')?.addEventListener('click', close);
-      XToast.show(`${details.asset} ${sideLabel} position opened successfully`, 'success');
-    }, 5000);
+        <div style="font-family:'DM Sans',sans-serif; font-size:16px; font-weight:700; color:#e3e2e6;">Position Opened</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa3; margin-top:4px;">
+          ${details.asset} ${sideLabel} ${Math.abs(details.leverage).toFixed(1)}x &middot; $${details.size.toLocaleString()}
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:8px; background:#0d0e11; padding:6px 12px; border-radius:4px; display:inline-block;">
+          ${txDisplay}
+        </div>
+        ${isLive ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#00e676; margin-top:6px;">VERIFIED ON-CHAIN</div>` : `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#ffd740; margin-top:6px;">SIMULATED (vault not deployed)</div>`}
+        <button id="x-modal-done" style="
+          display:block; width:100%; margin-top:16px; padding:12px; border-radius:6px;
+          font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700;
+          cursor:pointer; background:#1f1f23; border:1px solid #252833; color:#e3e2e6;
+          transition:all 0.2s;
+        ">Done</button>
+      </div>
+    `;
+    document.getElementById('x-modal-done')?.addEventListener('click', close);
+    XToast.show(`${details.asset} ${sideLabel} position opened successfully`, 'success');
   }
 
   function generateFakeHash() {
@@ -263,57 +303,41 @@ const XModal = (() => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// WALLET CONNECT SIMULATION
+// WALLET CONNECTION (Reown AppKit)
 // ═══════════════════════════════════════════════════════════════
 
 const XWallet = (() => {
-  let connected = false;
-  const address = '0x7a3F...E9b2';
-
   function init() {
-    document.querySelectorAll('button').forEach(btn => {
-      const text = btn.textContent.trim();
-      if (text === 'Connect' || text === 'Connect Wallet') {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          if (connected) {
-            showDisconnect(btn);
-          } else {
-            simulateConnect(btn);
-          }
-        });
-      }
-    });
+    // Reown AppKit is initialized via wallet.js ES module
+    // The <appkit-button /> web component handles connect/disconnect UI
+    // Listen for connection events to show toasts
+    const checkModal = () => {
+      const modal = window.xLeverWallet;
+      if (!modal) return setTimeout(checkModal, 200);
+
+      modal.subscribeEvents((event) => {
+        if (event?.data?.event === 'CONNECT_SUCCESS') {
+          XToast.show('Wallet connected successfully', 'success');
+        }
+        if (event?.data?.event === 'DISCONNECT_SUCCESS') {
+          XToast.show('Wallet disconnected', 'info');
+        }
+      });
+    };
+    checkModal();
   }
 
-  function simulateConnect(btn) {
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = `<span class="material-symbols-outlined text-sm" style="animation:spin 0.8s linear infinite;">progress_activity</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b8fa3;">Connecting...</span>`;
-    btn.style.pointerEvents = 'none';
-
-    setTimeout(() => {
-      connected = true;
-      btn.style.pointerEvents = '';
-      btn.innerHTML = `
-        <span style="width:6px;height:6px;border-radius:50%;background:#00e676;display:inline-block;"></span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e3e2e6;">${address}</span>
-      `;
-      btn.style.borderColor = '#00e676';
-      XToast.show('Wallet connected successfully', 'success');
-    }, 1500);
+  function isConnected() {
+    const modal = window.xLeverWallet;
+    return modal ? modal.getIsConnected() : false;
   }
 
-  function showDisconnect(btn) {
-    connected = false;
-    btn.innerHTML = `
-      <span class="material-symbols-outlined text-sm" style="color:#7c4dff;">account_balance_wallet</span>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b8fa3;">Connect</span>
-    `;
-    btn.style.borderColor = '';
-    XToast.show('Wallet disconnected', 'info');
+  function getAddress() {
+    const modal = window.xLeverWallet;
+    return modal ? modal.getAddress() : null;
   }
 
-  return { init, isConnected: () => connected };
+  return { init, isConnected, getAddress };
 })();
 
 

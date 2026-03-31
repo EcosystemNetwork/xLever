@@ -1,89 +1,113 @@
 <!DOCTYPE html>
-
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>xLever Risk Management Console</title>
+<title>xLever Risk Sentinel Console</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "background": "#0a0b0e",
-                        "surface-container-lowest": "#0d0e11",
-                        "surface-container": "#1f1f23",
-                        "tertiary-fixed-dim": "#00e475",
-                        "tertiary": "#00e475",
-                        "primary-fixed": "#e8deff",
-                        "inverse-on-surface": "#303034",
-                        "surface": "#121316",
-                        "on-secondary": "#002e6a",
-                        "on-primary-container": "#fcf6ff",
-                        "on-tertiary-fixed": "#00210b",
-                        "on-primary-fixed-variant": "#4f00d0",
-                        "error-container": "#93000a",
-                        "on-tertiary-fixed-variant": "#005226",
-                        "on-primary-fixed": "#20005f",
-                        "primary-fixed-dim": "#cdbdff",
-                        "on-error": "#690005",
-                        "surface-container-low": "#1b1b1f",
-                        "secondary-fixed": "#d8e2ff",
-                        "on-secondary-fixed": "#001a42",
-                        "tertiary-fixed": "#62ff96",
-                        "error": "#ff5252",
-                        "surface-container-highest": "#343538",
-                        "outline-variant": "#252833",
-                        "secondary": "#adc6ff",
-                        "surface-container-high": "#292a2d",
-                        "on-surface": "#e3e2e6",
-                        "inverse-primary": "#6833ea",
-                        "secondary-container": "#0066da",
-                        "on-primary": "#370096",
-                        "tertiary-container": "#008441",
-                        "on-secondary-fixed-variant": "#004495",
-                        "on-background": "#e3e2e6",
-                        "on-secondary-container": "#e6ecff",
-                        "surface-dim": "#121316",
-                        "secondary-fixed-dim": "#adc6ff",
-                        "primary-container": "#7c4dff",
-                        "on-surface-variant": "#cac3d8",
-                        "on-tertiary-container": "#e8ffe7",
-                        "inverse-surface": "#e3e2e6",
-                        "surface-tint": "#cdbdff",
-                        "surface-variant": "#343538",
-                        "on-tertiary": "#003918",
-                        "primary": "#cdbdff",
-                        "outline": "#948ea1",
-                        "surface-bright": "#38393c",
-                        "on-error-container": "#ffdad6",
-                        "warning": "#ffd740"
-                    },
-                    fontFamily: {
-                        "headline": ["Space Grotesk"],
-                        "body": ["DM Sans"],
-                        "label": ["DM Sans"],
-                        "mono": ["JetBrains Mono"]
-                    },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px"},
-                },
-            },
-        }
-    </script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "background": "#0a0b0e",
+          "surface-container-lowest": "#0d0e11",
+          "surface-container": "#1f1f23",
+          "tertiary-fixed-dim": "#00e475",
+          "tertiary": "#00e475",
+          "primary-fixed": "#e8deff",
+          "inverse-on-surface": "#303034",
+          "surface": "#121316",
+          "on-secondary": "#002e6a",
+          "on-primary-container": "#fcf6ff",
+          "on-tertiary-fixed": "#00210b",
+          "on-primary-fixed-variant": "#4f00d0",
+          "error-container": "#93000a",
+          "on-tertiary-fixed-variant": "#005226",
+          "on-primary-fixed": "#20005f",
+          "primary-fixed-dim": "#cdbdff",
+          "on-error": "#690005",
+          "surface-container-low": "#1b1b1f",
+          "secondary-fixed": "#d8e2ff",
+          "on-secondary-fixed": "#001a42",
+          "tertiary-fixed": "#62ff96",
+          "error": "#ff5252",
+          "surface-container-highest": "#343538",
+          "outline-variant": "#252833",
+          "secondary": "#adc6ff",
+          "surface-container-high": "#292a2d",
+          "on-surface": "#e3e2e6",
+          "inverse-primary": "#6833ea",
+          "secondary-container": "#0066da",
+          "on-primary": "#370096",
+          "tertiary-container": "#008441",
+          "on-secondary-fixed-variant": "#004495",
+          "on-background": "#e3e2e6",
+          "on-secondary-container": "#e6ecff",
+          "surface-dim": "#121316",
+          "secondary-fixed-dim": "#adc6ff",
+          "primary-container": "#7c4dff",
+          "on-surface-variant": "#cac3d8",
+          "on-tertiary-container": "#e8ffe7",
+          "inverse-surface": "#e3e2e6",
+          "surface-tint": "#cdbdff",
+          "surface-variant": "#343538",
+          "on-tertiary": "#003918",
+          "primary": "#cdbdff",
+          "outline": "#948ea1",
+          "surface-bright": "#38393c",
+          "on-error-container": "#ffdad6",
+          "warning": "#ffd740"
+        },
+        fontFamily: {
+          "headline": ["Space Grotesk"],
+          "body": ["DM Sans"],
+          "label": ["DM Sans"],
+          "mono": ["JetBrains Mono"]
+        },
+        borderRadius: {"DEFAULT": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
 <style>
-        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-        .tabular-numbers { font-variant-numeric: tabular-nums; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #0a0b0e; }
-        ::-webkit-scrollbar-thumb { background: #252833; border-radius: 2px; }
-    </style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .tabular-numbers { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #0a0b0e; }
+  ::-webkit-scrollbar-thumb { background: #252833; border-radius: 2px; }
+  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.2); opacity: 0; } }
+  .pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
+  .state-transition { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+</style>
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-primary/30 antialiased overflow-x-hidden">
-<!-- TopNavBar Execution -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- RISK BANNER (full-width, fixed below nav)              -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="riskBanner" class="fixed top-14 left-0 right-0 z-40 state-transition" style="display:none">
+  <div class="flex items-center justify-between px-6 py-2 border-b" id="riskBannerInner">
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <span class="material-symbols-outlined text-lg" id="bannerIcon">verified_user</span>
+        <div class="absolute inset-0 rounded-full pulse-ring" id="bannerPulse"></div>
+      </div>
+      <div>
+        <span class="font-mono text-xs font-bold uppercase tracking-widest" id="bannerState">NORMAL</span>
+        <span class="text-xs ml-3 opacity-80" id="bannerReason">All systems nominal</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="font-mono text-[10px] uppercase tracking-widest opacity-70" id="bannerLevCap">Max Leverage: 4.0x</span>
+      <span class="font-mono text-[10px] tabular-numbers opacity-50" id="bannerTime"></span>
+    </div>
+  </div>
+</div>
+
+<!-- TopNavBar -->
 <nav class="bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50">
   <div class="flex items-center gap-10">
     <span class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter"><span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span></span>
@@ -102,345 +126,745 @@
       <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
       <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ethereum · Solana</span>
     </div>
-    <button class="flex items-center gap-2 px-3 py-1.5 bg-[#12141a] border border-[#252833] rounded hover:border-[#7c4dff] transition-colors">
-      <span class="material-symbols-outlined text-[#7c4dff] text-sm">account_balance_wallet</span>
-      <span class="font-['JetBrains_Mono'] text-xs text-[#8b8fa3]">Connect</span>
-    </button>
+    <appkit-button size="sm" />
   </div>
 </nav>
-<!-- SideNavBar Execution -->
+
+<!-- SideNavBar -->
 <aside class="fixed left-0 top-0 h-screen w-64 bg-[#0a0b0e] border-r border-[#1f1f23] pt-20 flex flex-col hidden lg:flex">
-<div class="px-6 mb-8">
-<h3 class="font-['DM_Sans'] text-xs font-medium uppercase tracking-widest text-[#7c4dff]">Terminal Tools</h3>
-<p class="text-[10px] text-[#555970] uppercase tracking-tighter">Institutional Grade</p>
-</div>
-<nav class="flex flex-col gap-1">
-<a class="flex items-center gap-3 px-6 py-3 bg-[#1f1f23] text-[#cdbdff] border-l-2 border-[#7c4dff] font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
-<span class="material-symbols-outlined text-sm">grid_view</span> Heatmap
-            </a>
-<a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
-<span class="material-symbols-outlined text-sm">reorder</span> Liquidation Ladder
-            </a>
-<a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
-<span class="material-symbols-outlined text-sm">show_chart</span> Drawdown Analysis
-            </a>
-<a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
-<span class="material-symbols-outlined text-sm">security</span> Auto-Deleverage
-            </a>
-</nav>
+  <div class="px-6 mb-8">
+    <h3 class="font-['DM_Sans'] text-xs font-medium uppercase tracking-widest text-[#7c4dff]">Risk Sentinel</h3>
+    <p class="text-[10px] text-[#555970] uppercase tracking-tighter">Guardrails &amp; Controls</p>
+  </div>
+  <nav class="flex flex-col gap-1">
+    <a class="flex items-center gap-3 px-6 py-3 bg-[#1f1f23] text-[#cdbdff] border-l-2 border-[#7c4dff] font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#">
+      <span class="material-symbols-outlined text-sm">shield</span> State Monitor
+    </a>
+    <a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#oracle-section">
+      <span class="material-symbols-outlined text-sm">sensors</span> Oracle Health
+    </a>
+    <a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#deleverage-section">
+      <span class="material-symbols-outlined text-sm">trending_down</span> Auto-Deleverage
+    </a>
+    <a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#positions-section">
+      <span class="material-symbols-outlined text-sm">reorder</span> Position Risk
+    </a>
+    <a class="flex items-center gap-3 px-6 py-3 text-[#555970] hover:text-[#8b8fa3] hover:bg-[#1f1f23]/50 font-['DM_Sans'] text-xs font-medium uppercase tracking-widest transition-colors duration-150" href="#scenario-section">
+      <span class="material-symbols-outlined text-sm">science</span> Scenario Tester
+    </a>
+  </nav>
+
+  <div class="mt-auto px-6 pb-6">
+    <a href="risk-engine.test.html" target="_blank"
+       class="flex items-center gap-2 text-[10px] text-[#555970] hover:text-[#cdbdff] font-mono uppercase tracking-widest transition-colors">
+      <span class="material-symbols-outlined text-xs">bug_report</span> Run Test Harness
+    </a>
+  </div>
 </aside>
-<!-- Main Content Area -->
-<main class="lg:ml-64 pt-20 pb-12 px-6">
-<!-- 1. Risk Summary Header -->
-<header class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
-<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Portfolio VaR (95%)</div>
-<div class="font-mono text-xl text-error">-$42,891</div>
-</div>
-<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
-<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Max Drawdown</div>
-<div class="font-mono text-xl text-warning">-12.4%</div>
-</div>
-<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
-<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Margin Utilization</div>
-<div class="flex items-center gap-3">
-<div class="font-mono text-xl text-warning">67%</div>
-<div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
-<div class="h-full bg-warning w-[67%]"></div>
-</div>
-</div>
-</div>
-<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
-<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Health Factor</div>
-<div class="font-mono text-xl text-tertiary">1.84</div>
-</div>
-<div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
-<div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Liquidation Distance</div>
-<div class="font-mono text-xl text-tertiary">34.2%</div>
-</div>
-</header>
-<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
-<!-- 2. Left: Portfolio Risk Heatmap (Bento-style Grid) -->
-<section class="xl:col-span-7 bg-surface-container-low border border-outline-variant rounded-lg p-6">
-<div class="flex items-center justify-between mb-6">
-<h2 class="font-headline text-lg tracking-tight uppercase">Asset Correlation Matrix</h2>
-<span class="text-[10px] font-mono text-outline">Real-time Analysis</span>
-</div>
-<div class="grid grid-cols-6 gap-1 font-mono text-[10px]">
-<div class="p-2"></div>
-<div class="p-2 text-center text-outline">QQQx</div>
-<div class="p-2 text-center text-outline">NVDAx</div>
-<div class="p-2 text-center text-outline">TSLAx</div>
-<div class="p-2 text-center text-outline">SPYx</div>
-<div class="p-2 text-center text-outline">AAPLx</div>
-<!-- Row QQQx -->
-<div class="p-2 flex items-center text-outline">QQQx</div>
-<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
-<div class="h-12 flex items-center justify-center bg-error/60 text-white border border-white/5">0.82</div>
-<div class="h-12 flex items-center justify-center bg-error/40 text-white border border-white/5">0.75</div>
-<div class="h-12 flex items-center justify-center bg-error/80 text-white border border-white/5">0.91</div>
-<div class="h-12 flex items-center justify-center bg-warning/40 text-white border border-white/5">0.54</div>
-<!-- Row NVDAx -->
-<div class="p-2 flex items-center text-outline">NVDAx</div>
-<div class="h-12 flex items-center justify-center bg-error/60 text-white border border-white/5">0.82</div>
-<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
-<div class="h-12 flex items-center justify-center bg-error/70 text-white border border-white/5">0.88</div>
-<div class="h-12 flex items-center justify-center bg-warning/50 text-white border border-white/5">0.62</div>
-<div class="h-12 flex items-center justify-center bg-error/50 text-white border border-white/5">0.78</div>
-<!-- Row TSLAx -->
-<div class="p-2 flex items-center text-outline">TSLAx</div>
-<div class="h-12 flex items-center justify-center bg-error/40 text-white border border-white/5">0.75</div>
-<div class="h-12 flex items-center justify-center bg-error/70 text-white border border-white/5">0.88</div>
-<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
-<div class="h-12 flex items-center justify-center bg-warning/30 text-white border border-white/5">0.45</div>
-<div class="h-12 flex items-center justify-center bg-warning/60 text-white border border-white/5">0.69</div>
-<!-- Row SPYx -->
-<div class="p-2 flex items-center text-outline">SPYx</div>
-<div class="h-12 flex items-center justify-center bg-error/80 text-white border border-white/5">0.91</div>
-<div class="h-12 flex items-center justify-center bg-warning/50 text-white border border-white/5">0.62</div>
-<div class="h-12 flex items-center justify-center bg-warning/30 text-white border border-white/5">0.45</div>
-<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
-<div class="h-12 flex items-center justify-center bg-tertiary/20 text-white border border-white/5">0.12</div>
-<!-- Row AAPLx -->
-<div class="p-2 flex items-center text-outline">AAPLx</div>
-<div class="h-12 flex items-center justify-center bg-warning/40 text-white border border-white/5">0.54</div>
-<div class="h-12 flex items-center justify-center bg-error/50 text-white border border-white/5">0.78</div>
-<div class="h-12 flex items-center justify-center bg-warning/60 text-white border border-white/5">0.69</div>
-<div class="h-12 flex items-center justify-center bg-tertiary/20 text-white border border-white/5">0.12</div>
-<div class="h-12 flex items-center justify-center bg-primary-container/40 text-on-primary-container border border-white/5">1.0</div>
-</div>
-</section>
-<!-- 2. Right: Liquidation Price Ladder -->
-<section class="xl:col-span-5 bg-surface-container-low border border-outline-variant rounded-lg p-6 relative overflow-hidden">
-<div class="flex items-center justify-between mb-6">
-<h2 class="font-headline text-lg tracking-tight uppercase">Liquidation Ladder</h2>
-<div class="flex gap-2">
-<span class="px-2 py-0.5 rounded-full bg-error/10 text-error font-mono text-[9px]">CRITICAL</span>
-</div>
-</div>
-<div class="relative h-[300px] border-l border-outline-variant ml-12">
-<!-- Current Price Indicator -->
-<div class="absolute top-[20%] left-0 w-full h-[1px] bg-primary/40 flex items-center">
-<div class="absolute -left-12 font-mono text-[10px] text-primary tabular-numbers">$487.23</div>
-<div class="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-mono ml-4 rounded">MARKET PRICE</div>
-</div>
-<!-- Ladder Markers -->
-<div class="absolute top-[35%] left-0 w-full h-[1px] bg-tertiary/20 flex items-center">
-<div class="absolute -left-12 font-mono text-[10px] text-tertiary tabular-numbers">$442.10</div>
-<div class="px-2 py-0.5 bg-tertiary/10 text-tertiary text-[9px] font-mono ml-4 rounded border border-tertiary/30">L-QQQx-01 SAFE</div>
-</div>
-<div class="absolute top-[60%] left-0 w-full h-[1px] bg-warning/30 flex items-center">
-<div class="absolute -left-12 font-mono text-[10px] text-warning tabular-numbers">$389.12</div>
-<div class="px-2 py-0.5 bg-warning/10 text-warning text-[9px] font-mono ml-4 rounded border border-warning/30">L-NVDAx-02 WARNING</div>
-</div>
-<div class="absolute top-[85%] left-0 w-full h-[1px] bg-error flex items-center">
-<div class="absolute -left-12 font-mono text-[10px] text-error font-bold tabular-numbers">$312.50</div>
-<div class="px-2 py-0.5 bg-error/20 text-error text-[9px] font-mono ml-4 rounded border border-error/50">L-TSLAx-MAX DANGER</div>
-</div>
-<!-- Vertical Gradient Axis -->
-<div class="absolute left-0 top-0 h-full w-2 bg-gradient-to-b from-tertiary via-warning to-error opacity-40"></div>
-</div>
-</section>
-</div>
-<!-- 3. Drawdown Analysis (Full Width Area Chart) -->
-<section class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
-<div class="flex items-center justify-between mb-8">
-<div>
-<h2 class="font-headline text-lg tracking-tight uppercase">Historical Drawdown %</h2>
-<p class="text-xs text-outline font-medium">Position-weighted trailing 180D volatility</p>
-</div>
-<div class="flex gap-4 font-mono text-[10px]">
-<div class="flex items-center gap-2"><div class="w-2 h-2 bg-error"></div> Drawdown</div>
-<div class="flex items-center gap-2"><div class="w-2 h-2 bg-surface-container-highest"></div> Baseline</div>
-</div>
-</div>
-<div class="relative h-48 w-full">
-<!-- Zero Line -->
-<div class="absolute top-0 left-0 w-full h-[1px] bg-outline/40"></div>
-<!-- Simulated Area Chart -->
-<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
-<path d="M0,0 L10,0 L15,12 L20,8 L25,25 L30,18 L35,45 L40,32 L45,28 L50,65 L55,40 L60,35 L65,15 L70,10 L75,12 L80,5 L85,0 L100,0 L100,0 L0,0 Z" fill="rgba(255, 82, 82, 0.15)" stroke="#ff5252" stroke-width="1.5"></path>
-<line stroke="#ff5252" stroke-dasharray="2,2" x1="35" x2="35" y1="0" y2="45"></line>
-<line stroke="#ff5252" stroke-dasharray="2,2" x1="50" x2="50" y1="0" y2="65"></line>
-</svg>
-<!-- Annotations -->
-<div class="absolute left-[34%] top-[50%] -translate-x-1/2">
-<div class="bg-surface-container-high border border-outline-variant px-2 py-1 rounded">
-<span class="text-[9px] font-mono text-error">-4.5% Flash Crash</span>
-</div>
-</div>
-<div class="absolute left-[49%] top-[70%] -translate-x-1/2">
-<div class="bg-surface-container-high border border-outline-variant px-2 py-1 rounded">
-<span class="text-[9px] font-mono text-error">-12.4% Max DD Event</span>
-</div>
-</div>
-</div>
-<div class="flex justify-between mt-4 font-mono text-[9px] text-outline px-2">
-<span>JAN 2024</span>
-<span>FEB 2024</span>
-<span>MAR 2024</span>
-<span>APR 2024</span>
-<span>MAY 2024</span>
-<span>JUN 2024</span>
-</div>
-</section>
-<!-- 4. Auto-Deleverage Cascade -->
-<section class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
-<h2 class="font-headline text-lg tracking-tight uppercase mb-6">Auto-Deleverage Safety Cascade</h2>
-<div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-<div class="p-4 border-l-4 border-tertiary bg-surface-container-high rounded flex flex-col justify-between">
-<div>
-<div class="text-[10px] font-bold text-tertiary uppercase">Level 1</div>
-<div class="text-xs text-outline mt-1 italic">Soft Adjustment</div>
-</div>
-<div class="mt-4">
-<div class="font-mono text-lg tabular-numbers">10% <span class="text-[10px]">REDUCE</span></div>
-<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -5.0%</div>
-</div>
-</div>
-<div class="p-4 border-l-4 border-warning bg-surface-container-high rounded flex flex-col justify-between">
-<div>
-<div class="text-[10px] font-bold text-warning uppercase">Level 2</div>
-<div class="text-xs text-outline mt-1 italic">Margin Relief</div>
-</div>
-<div class="mt-4">
-<div class="font-mono text-lg tabular-numbers">25% <span class="text-[10px]">REDUCE</span></div>
-<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -10.0%</div>
-</div>
-</div>
-<div class="p-4 border-l-4 border-orange-500 bg-surface-container-high rounded flex flex-col justify-between">
-<div>
-<div class="text-[10px] font-bold text-orange-500 uppercase">Level 3</div>
-<div class="text-xs text-outline mt-1 italic">Aggressive De-risk</div>
-</div>
-<div class="mt-4">
-<div class="font-mono text-lg tabular-numbers">50% <span class="text-[10px]">REDUCE</span></div>
-<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -15.0%</div>
-</div>
-</div>
-<div class="p-4 border-l-4 border-error bg-surface-container-high rounded flex flex-col justify-between">
-<div>
-<div class="text-[10px] font-bold text-error uppercase">Level 4</div>
-<div class="text-xs text-outline mt-1 italic">Emergency Halt</div>
-</div>
-<div class="mt-4">
-<div class="font-mono text-lg tabular-numbers">75% <span class="text-[10px]">REDUCE</span></div>
-<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -20.0%</div>
-</div>
-</div>
-<div class="p-4 border-l-4 border-red-900 bg-surface-container-high rounded flex flex-col justify-between">
-<div>
-<div class="text-[10px] font-bold text-red-900 uppercase">Level 5</div>
-<div class="text-xs text-outline mt-1 italic">Full Liquidation</div>
-</div>
-<div class="mt-4">
-<div class="font-mono text-lg tabular-numbers">100% <span class="text-[10px]">REDUCE</span></div>
-<div class="text-[9px] text-on-surface-variant font-mono">Trigger: -25.0%</div>
-</div>
-</div>
-</div>
-</section>
-<!-- 5. Margin Utilization Table -->
-<section class="bg-surface-container-low border border-outline-variant rounded-lg overflow-hidden">
-<div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
-<h2 class="font-headline text-lg tracking-tight uppercase">Position Risk Breakdown</h2>
-<button class="text-[10px] uppercase font-bold text-primary tracking-widest flex items-center gap-1 hover:opacity-80">
-<span class="material-symbols-outlined text-xs">download</span> EXPORT CSV
-                </button>
-</div>
-<div class="overflow-x-auto">
-<table class="w-full text-left font-mono text-[11px] border-collapse">
-<thead class="bg-surface-container-high text-outline uppercase tracking-tighter">
-<tr>
-<th class="px-6 py-3 font-medium">Asset</th>
-<th class="px-6 py-3 font-medium text-right">Position Size</th>
-<th class="px-6 py-3 font-medium text-right">Margin Used</th>
-<th class="px-6 py-3 font-medium text-right">Utilization %</th>
-<th class="px-6 py-3 font-medium text-right">Health Factor</th>
-<th class="px-6 py-3 font-medium text-right">Liq. Price</th>
-<th class="px-6 py-3 font-medium text-center">Risk Level</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-outline-variant/10">
-<tr class="hover:bg-white/5 transition-colors group">
-<td class="px-6 py-4 font-bold flex items-center gap-2">
-<span class="w-1 h-3 bg-tertiary"></span> QQQx 3× Long
-                            </td>
-<td class="px-6 py-4 text-right tabular-numbers">500 QQQx</td>
-<td class="px-6 py-4 text-right tabular-numbers">$243,615</td>
-<td class="px-6 py-4 text-right tabular-numbers">42.1%</td>
-<td class="px-6 py-4 text-right text-tertiary tabular-numbers">2.41</td>
-<td class="px-6 py-4 text-right tabular-numbers text-outline">$312.50</td>
-<td class="px-6 py-4 text-center">
-<span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary text-[9px] font-bold">LOW</span>
-</td>
-</tr>
-<tr class="hover:bg-white/5 transition-colors group">
-<td class="px-6 py-4 font-bold flex items-center gap-2">
-<span class="w-1 h-3 bg-warning"></span> NVDAx 2× Long
-                            </td>
-<td class="px-6 py-4 text-right tabular-numbers">300 NVDAx</td>
-<td class="px-6 py-4 text-right tabular-numbers">$51,459</td>
-<td class="px-6 py-4 text-right tabular-numbers">78.5%</td>
-<td class="px-6 py-4 text-right text-warning tabular-numbers">1.15</td>
-<td class="px-6 py-4 text-right tabular-numbers text-outline">$102.92</td>
-<td class="px-6 py-4 text-center">
-<span class="px-2 py-1 rounded bg-warning/10 text-warning text-[9px] font-bold">MEDIUM</span>
-</td>
-</tr>
-<tr class="hover:bg-white/5 transition-colors group">
-<td class="px-6 py-4 font-bold flex items-center gap-2">
-<span class="w-1 h-3 bg-error"></span> TSLAx 2× Short
-                            </td>
-<td class="px-6 py-4 text-right tabular-numbers">100 TSLAx</td>
-<td class="px-6 py-4 text-right tabular-numbers">$28,044</td>
-<td class="px-6 py-4 text-right tabular-numbers">92.1%</td>
-<td class="px-6 py-4 text-right text-error tabular-numbers">1.04</td>
-<td class="px-6 py-4 text-right tabular-numbers text-outline">$364.57</td>
-<td class="px-6 py-4 text-center">
-<span class="px-2 py-1 rounded bg-error/10 text-error text-[9px] font-bold">HIGH</span>
-</td>
-</tr>
-<tr class="hover:bg-white/5 transition-colors group">
-<td class="px-6 py-4 font-bold flex items-center gap-2">
-<span class="w-1 h-3 bg-tertiary"></span> SPYx 1.5× Long
-                            </td>
-<td class="px-6 py-4 text-right tabular-numbers">50 SPYx</td>
-<td class="px-6 py-4 text-right tabular-numbers">$32,591</td>
-<td class="px-6 py-4 text-right tabular-numbers">21.4%</td>
-<td class="px-6 py-4 text-right text-tertiary tabular-numbers">3.88</td>
-<td class="px-6 py-4 text-right tabular-numbers text-outline">$520.00</td>
-<td class="px-6 py-4 text-center">
-<span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary text-[9px] font-bold">LOW</span>
-</td>
-</tr>
-<tr class="hover:bg-white/5 transition-colors group">
-<td class="px-6 py-4 font-bold flex items-center gap-2">
-<span class="w-1 h-3 bg-warning"></span> COINx 2× Long
-                            </td>
-<td class="px-6 py-4 text-right tabular-numbers">100 COINx</td>
-<td class="px-6 py-4 text-right tabular-numbers">$16,997</td>
-<td class="px-6 py-4 text-right tabular-numbers">65.2%</td>
-<td class="px-6 py-4 text-right text-warning tabular-numbers">1.45</td>
-<td class="px-6 py-4 text-right tabular-numbers text-outline">$101.98</td>
-<td class="px-6 py-4 text-center">
-<span class="px-2 py-1 rounded bg-warning/10 text-warning text-[9px] font-bold">MEDIUM</span>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT                                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<main class="lg:ml-64 pt-24 pb-12 px-6" id="mainContent">
+
+  <!-- 1. Risk State Machine -->
+  <section class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-headline text-lg tracking-tight uppercase">Protocol Risk State</h2>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-mono text-outline uppercase tracking-widest">Live Engine</span>
+        <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="stateCards">
+      <div class="state-card p-4 rounded-lg border-2 state-transition cursor-pointer" data-state="NORMAL"
+           style="background:#00e67610; border-color:#00e676">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="relative">
+            <div class="w-3 h-3 rounded-full bg-[#00e676]"></div>
+            <div class="absolute inset-0 rounded-full bg-[#00e676] pulse-ring"></div>
+          </div>
+          <span class="font-mono text-xs font-bold text-[#00e676] uppercase">Normal</span>
+        </div>
+        <div class="font-mono text-2xl tabular-numbers text-[#00e676]">4.0x</div>
+        <div class="text-[9px] text-outline mt-1">Max leverage available</div>
+        <div class="text-[9px] text-[#00e676] mt-2 font-medium">All systems nominal</div>
+      </div>
+      <div class="state-card p-4 rounded-lg border state-transition cursor-pointer" data-state="WARNING"
+           style="background:#1b1b1f; border-color:#252833">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-3 h-3 rounded-full bg-[#555970]"></div>
+          <span class="font-mono text-xs font-bold text-[#555970] uppercase">Warning</span>
+        </div>
+        <div class="font-mono text-2xl tabular-numbers text-[#555970]">3.0x</div>
+        <div class="text-[9px] text-outline mt-1">Leverage capped</div>
+        <div class="text-[9px] text-[#555970] mt-2 font-medium">Elevated risk detected</div>
+      </div>
+      <div class="state-card p-4 rounded-lg border state-transition cursor-pointer" data-state="RESTRICTED"
+           style="background:#1b1b1f; border-color:#252833">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-3 h-3 rounded-full bg-[#555970]"></div>
+          <span class="font-mono text-xs font-bold text-[#555970] uppercase">Restricted</span>
+        </div>
+        <div class="font-mono text-2xl tabular-numbers text-[#555970]">1.5x</div>
+        <div class="text-[9px] text-outline mt-1">New positions paused</div>
+        <div class="text-[9px] text-[#555970] mt-2 font-medium">Active risk mitigation</div>
+      </div>
+      <div class="state-card p-4 rounded-lg border state-transition cursor-pointer" data-state="EMERGENCY"
+           style="background:#1b1b1f; border-color:#252833">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-3 h-3 rounded-full bg-[#555970]"></div>
+          <span class="font-mono text-xs font-bold text-[#555970] uppercase">Emergency</span>
+        </div>
+        <div class="font-mono text-2xl tabular-numbers text-[#555970]">0.0x</div>
+        <div class="text-[9px] text-outline mt-1">All leverage halted</div>
+        <div class="text-[9px] text-[#555970] mt-2 font-medium">Auto-deleverage active</div>
+      </div>
+    </div>
+
+    <div id="reasonsPanel" class="bg-surface-container-low border border-outline-variant rounded-lg p-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="material-symbols-outlined text-sm text-[#00e676]">info</span>
+        <span class="text-xs font-medium uppercase tracking-widest text-outline">Active Triggers</span>
+      </div>
+      <div id="reasonsList" class="space-y-1">
+        <div class="font-mono text-xs text-[#00e676]">No active risk triggers — all parameters within safe bounds</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Risk Metrics Summary -->
+  <header class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+      <div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Portfolio VaR (95%)</div>
+      <div class="font-mono text-xl text-error" id="metricVaR">-$42,891</div>
+    </div>
+    <div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+      <div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Drawdown</div>
+      <div class="font-mono text-xl" id="metricDrawdown">-3.2%</div>
+    </div>
+    <div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+      <div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Health Factor</div>
+      <div class="font-mono text-xl" id="metricHealth">1.84</div>
+    </div>
+    <div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+      <div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Volatility (Ann.)</div>
+      <div class="font-mono text-xl" id="metricVol">24%</div>
+    </div>
+    <div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
+      <div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Pool Utilization</div>
+      <div class="flex items-center gap-3">
+        <div class="font-mono text-xl" id="metricUtil">48%</div>
+        <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+          <div class="h-full bg-tertiary state-transition" id="metricUtilBar" style="width:48%"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3. Oracle Health + Dynamic Leverage Caps -->
+  <section id="oracle-section" class="mb-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="bg-surface-container-low border border-outline-variant rounded-lg p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-headline text-lg tracking-tight uppercase">Oracle Health</h2>
+        <div class="flex items-center gap-2" id="oracleStatusBadge">
+          <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
+          <span class="text-[10px] font-mono text-[#00e676] uppercase">Healthy</span>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between p-3 bg-surface-container-high rounded border border-outline-variant/50">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-sm text-primary">rss_feed</span>
+            <div>
+              <div class="text-xs font-medium">Chainlink NASDAQ-100</div>
+              <div class="text-[9px] text-outline font-mono">Primary Feed</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-mono text-sm tabular-numbers" id="oraclePrimary">$487.23</div>
+            <div class="text-[9px] text-outline font-mono" id="oraclePrimaryAge">12s ago</div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between p-3 bg-surface-container-high rounded border border-outline-variant/50">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-sm text-secondary">rss_feed</span>
+            <div>
+              <div class="text-xs font-medium">Pyth NASDAQ-100</div>
+              <div class="text-[9px] text-outline font-mono">Secondary Feed</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-mono text-sm tabular-numbers" id="oracleSecondary">$487.41</div>
+            <div class="text-[9px] text-outline font-mono" id="oracleSecondaryAge">8s ago</div>
+          </div>
+        </div>
+        <div class="p-3 bg-surface-container-high rounded border border-outline-variant/50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] font-medium uppercase tracking-widest text-outline">Feed Divergence</span>
+            <span class="font-mono text-xs tabular-numbers" id="oracleDivValue">0.04%</span>
+          </div>
+          <div class="relative h-2 bg-surface-container-highest rounded-full overflow-hidden">
+            <div class="absolute h-full bg-[#00e676] state-transition rounded-full" id="oracleDivBar" style="width:4%"></div>
+            <div class="absolute top-0 h-full w-px bg-[#ffd740]" style="left:33%"></div>
+            <div class="absolute top-0 h-full w-px bg-[#ff5252]" style="left:100%"></div>
+          </div>
+          <div class="flex justify-between mt-1 font-mono text-[8px] text-outline">
+            <span>0%</span>
+            <span class="text-[#ffd740]">1% warn</span>
+            <span class="text-[#ff5252]">3% crit</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-low border border-outline-variant rounded-lg p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-headline text-lg tracking-tight uppercase">Dynamic Leverage Caps</h2>
+        <span class="text-[10px] font-mono text-outline">Policy-driven</span>
+      </div>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between p-3 bg-surface-container-high rounded border border-outline-variant/50">
+          <span class="text-xs font-medium">Current Max Leverage</span>
+          <span class="font-mono text-xl font-bold tabular-numbers" id="currentLevCap">4.0x</span>
+        </div>
+        <div class="text-[10px] font-medium uppercase tracking-widest text-outline mb-2">Leverage by Risk State</div>
+        <div class="space-y-1.5" id="leverageLadder">
+          <div class="flex items-center gap-3 p-2 rounded bg-[#00e676]/10 border border-[#00e676]/30" data-lev-state="NORMAL">
+            <div class="w-2 h-2 rounded-full bg-[#00e676]"></div>
+            <span class="text-xs flex-1">Normal</span>
+            <span class="font-mono text-sm font-bold text-[#00e676]">4.0x</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 rounded bg-[#1b1b1f] border border-outline-variant/30" data-lev-state="WARNING">
+            <div class="w-2 h-2 rounded-full bg-[#ffd740]"></div>
+            <span class="text-xs flex-1">Warning</span>
+            <span class="font-mono text-sm font-bold text-[#ffd740]">3.0x</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 rounded bg-[#1b1b1f] border border-outline-variant/30" data-lev-state="RESTRICTED">
+            <div class="w-2 h-2 rounded-full bg-[#ff9100]"></div>
+            <span class="text-xs flex-1">Restricted</span>
+            <span class="font-mono text-sm font-bold text-[#ff9100]">1.5x</span>
+          </div>
+          <div class="flex items-center gap-3 p-2 rounded bg-[#1b1b1f] border border-outline-variant/30" data-lev-state="EMERGENCY">
+            <div class="w-2 h-2 rounded-full bg-[#ff5252]"></div>
+            <span class="text-xs flex-1">Emergency</span>
+            <span class="font-mono text-sm font-bold text-[#ff5252]">0.0x</span>
+          </div>
+        </div>
+        <div class="mt-3 p-3 bg-surface-container-high rounded border border-outline-variant/50">
+          <div class="text-[10px] uppercase tracking-widest text-outline mb-1">Reason for Current Cap</div>
+          <div class="font-mono text-xs" id="levCapReason">All parameters within safe bounds — full leverage available</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Auto-Deleverage Cascade -->
+  <section id="deleverage-section" class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="font-headline text-lg tracking-tight uppercase">Auto-Deleverage Safety Cascade</h2>
+      <div class="flex items-center gap-2" id="deleverageBadge">
+        <span class="font-mono text-[10px] uppercase tracking-widest text-[#00e676]">Level 0 — No Action</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-3" id="deleverageLevels">
+      <div class="deleverage-level p-4 border-l-4 border-[#00e676] bg-[#00e676]/5 rounded flex flex-col justify-between" data-level="0">
+        <div>
+          <div class="text-[10px] font-bold text-[#00e676] uppercase">Level 0</div>
+          <div class="text-xs text-outline mt-1 italic">No Action</div>
+        </div>
+        <div class="mt-4">
+          <div class="font-mono text-lg tabular-numbers">0% <span class="text-[10px]">REDUCE</span></div>
+          <div class="text-[9px] text-on-surface-variant font-mono">DD &lt; 10%</div>
+        </div>
+      </div>
+      <div class="deleverage-level p-4 border-l-4 border-[#252833] bg-surface-container-high rounded flex flex-col justify-between" data-level="1">
+        <div>
+          <div class="text-[10px] font-bold text-[#8b8fa3] uppercase">Level 1</div>
+          <div class="text-xs text-outline mt-1 italic">Soft Reduction</div>
+        </div>
+        <div class="mt-4">
+          <div class="font-mono text-lg tabular-numbers">25% <span class="text-[10px]">REDUCE</span></div>
+          <div class="text-[9px] text-on-surface-variant font-mono">Trigger: -10%</div>
+        </div>
+      </div>
+      <div class="deleverage-level p-4 border-l-4 border-[#252833] bg-surface-container-high rounded flex flex-col justify-between" data-level="2">
+        <div>
+          <div class="text-[10px] font-bold text-[#8b8fa3] uppercase">Level 2</div>
+          <div class="text-xs text-outline mt-1 italic">Margin Relief</div>
+        </div>
+        <div class="mt-4">
+          <div class="font-mono text-lg tabular-numbers">50% <span class="text-[10px]">REDUCE</span></div>
+          <div class="text-[9px] text-on-surface-variant font-mono">Trigger: -15%</div>
+        </div>
+      </div>
+      <div class="deleverage-level p-4 border-l-4 border-[#252833] bg-surface-container-high rounded flex flex-col justify-between" data-level="3">
+        <div>
+          <div class="text-[10px] font-bold text-[#8b8fa3] uppercase">Level 3</div>
+          <div class="text-xs text-outline mt-1 italic">Cap 1.5x AUTO</div>
+        </div>
+        <div class="mt-4">
+          <div class="font-mono text-lg tabular-numbers">&#8594;1.5x <span class="text-[10px]">CAP</span></div>
+          <div class="text-[9px] text-on-surface-variant font-mono">Trigger: -22%</div>
+        </div>
+      </div>
+      <div class="deleverage-level p-4 border-l-4 border-[#252833] bg-surface-container-high rounded flex flex-col justify-between" data-level="4">
+        <div>
+          <div class="text-[10px] font-bold text-[#8b8fa3] uppercase">Level 4</div>
+          <div class="text-xs text-outline mt-1 italic">Force 1x AUTO</div>
+        </div>
+        <div class="mt-4">
+          <div class="font-mono text-lg tabular-numbers">&#8594;1.0x <span class="text-[10px]">FORCE</span></div>
+          <div class="text-[9px] text-on-surface-variant font-mono">Trigger: -30%</div>
+        </div>
+      </div>
+      <div class="deleverage-level p-4 border-l-4 border-[#252833] bg-surface-container-high rounded flex flex-col justify-between" data-level="5">
+        <div>
+          <div class="text-[10px] font-bold text-[#8b8fa3] uppercase">Level 5</div>
+          <div class="text-xs text-outline mt-1 italic">Liquidation</div>
+        </div>
+        <div class="mt-4">
+          <div class="font-mono text-lg tabular-numbers">100% <span class="text-[10px]">CLOSE</span></div>
+          <div class="text-[9px] text-on-surface-variant font-mono">Trigger: -40%</div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 p-4 bg-surface-container-high rounded border border-outline-variant/50" id="deleverageRec">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="material-symbols-outlined text-sm text-[#00e676]">check_circle</span>
+        <span class="text-xs font-medium uppercase tracking-widest text-outline">Current Recommendation</span>
+      </div>
+      <div class="font-mono text-sm" id="deleverageRecText">No action required — position leverage within safe bounds</div>
+    </div>
+  </section>
+
+  <!-- 5. Position Risk Table -->
+  <section id="positions-section" class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg overflow-hidden">
+    <div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
+      <h2 class="font-headline text-lg tracking-tight uppercase">Position Risk Breakdown</h2>
+      <button class="text-[10px] uppercase font-bold text-primary tracking-widest flex items-center gap-1 hover:opacity-80">
+        <span class="material-symbols-outlined text-xs">download</span> EXPORT CSV
+      </button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left font-mono text-[11px] border-collapse">
+        <thead class="bg-surface-container-high text-outline uppercase tracking-tighter">
+          <tr>
+            <th class="px-6 py-3 font-medium">Asset</th>
+            <th class="px-6 py-3 font-medium text-right">Position Size</th>
+            <th class="px-6 py-3 font-medium text-right">Margin Used</th>
+            <th class="px-6 py-3 font-medium text-right">Utilization %</th>
+            <th class="px-6 py-3 font-medium text-right">Health Factor</th>
+            <th class="px-6 py-3 font-medium text-right">Liq. Price</th>
+            <th class="px-6 py-3 font-medium text-center">Risk Level</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline-variant/10">
+          <tr class="hover:bg-white/5 transition-colors">
+            <td class="px-6 py-4 font-bold flex items-center gap-2"><span class="w-1 h-3 bg-tertiary"></span> QQQx 3x Long</td>
+            <td class="px-6 py-4 text-right tabular-numbers">500 QQQx</td>
+            <td class="px-6 py-4 text-right tabular-numbers">$243,615</td>
+            <td class="px-6 py-4 text-right tabular-numbers">42.1%</td>
+            <td class="px-6 py-4 text-right text-tertiary tabular-numbers">2.41</td>
+            <td class="px-6 py-4 text-right tabular-numbers text-outline">$312.50</td>
+            <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary text-[9px] font-bold">LOW</span></td>
+          </tr>
+          <tr class="hover:bg-white/5 transition-colors">
+            <td class="px-6 py-4 font-bold flex items-center gap-2"><span class="w-1 h-3 bg-warning"></span> NVDAx 2x Long</td>
+            <td class="px-6 py-4 text-right tabular-numbers">300 NVDAx</td>
+            <td class="px-6 py-4 text-right tabular-numbers">$51,459</td>
+            <td class="px-6 py-4 text-right tabular-numbers">78.5%</td>
+            <td class="px-6 py-4 text-right text-warning tabular-numbers">1.15</td>
+            <td class="px-6 py-4 text-right tabular-numbers text-outline">$102.92</td>
+            <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded bg-warning/10 text-warning text-[9px] font-bold">MEDIUM</span></td>
+          </tr>
+          <tr class="hover:bg-white/5 transition-colors">
+            <td class="px-6 py-4 font-bold flex items-center gap-2"><span class="w-1 h-3 bg-error"></span> TSLAx 2x Short</td>
+            <td class="px-6 py-4 text-right tabular-numbers">100 TSLAx</td>
+            <td class="px-6 py-4 text-right tabular-numbers">$28,044</td>
+            <td class="px-6 py-4 text-right tabular-numbers">92.1%</td>
+            <td class="px-6 py-4 text-right text-error tabular-numbers">1.04</td>
+            <td class="px-6 py-4 text-right tabular-numbers text-outline">$364.57</td>
+            <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded bg-error/10 text-error text-[9px] font-bold">HIGH</span></td>
+          </tr>
+          <tr class="hover:bg-white/5 transition-colors">
+            <td class="px-6 py-4 font-bold flex items-center gap-2"><span class="w-1 h-3 bg-tertiary"></span> SPYx 1.5x Long</td>
+            <td class="px-6 py-4 text-right tabular-numbers">50 SPYx</td>
+            <td class="px-6 py-4 text-right tabular-numbers">$32,591</td>
+            <td class="px-6 py-4 text-right tabular-numbers">21.4%</td>
+            <td class="px-6 py-4 text-right text-tertiary tabular-numbers">3.88</td>
+            <td class="px-6 py-4 text-right tabular-numbers text-outline">$520.00</td>
+            <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary text-[9px] font-bold">LOW</span></td>
+          </tr>
+          <tr class="hover:bg-white/5 transition-colors">
+            <td class="px-6 py-4 font-bold flex items-center gap-2"><span class="w-1 h-3 bg-warning"></span> COINx 2x Long</td>
+            <td class="px-6 py-4 text-right tabular-numbers">100 COINx</td>
+            <td class="px-6 py-4 text-right tabular-numbers">$16,997</td>
+            <td class="px-6 py-4 text-right tabular-numbers">65.2%</td>
+            <td class="px-6 py-4 text-right text-warning tabular-numbers">1.45</td>
+            <td class="px-6 py-4 text-right tabular-numbers text-outline">$101.98</td>
+            <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded bg-warning/10 text-warning text-[9px] font-bold">MEDIUM</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6. Interactive Scenario Tester -->
+  <section id="scenario-section" class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="font-headline text-lg tracking-tight uppercase">Risk Scenario Tester</h2>
+        <p class="text-xs text-outline mt-1">Simulate market conditions and watch the guardrails respond</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="loadScenario('normalMarket')" class="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-widest border border-outline-variant hover:border-[#00e676] hover:text-[#00e676] transition-colors">Normal</button>
+        <button onclick="loadScenario('stressedMarket')" class="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-widest border border-outline-variant hover:border-[#ff5252] hover:text-[#ff5252] transition-colors">Stressed</button>
+        <button onclick="loadScenario('oracleFailure')" class="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-widest border border-outline-variant hover:border-[#ffd740] hover:text-[#ffd740] transition-colors">Oracle Fail</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div>
+        <label class="text-[10px] font-medium uppercase tracking-widest text-outline block mb-1">Oracle Age (sec)</label>
+        <input type="range" min="0" max="1500" value="12" class="w-full accent-[#7c4dff]" id="inputOracleAge" oninput="updateFromSliders()"/>
+        <div class="font-mono text-xs text-right tabular-numbers" id="labelOracleAge">12s</div>
+      </div>
+      <div>
+        <label class="text-[10px] font-medium uppercase tracking-widest text-outline block mb-1">Oracle Divergence (%)</label>
+        <input type="range" min="0" max="500" value="4" class="w-full accent-[#7c4dff]" id="inputOraclDiv" oninput="updateFromSliders()"/>
+        <div class="font-mono text-xs text-right tabular-numbers" id="labelOraclDiv">0.04%</div>
+      </div>
+      <div>
+        <label class="text-[10px] font-medium uppercase tracking-widest text-outline block mb-1">Drawdown (%)</label>
+        <input type="range" min="0" max="5000" value="320" class="w-full accent-[#7c4dff]" id="inputDrawdown" oninput="updateFromSliders()"/>
+        <div class="font-mono text-xs text-right tabular-numbers" id="labelDrawdown">3.2%</div>
+      </div>
+      <div>
+        <label class="text-[10px] font-medium uppercase tracking-widest text-outline block mb-1">Health Factor</label>
+        <input type="range" min="50" max="500" value="184" class="w-full accent-[#7c4dff]" id="inputHealth" oninput="updateFromSliders()"/>
+        <div class="font-mono text-xs text-right tabular-numbers" id="labelHealth">1.84</div>
+      </div>
+      <div>
+        <label class="text-[10px] font-medium uppercase tracking-widest text-outline block mb-1">Volatility (Ann. %)</label>
+        <input type="range" min="0" max="200" value="24" class="w-full accent-[#7c4dff]" id="inputVol" oninput="updateFromSliders()"/>
+        <div class="font-mono text-xs text-right tabular-numbers" id="labelVol">24%</div>
+      </div>
+      <div>
+        <label class="text-[10px] font-medium uppercase tracking-widest text-outline block mb-1">Pool Utilization (%)</label>
+        <input type="range" min="0" max="100" value="48" class="w-full accent-[#7c4dff]" id="inputUtil" oninput="updateFromSliders()"/>
+        <div class="font-mono text-xs text-right tabular-numbers" id="labelUtil">48%</div>
+      </div>
+    </div>
+
+    <div id="scenarioPlayback" class="hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <button onclick="playScenario()" class="px-3 py-1.5 rounded bg-primary-container text-white text-[10px] font-mono uppercase tracking-widest hover:opacity-90 transition-opacity" id="playBtn">
+            <span class="material-symbols-outlined text-xs align-middle mr-1">play_arrow</span> Play
+          </button>
+          <button onclick="resetScenario()" class="px-3 py-1.5 rounded border border-outline-variant text-[10px] font-mono uppercase tracking-widest hover:border-primary transition-colors">
+            <span class="material-symbols-outlined text-xs align-middle mr-1">restart_alt</span> Reset
+          </button>
+        </div>
+        <span class="font-mono text-[10px] text-outline" id="scenarioName"></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left font-mono text-[10px] border-collapse">
+          <thead class="bg-surface-container-high text-outline uppercase tracking-tighter">
+            <tr>
+              <th class="px-3 py-2">Tick</th>
+              <th class="px-3 py-2">State</th>
+              <th class="px-3 py-2 text-right">DD</th>
+              <th class="px-3 py-2 text-right">Health</th>
+              <th class="px-3 py-2 text-right">Oracle</th>
+              <th class="px-3 py-2 text-right">Lev Cap</th>
+              <th class="px-3 py-2 text-right">Lev After</th>
+              <th class="px-3 py-2">Action</th>
+            </tr>
+          </thead>
+          <tbody id="scenarioBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
 </main>
-<!-- Footer Execution -->
+
+<!-- Footer -->
 <footer class="fixed bottom-0 w-full flex justify-between items-center px-4 py-1 h-8 bg-[#1f1f23] border-t border-[#292a2d] z-50">
-<div class="flex items-center gap-4">
-<span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#00e676]">Network: Mainnet | Block: 19482734 | Gas: 12 Gwei</span>
-</div>
-<div class="flex items-center gap-6">
-<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">System Status</a>
-<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">API Docs</a>
-<a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">Support</a>
-</div>
+  <div class="flex items-center gap-4">
+    <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#00e676]">Network: Mainnet | Block: 19482734 | Gas: 12 Gwei</span>
+  </div>
+  <div class="flex items-center gap-6">
+    <a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="risk-engine.test.html" target="_blank">Test Harness</a>
+    <a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">API Docs</a>
+    <a class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#8b8fa3] hover:text-[#cdbdff]" href="#">Support</a>
+  </div>
 </footer>
+
+<script src="risk-engine.js"></script>
+<script type="module" src="wallet.js"></script>
+<script src="ux.js"></script>
+
+<script>
+const STATE_COLORS = { NORMAL: '#00e676', WARNING: '#ffd740', RESTRICTED: '#ff9100', EMERGENCY: '#ff5252' };
+
+let currentScenarioKey = null;
+let scenarioTimeline = null;
+let playInterval = null;
+let playIndex = 0;
+
+function getSliderInputs() {
+  return {
+    oracleAgeSec:     parseInt(document.getElementById('inputOracleAge').value),
+    oracleDivergence: parseInt(document.getElementById('inputOraclDiv').value) / 10000,
+    drawdown:         parseInt(document.getElementById('inputDrawdown').value) / 10000,
+    healthFactor:     parseInt(document.getElementById('inputHealth').value) / 100,
+    volatility:       parseInt(document.getElementById('inputVol').value) / 100,
+    utilization:      parseInt(document.getElementById('inputUtil').value) / 100,
+  };
+}
+
+function updateFromSliders() {
+  const inputs = getSliderInputs();
+  document.getElementById('labelOracleAge').textContent = inputs.oracleAgeSec + 's';
+  document.getElementById('labelOraclDiv').textContent = (inputs.oracleDivergence * 100).toFixed(2) + '%';
+  document.getElementById('labelDrawdown').textContent = (inputs.drawdown * 100).toFixed(1) + '%';
+  document.getElementById('labelHealth').textContent = inputs.healthFactor.toFixed(2);
+  document.getElementById('labelVol').textContent = Math.round(inputs.volatility * 100) + '%';
+  document.getElementById('labelUtil').textContent = Math.round(inputs.utilization * 100) + '%';
+  updateUI(inputs);
+}
+
+function updateUI(inputs) {
+  const ev = RiskEngine.evaluate(inputs);
+  const rec = RiskEngine.deleverageRecommendation(3.0, ev);
+  const color = STATE_COLORS[ev.state];
+
+  // Risk banner
+  const banner = document.getElementById('riskBanner');
+  const bannerInner = document.getElementById('riskBannerInner');
+  banner.style.display = 'block';
+  bannerInner.style.background = color + '10';
+  bannerInner.style.borderColor = color + '40';
+  document.getElementById('bannerIcon').textContent = ev.meta.icon;
+  document.getElementById('bannerIcon').style.color = color;
+  document.getElementById('bannerPulse').style.background = color;
+  document.getElementById('bannerState').textContent = ev.state;
+  document.getElementById('bannerState').style.color = color;
+  document.getElementById('bannerReason').textContent = ev.reasons.length > 0
+    ? ev.reasons[0].reason : 'All systems nominal';
+  document.getElementById('bannerLevCap').textContent = 'Max Leverage: ' + ev.leverageCap + 'x';
+  document.getElementById('bannerTime').textContent = new Date().toLocaleTimeString();
+  document.getElementById('mainContent').style.paddingTop = '6rem';
+
+  // State cards
+  document.querySelectorAll('.state-card').forEach(function(card) {
+    var s = card.dataset.state;
+    var isActive = s === ev.state;
+    var c = STATE_COLORS[s];
+    card.style.background = isActive ? c + '10' : '#1b1b1f';
+    card.style.borderColor = isActive ? c : '#252833';
+    card.querySelector('.rounded-full').style.background = isActive ? c : '#555970';
+    var spans = card.querySelectorAll('span');
+    if (spans[1]) spans[1].style.color = isActive ? c : '#555970';
+    var levText = card.querySelector('.text-2xl');
+    if (levText) levText.style.color = isActive ? c : '#555970';
+    var statusTexts = card.querySelectorAll('.font-medium');
+    var lastStatus = statusTexts[statusTexts.length - 1];
+    if (lastStatus) lastStatus.style.color = isActive ? c : '#555970';
+
+    var existingPulse = card.querySelector('.pulse-ring');
+    if (isActive && !existingPulse) {
+      var dot = card.querySelector('.rounded-full');
+      var pulse = document.createElement('div');
+      pulse.className = 'absolute inset-0 rounded-full pulse-ring';
+      pulse.style.background = c;
+      dot.parentElement.style.position = 'relative';
+      dot.parentElement.appendChild(pulse);
+    } else if (!isActive && existingPulse) {
+      existingPulse.remove();
+    }
+  });
+
+  // Reasons panel
+  var reasonsList = document.getElementById('reasonsList');
+  if (ev.reasons.length === 0) {
+    reasonsList.innerHTML = '<div class="font-mono text-xs text-[#00e676]">No active risk triggers — all parameters within safe bounds</div>';
+  } else {
+    reasonsList.innerHTML = ev.reasons.map(function(r) {
+      return '<div class="flex items-center gap-2">' +
+        '<span class="w-1.5 h-1.5 rounded-full" style="background:' + STATE_COLORS[r.state] + '"></span>' +
+        '<span class="font-mono text-xs" style="color:' + STATE_COLORS[r.state] + '">' + r.reason + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Metrics
+  document.getElementById('metricDrawdown').textContent = '-' + (inputs.drawdown * 100).toFixed(1) + '%';
+  document.getElementById('metricDrawdown').style.color = inputs.drawdown >= 0.15 ? '#ff5252' : inputs.drawdown >= 0.05 ? '#ffd740' : '#00e676';
+  document.getElementById('metricHealth').textContent = inputs.healthFactor.toFixed(2);
+  document.getElementById('metricHealth').style.color = inputs.healthFactor <= 1.05 ? '#ff5252' : inputs.healthFactor <= 1.5 ? '#ffd740' : '#00e676';
+  document.getElementById('metricVol').textContent = Math.round(inputs.volatility * 100) + '%';
+  document.getElementById('metricVol').style.color = inputs.volatility >= 0.8 ? '#ff5252' : inputs.volatility >= 0.5 ? '#ffd740' : '#00e676';
+  document.getElementById('metricUtil').textContent = Math.round(inputs.utilization * 100) + '%';
+  document.getElementById('metricUtilBar').style.width = Math.round(inputs.utilization * 100) + '%';
+  document.getElementById('metricUtilBar').style.background = inputs.utilization >= 0.9 ? '#ff5252' : inputs.utilization >= 0.75 ? '#ffd740' : '#00e676';
+
+  // Oracle panel
+  document.getElementById('oraclePrimaryAge').textContent = inputs.oracleAgeSec + 's ago';
+  document.getElementById('oracleDivValue').textContent = (inputs.oracleDivergence * 100).toFixed(2) + '%';
+  var divBarWidth = Math.min((inputs.oracleDivergence / 0.03) * 100, 100);
+  document.getElementById('oracleDivBar').style.width = divBarWidth + '%';
+  document.getElementById('oracleDivBar').style.background = inputs.oracleDivergence >= 0.03 ? '#ff5252' : inputs.oracleDivergence >= 0.01 ? '#ffd740' : '#00e676';
+
+  var oracleHealthy = inputs.oracleAgeSec < 300 && inputs.oracleDivergence < 0.01;
+  var badge = document.getElementById('oracleStatusBadge');
+  if (oracleHealthy) {
+    badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div><span class="text-[10px] font-mono text-[#00e676] uppercase">Healthy</span>';
+  } else if (inputs.oracleAgeSec >= 900 || inputs.oracleDivergence >= 0.03) {
+    badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-[#ff5252]"></div><span class="text-[10px] font-mono text-[#ff5252] uppercase">Critical</span>';
+  } else {
+    badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-[#ffd740]"></div><span class="text-[10px] font-mono text-[#ffd740] uppercase">Degraded</span>';
+  }
+
+  // Leverage caps
+  document.getElementById('currentLevCap').textContent = ev.leverageCap + 'x';
+  document.getElementById('currentLevCap').style.color = color;
+  document.getElementById('levCapReason').textContent = ev.reasons.length > 0
+    ? ev.reasons.map(function(r) { return r.reason; }).join(' · ')
+    : 'All parameters within safe bounds — full leverage available';
+
+  document.querySelectorAll('[data-lev-state]').forEach(function(row) {
+    var s = row.dataset.levState;
+    var isActive = s === ev.state;
+    row.style.background = isActive ? STATE_COLORS[s] + '10' : '#1b1b1f';
+    row.style.borderColor = isActive ? STATE_COLORS[s] + '50' : '#25283350';
+  });
+
+  // Deleverage levels
+  var activeLevel = ev.deleverageLevel;
+  var delLevelColors = ['#00e676', '#ffd740', '#ffd740', '#ff9100', '#ff5252', '#ff0000'];
+
+  document.querySelectorAll('.deleverage-level').forEach(function(el) {
+    var l = parseInt(el.dataset.level);
+    var isActive = l === activeLevel;
+    var isPast = l < activeLevel;
+    var c = delLevelColors[l];
+    el.style.borderLeftColor = (isActive || isPast) ? c : '#252833';
+    el.style.background = isActive ? c + '10' : '#292a2d';
+    var header = el.querySelector('[class*="font-bold"]');
+    if (header) header.style.color = (isActive || isPast) ? c : '#8b8fa3';
+  });
+
+  document.getElementById('deleverageBadge').innerHTML =
+    '<span class="font-mono text-[10px] uppercase tracking-widest" style="color:' + delLevelColors[activeLevel] + '">Level ' + activeLevel + ' — ' + ev.deleverageLabel + '</span>';
+
+  var recEl = document.getElementById('deleverageRecText');
+  var recIcon = document.querySelector('#deleverageRec .material-symbols-outlined');
+  recEl.textContent = rec.description;
+  if (rec.shouldAutoExecute) {
+    recIcon.textContent = 'warning';
+    recIcon.style.color = '#ff5252';
+    recEl.style.color = '#ff5252';
+  } else if (activeLevel > 0) {
+    recIcon.textContent = 'info';
+    recIcon.style.color = '#ffd740';
+    recEl.style.color = '#ffd740';
+  } else {
+    recIcon.textContent = 'check_circle';
+    recIcon.style.color = '#00e676';
+    recEl.style.color = '#e3e2e6';
+  }
+}
+
+// Scenario Playback
+function loadScenario(key) {
+  currentScenarioKey = key;
+  var scenario = RiskEngine.DEMO_SCENARIOS[key];
+  scenarioTimeline = RiskEngine.runScenario(scenario.ticks, scenario.startLeverage);
+  playIndex = 0;
+
+  document.getElementById('scenarioPlayback').classList.remove('hidden');
+  document.getElementById('scenarioName').textContent = scenario.name;
+
+  var body = document.getElementById('scenarioBody');
+  body.innerHTML = scenarioTimeline.map(function(t, i) {
+    return '<tr class="hover:bg-white/5 scenario-row" data-tick="' + i + '" style="opacity:0.25">' +
+      '<td class="px-3 py-2">' + t.tick + '</td>' +
+      '<td class="px-3 py-2"><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:' + STATE_COLORS[t.state] + '"></span><span style="color:' + STATE_COLORS[t.state] + '">' + t.state + '</span></td>' +
+      '<td class="px-3 py-2 text-right">' + (t.inputs.drawdown * 100).toFixed(1) + '%</td>' +
+      '<td class="px-3 py-2 text-right">' + t.inputs.healthFactor.toFixed(2) + '</td>' +
+      '<td class="px-3 py-2 text-right">' + t.inputs.oracleAgeSec + 's</td>' +
+      '<td class="px-3 py-2 text-right">' + t.leverageCap + 'x</td>' +
+      '<td class="px-3 py-2 text-right ' + (t.shouldAutoExecute ? 'text-error font-bold' : '') + '">' + t.leverageAfter.toFixed(1) + 'x</td>' +
+      '<td class="px-3 py-2">' + t.deleverageLabel + (t.shouldAutoExecute ? ' &#9889;' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  applyTick(0);
+}
+
+function applyTick(idx) {
+  if (!scenarioTimeline || idx >= scenarioTimeline.length) return;
+  var t = scenarioTimeline[idx].inputs;
+
+  document.getElementById('inputOracleAge').value = t.oracleAgeSec;
+  document.getElementById('inputOraclDiv').value = Math.round(t.oracleDivergence * 10000);
+  document.getElementById('inputDrawdown').value = Math.round(t.drawdown * 10000);
+  document.getElementById('inputHealth').value = Math.round(t.healthFactor * 100);
+  document.getElementById('inputVol').value = Math.round(t.volatility * 100);
+  document.getElementById('inputUtil').value = Math.round(t.utilization * 100);
+
+  updateFromSliders();
+
+  document.querySelectorAll('.scenario-row').forEach(function(row, i) {
+    row.style.opacity = i <= idx ? '1' : '0.25';
+    row.style.background = i === idx ? 'rgba(124,77,255,0.08)' : '';
+  });
+}
+
+function playScenario() {
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+    document.getElementById('playBtn').innerHTML =
+      '<span class="material-symbols-outlined text-xs align-middle mr-1">play_arrow</span> Play';
+    return;
+  }
+
+  document.getElementById('playBtn').innerHTML =
+    '<span class="material-symbols-outlined text-xs align-middle mr-1">pause</span> Pause';
+
+  playIndex = 0;
+  applyTick(0);
+
+  playInterval = setInterval(function() {
+    playIndex++;
+    if (playIndex >= scenarioTimeline.length) {
+      clearInterval(playInterval);
+      playInterval = null;
+      document.getElementById('playBtn').innerHTML =
+        '<span class="material-symbols-outlined text-xs align-middle mr-1">play_arrow</span> Play';
+      return;
+    }
+    applyTick(playIndex);
+  }, 1200);
+}
+
+function resetScenario() {
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+  }
+  document.getElementById('playBtn').innerHTML =
+    '<span class="material-symbols-outlined text-xs align-middle mr-1">play_arrow</span> Play';
+  if (currentScenarioKey) loadScenario(currentScenarioKey);
+}
+
+// Initialize
+updateFromSliders();
+</script>
 </body></html>

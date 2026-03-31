@@ -142,13 +142,24 @@
       <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
       <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ethereum · Solana</span>
     </div>
-    <button class="flex items-center gap-2 px-3 py-1.5 bg-[#12141a] border border-[#252833] rounded hover:border-[#7c4dff] transition-colors">
-      <span class="material-symbols-outlined text-[#7c4dff] text-sm">account_balance_wallet</span>
-      <span class="font-['JetBrains_Mono'] text-xs text-[#8b8fa3]">Connect</span>
-    </button>
+    <appkit-button size="sm" />
   </div>
 </nav>
-<div class="flex h-[calc(100vh-148px)] overflow-hidden">
+<!-- Risk Sentinel Banner -->
+<div id="riskBanner" class="fixed top-14 left-0 right-0 z-40" style="transition:all 0.4s cubic-bezier(0.4,0,0.2,1)">
+  <div class="flex items-center justify-between px-6 py-2 border-b" id="riskBannerInner" style="background:#00e67610;border-color:#00e67640">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-lg" id="bannerIcon" style="color:#00e676">verified_user</span>
+      <span class="font-['JetBrains_Mono'] text-xs font-bold uppercase tracking-widest" id="bannerState" style="color:#00e676">NORMAL</span>
+      <span class="text-xs opacity-80" id="bannerReason">All systems nominal</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest opacity-70" id="bannerLevCap">Max Leverage: 4.0x</span>
+      <a href="05-risk-management.html" class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#7c4dff] hover:text-[#cdbdff]">Details →</a>
+    </div>
+  </div>
+</div>
+<div class="flex h-[calc(100vh-148px)] overflow-hidden" style="margin-top:36px">
 <!-- Sidebar Navigation -->
 <aside class="flex flex-col w-16 md:w-64 border-r border-[#494455]/15 bg-[#1b1b1f] shrink-0">
 <div class="p-4 border-b border-outline-variant/10 hidden md:block">
@@ -533,6 +544,8 @@
 <span class="text-[10px] uppercase font-mono">Terminal Active</span>
 </div>
 </footer>
+<script type="module" src="wallet.js"></script>
+<script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -548,12 +561,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const ticker = activeTickerBtn ? activeTickerBtn.textContent.trim() : 'QQQx';
 
       // Get the size from input
-      const sizeInput = document.querySelector('input[value="10,000"]');
+      const sizeInput = document.querySelector('input[type="text"]');
       const sizeStr = sizeInput ? sizeInput.value.replace(/,/g, '') : '10000';
       const size = parseFloat(sizeStr) || 10000;
 
-      // Get entry price
-      const priceEl = document.querySelector('.text-tertiary.bg-tertiary\\/10');
+      // Get entry price from order book current price
+      const priceEl = document.querySelector('.mono.text-xs.font-bold.text-tertiary');
       const price = priceEl ? priceEl.textContent.trim() : '487.23';
 
       // Get fee
@@ -606,5 +619,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+</script>
+<script src="risk-engine.js"></script>
+<script>
+(function(){
+  var SC = { NORMAL:'#00e676', WARNING:'#ffd740', RESTRICTED:'#ff9100', EMERGENCY:'#ff5252' };
+  var ev = RiskEngine.evaluate({ oracleAgeSec:12, oracleDivergence:0.002, drawdown:0.032, healthFactor:1.84, volatility:0.24, utilization:0.48 });
+  var c = SC[ev.state];
+  document.getElementById('riskBannerInner').style.background = c+'10';
+  document.getElementById('riskBannerInner').style.borderColor = c+'40';
+  document.getElementById('bannerIcon').textContent = ev.meta.icon;
+  document.getElementById('bannerIcon').style.color = c;
+  document.getElementById('bannerState').textContent = ev.state;
+  document.getElementById('bannerState').style.color = c;
+  document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal';
+  document.getElementById('bannerLevCap').textContent = 'Max Leverage: '+ev.leverageCap+'x';
+})();
 </script>
 </body></html>

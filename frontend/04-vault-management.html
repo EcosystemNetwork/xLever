@@ -117,10 +117,7 @@
       <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
       <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ethereum · Solana</span>
     </div>
-    <button class="flex items-center gap-2 px-3 py-1.5 bg-[#12141a] border border-[#252833] rounded hover:border-[#7c4dff] transition-colors">
-      <span class="material-symbols-outlined text-[#7c4dff] text-sm">account_balance_wallet</span>
-      <span class="font-['JetBrains_Mono'] text-xs text-[#8b8fa3]">Connect</span>
-    </button>
+    <appkit-button size="sm" />
   </div>
 </nav>
 <!-- SideNavBar -->
@@ -583,4 +580,53 @@
 <span class="text-tertiary">Audited by Zellic</span>
 </div>
 </footer>
+<script type="module" src="wallet.js"></script>
+<script type="module" src="contracts.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Make Confirm Deposit button interactive
+  document.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent.trim() === 'Confirm Deposit') {
+      btn.addEventListener('click', () => {
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;animation:spin 0.8s linear infinite;">progress_activity</span> Processing Deposit...</span>';
+
+        // Animate the transaction sequence steps
+        const steps = btn.closest('.space-y-5, div')?.parentElement?.querySelectorAll('.flex.gap-4');
+
+        setTimeout(() => {
+          btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;color:#00e676;font-variation-settings:\'FILL\' 1;">check_circle</span> Deposit Confirmed</span>';
+          btn.style.background = '#00e676';
+          btn.style.color = '#003918';
+          XToast.show('Vault deposit of 5,000 USDC confirmed', 'success');
+          setTimeout(() => {
+            btn.innerHTML = original;
+            btn.style.background = '';
+            btn.style.color = '';
+            btn.disabled = false;
+          }, 3000);
+        }, 2500);
+      });
+    }
+    // Make vault card "Deposit" buttons show toast
+    if (btn.textContent.trim() === 'Deposit' && btn.classList.contains('bg-tertiary-container/15')) {
+      btn.addEventListener('click', () => {
+        XToast.show('Select a vault amount to deposit', 'info', 2500);
+      });
+    }
+  });
+
+  // Deposit/Withdraw tab toggle
+  const tabBtns = document.querySelectorAll('button');
+  tabBtns.forEach(btn => {
+    if (btn.textContent.trim() === 'Withdraw') {
+      btn.addEventListener('click', () => {
+        XToast.show('Withdraw functionality — select vault and amount', 'info', 2500);
+      });
+    }
+  });
+});
+</script>
 </body></html>

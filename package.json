@@ -2,9 +2,11 @@
   "name": "xlever-local",
   "version": "1.0.0",
   "description": "Continuous leverage from **-4x to +4x** on tokenized assets, built on **Euler V2 EVK** — no liquidation risk, no volatility decay.",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
