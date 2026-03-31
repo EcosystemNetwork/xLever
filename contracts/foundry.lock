@@ -1,0 +1,14 @@
+{
+  "lib/ethereum-vault-connector": {
+    "rev": "084b32284ba643921f8d21bff3ddaf0c4e08d754"
+  },
+  "lib/forge-std": {
+    "rev": "b6a506db2262cad5ff982a87789ee6d1558ec861"
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "e682c7e5b5b347662868b9c8378a694626406c01"
+  },
+  "lib/permit2": {
+    "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+  }
+}
