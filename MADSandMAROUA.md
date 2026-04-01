@@ -124,3 +124,20 @@ Chain-specific RPC / SDK calls
 ```
 
 The adapter pattern means adding a new chain is just writing one new class that implements `ILendingAdapter`. Everything else (agent logic, UI, backend routing) works automatically.
+
+---
+
+## Next Step: Connect OpenClaws & Start Testing Workflows
+
+**This is the immediate priority.** We need to connect OpenClaws and start testing real lending workflows end-to-end across chains. Specifically:
+
+1. **Connect OpenClaws** to the lending adapter registry so it can orchestrate multi-chain lending actions
+2. **Test the full workflow** on each chain:
+   - Ink Sepolia: supply USDC → borrow wQQQx → monitor health → repay
+   - Solana: supply USDC → check Kamino positions → withdraw
+   - TON: supply TON → check EVAA positions → withdraw
+   - Ethereum: ready to test once mainnet vaults are deployed
+3. **Validate agent policies** — run each mode (Yield, Leverage, Hedge, Monitor) with OpenClaws connected and confirm the agent makes correct decisions with real market state
+4. **Stress test chain switching** — switch networks mid-workflow, verify the agent hot-swaps cleanly and doesn't lose state or double-execute
+
+Don't wait on fixing the mocked data to start testing — the adapter wiring and agent logic can be validated now with the current setup. Fix the SDK integrations (Kamino, EVAA) in parallel.
