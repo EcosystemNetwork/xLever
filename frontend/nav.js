@@ -12,7 +12,7 @@
 const XNav = (() => {
   const PAGES = [
     { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html',              mode: 'trade' },
-    { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html',       mode: 'trade' },
+    { id: 'trading',    label: 'Trading',     href: 'index.html',                     mode: 'trade' },
     { id: 'auto',       label: 'Autonomous',  href: '03-ai-agent-operations.html',    mode: 'trade' },
   ];
 
