@@ -177,7 +177,7 @@ async function switchToInkSepolia() {
 async function connectWallet() {
   try {
     if (!window.ethereum) {
-      alert('Please install MetaMask or another Web3 wallet to connect.');
+      showToast('Please install MetaMask or another Web3 wallet to connect.', 'warning', 5000);
       return;
     }
 
@@ -199,7 +199,7 @@ async function connectWallet() {
       const switched = await switchToInkSepolia();
       
       if (!switched) {
-        alert('⚠️ Please switch to Ink Sepolia network in MetaMask.\n\nYou can add it manually:\nChain ID: 763373\nRPC: https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc');
+        showToast('Please switch to Ink Sepolia network in MetaMask.\n\nChain ID: 763373', 'warning', 6000);
         return;
       }
     } else {
@@ -228,7 +228,7 @@ async function connectWallet() {
     
   } catch (error) {
     console.error('Failed to connect wallet:', error);
-    alert('Failed to connect wallet. Please try again.');
+    showToast('Failed to connect wallet. Please try again.', 'error');
   }
 }
 
@@ -392,7 +392,7 @@ async function loadTickerData(ticker) {
   } catch (error) {
     console.error('Failed to load data:', error);
     dataLoading = false;
-    alert('Error loading data. Please check your connection and refresh the page.');
+    showToast('Error loading data. Please check your connection and refresh the page.', 'error', 6000);
   }
 }
 
