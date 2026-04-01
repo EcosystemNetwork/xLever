@@ -109,3 +109,26 @@ def create_app() -> FastAPI:
 
 # Create app instance
 app = create_app()
+
+
+def run_server(host: str = "0.0.0.0", port: int = 8080):
+    """Run the API server.
+
+    Args:
+        host: Host to bind to
+        port: Port to listen on
+    """
+    import uvicorn
+
+    logger.info(f"Starting xLever API server on {host}:{port}")
+    uvicorn.run(
+        "agent.api.server:app",
+        host=host,
+        port=port,
+        reload=False,
+        log_level="info",
+    )
+
+
+if __name__ == "__main__":
+    run_server()

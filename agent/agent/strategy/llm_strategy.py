@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from loguru import logger
 
-from agent.intelligence.perplexity import PerplexityClient
+from agent.intelligence.tavily import TavilyClient
 from agent.intelligence.market import MarketState
 from agent.models.position import Position
 
@@ -101,16 +101,16 @@ class LLMStrategy:
 
     def __init__(
         self,
-        perplexity_client: PerplexityClient,
+        tavily_client: TavilyClient,
         max_retries: int = 3,
     ):
         """Initialize LLM strategy engine.
 
         Args:
-            perplexity_client: Client for LLM queries
+            tavily_client: Client for AI market intelligence
             max_retries: Max retries for failed/malformed responses
         """
-        self.perplexity = perplexity_client
+        self.tavily = tavily_client
         self.max_retries = max_retries
 
         logger.info("LLM strategy engine initialized")
@@ -146,7 +146,7 @@ class LLMStrategy:
         # Query LLM with retry logic
         for attempt in range(self.max_retries):
             try:
-                response = await self.perplexity.query(
+                response = await self.tavily.query(
                     prompt=prompt,
                     system_prompt=self._get_system_prompt(),
                     temperature=0.7,  # Some creativity but not too random

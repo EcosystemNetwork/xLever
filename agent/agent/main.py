@@ -9,7 +9,7 @@ from loguru import logger
 
 from agent.config import Settings, get_settings
 from agent.execution.web3_client import Web3Client
-from agent.intelligence.perplexity import PerplexityClient
+from agent.intelligence.tavily import TavilyClient
 from agent.intelligence.market import MarketIntelligence, MarketState
 from agent.strategy.llm_strategy import LLMStrategy, TradingDecision
 from agent.strategy.rules import RuleEngine
@@ -50,7 +50,7 @@ class TradingAgent:
 
         # Components (initialized in initialize())
         self.web3: Optional[Web3Client] = None
-        self.perplexity: Optional[PerplexityClient] = None
+        self.tavily: Optional[TavilyClient] = None
         self.market_intel: Optional[MarketIntelligence] = None
         self.llm_strategy: Optional[LLMStrategy] = None
         self.rule_engine: Optional[RuleEngine] = None
@@ -103,21 +103,21 @@ class TradingAgent:
             if not await self.web3.is_connected():
                 raise Exception("Failed to connect to blockchain")
 
-            # 4. Perplexity client (for AI)
-            self.perplexity = PerplexityClient(
-                api_key=self.settings.apis.perplexity_api_key,
+            # 4. Tavily client (for AI market intelligence)
+            self.tavily = TavilyClient(
+                api_key=self.settings.apis.tavily_api_key,
             )
 
             # 5. Market intelligence
             self.market_intel = MarketIntelligence(
-                perplexity_client=self.perplexity,
+                tavily_client=self.tavily,
                 web3_client=self.web3,
                 refresh_interval=900,  # 15 minutes
             )
 
             # 6. LLM strategy
             self.llm_strategy = LLMStrategy(
-                perplexity_client=self.perplexity,
+                tavily_client=self.tavily,
                 max_retries=3,
             )
 
@@ -521,5 +521,10 @@ async def main():
         await agent.shutdown()
 
 
-if __name__ == "__main__":
+def main_sync():
+    """Synchronous entry point for CLI."""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    main_sync()

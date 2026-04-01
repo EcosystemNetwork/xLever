@@ -4,25 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xlever-agent"
-version = "0.1.0"
-description = "xLever AI Trading Agent"
+version = "1.0.0"
+description = "xLever AI Trading Agent - LLM-powered autonomous trading with HITL controls"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
+    # Core
     "web3>=6.0",
     "httpx>=0.27",
     "fastapi>=0.110",
+    "uvicorn>=0.27",
+    # Data and caching
     "sqlalchemy>=2.0",
+    "aiosqlite>=0.19",
     "cachetools>=5.0",
-    "websockets>=12.0",
+    # Pydantic for config and models
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
+    # WebSocket and async
+    "websockets>=12.0",
+    # Utilities
     "python-dotenv>=1.0",
     "loguru>=0.7",
-    "aiosqlite>=0.19",
-    "uvicorn>=0.27",
+    # Backtesting
+    "pandas>=2.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -31,10 +39,19 @@ dev = [
     "pytest-asyncio>=0.21",
     "black>=23.0",
     "ruff>=0.1",
+    "httpx[http2]",
 ]
+
+[project.scripts]
+xlever-agent = "agent.main:main_sync"
+xlever-api = "agent.api.server:run_server"
+xlever-backtest = "agent.backtest:run_backtest"
 
 [tool.setuptools]
 packages = ["agent"]
+
+[tool.setuptools.package-data]
+agent = ["contracts/abis/*.json"]
 
 [tool.black]
 line-length = 100
@@ -43,3 +60,7 @@ target-version = ['py310']
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
