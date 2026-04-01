@@ -45,18 +45,27 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol - LIVE & FUNCTIONAL ✅
-- **wSPYx Vault**: [`0xB2e57b9af3b9431533d677690c8D26F741dA2a22`](https://explorer-sepolia.inkonchain.com/address/0xB2e57b9af3b9431533d677690c8D26F741dA2a22)
-- **wQQQx Vault**: [`0x6AcD1B2f38D9D05565b8b886EabFBd056DD62E30`](https://explorer-sepolia.inkonchain.com/address/0x6AcD1B2f38D9D05565b8b886EabFBd056DD62E30)
+### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅
+- **wSPYx Vault**: [`0x8D7DD0A1FD26A2602837B028afB7A1f1b21DA9E7`](https://explorer-sepolia.inkonchain.com/address/0x8D7DD0A1FD26A2602837B028afB7A1f1b21DA9E7)
+- **wQQQx Vault**: [`0xAc8a09e63FC010C5968e34135a7Dc34D4a9448ab`](https://explorer-sepolia.inkonchain.com/address/0xAc8a09e63FC010C5968e34135a7Dc34D4a9448ab)
 
-**Status:** ✅ **FULLY FUNCTIONAL** - Contracts deployed and integrated with UI. You can now deposit USDC and open leveraged positions!
+**Status:** ✅ **FULLY FUNCTIONAL** - Contracts deployed and integrated with UI. Complete position management working on-chain!
 
 **Features:**
-- ✅ Deposit USDC with leverage (-4x to +4x)
-- ✅ Withdraw positions
-- ✅ View position details
-- ✅ Real-time balance updates
-- ✅ Integrated with frontend UI
+- ✅ Open positions with USDC deposit and leverage selection (-4x to +4x)
+- ✅ Close positions and withdraw USDC
+- ✅ Asset selection (SPY/QQQ)
+- ✅ Real-time position tracking
+- ✅ Balance updates
+- ✅ Fully integrated frontend UI with chart visualization
+
+**How to Use:**
+1. Connect MetaMask wallet to Ink Sepolia network
+2. Get testnet USDC from faucet
+3. Select asset (SPY or QQQ) and leverage
+4. Enter USDC amount and open position
+5. View your active positions
+6. Close positions to withdraw USDC + P&L
 
 ### Tokens
 - **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)
@@ -95,22 +104,44 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Getting Started
 
-1. **Deploy Contracts**
-   ```bash
-   cd contracts
-   # Follow QUICKSTART.md
-   ```
+### Using the Live App
 
-2. **Run Frontend**
+1. **Setup Wallet**
+   - Install MetaMask
+   - Add Ink Sepolia network (Chain ID: 763373)
+   - RPC: `https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc`
+
+2. **Get Testnet Tokens**
+   - Get testnet ETH for gas
+   - Get testnet USDC: `0x6b57475467cd854d36Be7FB614caDa5207838943`
+
+3. **Run Frontend**
    ```bash
    cd frontend
-   # Open index.html in browser
+   python3 -m http.server 8080
+   # Open http://localhost:8080 in browser
    ```
 
-3. **Start Backend**
+4. **Open a Position**
+   - Connect wallet
+   - Select asset (SPY or QQQ)
+   - Choose leverage with slider
+   - Enter USDC amount
+   - Click "Open Position"
+   - Approve transactions in MetaMask
+
+### Development
+
+1. **Deploy New Contracts**
    ```bash
-   cd server
-   python server.py
+   cd contracts
+   forge script script/DeploySimple.s.sol:DeploySimple --rpc-url <RPC> --broadcast --private-key <KEY>
+   ```
+
+2. **Run Tests**
+   ```bash
+   cd contracts
+   forge test
    ```
 
 ## Team

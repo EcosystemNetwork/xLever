@@ -13,10 +13,10 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
-// Vault contract addresses (DEPLOYED)
+// Vault contract addresses (DEPLOYED - with withdraw fix)
 const VAULT_ADDRESSES = {
-  wSPYx: '0xB2e57b9af3b9431533d677690c8D26F741dA2a22',
-  wQQQx: '0x6AcD1B2f38D9D05565b8b886EabFBd056DD62E30'
+  wSPYx: '0x8D7DD0A1FD26A2602837B028afB7A1f1b21DA9E7',
+  wQQQx: '0xAc8a09e63FC010C5968e34135a7Dc34D4a9448ab'
 };
 
 // Minimal ERC-20 ABI for balanceOf

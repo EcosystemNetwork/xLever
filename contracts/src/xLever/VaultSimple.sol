@@ -58,19 +58,22 @@ contract VaultSimple {
     function withdraw(uint256 amount) external returns (uint256) {
         DataTypes.Position storage pos = positions[msg.sender];
         require(pos.isActive, "No position");
-        require(amount <= pos.depositAmount, "Insufficient balance");
         
-        pos.depositAmount -= uint128(amount);
+        // If amount is 0, withdraw all
+        uint256 withdrawAmount = amount == 0 ? pos.depositAmount : amount;
+        require(withdrawAmount <= pos.depositAmount, "Insufficient balance");
+        
+        pos.depositAmount -= uint128(withdrawAmount);
         if (pos.depositAmount == 0) {
             pos.isActive = false;
         }
         
-        poolState.totalSeniorDeposits -= uint128(amount);
+        poolState.totalSeniorDeposits -= uint128(withdrawAmount);
         
-        require(usdc.transfer(msg.sender, amount), "Transfer failed");
+        require(usdc.transfer(msg.sender, withdrawAmount), "Transfer failed");
         
-        emit Withdraw(msg.sender, amount);
-        return amount;
+        emit Withdraw(msg.sender, withdrawAmount);
+        return withdrawAmount;
     }
     
     /// @notice Get position
