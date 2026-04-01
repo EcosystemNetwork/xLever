@@ -158,6 +158,54 @@ const VAULT_ABI = [
       { name: 'twap', type: 'uint128' },
       { name: 'spreadBps', type: 'uint16' }
     ]
+  },
+  {
+    name: 'LoopExecuted',
+    type: 'event',
+    inputs: [
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'iteration', type: 'uint256', indexed: false },
+      { name: 'deposited', type: 'uint256', indexed: false },
+      { name: 'borrowed', type: 'uint256', indexed: false }
+    ]
+  },
+  {
+    name: 'PositionOpened',
+    type: 'event',
+    inputs: [
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'totalCollateral', type: 'uint256', indexed: false },
+      { name: 'totalDebt', type: 'uint256', indexed: false },
+      { name: 'leverage', type: 'int32', indexed: false }
+    ]
+  },
+  {
+    name: 'getEulerPosition',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'collateralVault', type: 'address' },
+        { name: 'debtVault', type: 'address' },
+        { name: 'collateralShares', type: 'uint128' },
+        { name: 'debtAmount', type: 'uint128' },
+        { name: 'isActive', type: 'bool' }
+      ]
+    }]
+  },
+  {
+    name: 'getPositionHealth',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [
+      { name: 'collateral', type: 'uint256' },
+      { name: 'debt', type: 'uint256' },
+      { name: 'healthFactor', type: 'uint256' }
+    ]
   }
 ];
 
