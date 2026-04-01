@@ -16,7 +16,11 @@ contract DeployAllVaults is Script {
     }
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY_HEX", uint256(0));
+        if (deployerPrivateKey == 0) {
+            string memory pkStr = vm.envString("PRIVATE_KEY");
+            deployerPrivateKey = vm.parseUint(string.concat("0x", pkStr));
+        }
         address deployer = vm.addr(deployerPrivateKey);
         address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943;
 

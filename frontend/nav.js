@@ -21,6 +21,7 @@ const XNav = (() => {
     renderMobileDrawer(activePageId);
     renderRiskBanner();
     wireUpMobileMenu();
+    wireUpNetworkSwitcher();
   }
 
   function navLink(page, isActive) {
@@ -53,7 +54,7 @@ const XNav = (() => {
       <div class="flex items-center gap-3">
         <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
           <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-          <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeText">Ink Sepolia</span>
+          <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest cursor-pointer" id="networkBadgeText">Ink Sepolia</span>
         </div>
         <appkit-button size="sm"></appkit-button>
         <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
@@ -74,7 +75,7 @@ const XNav = (() => {
         ${PAGES.map(p => mobileLink(p, p.id === activeId)).join('\n        ')}
         <div class="flex items-center gap-2 mt-2 px-4 py-2">
           <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-          <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ink Sepolia</span>
+          <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span>
         </div>
       </div>
     `;
@@ -102,6 +103,38 @@ const XNav = (() => {
     `;
     const drawer = document.getElementById('mobileNav');
     if (drawer) drawer.after(banner);
+  }
+
+  // Chain display names keyed by caipNetworkId or chainId
+  const CHAIN_NAMES = {
+    763373: 'Ink Sepolia',
+    1: 'Ethereum',
+    'solana:mainnet': 'Solana',
+    'ton:mainnet': 'TON',
+  };
+
+  function updateNetworkBadge(name) {
+    const desktop = document.getElementById('networkBadgeText');
+    const mobile = document.getElementById('networkBadgeMobile');
+    if (desktop) desktop.textContent = name;
+    if (mobile) mobile.textContent = name;
+  }
+
+  function wireUpNetworkSwitcher() {
+    // Click badge to open AppKit network selector
+    const badge = document.getElementById('networkBadgeText');
+    if (badge && window.xLeverWallet) {
+      badge.addEventListener('click', () => window.xLeverWallet.open({ view: 'Networks' }));
+    }
+
+    // Listen for chain changes via AppKit subscriptions
+    if (window.xLeverWallet) {
+      window.xLeverWallet.subscribeCaipNetworkChange((newNetwork) => {
+        if (!newNetwork) return;
+        const name = CHAIN_NAMES[newNetwork.id] || CHAIN_NAMES[newNetwork.caipNetworkId] || newNetwork.name || 'Unknown';
+        updateNetworkBadge(name);
+      });
+    }
   }
 
   function wireUpMobileMenu() {

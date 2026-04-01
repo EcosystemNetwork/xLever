@@ -256,6 +256,64 @@
 <span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
 </button>
 <div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Drawing Tools -->
+<div class="flex items-center gap-0.5 bg-surface-container rounded-sm p-0.5 border border-outline-variant/10">
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="hline" title="Horizontal Line (Support/Resistance)">
+<span class="material-symbols-outlined text-[18px]" data-icon="horizontal_rule">horizontal_rule</span>
+</button>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="trendline" title="Trend Line">
+<span class="material-symbols-outlined text-[18px]" data-icon="trending_up">trending_up</span>
+</button>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="rect" title="Rectangle Zone">
+<span class="material-symbols-outlined text-[18px]" data-icon="crop_landscape">crop_landscape</span>
+</button>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="fib" title="Fibonacci Retracement">
+<span class="material-symbols-outlined text-[18px]" data-icon="stacked_line_chart">stacked_line_chart</span>
+</button>
+</div>
+<!-- Agent Strategy Dropdown -->
+<div class="relative" id="strategyDropdownWrap">
+<button id="strategyDropdownBtn" class="flex items-center gap-1 px-2 py-1 bg-surface-container rounded-sm border border-outline-variant/10 hover:border-primary-container/40 transition-colors" title="Agent Strategy Overlay">
+<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="smart_toy">smart_toy</span>
+<span class="text-[10px] font-medium text-outline hidden lg:inline">Strategy</span>
+<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+</button>
+<div id="strategyDropdown" class="hidden absolute right-0 top-full mt-1 w-56 bg-surface-container-low border border-outline-variant/20 rounded-sm shadow-xl z-30">
+<div class="p-2 border-b border-outline-variant/10">
+  <span class="text-[9px] uppercase tracking-widest text-outline font-bold">Agent Strategy</span>
+</div>
+<div class="p-1.5 space-y-0.5">
+  <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="safe">
+    <span class="material-symbols-outlined text-[16px] text-tertiary">shield</span>
+    <div>
+      <div class="font-medium">Safe Mode</div>
+      <div class="text-[9px] text-outline">SL bands + de-leverage zones</div>
+    </div>
+  </button>
+  <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="target">
+    <span class="material-symbols-outlined text-[16px] text-secondary">adjust</span>
+    <div>
+      <div class="font-medium">Target Exposure</div>
+      <div class="text-[9px] text-outline">Rebalance bands + entry levels</div>
+    </div>
+  </button>
+  <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="accumulate">
+    <span class="material-symbols-outlined text-[16px] text-primary">trending_up</span>
+    <div>
+      <div class="font-medium">Accumulate (DCA)</div>
+      <div class="text-[9px] text-outline">DCA levels + take-profit targets</div>
+    </div>
+  </button>
+</div>
+<div class="p-1.5 border-t border-outline-variant/10">
+  <button id="clearStrategyBtn" class="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] text-outline hover:text-error hover:bg-surface-container-high rounded-sm transition-colors">
+    <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+    Clear All Drawings
+  </button>
+</div>
+</div>
+</div>
+<div class="h-4 w-px bg-outline-variant/30"></div>
 <button class="p-1 hover:bg-surface-container-high rounded-sm text-outline" id="fullscreenBtn" title="Fullscreen">
 <span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
 </button>
@@ -281,7 +339,7 @@
 </div>
 <!-- Chart Markers Legend -->
 <div class="absolute bottom-4 left-4 p-2 bg-surface-container-lowest/80 border border-outline-variant/20 rounded-sm backdrop-blur-sm z-10">
-<div class="flex gap-4 items-center">
+<div class="flex gap-4 items-center flex-wrap">
 <div class="flex items-center gap-1.5">
 <span class="text-yellow-400 font-bold">↓</span>
 <span class="text-[9px] uppercase tracking-tighter text-outline">De-Leverage</span>
@@ -294,7 +352,20 @@
 <span class="text-error">●</span>
 <span class="text-[9px] uppercase tracking-tighter text-outline">Circuit Breaker</span>
 </div>
+<div class="flex items-center gap-1.5">
+<span class="text-[#00e475] font-bold">↑</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">Agent Buy</span>
 </div>
+<div class="flex items-center gap-1.5">
+<span class="text-[#ff5252] font-bold">↓</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">Agent Sell</span>
+</div>
+</div>
+</div>
+<!-- Active drawing tool indicator -->
+<div id="drawToolIndicator" class="hidden absolute top-3 right-4 z-10 px-2 py-1 bg-primary-container/90 rounded-sm backdrop-blur-sm">
+<span class="text-[9px] uppercase tracking-widest text-on-primary-container font-bold mono" id="drawToolLabel">Drawing</span>
+<span class="text-[9px] text-on-primary-container/60 ml-1">Right-click to cancel</span>
 </div>
 </div>
 <!-- Bottom Indicators Strip -->
@@ -580,6 +651,7 @@
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
+<script src="chart-strategy-tools.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // ═══════════════════════════════════════════
@@ -894,6 +966,120 @@ document.addEventListener('DOMContentLoaded', () => {
   // Init chart
   initChart();
   loadChartData('QQQ');
+
+  // ═══════════════════════════════════════════
+  // STRATEGY DRAWING TOOLS
+  // ═══════════════════════════════════════════
+  ChartStrategyTools.init(chart, () => currentChartType === 'area' ? areaSeries : candleSeries);
+
+  // Drawing tool buttons
+  const toolIndicator = document.getElementById('drawToolIndicator');
+  const toolLabel = document.getElementById('drawToolLabel');
+  const TOOL_NAMES = { hline: 'Horizontal Line', trendline: 'Trend Line', rect: 'Rectangle Zone', fib: 'Fibonacci' };
+
+  document.querySelectorAll('.draw-tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tool = btn.dataset.tool;
+      const isActive = btn.classList.contains('bg-primary-container');
+      if (isActive) {
+        ChartStrategyTools.setTool(null);
+        toolIndicator.classList.add('hidden');
+      } else {
+        ChartStrategyTools.setTool(tool);
+        toolLabel.textContent = TOOL_NAMES[tool] || tool;
+        toolIndicator.classList.remove('hidden');
+      }
+    });
+  });
+
+  // ESC to cancel drawing
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      ChartStrategyTools.setTool(null);
+      toolIndicator.classList.add('hidden');
+    }
+  });
+
+  // Strategy dropdown toggle
+  const stratDropBtn = document.getElementById('strategyDropdownBtn');
+  const stratDrop = document.getElementById('strategyDropdown');
+  stratDropBtn.addEventListener('click', () => stratDrop.classList.toggle('hidden'));
+  document.addEventListener('click', e => {
+    if (!document.getElementById('strategyDropdownWrap').contains(e.target)) stratDrop.classList.add('hidden');
+  });
+
+  // Strategy presets — generate strategy overlay from current chart data
+  document.querySelectorAll('.strategy-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      stratDrop.classList.add('hidden');
+      const mode = btn.dataset.strategy;
+      const data = generateChartData(activeSym);
+      const last = data[data.length - 1];
+      const price = last.close;
+
+      // Calculate strategy levels based on agent mode
+      let strategy = { label: mode.charAt(0).toUpperCase() + mode.slice(1), direction: 'long', signals: [] };
+
+      if (mode === 'safe') {
+        // Safe mode: tight SL, conservative TP, de-leverage zones
+        strategy.entry = price;
+        strategy.stopLoss = +(price * 0.95).toFixed(2);
+        strategy.takeProfit = +(price * 1.08).toFixed(2);
+        // Mark recent high-volatility days as circuit breaker signals
+        for (let i = data.length - 30; i < data.length; i++) {
+          const d = data[i];
+          const move = Math.abs(d.close - d.open) / d.open;
+          if (move > 0.025) {
+            strategy.signals.push({ time: d.time, type: 'info', text: 'VOL' });
+          }
+        }
+      } else if (mode === 'target') {
+        // Target mode: entry + rebalance band
+        strategy.entry = price;
+        strategy.takeProfit = +(price * 1.12).toFixed(2);
+        strategy.stopLoss = +(price * 0.92).toFixed(2);
+        const bandH = +(price * 1.03).toFixed(2);
+        const bandL = +(price * 0.97).toFixed(2);
+        strategy.zone = {
+          high: bandH, low: bandL,
+          timeStart: data[data.length - 60].time,
+          timeEnd: data[data.length - 1].time,
+        };
+        // Mark rebalance trigger points
+        for (let i = data.length - 60; i < data.length; i++) {
+          if (data[i].close > bandH) strategy.signals.push({ time: data[i].time, type: 'sell', text: 'REBAL' });
+          else if (data[i].close < bandL) strategy.signals.push({ time: data[i].time, type: 'buy', text: 'REBAL' });
+        }
+      } else if (mode === 'accumulate') {
+        // Accumulate: DCA entry levels + profit targets
+        strategy.entry = price;
+        strategy.takeProfit = +(price * 1.20).toFixed(2);
+        strategy.stopLoss = +(price * 0.85).toFixed(2);
+        // DCA buy levels
+        const dcaLevels = [0.97, 0.93, 0.88];
+        dcaLevels.forEach((mult, idx) => {
+          ChartStrategyTools.addHLine(+(price * mult).toFixed(2), {
+            color: '#29b6f6',
+            label: `DCA ${idx + 1}`,
+            dashed: true,
+          });
+        });
+        // Mark simulated DCA entries over last 90 days
+        let dcaInterval = 0;
+        for (let i = data.length - 90; i < data.length; i += 14) {
+          strategy.signals.push({ time: data[i].time, type: 'buy', text: 'DCA' });
+        }
+      }
+
+      ChartStrategyTools.drawStrategy(strategy);
+    });
+  });
+
+  // Clear all drawings
+  document.getElementById('clearStrategyBtn').addEventListener('click', () => {
+    ChartStrategyTools.clearAll();
+    stratDrop.classList.add('hidden');
+  });
 
   // ═══════════════════════════════════════════
   // PYTH LIVE PRICES — Ticker strip + dropdown
