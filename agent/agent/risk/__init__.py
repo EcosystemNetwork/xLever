@@ -4,19 +4,22 @@ Provides:
 - Position sizing (Kelly criterion-inspired)
 - Health score monitoring
 - Stop-loss and take-profit limits
+- Trailing stops
+- Daily loss tracking
 - Risk metric tracking
 """
 
 from agent.risk.sizing import calculate_position_size, PositionSizeCalculator
-from agent.risk.health import HealthMonitor, HealthAction
-from agent.risk.limits import RiskLimits, should_stop_loss, should_take_profit
+from agent.risk.health import HealthMonitor, HealthAction, HealthCheckResult
+from agent.risk.limits import RiskLimits, RiskLimitChecker, TrailingStop
 
 __all__ = [
     "calculate_position_size",
     "PositionSizeCalculator",
     "HealthMonitor",
     "HealthAction",
+    "HealthCheckResult",
     "RiskLimits",
-    "should_stop_loss",
-    "should_take_profit",
+    "RiskLimitChecker",
+    "TrailingStop",
 ]
