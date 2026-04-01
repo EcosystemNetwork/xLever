@@ -13,7 +13,7 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
-// Vault contract addresses (DEPLOYED - Looping Vaults with ACTUAL recursive looping!)
+// Vault contract addresses (deployed on Ink Sepolia testnet)
 const VAULT_ADDRESSES = {
   wSPYx: '0x93c0323D7133E2e9D57133a629a35Df17797d890',
   wQQQx: '0x0C2c35ed457a4532794602a588eB0C086Ebd67DB'
