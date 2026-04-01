@@ -1927,8 +1927,8 @@ document.getElementById('juniorBtn').addEventListener('click', async () => {
   document.getElementById('seniorBtn').classList.remove('active');
   document.getElementById('juniorBtn').classList.add('active');
   
-  // Refresh junior UI data
-  if (connectedAddress && publicClient) {
+  // Refresh junior UI data (works without wallet for pool data)
+  if (publicClient) {
     await updateJuniorUI();
   }
 });
