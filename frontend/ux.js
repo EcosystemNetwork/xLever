@@ -428,45 +428,9 @@ const XModal = (() => {
 
 // IIFE module for wallet connection state; delegates actual wallet management to Reown AppKit
 const XWallet = (() => {
-  // Sets up event listeners for wallet connect/disconnect to show toast notifications
-  function init() {
-    // Reown AppKit is initialized via wallet.js ES module (loaded separately)
-    // The <appkit-button /> web component handles the connect/disconnect UI natively
-    // This module only listens for events to provide toast feedback
-    const checkModal = () => {
-      // xLeverWallet is set on window by wallet.js once Reown AppKit is ready
-      const modal = window.xLeverWallet;
-      // Retry with polling because wallet.js loads asynchronously and may not be ready yet
-      if (!modal) return setTimeout(checkModal, 200);
-
-      // Subscribe to Reown AppKit events to show user-friendly toast notifications
-      // Grace period suppresses the toast for session restoration on page load.
-      // We can't rely on getIsConnectedState() alone because Reown may not have
-      // finished restoring the session when checkModal first finds the modal,
-      // causing the guard to miss the restoration CONNECT_SUCCESS event.
-      const initTime = Date.now();
-      const RESTORE_GRACE_MS = 3000; // 3s covers slow session restores
-      let lastConnectShown = 0;
-      modal.subscribeEvents((event) => {
-        // Notify user on successful wallet connection (skip session restores, debounce repeats)
-        if (event?.data?.event === 'CONNECT_SUCCESS') {
-          // Suppress toasts during the grace period — these are session restores, not user actions
-          if (Date.now() - initTime < RESTORE_GRACE_MS) return;
-          const now = Date.now();
-          if (now - lastConnectShown > 5000) {
-            lastConnectShown = now;
-            XToast.show('Wallet connected successfully', 'success');
-          }
-        }
-        // Notify user when wallet is disconnected
-        if (event?.data?.event === 'DISCONNECT_SUCCESS') {
-          XToast.show('Wallet disconnected', 'info');
-        }
-      });
-    };
-    // Start the polling loop to find the wallet modal
-    checkModal();
-  }
+  // No-op — toast notifications for connect/disconnect are handled by app.js
+  // which is the single source of truth for wallet events.
+  function init() {}
 
   // Returns whether a wallet is currently connected, used by UI to gate trade actions
   function isConnected() {
@@ -979,7 +943,13 @@ const XAuthGate = (() => {
       var w = window.xLeverWallet;
       if (!w) return setTimeout(check, 300);
       _applyState();
-      if (typeof w.subscribeEvents === 'function') {
+      // Subscribe once to connection state changes (not raw events) to toggle UI
+      if (typeof w.subscribeState === 'function') {
+        w.subscribeState((state) => {
+          _applyState();
+        });
+      } else if (typeof w.subscribeEvents === 'function') {
+        // Fallback for older Reown versions without subscribeState
         w.subscribeEvents((event) => {
           var evt = event?.data?.event;
           if (evt === 'CONNECT_SUCCESS' || evt === 'DISCONNECT_SUCCESS') {
@@ -987,8 +957,6 @@ const XAuthGate = (() => {
           }
         });
       }
-      setTimeout(() => _applyState(), 2000);
-      setTimeout(() => _applyState(), 5000);
     };
     check();
   }

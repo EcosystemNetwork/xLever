@@ -300,6 +300,103 @@
 <span class="material-symbols-outlined text-[18px]" data-icon="stacked_line_chart">stacked_line_chart</span>
 </button>
 </div>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Trigger Tools -->
+<div class="relative" id="triggerDropdownWrap">
+<button id="triggerDropdownBtn" class="flex items-center gap-1 px-2 py-1 bg-surface-container rounded-sm border border-outline-variant/10 hover:border-tertiary/40 transition-colors" title="Price Triggers">
+<span class="material-symbols-outlined text-[18px] text-tertiary" data-icon="bolt">bolt</span>
+<span class="text-[10px] font-medium text-outline hidden lg:inline">Triggers</span>
+<span class="text-[9px] mono font-bold text-tertiary hidden" id="triggerCountBadge">0</span>
+<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+</button>
+<div id="triggerDropdown" class="hidden absolute right-0 top-full mt-1 w-72 bg-surface-container-low border border-outline-variant/20 rounded-sm shadow-xl z-30">
+<div class="p-2 border-b border-outline-variant/10 flex justify-between items-center">
+  <span class="text-[9px] uppercase tracking-widest text-outline font-bold">Price Triggers</span>
+  <div class="flex gap-1">
+    <button id="triggerMonitorToggle" class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-surface-container hover:bg-surface-container-high text-outline transition-colors" title="Toggle live monitoring">
+      <span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Off
+    </button>
+  </div>
+</div>
+<!-- Quick-add trigger buttons -->
+<div class="p-1.5 grid grid-cols-5 gap-1 border-b border-outline-variant/10">
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="alert" data-direction="below" title="Alert when price drops below">
+    <span class="material-symbols-outlined text-[16px] text-[#ffb300]">notifications</span>
+    <span>Alert</span>
+  </button>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="buy" data-direction="below" title="Buy when price drops below">
+    <span class="material-symbols-outlined text-[16px] text-[#00e475]">add_circle</span>
+    <span>Buy</span>
+  </button>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="sell" data-direction="above" title="Sell when price rises above">
+    <span class="material-symbols-outlined text-[16px] text-[#ff5252]">remove_circle</span>
+    <span>Sell</span>
+  </button>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="adjust" data-direction="above" title="Adjust leverage when price moves">
+    <span class="material-symbols-outlined text-[16px] text-[#29b6f6]">tune</span>
+    <span>Adjust</span>
+  </button>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="deleverage" data-direction="below" title="Deleverage when price drops below">
+    <span class="material-symbols-outlined text-[16px] text-[#ff9800]">trending_down</span>
+    <span>Delev</span>
+  </button>
+</div>
+<!-- Trigger params form (shown when placing) -->
+<div id="triggerParamsForm" class="hidden p-2 border-b border-outline-variant/10 space-y-2 bg-surface-container/50">
+  <div class="flex justify-between items-center">
+    <span class="text-[10px] font-bold text-on-surface" id="triggerFormTitle">Place Trigger</span>
+    <button id="triggerFormCancel" class="text-[9px] text-outline hover:text-error">Cancel</button>
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+    <div>
+      <label class="text-[8px] uppercase text-outline tracking-wider">Price</label>
+      <input id="triggerPriceInput" type="number" step="0.01" class="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-sm px-2 py-1 mono text-[11px] text-on-surface focus:border-primary focus:ring-0" placeholder="0.00">
+    </div>
+    <div>
+      <label class="text-[8px] uppercase text-outline tracking-wider">Direction</label>
+      <select id="triggerDirectionSelect" class="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-sm px-2 py-1 text-[11px] text-on-surface focus:border-primary focus:ring-0">
+        <option value="above">Price rises above</option>
+        <option value="below">Price drops below</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+    <div>
+      <label class="text-[8px] uppercase text-outline tracking-wider">Amount (USD)</label>
+      <input id="triggerAmountInput" type="number" step="1" class="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-sm px-2 py-1 mono text-[11px] text-on-surface focus:border-primary focus:ring-0" placeholder="100" value="100">
+    </div>
+    <div>
+      <label class="text-[8px] uppercase text-outline tracking-wider">Leverage</label>
+      <input id="triggerLeverageInput" type="number" step="0.1" min="0.1" max="4" class="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-sm px-2 py-1 mono text-[11px] text-on-surface focus:border-primary focus:ring-0" placeholder="2.0" value="2.0">
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <input id="triggerRepeatCheck" type="checkbox" class="rounded-sm bg-surface-container-lowest border-outline-variant/30 text-primary focus:ring-primary">
+    <label class="text-[9px] text-outline">Repeat (re-arm after firing)</label>
+  </div>
+  <div class="flex gap-2">
+    <button id="triggerPlaceChart" class="flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-surface-container border border-outline-variant/20 text-on-surface hover:bg-surface-container-high rounded-sm transition-colors">
+      <span class="material-symbols-outlined text-[14px] align-middle">ads_click</span> Click Chart
+    </button>
+    <button id="triggerPlaceManual" class="flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-tertiary/20 text-tertiary hover:bg-tertiary/30 rounded-sm transition-colors">
+      <span class="material-symbols-outlined text-[14px] align-middle">bolt</span> Set Trigger
+    </button>
+  </div>
+</div>
+<!-- Active triggers list -->
+<div id="triggerList" class="max-h-48 overflow-y-auto">
+  <div id="triggerListEmpty" class="p-3 text-center text-[10px] text-outline">
+    No active triggers. Click a type above then click on the chart to place.
+  </div>
+</div>
+<div class="p-1.5 border-t border-outline-variant/10 flex gap-1">
+  <button id="clearTriggersBtn" class="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-outline hover:text-error hover:bg-surface-container-high rounded-sm transition-colors">
+    <span class="material-symbols-outlined text-[14px]">delete_sweep</span>
+    Clear All
+  </button>
+</div>
+</div>
+</div>
 <!-- Agent Strategy Dropdown -->
 <div class="relative" id="strategyDropdownWrap">
 <button id="strategyDropdownBtn" class="flex items-center gap-1 px-2 py-1 bg-surface-container rounded-sm border border-outline-variant/10 hover:border-primary-container/40 transition-colors" title="Agent Strategy Overlay">
@@ -395,6 +492,11 @@
 <div id="drawToolIndicator" class="hidden absolute top-3 right-4 z-10 px-2 py-1 bg-primary-container/90 rounded-sm backdrop-blur-sm">
 <span class="text-[9px] uppercase tracking-widest text-on-primary-container font-bold mono" id="drawToolLabel">Drawing</span>
 <span class="text-[9px] text-on-primary-container/60 ml-1">Right-click to cancel</span>
+</div>
+<!-- Active trigger placement indicator -->
+<div id="triggerPlaceIndicator" class="hidden absolute top-3 right-4 z-10 px-2 py-1 bg-tertiary/90 rounded-sm backdrop-blur-sm">
+<span class="text-[9px] uppercase tracking-widest text-on-tertiary font-bold mono" id="triggerPlaceLabel">Place Trigger</span>
+<span class="text-[9px] text-on-tertiary/60 ml-1">Click chart to set price | ESC to cancel</span>
 </div>
 </div>
 <!-- Bottom Indicators Strip -->
@@ -694,6 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script src="chart-strategy-tools.js"></script>
+<script src="chart-triggers.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // ═══════════════════════════════════════════
@@ -1122,6 +1225,266 @@ document.addEventListener('DOMContentLoaded', () => {
     ChartStrategyTools.clearAll();
     stratDrop.classList.add('hidden');
   });
+
+  // ═══════════════════════════════════════════
+  // CHART TRIGGERS — Price-level automation
+  // ═══════════════════════════════════════════
+  const trigLog = (src, msg, color) => {
+    console.log(`[${src}] ${msg}`);
+    // Also push to agent log if available
+    const logPanel = document.getElementById('agentLog');
+    if (logPanel) {
+      const entry = document.createElement('div');
+      entry.className = 'text-[10px] mono py-0.5 px-2';
+      entry.style.color = color || '#cac3d8';
+      entry.textContent = `[${src}] ${msg}`;
+      logPanel.appendChild(entry);
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+  };
+
+  ChartTriggers.init(chart, () => currentChartType === 'area' ? areaSeries : candleSeries, {
+    log: trigLog,
+    onFire: (trigger, price) => {
+      // Add a marker on the chart when a trigger fires
+      ChartStrategyTools.addSignal(
+        Math.floor(Date.now() / 1000),
+        trigger.action === 'buy' ? 'buy' : trigger.action === 'sell' ? 'sell' : 'info',
+        `TRIG: ${trigger.action.toUpperCase()}`
+      );
+      renderTriggerList();
+    },
+    onUpdate: () => renderTriggerList(),
+  });
+
+  // Trigger dropdown toggle
+  const trigDropBtn = document.getElementById('triggerDropdownBtn');
+  const trigDrop = document.getElementById('triggerDropdown');
+  trigDropBtn.addEventListener('click', () => trigDrop.classList.toggle('hidden'));
+  document.addEventListener('click', e => {
+    if (!document.getElementById('triggerDropdownWrap').contains(e.target)) trigDrop.classList.add('hidden');
+  });
+
+  // Monitor toggle
+  const monitorBtn = document.getElementById('triggerMonitorToggle');
+  monitorBtn.addEventListener('click', () => {
+    if (ChartTriggers.isMonitoring) {
+      ChartTriggers.stopMonitor();
+      monitorBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Off';
+      monitorBtn.classList.remove('bg-tertiary/20', 'text-tertiary');
+      monitorBtn.classList.add('bg-surface-container', 'text-outline');
+    } else {
+      ChartTriggers.startMonitor(5000);
+      monitorBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Live';
+      monitorBtn.classList.add('bg-tertiary/20', 'text-tertiary');
+      monitorBtn.classList.remove('bg-surface-container', 'text-outline');
+    }
+  });
+
+  // Trigger placement buttons
+  let _currentTriggerAction = null;
+  const triggerParamsForm = document.getElementById('triggerParamsForm');
+  const triggerPlaceIndicator = document.getElementById('triggerPlaceIndicator');
+  const triggerPlaceLabel = document.getElementById('triggerPlaceLabel');
+
+  document.querySelectorAll('.trigger-place-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _currentTriggerAction = btn.dataset.action;
+      const direction = btn.dataset.direction;
+
+      // Show params form
+      triggerParamsForm.classList.remove('hidden');
+      document.getElementById('triggerFormTitle').textContent = `${_currentTriggerAction.toUpperCase()} Trigger`;
+      document.getElementById('triggerDirectionSelect').value = direction;
+
+      // Show/hide amount/leverage fields based on action type
+      const amountInput = document.getElementById('triggerAmountInput').parentElement;
+      const leverageInput = document.getElementById('triggerLeverageInput').parentElement;
+      if (_currentTriggerAction === 'alert') {
+        amountInput.style.display = 'none';
+        leverageInput.style.display = 'none';
+      } else if (_currentTriggerAction === 'sell') {
+        amountInput.style.display = 'none';
+        leverageInput.style.display = 'none';
+      } else {
+        amountInput.style.display = '';
+        leverageInput.style.display = '';
+      }
+    });
+  });
+
+  // Cancel form
+  document.getElementById('triggerFormCancel').addEventListener('click', () => {
+    triggerParamsForm.classList.add('hidden');
+    triggerPlaceIndicator.classList.add('hidden');
+    ChartTriggers.cancelPlacement();
+    _currentTriggerAction = null;
+  });
+
+  // "Click Chart" button — enter chart placement mode
+  document.getElementById('triggerPlaceChart').addEventListener('click', () => {
+    if (!_currentTriggerAction) return;
+    const params = _gatherTriggerParams();
+    const direction = document.getElementById('triggerDirectionSelect').value;
+
+    ChartTriggers.startPlacement({
+      action: _currentTriggerAction,
+      direction,
+      params,
+    });
+
+    // Show placement indicator
+    triggerPlaceIndicator.classList.remove('hidden');
+    triggerPlaceLabel.textContent = `Place ${_currentTriggerAction.toUpperCase()} trigger`;
+
+    // Hide form + dropdown
+    triggerParamsForm.classList.add('hidden');
+    trigDrop.classList.add('hidden');
+
+    // Listen for placement completion
+    const container = chart.chartElement();
+    const onDone = () => {
+      triggerPlaceIndicator.classList.add('hidden');
+      _currentTriggerAction = null;
+      // Auto-start monitor if not running
+      if (!ChartTriggers.isMonitoring && ChartTriggers.getAll().length > 0) {
+        ChartTriggers.startMonitor(5000);
+        monitorBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Live';
+        monitorBtn.classList.add('bg-tertiary/20', 'text-tertiary');
+        monitorBtn.classList.remove('bg-surface-container', 'text-outline');
+      }
+    };
+    container.addEventListener('click', onDone, { once: true });
+  });
+
+  // "Set Trigger" button — manual price entry
+  document.getElementById('triggerPlaceManual').addEventListener('click', () => {
+    if (!_currentTriggerAction) return;
+    const price = parseFloat(document.getElementById('triggerPriceInput').value);
+    if (!Number.isFinite(price) || price <= 0) {
+      document.getElementById('triggerPriceInput').style.borderColor = '#ff5252';
+      setTimeout(() => document.getElementById('triggerPriceInput').style.borderColor = '', 1500);
+      return;
+    }
+    const params = _gatherTriggerParams();
+    const direction = document.getElementById('triggerDirectionSelect').value;
+    const repeat = document.getElementById('triggerRepeatCheck').checked;
+
+    ChartTriggers.add({
+      price,
+      direction,
+      action: _currentTriggerAction,
+      params,
+      repeat,
+    });
+
+    triggerParamsForm.classList.add('hidden');
+    _currentTriggerAction = null;
+
+    // Auto-start monitor
+    if (!ChartTriggers.isMonitoring) {
+      ChartTriggers.startMonitor(5000);
+      monitorBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Live';
+      monitorBtn.classList.add('bg-tertiary/20', 'text-tertiary');
+      monitorBtn.classList.remove('bg-surface-container', 'text-outline');
+    }
+  });
+
+  function _gatherTriggerParams() {
+    return {
+      amount: parseFloat(document.getElementById('triggerAmountInput').value) || 100,
+      leverage: parseFloat(document.getElementById('triggerLeverageInput').value) || 2,
+    };
+  }
+
+  // Clear all triggers
+  document.getElementById('clearTriggersBtn').addEventListener('click', () => {
+    ChartTriggers.clearAll();
+    trigDrop.classList.add('hidden');
+  });
+
+  // ESC to cancel trigger placement
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && ChartTriggers.placementActive) {
+      ChartTriggers.cancelPlacement();
+      triggerPlaceIndicator.classList.add('hidden');
+      _currentTriggerAction = null;
+    }
+  });
+
+  // Render trigger list
+  function renderTriggerList() {
+    const list = document.getElementById('triggerList');
+    const empty = document.getElementById('triggerListEmpty');
+    const badge = document.getElementById('triggerCountBadge');
+    const triggers = ChartTriggers.getAll();
+
+    if (triggers.length === 0) {
+      list.innerHTML = '';
+      list.appendChild(empty);
+      empty.style.display = '';
+      badge.classList.add('hidden');
+      return;
+    }
+
+    empty.style.display = 'none';
+    badge.textContent = triggers.filter(t => t.enabled && !t.fired).length;
+    badge.classList.remove('hidden');
+
+    const STYLE_MAP = {
+      alert: { color: '#ffb300', icon: 'notifications' },
+      buy: { color: '#00e475', icon: 'add_circle' },
+      sell: { color: '#ff5252', icon: 'remove_circle' },
+      adjust: { color: '#29b6f6', icon: 'tune' },
+      deleverage: { color: '#ff9800', icon: 'trending_down' },
+    };
+
+    list.innerHTML = triggers.map(t => {
+      const s = STYLE_MAP[t.action] || STYLE_MAP.alert;
+      const opacity = t.fired ? 'opacity-40' : '';
+      const status = t.fired ? '<span class="text-[8px] text-outline uppercase">fired</span>' : t.enabled ? '<span class="text-[8px] text-tertiary uppercase">active</span>' : '<span class="text-[8px] text-outline uppercase">off</span>';
+      return `<div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-container-high transition-colors ${opacity}" data-trigger-id="${t.id}">
+        <span class="material-symbols-outlined text-[16px]" style="color:${s.color}">${s.icon}</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="mono text-[11px] font-bold text-on-surface">$${t.price.toFixed(2)}</span>
+            <span class="text-[8px] uppercase tracking-wider text-outline">${t.direction === 'above' ? '▲ above' : '▼ below'}</span>
+            ${t.repeat ? '<span class="text-[8px] text-secondary">↻</span>' : ''}
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[9px] font-medium" style="color:${s.color}">${t.action.toUpperCase()}</span>
+            ${status}
+          </div>
+        </div>
+        <button class="trigger-toggle-btn p-0.5 hover:bg-surface-container rounded-sm text-outline hover:text-on-surface" data-trigger-id="${t.id}" data-enabled="${t.enabled}" title="Toggle">
+          <span class="material-symbols-outlined text-[14px]">${t.enabled ? 'pause' : 'play_arrow'}</span>
+        </button>
+        <button class="trigger-delete-btn p-0.5 hover:bg-surface-container rounded-sm text-outline hover:text-error" data-trigger-id="${t.id}" title="Delete">
+          <span class="material-symbols-outlined text-[14px]">close</span>
+        </button>
+      </div>`;
+    }).join('');
+
+    // Attach toggle/delete handlers
+    list.querySelectorAll('.trigger-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.triggerId);
+        const enabled = btn.dataset.enabled === 'true';
+        ChartTriggers.enable(id, !enabled);
+      });
+    });
+    list.querySelectorAll('.trigger-delete-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.triggerId);
+        ChartTriggers.remove(id);
+      });
+    });
+  }
+
+  // Initial render
+  renderTriggerList();
 
   // ═══════════════════════════════════════════
   // PYTH LIVE PRICES — Ticker strip + dropdown

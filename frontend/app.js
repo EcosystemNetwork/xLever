@@ -592,16 +592,28 @@ function initWalletListeners() {
     });
   }
 
-  modal.subscribeEvents(async (event) => { // Subscribe to all Reown events — we filter for CONNECT/DISCONNECT below
-    if (event?.data?.event === 'CONNECT_SUCCESS') { // User approved the wallet connection in their wallet app
-      connectedAddress = modal.getAddress(); // Capture the connected address immediately so fetchBalances can use it
-      const { createPublicClient, http, inkSepolia } = window.viem; // viem provides typed RPC clients — imported from window because we load it via CDN
+  // Track whether the initial session restore has completed so we only toast on user-initiated connects
+  let hasRestoredSession = false;
+  let connectHandled = false;
+
+  modal.subscribeEvents(async (event) => {
+    if (event?.data?.event === 'CONNECT_SUCCESS') {
+      connectedAddress = modal.getAddress();
+      const { createPublicClient, http, inkSepolia } = window.viem;
       publicClient = createPublicClient({
-        chain: inkSepolia, // Ink Sepolia is the testnet where LTAP vault contracts are deployed
+        chain: inkSepolia,
         transport: http(inkSepolia.rpcUrls.default.http[0])
       });
-      updateWalletUI(); // Show the wallet address and balance panel in the header
-      await fetchBalances(); // Fetch all token balances now that we have a valid client and address
+      updateWalletUI();
+      await fetchBalances();
+
+      // Only show toast for user-initiated connections, not session restores
+      if (hasRestoredSession && !connectHandled) {
+        connectHandled = true;
+        if (typeof XToast !== 'undefined') XToast.show('Wallet connected successfully', 'success');
+        // Reset after a short delay so future manual connects still show the toast
+        setTimeout(() => { connectHandled = false; }, 5000);
+      }
 
       // Redirect to dashboard after fresh wallet connection from the landing page
       if (document.getElementById('landingPage')) {
@@ -609,12 +621,16 @@ function initWalletListeners() {
         return;
       }
     }
-    if (event?.data?.event === 'DISCONNECT_SUCCESS') { // User explicitly disconnected or session expired
-      connectedAddress = null; // Clear address so guard clauses in fetchBalances prevent stale RPC calls
-      publicClient = null; // Release the RPC client since we no longer need it
-      updateWalletUI(); // Hide the balance panel and reset displayed values to dashes
+    if (event?.data?.event === 'DISCONNECT_SUCCESS') {
+      connectedAddress = null;
+      publicClient = null;
+      updateWalletUI();
+      if (typeof XToast !== 'undefined') XToast.show('Wallet disconnected', 'info');
     }
   });
+
+  // Mark session restore as complete after Reown has had time to restore from localStorage
+  setTimeout(() => { hasRestoredSession = true; }, 3000);
 
   // Check if already connected (e.g. page reload with active session) — Reown persists sessions in localStorage
   // so the user shouldn't have to reconnect after every page refresh
