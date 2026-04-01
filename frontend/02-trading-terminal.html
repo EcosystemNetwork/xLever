@@ -97,6 +97,30 @@
         .ticker-dropdown .ticker-name { font-size: 11px; color: #8b8fa3; }
         .ticker-dropdown .ticker-price { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #e3e2e6; }
 
+        /* Collapsible panels */
+        .panel-toggle {
+            display: flex; align-items: center; justify-content: center;
+            width: 20px; height: 40px; position: absolute; top: 50%;
+            transform: translateY(-50%); z-index: 30; cursor: pointer;
+            background: #1b1b1f; border: 1px solid rgba(73, 68, 85, 0.3);
+            border-radius: 0 4px 4px 0; color: #948ea1;
+            transition: color 0.15s, background 0.15s;
+        }
+        .panel-toggle:hover { color: #cdbdff; background: #292a2d; }
+        .panel-toggle .material-symbols-outlined { font-size: 14px; }
+        #leftPanelToggle { right: -20px; }
+        #rightPanelToggle { left: -20px; border-radius: 4px 0 0 4px; }
+
+        #leftSidebar { transition: width 0.2s ease, min-width 0.2s ease; position: relative; }
+        #leftSidebar.collapsed { width: 0 !important; min-width: 0 !important; overflow: hidden; border-right: none; }
+        #leftSidebar.collapsed .sidebar-content { opacity: 0; pointer-events: none; }
+        #leftSidebar.collapsed #leftPanelToggle { right: -20px; }
+
+        #rightPanel { transition: width 0.2s ease, min-width 0.2s ease; position: relative; }
+        #rightPanel.collapsed { width: 0 !important; min-width: 0 !important; overflow: hidden; border-left: none; }
+        #rightPanel.collapsed .panel-content { opacity: 0; pointer-events: none; }
+        #rightPanel.collapsed #rightPanelToggle { left: -20px; }
+
         /* Skeleton pulse */
         @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
         .skeleton { background: linear-gradient(90deg, #1f1f23 25%, #292a2d 50%, #1f1f23 75%); background-size: 400px 100%; animation: shimmer 1.5s infinite; border-radius: 2px; }
@@ -153,7 +177,11 @@
 <script>XNav.init('trading');</script>
 <div class="flex h-[calc(100vh-148px)] overflow-hidden" style="margin-top:36px">
 <!-- Sidebar Navigation -->
-<aside class="flex flex-col w-16 md:w-64 border-r border-[#494455]/15 bg-[#1b1b1f] shrink-0">
+<aside id="leftSidebar" class="flex flex-col w-16 md:w-64 border-r border-[#494455]/15 bg-[#1b1b1f] shrink-0">
+<div id="leftPanelToggle" class="panel-toggle" onclick="toggleLeftPanel()">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+<div class="sidebar-content flex flex-col flex-grow">
 <div class="p-4 border-b border-outline-variant/10 hidden md:block">
 <h2 class="font-headline font-bold text-on-surface text-sm">xLever Terminal</h2>
 <p class="text-[10px] text-outline uppercase tracking-widest mt-0.5">Institutional DeFi</p>
@@ -184,6 +212,7 @@
 </div>
 <div class="w-full h-1 bg-surface-dim rounded-full overflow-hidden">
 <div class="h-full bg-primary-container w-[0%]" id="buyingPowerBar"></div>
+</div>
 </div>
 </div>
 </div>
@@ -406,7 +435,11 @@
 </div>
 </section>
 <!-- Right Panel: Order Entry (35%) -->
-<section class="w-full md:w-[35%] flex flex-col bg-surface-container-low border-l border-outline-variant/10 overflow-y-auto pb-8">
+<section id="rightPanel" class="w-full md:w-[35%] flex flex-col bg-surface-container-low border-l border-outline-variant/10 overflow-y-auto pb-8">
+<div id="rightPanelToggle" class="panel-toggle" onclick="toggleRightPanel()">
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+<div class="panel-content">
 <!-- No Liquidation Badge -->
 <div class="mx-4 mt-4 p-3 bg-primary-container/10 border border-primary-container/30 rounded-sm flex items-center gap-3">
 <span class="material-symbols-outlined text-primary text-xl" data-icon="verified_user">verified_user</span>
@@ -556,6 +589,7 @@
 </div>
 </div>
 </div>
+</div><!-- /panel-content -->
 </section>
 </main>
 </div>
@@ -1306,5 +1340,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 1500);
 })();
+</script>
+<script>
+function toggleLeftPanel() {
+  const sidebar = document.getElementById('leftSidebar');
+  const icon = document.querySelector('#leftPanelToggle .material-symbols-outlined');
+  sidebar.classList.toggle('collapsed');
+  icon.textContent = sidebar.classList.contains('collapsed') ? 'chevron_right' : 'chevron_left';
+  if (window.tvChart) setTimeout(() => window.tvChart.resize(), 250);
+}
+function toggleRightPanel() {
+  const panel = document.getElementById('rightPanel');
+  const icon = document.querySelector('#rightPanelToggle .material-symbols-outlined');
+  panel.classList.toggle('collapsed');
+  icon.textContent = panel.classList.contains('collapsed') ? 'chevron_left' : 'chevron_right';
+  if (window.tvChart) setTimeout(() => window.tvChart.resize(), 250);
+}
 </script>
 </body></html>
