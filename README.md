@@ -45,24 +45,33 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol - Looping Implementation 🔁
+### xLever Protocol Vaults
 - **wSPYx Vault**: [`0x93c0323D7133E2e9D57133a629a35Df17797d890`](https://explorer-sepolia.inkonchain.com/address/0x93c0323D7133E2e9D57133a629a35Df17797d890)
 - **wQQQx Vault**: [`0x0C2c35ed457a4532794602a588eB0C086Ebd67DB`](https://explorer-sepolia.inkonchain.com/address/0x0C2c35ed457a4532794602a588eB0C086Ebd67DB)
 
-**Status:** ✅ **Recursive looping implemented and tested** - See `VaultWithLooping.sol` for true deposit→borrow→deposit→borrow loops
+**Features:**
+- ✅ Open/close leveraged positions
+- ✅ Junior tranche deposits and withdrawals
+- ✅ Fee distribution to junior LPs
+- ✅ Real-time position tracking
+- ✅ Fully integrated frontend UI
+
+### Looping Implementation 🔁
+
+**Status:** ✅ **Recursive looping implemented and tested** - See `VaultWithLooping.sol`
 
 **Implementation:**
-- 🔁 Recursive looping contract (`VaultWithLooping.sol`) - up to 10 iterations
+- 🔁 True deposit→borrow→deposit→borrow loops (up to 10 iterations)
 - ✅ Comprehensive test suite - 17/17 tests passing including 1001 fuzz tests
 - ✅ Achieves true 2x-4x leverage through Euler V2 vaults
 - ✅ Automatic loop unwinding on withdrawal
 - ✅ Health factor maintenance (>120%)
 - ✅ LoopExecuted events for transparency
-- ✅ Junior tranche for first-loss capital
-- ✅ Fee distribution to junior LPs
 
 **Testing:**
-Run tests with: `cd contracts && forge test --match-contract VaultWithLoopingTest -vv`
+```bash
+cd contracts && forge test --match-contract VaultWithLoopingTest -vv
+```
 
 ### Tokens
 - **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)
