@@ -449,10 +449,17 @@ const XWallet = (() => {
       if (!modal) return setTimeout(checkModal, 200);
 
       // Subscribe to Reown AppKit events to show user-friendly toast notifications
+      // Track whether wallet was already connected on page load to avoid
+      // showing the toast for automatic session restoration
+      let wasConnectedOnInit = modal.getIsConnected();
       let lastConnectShown = 0;
       modal.subscribeEvents((event) => {
         // Notify user on successful wallet connection (debounce to avoid repeated toasts)
         if (event?.data?.event === 'CONNECT_SUCCESS') {
+          if (wasConnectedOnInit) {
+            wasConnectedOnInit = false;
+            return;
+          }
           const now = Date.now();
           if (now - lastConnectShown > 5000) {
             lastConnectShown = now;

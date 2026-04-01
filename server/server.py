@@ -26,7 +26,7 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Override end_headers to inject CORS headers into every response —
     # the browser blocks cross-origin requests from the frontend without these
     # Allowed origins for CORS — restrict to known local dev servers
-    ALLOWED_ORIGINS = {'http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000'}
+    ALLOWED_ORIGINS = {'http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000', 'https://xlever.markets'}
 
     def end_headers(self):
         # Only allow requests from known frontend dev server origins

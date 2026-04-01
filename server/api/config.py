@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Debug mode controls SQLAlchemy echo (SQL logging) — off by default to reduce noise
     DEBUG: bool = False
     # Whitelist of frontend origins allowed to make cross-origin requests to this API
-    CORS_ORIGINS: list[str] = ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000", "https://xlever.markets"]
 
     # Ink Sepolia RPC endpoint — xLever deploys on Ink chain (Euler V2 EVK vaults live here)
     RPC_URL: str = "https://rpc-gel-sepolia.inkonchain.com"
