@@ -117,10 +117,11 @@ const XNav = (() => {
         padding: 8px 20px;
         border-radius: 8px;
         text-decoration: none;
-        transition: background 0.15s, transform 0.1s;
+        transition: all 0.2s;
         white-space: nowrap;
+        box-shadow: 0 0 16px rgba(124,77,255,0.15), 0 1px 4px rgba(0,0,0,0.2);
       }
-      #xnav .nav-cta:hover { background: #6a3de8; transform: translateY(-1px); }
+      #xnav .nav-cta:hover { background: #6a3de8; transform: translateY(-1px); box-shadow: 0 0 24px rgba(124,77,255,0.25), 0 2px 8px rgba(0,0,0,0.3); }
 
       #xnav .nav-network {
         display: flex;
