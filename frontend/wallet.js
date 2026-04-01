@@ -49,8 +49,8 @@ const ton = {
   },
 }
 
-// Aggregate all four supported chains — order matters: inkSepolia is first so it's the default network on connect (primary deployment target)
-const networks = [inkSepolia, mainnet, solana, ton]
+// Use only Ink Sepolia for now to avoid connection issues with multi-chain setup
+const networks = [inkSepolia]
 
 // Create Wagmi adapter — this translates Reown modal events into wagmi-compatible hooks and providers
 const wagmiAdapter = new WagmiAdapter({
