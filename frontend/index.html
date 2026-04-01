@@ -256,6 +256,17 @@
       <div class="panel-title">Open Position</div>
       <div style="background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); padding: 20px;">
         <div style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Asset Selection -->
+          <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+            <button class="asset-btn active" data-asset="wQQQx" 
+                    style="flex: 1; padding: 10px; background: rgba(102, 126, 234, 0.2); border: 1px solid rgba(102, 126, 234, 0.5); border-radius: 6px; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s;">
+              QQQ
+            </button>
+            <button class="asset-btn" data-asset="wSPYx" 
+                    style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: rgba(255,255,255,0.6); font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s;">
+              SPY
+            </button>
+          </div>
           <input type="number" id="positionAmountInput" placeholder="Enter USDC Amount" 
                  style="width: 100%; padding: 14px 18px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 16px; font-family: 'JetBrains Mono', monospace; box-sizing: border-box;" />
           <button id="openPositionBtn" 
