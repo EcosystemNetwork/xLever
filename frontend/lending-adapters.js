@@ -994,6 +994,12 @@ class EvaaAdapter extends ILendingAdapter {
     return getTonConnectSender(provider)
   }
 
+  /**
+   * Supply an asset to the EVAA lending pool on TON.
+   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Last sent BOC (bag of cells) as transaction proof
+   */
   async supply(asset, amount) {
     const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
@@ -1020,6 +1026,12 @@ class EvaaAdapter extends ILendingAdapter {
     return sdk.getLastSentBoc()
   }
 
+  /**
+   * Withdraw a previously supplied asset from the EVAA lending pool.
+   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Last sent BOC as transaction proof
+   */
   async withdraw(asset, amount) {
     const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
@@ -1048,6 +1060,14 @@ class EvaaAdapter extends ILendingAdapter {
     return sdk.getLastSentBoc()
   }
 
+  /**
+   * Borrow an asset from the EVAA lending pool against deposited collateral.
+   * EVAA implements borrowing as a combined supply-withdraw operation:
+   * supply 0 TON, withdraw the desired borrow asset.
+   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Last sent BOC as transaction proof
+   */
   async borrow(asset, amount) {
     const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
@@ -1076,6 +1096,14 @@ class EvaaAdapter extends ILendingAdapter {
     return sdk.getLastSentBoc()
   }
 
+  /**
+   * Repay a borrowed asset on the EVAA lending pool.
+   * EVAA implements repayment as a supply operation with the returnRepayRemainings
+   * flag set, which returns any excess amount after debt is settled.
+   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Last sent BOC as transaction proof
+   */
   async repay(asset, amount) {
     const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
@@ -1130,7 +1158,10 @@ class LendingAdapterRegistry {
     this._activeChain = CHAINS.INK_SEPOLIA
   }
 
-  /** Register all supported adapters */
+  /**
+   * Register all supported chain adapters (Euler V2, Kamino, EVAA).
+   * @returns {LendingAdapterRegistry} This instance for chaining
+   */
   init() {
     this._adapters.set(CHAINS.INK_SEPOLIA, new EulerV2Adapter(CHAINS.INK_SEPOLIA))
     this._adapters.set(CHAINS.ETHEREUM, new EulerV2Adapter(CHAINS.ETHEREUM))
@@ -1139,35 +1170,57 @@ class LendingAdapterRegistry {
     return this
   }
 
-  /** Get adapter for a specific chain */
+  /**
+   * Get the lending adapter for a specific chain.
+   * @param {string} chain - Chain identifier from CHAINS enum
+   * @returns {ILendingAdapter} The chain's adapter instance
+   * @throws {Error} If no adapter is registered for the chain
+   */
   get(chain) {
     const adapter = this._adapters.get(chain)
     if (!adapter) throw new Error(`No adapter for chain: ${chain}`)
     return adapter
   }
 
-  /** Get the currently active chain's adapter */
+  /**
+   * Get the currently active chain's lending adapter.
+   * @returns {ILendingAdapter} The active adapter instance
+   */
   active() {
     return this.get(this._activeChain)
   }
 
-  /** Switch active chain */
+  /**
+   * Switch the active chain. Subsequent calls to active() will return
+   * the adapter for this chain.
+   * @param {string} chain - Chain identifier from CHAINS enum
+   * @throws {Error} If no adapter is registered for the chain
+   */
   setActiveChain(chain) {
     if (!this._adapters.has(chain)) throw new Error(`No adapter for chain: ${chain}`)
     this._activeChain = chain
   }
 
-  /** Get active chain ID */
+  /**
+   * Get the currently active chain identifier.
+   * @returns {string} Chain ID from CHAINS enum
+   */
   getActiveChain() {
     return this._activeChain
   }
 
-  /** Get all registered chain IDs */
+  /**
+   * Get all registered chain identifiers.
+   * @returns {string[]} Array of chain IDs from CHAINS enum
+   */
   chains() {
     return Array.from(this._adapters.keys())
   }
 
-  /** Get all adapters */
+  /**
+   * Get the full adapter map for direct iteration.
+   * @returns {Map<string, ILendingAdapter>} Map of chain ID to adapter instance
+   */
   all() {
     return this._adapters
   }
@@ -1213,8 +1266,10 @@ class LendingAdapterRegistry {
   }
 
   /**
-   * Map AppKit network change events to xLever chain IDs.
-   * Called from nav.js when user switches networks.
+   * Map Reown AppKit network change events to xLever chain IDs.
+   * Called from nav.js when the user switches networks in the wallet.
+   * @param {number|string} networkIdOrCaip - Numeric chain ID (e.g., 763373) or CAIP identifier (e.g., 'solana:mainnet')
+   * @returns {string|null} Matching CHAINS enum value, or null if unrecognized
    */
   resolveChainFromNetwork(networkIdOrCaip) {
     if (networkIdOrCaip === 763373) return CHAINS.INK_SEPOLIA

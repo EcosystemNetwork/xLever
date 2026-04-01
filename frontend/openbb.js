@@ -19,7 +19,17 @@ const API_BASE = '/api/openbb'
 
 let _unavailableUntil = 0 // Backoff timestamp — stops hammering a down backend
 
-// Centralized fetch wrapper — all OpenBB calls route through here to ensure consistent error handling and URL construction
+/**
+ * Centralized fetch wrapper for all OpenBB API calls.
+ * Routes through here to ensure consistent error handling, URL construction,
+ * and automatic backoff when the backend is unreachable (5-minute cooldown
+ * after 502/503/504 or network errors).
+ *
+ * @param {string} path — API path relative to API_BASE (e.g., '/quote/QQQ')
+ * @param {Object} [params={}] — Query parameters (null/undefined values are skipped)
+ * @returns {Promise<Object|null>} Parsed JSON response, or null if backend is unavailable
+ * @throws {Error} If the response is non-2xx and not a 502-504 gateway error
+ */
 async function fetchOBB(path, params = {}) {
   if (Date.now() < _unavailableUntil) return null
   // Build full URL from relative path — using window.location.origin ensures it works across dev/staging/production environments

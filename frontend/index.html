@@ -400,7 +400,7 @@
       </div>
     </div>
     
-    <!-- Your Positions Section -->
+    <!-- ===== PANEL: Your Positions — Active position list (wallet-connected) ===== -->
     <div class="panel-section">
       <div class="panel-title">Your Positions</div>
       <div id="positionsContainer" style="background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); padding: 16px;">
@@ -423,7 +423,7 @@
         <div class="row"><span class="row-label">Oracle</span><span class="row-value">15-min TWAP (Pyth)</span></div>
       </div>
     </div>
-    <!-- Live mode: real pool data from contract reads -->
+    <!-- ===== PANEL: Buffer Tranche (Live Mode) — Real pool data from contract reads ===== -->
     <div class="panel-section live-only" id="liveBufferPanel" style="display:none;">
       <div class="panel-title">Buffer Tranche (Junior) <span class="source-badge">LIVE</span></div>
       <div class="strategy-card">
@@ -434,7 +434,7 @@
         <div class="row"><span class="row-label">Buffer Health</span><span class="row-value" id="liveBufferHealth">—</span></div>
       </div>
     </div>
-    <!-- Research mode: simulated pool estimates -->
+    <!-- ===== PANEL: Buffer Tranche (Research Mode) — Simulated pool estimates ===== -->
     <div class="panel-section research-only" id="researchBufferPanel">
       <div class="panel-title">Buffer Tranche (Junior) <span class="source-badge sim">SIMULATED</span></div>
       <div class="strategy-card">
@@ -459,7 +459,7 @@
       <div class="risk-label"><span>Conservative</span><span id="riskText">Moderate</span><span>Aggressive</span></div>
       <div class="buffer-req" id="bufferReq">Buffer: 20% junior ratio required</div>
     </div>
-    <!-- Live mode: data source note -->
+    <!-- ===== PANEL: Data Source (Live Mode) — On-chain contract + Pyth oracle info ===== -->
     <div class="panel-section live-only" id="liveDataSourcePanel" style="display:none;">
       <div class="panel-title">Data Source <span class="source-badge">LIVE</span></div>
       <div class="api-notice">
@@ -473,7 +473,7 @@
         <span id="liveCacheInfo" style="font-size:11px;color:rgba(255,255,255,0.3);">Cache age: —</span>
       </div>
     </div>
-    <!-- Research mode: data source note -->
+    <!-- ===== PANEL: Data Source (Research Mode) — Yahoo Finance backtest methodology ===== -->
     <div class="panel-section research-only" id="researchDataSourcePanel">
       <div class="panel-title">Data Source <span class="source-badge sim">SIMULATED</span></div>
       <div class="api-notice">
@@ -492,7 +492,8 @@
   </div>
 </div>
 
-<!-- Mobile Leverage Control -->
+<!-- ===== SECTION: Mobile Leverage Control =====
+     Responsive leverage slider for mobile devices with notch buttons. -->
 <div class="mobile-leverage-control">
   <div class="mobile-lev-display">
     <div class="mobile-lev-value" id="mobileLevDisplay">2.0×</div>
@@ -516,7 +517,11 @@
   </div>
 </div>
 
-<!-- Junior LP View -->
+<!-- ===== SECTION: Junior LP View =====
+     Alternative view for junior liquidity providers. Contains:
+     hero stats (APY, TVL, utilization, position), deposit/withdraw panel,
+     risk & rewards cards, pool composition bar, pool health metrics,
+     fee breakdown, and real-time share metrics. -->
 <div id="juniorView" class="main-layout" style="display: none;">
   <div class="junior-hero">
     <h1 class="junior-title">Junior Liquidity Provider</h1>
@@ -765,7 +770,7 @@
 </div>
 
 </div>
-<!-- End Main App -->
+<!-- ===== END: Legacy Main App Container ===== -->
 
 <script type="module" src="wallet.js"></script>
 <script type="module" src="contracts.js"></script>

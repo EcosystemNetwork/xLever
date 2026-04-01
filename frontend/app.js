@@ -920,8 +920,10 @@ initTxEventListeners();
 // ═══════════════════════════════════════════════════════════
 
 let _seed = 42; // Fixed seed so synthetic data is deterministic — same backtest input every run for reproducible testing
-function srand() { _seed = (_seed * 16807) % 2147483647; return _seed / 2147483647; } // Park-Miller LCG PRNG — deterministic, no Math.random() so results don't change between page loads
-function boxMuller() { return Math.sqrt(-2 * Math.log(srand())) * Math.cos(2 * Math.PI * srand()); } // Box-Muller transform converts uniform random to normal distribution — needed for realistic return modeling
+/** @returns {number} Pseudo-random number in (0, 1) using Park-Miller LCG PRNG — deterministic, no Math.random() */
+function srand() { _seed = (_seed * 16807) % 2147483647; return _seed / 2147483647; }
+/** @returns {number} Normally distributed random number (mean=0, stddev=1) via Box-Muller transform */
+function boxMuller() { return Math.sqrt(-2 * Math.log(srand())) * Math.cos(2 * Math.PI * srand()); }
 
 /**
  * Generate synthetic QQQ-like OHLCV data using geometric Brownian motion.

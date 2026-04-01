@@ -772,7 +772,11 @@ tailwind.config = {
 </div>
 </main>
 
-<!-- Scripts -->
+<!-- ===== SCRIPTS: Core modules =====
+     wallet.js          — Reown wallet provider
+     lending-adapters.js — Euler V2 lending market adapters (supply/borrow/repay)
+     lending-agent.js   — AI lending agent (yield/leverage/hedge/monitor modes)
+     ux.js              — Shared UX (XAuthGate, XToast) -->
 <script type="module" src="wallet.js"></script>
 <script type="module" src="lending-adapters.js"></script>
 <script src="lending-agent.js"></script>
@@ -780,6 +784,10 @@ tailwind.config = {
 <script>
 document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
 </script>
+<!-- ===== SCRIPTS: Lending Page Logic =====
+     Page state management, market selection, lending mode selector,
+     policy config UI, manual supply/borrow/repay actions, health factor
+     gauge updates, agent activity logging, and session statistics. -->
 <script>
 // ═══════════════════════════════════════════════════════════════
 // PAGE STATE

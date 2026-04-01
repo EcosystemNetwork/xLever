@@ -96,6 +96,11 @@ const ChartStrategyTools = (() => {
     return api
   }
 
+  /**
+   * Resize the overlay canvas to match the chart container dimensions
+   * and trigger a redraw of all drawings.
+   * @private
+   */
   function _resizeCanvas() {
     if (!_canvas || !_chart) return
     const el = _chart.chartElement()
@@ -108,11 +113,23 @@ const ChartStrategyTools = (() => {
   // COORDINATE CONVERSION
   // ═══════════════════════════════════════════
 
+  /**
+   * Convert a time value to an X pixel coordinate on the chart.
+   * @param {number} time - Unix timestamp
+   * @returns {number|null} X coordinate in pixels, or null if off-screen
+   * @private
+   */
   function _timeToX(time) {
     const coord = _chart.timeScale().timeToCoordinate(time)
     return coord !== null ? coord : null
   }
 
+  /**
+   * Convert a price value to a Y pixel coordinate on the chart.
+   * @param {number} price - Price value
+   * @returns {number|null} Y coordinate in pixels, or null if off-screen
+   * @private
+   */
   function _priceToY(price) {
     const series = _getSeries()
     if (!series) return null
@@ -120,10 +137,22 @@ const ChartStrategyTools = (() => {
     return coord !== null ? coord : null
   }
 
+  /**
+   * Convert an X pixel coordinate to a time value.
+   * @param {number} x - X coordinate in pixels
+   * @returns {number|null} Unix timestamp, or null if outside chart range
+   * @private
+   */
   function _coordToTime(x) {
     return _chart.timeScale().coordinateToTime(x)
   }
 
+  /**
+   * Convert a Y pixel coordinate to a price value.
+   * @param {number} y - Y coordinate in pixels
+   * @returns {number|null} Price value, or null if no series is active
+   * @private
+   */
   function _coordToPrice(y) {
     const series = _getSeries()
     if (!series) return null
@@ -229,6 +258,13 @@ const ChartStrategyTools = (() => {
   }
 
   // ─── Horizontal Line ───
+  /**
+   * Add a horizontal price line to the chart via LWC's createPriceLine API.
+   * @param {number} price - Price level for the line
+   * @param {Object} [opts] - Options: {color, label, dashed}
+   * @returns {Object|null} Drawing descriptor with id, price, priceLine, or null if no series
+   * @private
+   */
   function _addHLine(price, opts = {}) {
     const series = _getSeries()
     if (!series) return null
@@ -251,6 +287,14 @@ const ChartStrategyTools = (() => {
   }
 
   // ─── Trend Line ───
+  /**
+   * Add a two-point trend line rendered on the canvas overlay.
+   * @param {{time: number, price: number}} p1 - Start point
+   * @param {{time: number, price: number}} p2 - End point
+   * @param {Object} [opts] - Options: {color, lineWidth, label}
+   * @returns {Object} Drawing descriptor with id, type, endpoints
+   * @private
+   */
   function _addTrendLine(p1, p2, opts = {}) {
     const id = _nextId++
     const color = opts.color || COLORS.trendline.line
@@ -261,6 +305,14 @@ const ChartStrategyTools = (() => {
   }
 
   // ─── Rectangle Zone ───
+  /**
+   * Add a filled rectangle zone between two price/time points on the canvas overlay.
+   * @param {{time: number, price: number}} p1 - First corner
+   * @param {{time: number, price: number}} p2 - Opposite corner
+   * @param {Object} [opts] - Options: {fill, stroke, label}
+   * @returns {Object} Drawing descriptor with id, type, corners
+   * @private
+   */
   function _addRect(p1, p2, opts = {}) {
     const id = _nextId++
     const fill = opts.fill || COLORS.rect.fill
@@ -272,6 +324,16 @@ const ChartStrategyTools = (() => {
   }
 
   // ─── Fibonacci Retracement ───
+  /**
+   * Add a Fibonacci retracement between two price points on the canvas overlay.
+   * Draws horizontal lines at standard Fib levels (0, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)
+   * with colored fills between levels and price labels.
+   * @param {{time: number, price: number}} p1 - First anchor point (high or low)
+   * @param {{time: number, price: number}} p2 - Second anchor point (opposite extreme)
+   * @param {Object} [opts] - Options: {colors} array for level line colors
+   * @returns {Object} Drawing descriptor with id, type, anchor points
+   * @private
+   */
   function _addFib(p1, p2, opts = {}) {
     const id = _nextId++
     const drawing = { type: 'fib', id, p1: { ...p1 }, p2: { ...p2 }, colors: opts.colors || COLORS.fib.lines }
@@ -284,6 +346,12 @@ const ChartStrategyTools = (() => {
   // CANVAS RENDERING
   // ═══════════════════════════════════════════
 
+  /**
+   * Clear and re-render all drawings on the canvas overlay.
+   * Also renders a dashed preview for the drawing currently in progress.
+   * Called on chart scroll/zoom and after any drawing is added/removed.
+   * @private
+   */
   function _redraw() {
     if (!_ctx || !_canvas) return
     _ctx.clearRect(0, 0, _canvas.width, _canvas.height)
@@ -319,6 +387,11 @@ const ChartStrategyTools = (() => {
     }
   }
 
+  /**
+   * Render a trend line drawing on the canvas with endpoint dots and optional label.
+   * @param {Object} d - Trend line drawing descriptor with p1, p2, color, lineWidth, label
+   * @private
+   */
   function _drawTrendLine(d) {
     const x1 = _timeToX(d.p1.time), y1 = _priceToY(d.p1.price)
     const x2 = _timeToX(d.p2.time), y2 = _priceToY(d.p2.price)
@@ -346,6 +419,11 @@ const ChartStrategyTools = (() => {
     }
   }
 
+  /**
+   * Render a filled rectangle drawing on the canvas with stroke border and optional label.
+   * @param {Object} d - Rectangle drawing descriptor with p1, p2, fill, stroke, label
+   * @private
+   */
   function _drawRect(d) {
     const x1 = _timeToX(d.p1.time), y1 = _priceToY(d.p1.price)
     const x2 = _timeToX(d.p2.time), y2 = _priceToY(d.p2.price)
@@ -367,6 +445,13 @@ const ChartStrategyTools = (() => {
     }
   }
 
+  /**
+   * Render a Fibonacci retracement drawing on the canvas.
+   * Draws colored horizontal lines at each Fib level with shaded fill zones between them
+   * and price+percentage labels at the right edge.
+   * @param {Object} d - Fib drawing descriptor with p1, p2, colors
+   * @private
+   */
   function _drawFib(d) {
     const x1 = _timeToX(d.p1.time), y1 = _priceToY(d.p1.price)
     const x2 = _timeToX(d.p2.time), y2 = _priceToY(d.p2.price)
@@ -485,13 +570,20 @@ const ChartStrategyTools = (() => {
   }
 
   /**
-   * Add individual markers (merged with existing chart markers).
+   * Add strategy markers (buy/sell/info signals) and merge them with existing chart markers.
+   * @param {Array<Object>} markers - Marker objects with time, position, color, shape, text
+   * @private
    */
   function _addStrategyMarkers(markers) {
     _strategyMarkers = _strategyMarkers.concat(markers)
     _applyMarkers()
   }
 
+  /**
+   * Merge existing chart markers with strategy markers, sort by time,
+   * and apply them to the chart series.
+   * @private
+   */
   function _applyMarkers() {
     const series = _getSeries()
     if (!series) return

@@ -1,6 +1,29 @@
 /**
- * Viem shim — exposes viem utilities on window for classic (non-module) scripts.
- * Loaded as type="module" so Vite bundles it; consumed by app.js via window.viem.
+ * @file viem-shim.js — Viem Bridge for Non-Module Scripts
+ *
+ * Exposes viem utilities on `window.viem` so classic (non-module) scripts can
+ * access them without ES import syntax. This file is loaded as `type="module"`
+ * so Vite resolves and bundles the viem dependency, then the bridge pattern
+ * makes the utilities available globally.
+ *
+ * This shim is necessary because legacy scripts (app.js, inline HTML handlers,
+ * position-manager.js, etc.) cannot use ES `import` statements but need access
+ * to viem's client factories and formatting utilities for on-chain interactions.
+ *
+ * @module viem-shim
+ * @exports {Object} window.viem - Global viem utilities object
+ * @exports {Function} window.viem.createWalletClient - Factory for transaction-signing clients
+ * @exports {Function} window.viem.createPublicClient - Factory for read-only RPC clients
+ * @exports {Function} window.viem.custom - Transport wrapper for injected wallet providers
+ * @exports {Function} window.viem.http - HTTP transport for public RPC endpoints
+ * @exports {Function} window.viem.formatEther - Convert 18-decimal wei to ETH string
+ * @exports {Function} window.viem.formatUnits - Convert arbitrary-decimal amounts to readable strings
+ * @exports {Object} window.viem.mainnet - Ethereum mainnet chain definition
+ * @exports {Object} window.viem.inkSepolia - Ink Sepolia chain definition (xLever primary deployment)
+ *
+ * @dependencies
+ *   - viem (npm package) for client factories and formatters
+ *   - ./contracts.js for inkSepolia chain definition
  */
 
 // Import viem client factories and utilities — these are needed by non-module scripts that can't use ES imports directly
