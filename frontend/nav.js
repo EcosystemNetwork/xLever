@@ -30,6 +30,10 @@ const XNav = (() => {
   }
 
   function pagesForMode(mode) {
+    // Judge mode overrides: only show the core demo flow
+    if (window.JudgeMode && window.JudgeMode.isActive()) {
+      return window.JudgeMode.filterPages(PAGES);
+    }
     return PAGES.filter(p => p.mode === mode || p.mode === null);
   }
 

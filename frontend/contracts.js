@@ -560,6 +560,28 @@ export async function readOnChainPrice(feedId, maxAgeSec = 300) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TRANSACTION LIFECYCLE STATES
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Every transaction goes through these states in order:
+ *   submitted → pending → confirmed | failed | rejected
+ *
+ * `submitted`  – hash returned by wallet, tx is in mempool
+ * `pending`    – receipt polling in progress (with retry count)
+ * `confirmed`  – receipt received, status === 'success'
+ * `failed`     – receipt received but status === 'reverted', or RPC error after retries
+ * `rejected`   – user rejected in wallet (never reaches chain)
+ */
+export const TX_STATES = Object.freeze({
+  SUBMITTED: 'submitted',
+  PENDING:   'pending',
+  CONFIRMED: 'confirmed',
+  FAILED:    'failed',
+  REJECTED:  'rejected',
+})
+
+// ═══════════════════════════════════════════════════════════════
 // TRANSACTION EVENT SYSTEM
 // ═══════════════════════════════════════════════════════════════
 
@@ -611,24 +633,58 @@ export function classifyTxError(err) {
 // TX HELPERS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Wait for a transaction receipt with exponential backoff retry.
+ * Emits lifecycle events: submitted → pending → confirmed | failed
+ *
+ * Retry strategy: up to 5 attempts with 2/4/8/16/32s backoff.
+ * This survives transient RPC hiccups during a live demo.
+ */
 async function waitForTx(hash) {
-  // Emit submitted event as soon as the hash exists — the tx is in the mempool
-  txEvents.emit('submitted', { hash, explorerUrl: getExplorerUrl(hash) })
+  const explorerUrl = getExplorerUrl(hash)
+  // submitted — hash is in the mempool
+  txEvents.emit('submitted', { hash, explorerUrl, state: TX_STATES.SUBMITTED })
 
-  const receipt = await getPublicClient().waitForTransactionReceipt({ hash })
+  const MAX_RETRIES = 5
+  let receipt = null
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // pending — polling in progress
+    txEvents.emit('pending', { hash, explorerUrl, state: TX_STATES.PENDING, attempt, maxRetries: MAX_RETRIES })
+
+    try {
+      receipt = await getPublicClient().waitForTransactionReceipt({
+        hash,
+        timeout: 30_000,        // 30s per attempt (viem default is 60s)
+        pollingInterval: 2_000, // check every 2s
+      })
+      break // got a receipt
+    } catch (pollErr) {
+      console.warn(`[waitForTx] attempt ${attempt + 1}/${MAX_RETRIES + 1} failed:`, pollErr.message)
+      if (attempt === MAX_RETRIES) {
+        // All retries exhausted — emit failed and throw
+        const classified = classifyTxError(pollErr)
+        txEvents.emit('failed', { hash, explorerUrl, state: TX_STATES.FAILED, error: classified })
+        pollErr.shortMessage = pollErr.shortMessage || `Receipt polling failed after ${MAX_RETRIES + 1} attempts. Check the explorer for status.`
+        throw pollErr
+      }
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+      await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)))
+    }
+  }
 
   // Check receipt status — 'reverted' means the tx was mined but failed on-chain
   if (receipt.status === 'reverted') {
     const err = new Error(`Transaction reverted (tx: ${hash})`)
     err._txReverted = true
     err.shortMessage = 'Transaction was mined but reverted on-chain.'
-    txEvents.emit('failed', { hash, receipt, error: classifyTxError(err) })
+    txEvents.emit('failed', { hash, explorerUrl, receipt, state: TX_STATES.FAILED, error: classifyTxError(err) })
     throw err
   }
 
-  // Success — emit confirmed so listeners can reload balances from chain state
-  txEvents.emit('confirmed', { hash, receipt })
-  return { hash, receipt }
+  // confirmed — receipt received, tx succeeded
+  txEvents.emit('confirmed', { hash, explorerUrl, receipt, state: TX_STATES.CONFIRMED })
+  return { hash, receipt, explorerUrl }
 }
 
 export function getExplorerUrl(hash) {
