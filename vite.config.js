@@ -7,11 +7,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 // Export the Vite config so the dev server and build process both use these settings
 export default defineConfig({
-  // Set the project root to the frontend directory so Vite resolves HTML and assets from there
   root: 'frontend',
-  envDir: resolve(__dirname),
-  // Public directory for assets that should be copied as-is
-  publicDir: 'public',
   // Plugins to extend Vite functionality
   plugins: [
     viteStaticCopy({
@@ -27,10 +23,12 @@ export default defineConfig({
       ]
     })
   ],
+  // Public directory for assets that should be copied as-is
+  publicDir: 'public',
   // Build configuration controls how Rollup bundles the production output
   build: {
-    // Output the production build to project root /dist (absolute path for Vercel compatibility)
-    outDir: resolve(__dirname, 'dist'),
+    // Output the production build to dist folder at project root
+    outDir: '../dist',
     // Clear the dist folder before each build to avoid stale files from previous builds
     emptyOutDir: true,
     // Copy public directory files to dist
