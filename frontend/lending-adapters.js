@@ -10,9 +10,12 @@
  * LendingAgent can operate identically across all chains.
  */
 
-import { Connection, PublicKey } from '@solana/web3.js'
-import { Address } from '@ton/core'
+import { Connection, PublicKey, Transaction } from '@solana/web3.js'
+import { KaminoMarket, KaminoAction, VanillaObligation } from '@kamino-finance/klend-sdk'
+import BN from 'bn.js'
+import { Address, beginCell, toNano } from '@ton/core'
 import { TonClient } from '@ton/ton'
+import { getTonConnectSender, getLastSentBoc } from '@evaafi/sdk'
 
 // ═══════════════════════════════════════════════════════════════
 // CHAIN REGISTRY — canonical chain IDs used throughout the system
@@ -615,44 +618,93 @@ class KaminoAdapter extends ILendingAdapter {
   //   3. Replace _requireKaminoSdk() calls below with SDK instruction builders
   //   4. The read methods (getMarkets, getPositions, getIdleBalance) already work
 
-  /**
-   * Throws a clear error directing developers to install the Kamino SDK.
-   * All write methods delegate here until the SDK is integrated.
-   */
-  _requireKaminoSdk(operation) {
-    throw new Error(
-      `Kamino SDK required for mainnet transactions. ` +
-      `Cannot execute "${operation}" without @kamino-finance/klend-sdk. ` +
-      `Install with: npm install @kamino-finance/klend-sdk`
+  async _loadMarket() {
+    const conn = this._getConnection()
+    const market = await KaminoMarket.load(
+      conn,
+      new PublicKey(KAMINO_CONFIG.mainMarket),
+      400,
+      new PublicKey(KAMINO_CONFIG.lendingProgram),
+      true
     )
+    if (!market) throw new Error('Failed to load Kamino market')
+    return market
+  }
+
+  async _buildAndSend(actionBuilder) {
+    const provider = this._getProvider()
+    if (!provider?.publicKey) throw new Error('Solana wallet not connected')
+
+    const market = await this._loadMarket()
+    const owner = provider.publicKey
+    const obligation = new VanillaObligation(new PublicKey(KAMINO_CONFIG.lendingProgram))
+
+    const action = await actionBuilder(market, owner, obligation)
+    const ixs = KaminoAction.actionToIxs(action)
+    const conn = this._getConnection()
+    const { blockhash } = await conn.getLatestBlockhash('confirmed')
+
+    const tx = new Transaction({ recentBlockhash: blockhash, feePayer: owner })
+    tx.add(...ixs)
+
+    const signed = await provider.signTransaction(tx)
+    const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: false })
+    await conn.confirmTransaction(sig, 'confirmed')
+    return sig
   }
 
   async supply(asset, amount) {
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    // TODO: Replace with KaminoAction.buildDepositTxns() from @kamino-finance/klend-sdk
-    this._requireKaminoSdk('supply')
+    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
+    return this._buildAndSend((market, owner, obligation) =>
+      KaminoAction.buildDepositTxns(
+        market, rawAmount, new PublicKey(config.mint), owner, obligation,
+        false, undefined, 0, true, false,
+        { skipInitialization: false, skipLutCreation: false }
+      )
+    )
   }
 
   async withdraw(asset, amount) {
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    // TODO: Replace with KaminoAction.buildWithdrawTxns() from @kamino-finance/klend-sdk
-    this._requireKaminoSdk('withdraw')
+    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
+    return this._buildAndSend((market, owner, obligation) =>
+      KaminoAction.buildWithdrawTxns(
+        market, rawAmount, new PublicKey(config.mint), owner, obligation,
+        false, undefined, 0, true, false,
+        { skipInitialization: false, skipLutCreation: false }
+      )
+    )
   }
 
   async borrow(asset, amount) {
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    // TODO: Replace with KaminoAction.buildBorrowTxns() from @kamino-finance/klend-sdk
-    this._requireKaminoSdk('borrow')
+    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
+    return this._buildAndSend((market, owner, obligation) =>
+      KaminoAction.buildBorrowTxns(
+        market, rawAmount, new PublicKey(config.mint), owner, obligation,
+        false, undefined, 0, true, false,
+        { skipInitialization: false, skipLutCreation: false }
+      )
+    )
   }
 
   async repay(asset, amount) {
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    // TODO: Replace with KaminoAction.buildRepayTxns() from @kamino-finance/klend-sdk
-    this._requireKaminoSdk('repay')
+    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
+    const conn = this._getConnection()
+    const slot = await conn.getSlot('confirmed')
+    return this._buildAndSend((market, owner, obligation) =>
+      KaminoAction.buildRepayTxns(
+        market, rawAmount, new PublicKey(config.mint), owner, obligation,
+        false, undefined, slot, undefined, 0, true, false,
+        { skipInitialization: false, skipLutCreation: false }
+      )
+    )
   }
 
   explorerUrl(hash) {

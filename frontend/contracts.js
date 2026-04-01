@@ -369,19 +369,23 @@ export async function getTWAP() {
  */
 export async function getOnChainOracleState() {
   if (!ADDRESSES.vault) return null
-  const raw = await getPublicClient().readContract({
-    address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState',
-  })
-  return {
-    executionPrice: Number(raw.executionPrice) / 1e8,
-    displayPrice: Number(raw.displayPrice) / 1e8,
-    riskPrice: Number(raw.riskPrice) / 1e8,
-    divergenceBps: Number(raw.divergenceBps),
-    spreadBps: Number(raw.spreadBps),
-    isFresh: raw.isFresh,
-    isCircuitBroken: raw.isCircuitBroken,
-    lastUpdateTime: Number(raw.lastUpdateTime),
-    updateCount: Number(raw.updateCount),
+  try {
+    const raw = await getPublicClient().readContract({
+      address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState',
+    })
+    return {
+      executionPrice: Number(raw.executionPrice) / 1e8,
+      displayPrice: Number(raw.displayPrice) / 1e8,
+      riskPrice: Number(raw.riskPrice) / 1e8,
+      divergenceBps: Number(raw.divergenceBps),
+      spreadBps: Number(raw.spreadBps),
+      isFresh: raw.isFresh,
+      isCircuitBroken: raw.isCircuitBroken,
+      lastUpdateTime: Number(raw.lastUpdateTime),
+      updateCount: Number(raw.updateCount),
+    }
+  } catch {
+    return null
   }
 }
 

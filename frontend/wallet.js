@@ -7,10 +7,10 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 // Import Ink Sepolia chain config — single source of truth in contracts.js
 import { inkSepolia } from './contracts.js'
 
-// Reown Cloud project ID authorizes our app with WalletConnect relay servers; falls back to placeholder for local dev
-const projectId = import.meta.env.VITE_REOWN_PROJECT_ID || 'REPLACE_WITH_YOUR_PROJECT_ID'
-if (projectId === 'REPLACE_WITH_YOUR_PROJECT_ID') {
-  console.warn('[xLever] VITE_REOWN_PROJECT_ID not set — wallet connection may fail. Set it in your .env file.')
+// Reown Cloud project ID authorizes our app with WalletConnect relay servers
+const projectId = import.meta.env.VITE_REOWN_PROJECT_ID
+if (!projectId) {
+  console.warn('[xLever] VITE_REOWN_PROJECT_ID not set — wallet connection will fail. Set it in your .env file.')
 }
 
 // Define Solana as a custom chain — xLever targets Solana for cross-chain leverage positions via Wormhole bridging

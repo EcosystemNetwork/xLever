@@ -16,10 +16,11 @@ const AgentBridge = (() => {
   // CONFIGURATION
   // ═══════════════════════════════════════════════════════════════
 
+  const isLocal = window.location.hostname === 'localhost'
   const CONFIG = {
-    // Python agent endpoints
-    WS_URL: 'ws://localhost:8765',
-    API_BASE: 'http://localhost:8080/api',
+    // Python agent endpoints — use localhost in dev, production API otherwise
+    WS_URL: isLocal ? 'ws://localhost:8765' : `wss://${window.location.host}/ws/agent`,
+    API_BASE: isLocal ? 'http://localhost:8080/api' : 'https://api.xlever.markets/api',
 
     // Reconnection settings
     RECONNECT_INTERVAL: 3000,

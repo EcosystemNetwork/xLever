@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@evaafi/sdk": "^0.9.5",
+    "@kamino-finance/klend-sdk": "^7.3.22",
     "@reown/appkit": "^1.8.19",
     "@reown/appkit-adapter-wagmi": "^1.8.19",
     "@solana/web3.js": "^1.98.4",
