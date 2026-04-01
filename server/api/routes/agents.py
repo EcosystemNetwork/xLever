@@ -18,6 +18,25 @@ from ..schemas import AgentRunCreate, AgentRunOut
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
+# GET /api/agents/runs/{run_id} — get a specific agent run with all its actions
+# IMPORTANT: This route MUST be defined before /{wallet_address}/runs to avoid
+# "runs" being captured as a wallet_address by the wildcard route below.
+@router.get("/runs/{run_id}", response_model=AgentRunOut)
+async def get_agent_run(run_id: int, db: AsyncSession = Depends(get_db)):
+    """Get a specific agent run with all actions."""
+    # Fetch the run by ID with eagerly loaded actions for the detail view
+    result = await db.execute(
+        select(AgentRun)
+        .where(AgentRun.id == run_id)
+        .options(selectinload(AgentRun.actions))
+    )
+    run = result.scalar_one_or_none()
+    # 404 if the run doesn't exist — prevents confusing null responses
+    if not run:
+        raise HTTPException(404, "Agent run not found")
+    return run
+
+
 # POST /api/agents/{wallet_address}/runs — start a new AI agent run for a wallet
 @router.post("/{wallet_address}/runs", response_model=AgentRunOut)
 async def create_agent_run(
@@ -79,23 +98,6 @@ async def get_agent_runs(
     # Execute and return all matching runs
     result = await db.execute(query)
     return result.scalars().all()
-
-
-# GET /api/agents/runs/{run_id} — get a specific agent run with all its actions
-@router.get("/runs/{run_id}", response_model=AgentRunOut)
-async def get_agent_run(run_id: int, db: AsyncSession = Depends(get_db)):
-    """Get a specific agent run with all actions."""
-    # Fetch the run by ID with eagerly loaded actions for the detail view
-    result = await db.execute(
-        select(AgentRun)
-        .where(AgentRun.id == run_id)
-        .options(selectinload(AgentRun.actions))
-    )
-    run = result.scalar_one_or_none()
-    # 404 if the run doesn't exist — prevents confusing null responses
-    if not run:
-        raise HTTPException(404, "Agent run not found")
-    return run
 
 
 # POST /api/agents/runs/{run_id}/stop — manually stop a running agent

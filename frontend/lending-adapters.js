@@ -360,6 +360,7 @@ class EulerV2Adapter extends ILendingAdapter {
     const contracts = window.xLeverContracts
     if (!contracts) throw new Error('Contracts not initialized')
     const address = await this.getAddress()
+    if (!address) throw new Error('Wallet not connected')
     const config = this.addresses.markets[asset]
     if (!config?.vault) throw new Error(`No Euler vault for ${asset} on ${this.config.name}`)
 

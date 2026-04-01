@@ -7,6 +7,7 @@ import { resolve } from 'path'
 export default defineConfig({
   // Set the project root to the frontend directory so Vite resolves HTML and assets from there
   root: 'frontend',
+  envDir: resolve(__dirname),
   // Build configuration controls how Rollup bundles the production output
   build: {
     // Output the production build one level up into /dist (relative to root, so project-root/dist)
