@@ -6,198 +6,197 @@
 <title>xLever — Leveraged Tokenized Assets</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
-<script type="module" src="viem-shim.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+  /* Landing-specific styles */
+  .landing { min-height: 100vh; display: flex; flex-direction: column; }
+
+  .landing-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+  }
+  .landing-header .logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
+  .landing-header .logo span { color: var(--accent); }
+  .landing-header-links { display: flex; align-items: center; gap: 24px; }
+  .landing-header-links a {
+    font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text-secondary);
+    text-decoration: none; transition: color 0.2s;
+  }
+  .landing-header-links a:hover { color: var(--text-primary); }
+
+  .hero {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 80px 24px 60px; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 800px; border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 20px;
+    padding: 6px 16px; margin-bottom: 32px; position: relative;
+  }
+  .hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  .hero-badge span {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .hero h1 {
+    font-family: 'DM Sans', sans-serif; font-size: clamp(40px, 6vw, 72px); font-weight: 700;
+    line-height: 1.1; margin-bottom: 24px; position: relative;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    font-size: clamp(16px, 2vw, 20px); color: var(--text-secondary); max-width: 600px;
+    line-height: 1.6; margin-bottom: 48px; position: relative;
+  }
+
+  .hero-actions { display: flex; gap: 16px; position: relative; flex-wrap: wrap; justify-content: center; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600;
+    cursor: pointer; text-decoration: none; transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #6a3de8; transform: translateY(-1px); box-shadow: 0 8px 32px var(--accent-dim); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 16px;
+    font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--border-active); background: var(--bg-card); }
+
+  .features {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px; padding: 60px 40px 80px; max-width: 1200px; margin: 0 auto; width: 100%;
+  }
+  .feature-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 32px; transition: border-color 0.2s;
+  }
+  .feature-card:hover { border-color: var(--border-active); }
+  .feature-icon {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--accent-dim);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent);
+  }
+  .feature-card h3 {
+    font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 600;
+    margin-bottom: 8px; color: var(--text-primary);
+  }
+  .feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+  .stats-strip {
+    display: flex; justify-content: center; gap: 48px; padding: 40px 24px;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary); flex-wrap: wrap;
+  }
+  .stat-block { text-align: center; }
+  .stat-block .stat-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--accent);
+  }
+  .stat-block .stat-desc {
+    font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase;
+    letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;
+  }
+
+  .landing-footer {
+    display: flex; align-items: center; justify-content: space-between; padding: 24px 40px;
+    border-top: 1px solid var(--border); background: var(--bg-secondary);
+  }
+  .landing-footer span { font-size: 13px; color: var(--text-muted); }
+  .landing-footer .footer-links { display: flex; gap: 20px; }
+  .landing-footer .footer-links a { font-size: 13px; color: var(--text-secondary); text-decoration: none; }
+  .landing-footer .footer-links a:hover { color: var(--text-primary); }
+
+  @media (max-width: 640px) {
+    .landing-header { padding: 16px 20px; }
+    .features { padding: 40px 20px 60px; }
+    .stats-strip { gap: 32px; padding: 32px 20px; }
+    .landing-footer { flex-direction: column; gap: 12px; text-align: center; padding: 20px; }
+  }
+</style>
 </head>
 <body>
-<div class="header">
-  <div class="header-left">
-    <div class="logo">x<span>Lever</span></div>
-    <div class="ticker-selector">
-      <button class="ticker-select-btn active" data-ticker="QQQ">QQQ</button>
-      <button class="ticker-select-btn" data-ticker="SPY">SPY</button>
-    </div>
-    <div class="ticker-badge"><div class="ticker-dot"></div><span id="dynamicTicker">QQQ × 2.0</span></div>
-  </div>
-  <div class="header-right">
-    <appkit-button size="sm" />
-    <div id="walletInfo" class="wallet-info" style="display: none;">
-      <div class="wallet-balances">
-        <div class="balance-item"><span class="balance-label">ETH:</span><span class="balance-value" id="ethBalance">-</span></div>
-        <div class="balance-item"><span class="balance-label">USDC:</span><span class="balance-value" id="usdcBalance">-</span></div>
-        <div class="balance-item"><span class="balance-label">wQQQx:</span><span class="balance-value" id="wqqqxBalance">-</span></div>
-        <div class="balance-item"><span class="balance-label">wSPYx:</span><span class="balance-value" id="wspyxBalance">-</span></div>
-      </div>
-      <div class="wallet-address" id="walletAddress"></div>
-    </div>
-    <a href="01-dashboard.html" class="launch-btn">Launch App</a>
-    <div class="protocol-tag">xLever Protocol</div>
-    <span>Powered by Euler V2 EVK</span>
-  </div>
-</div>
-<!-- App Nav Strip -->
-<div class="nav-strip" style="background:var(--bg-primary);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:36px;overflow-x:auto;gap:4px;">
-  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-    <a href="01-dashboard.html" class="nav-link">Dashboard</a>
-    <a href="02-trading-terminal.html" class="nav-link">Trading</a>
-    <a href="03-ai-agent-operations.html" class="nav-link">AI Agents</a>
-    <a href="04-vault-management.html" class="nav-link">Vaults</a>
-    <a href="05-risk-management.html" class="nav-link">Risk</a>
-    <a href="06-analytics-backtesting.html" class="nav-link">Analytics</a>
-    <a href="07-operations-control.html" class="nav-link">Operations</a>
-  </div>
-  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-    <div style="width:6px;height:6px;border-radius:50%;background:var(--green);"></div>
-    <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Ink Sepolia</span>
-  </div>
-</div>
-<div class="main-layout">
-  <div class="chart-area">
-    <div class="chart-toolbar">
-      <div class="toolbar-left">
-        <button class="tf-btn" data-period="1M">1M</button>
-        <button class="tf-btn" data-period="3M">3M</button>
-        <button class="tf-btn" data-period="6M">6M</button>
-        <button class="tf-btn active" data-period="1Y">1Y</button>
-        <button class="tf-btn" data-period="3Y">3Y</button>
-        <button class="tf-btn" data-period="5Y">5Y</button>
-        <button class="tf-btn" data-period="10Y">10Y</button>
-        <button class="tf-btn" data-period="25Y">25Y</button>
-        <button class="tf-btn" data-period="MAX">MAX</button>
-      </div>
-      <div class="chart-type-btns">
-        <button class="chart-type-btn active" data-type="area">Area</button>
-        <button class="chart-type-btn" data-type="candlestick">Candles</button>
-        <button class="chart-type-btn" data-type="line">Line</button>
-      </div>
-    </div>
-    <div class="chart-container">
-      <div class="price-overlay">
-        <div class="leverage-label" id="overlayLabel">Leveraged QQQ — 2.0×</div>
-        <div class="price-big" id="overlayPrice">$0.00</div>
-        <div class="price-change" id="overlayChange">+0.00%</div>
-        <div class="legend-row">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span id="legendLev">2.0× Leveraged</span></div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--text-muted)"></div><span id="legendBase">QQQ (1×)</span></div>
-          <div class="legend-item"><div class="legend-dot" style="background:#ffffff15"></div><span>Entry Deposit</span></div>
-        </div>
-      </div>
-      <div id="tv-chart"></div>
-    </div>
-    <div class="chart-bottom">
-      <div class="stat-item"><span class="stat-label">Max Drawdown</span><span class="stat-value negative" id="statMDD">-0.0%</span></div>
-      <div class="stat-item"><span class="stat-label">Sharpe Ratio</span><span class="stat-value" id="statSharpe">0.00</span></div>
-      <div class="stat-item"><span class="stat-label">Volatility</span><span class="stat-value" id="statVol">0.0%</span></div>
-      <div class="stat-item"><span class="stat-label">CAGR</span><span class="stat-value" id="statCAGR">0.0%</span></div>
-      <div class="stat-item"><span class="stat-label">Fee Drag</span><span class="stat-value negative" id="statFeeDrag">-0.0%</span></div>
-      <div class="stat-item"><span class="stat-label">vs Daily Reset</span><span class="stat-value" id="statVsDaily">0.0%</span></div>
-      <div class="stat-item"><span class="stat-label">DeLev Events</span><span class="stat-value" id="statDelevEvents">0</span></div>
-      <div class="stat-item"><span class="stat-label">Reduced Lev Days</span><span class="stat-value" id="statReducedDays">0</span></div>
-    </div>
-  </div>
-  <div class="right-panel">
-    <div class="panel-section">
-      <div class="panel-title">Leverage Factor</div>
-      <div class="leverage-display">
-        <div class="leverage-value" id="levDisplay">2.0×</div>
-        <div class="leverage-suffix">Constant Leverage from Entry</div>
-      </div>
-      <div class="slider-container">
-        <div class="slider-track" id="sliderTrack">
-          <div class="slider-fill" id="sliderFill"></div>
-          <div class="slider-thumb" id="sliderThumb"></div>
-        </div>
-        <div class="slider-labels"><span>-4×</span><span>-2×</span><span>0</span><span>+2×</span><span>+4×</span></div>
-      </div>
-      <div class="slider-notches">
-        <button class="notch-btn" data-lev="-4.0">-4×</button>
-        <button class="notch-btn" data-lev="-2.0">-2×</button>
-        <button class="notch-btn" data-lev="-1.0">-1×</button>
-        <button class="notch-btn" data-lev="0">0×</button>
-        <button class="notch-btn" data-lev="1.0">+1×</button>
-        <button class="notch-btn active" data-lev="2.0">+2×</button>
-        <button class="notch-btn" data-lev="4.0">+4×</button>
-      </div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Strategy Details</div>
-      <div class="strategy-card">
-        <div class="row"><span class="row-label">Underlying</span><span class="row-value" id="underlyingName">QQQ (Nasdaq-100)</span></div>
-        <div class="row"><span class="row-label">Leverage Type</span><span class="row-value">Constant from Entry</span></div>
-        <div class="row"><span class="row-label">Rebalance</span><span class="row-value">On User Adjust</span></div>
-        <div class="row"><span class="row-label">Annual Fee</span><span class="row-value" id="annualFee">1.0% APR</span></div>
-        <div class="row"><span class="row-label">Fee Split</span><span class="row-value">70% Buffer / 20% Insurance / 10% Protocol</span></div>
-        <div class="row"><span class="row-label">Max Leverage</span><span class="row-value">±4.0× (dynamic based on buffer ratio)</span></div>
-        <div class="row"><span class="row-label">Oracle</span><span class="row-value">15-min TWAP (Pyth)</span></div>
-      </div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Buffer Tranche (Junior)</div>
-      <div class="strategy-card">
-        <div class="row"><span class="row-label">Pool Composition</span><span class="row-value" id="juniorRatio">65% Senior / 35% Junior</span></div>
-        <div class="row"><span class="row-label">Junior APY (est)</span><span class="row-value positive" id="juniorAPY">0.0%</span></div>
-        <div class="row"><span class="row-label">Insurance Fund</span><span class="row-value" id="insuranceFund">$0</span></div>
-        <div class="row"><span class="row-label">Buffer Health</span><span class="row-value" id="bufferHealth">—</span></div>
-      </div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Performance Comparison</div>
-      <div class="comparison-grid">
-        <div class="comp-badge"><div class="comp-ticker" id="compBaseTicker">QQQ 1×</div><div class="comp-return positive" id="compQQQ">+0.0%</div><div class="comp-label">Base Underlying</div></div>
-        <div class="comp-badge active-comp"><div class="comp-ticker" id="compLevTicker">QQQ 2.0× (Protocol)</div><div class="comp-return" id="compLev">+0.0%</div><div class="comp-label">Full Simulation</div></div>
-        <div class="comp-badge"><div class="comp-ticker" id="compDailyTicker">QQQ 2.0× (Daily Reset)</div><div class="comp-return" id="compDaily">+0.0%</div><div class="comp-label">TQQQ-Style Compounding</div></div>
-        <div class="comp-badge"><div class="comp-ticker" id="compNoFeeTicker">QQQ 2.0× (No Fees)</div><div class="comp-return" id="compNoFee">+0.0%</div><div class="comp-label">No Fees (Protocol)</div></div>
-      </div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Risk Assessment</div>
-      <div class="risk-meter"><div class="risk-fill" id="riskFill"></div></div>
-      <div class="risk-label"><span>Conservative</span><span id="riskText">Moderate</span><span>Aggressive</span></div>
-      <div class="buffer-req" id="bufferReq">Buffer: 20% junior ratio required</div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Data Source</div>
-      <div class="api-notice">
-        Backtesting uses real <span id="dataSourceTicker">QQQ</span> data from Yahoo Finance. 
-        The simulation models: auto-deleverage cascade (5 levels based on 
-        underlying asset drawdown from peak), re-leverage on recovery 
-        (1.0× steps, 5-day cooldown), execution slippage on leverage 
-        changes, and circuit breaker fee premiums on high-volatility days.
-        <br><br>
-        Not modeled: junior tranche loss absorption, intraday price action 
-        (uses daily OHLC only), actual lending protocol health factors, 
-        TWAP vs spot pricing lag, multi-protocol routing, or gas costs.
-        Actual protocol performance will differ.
-      </div>
-    </div>
-  </div>
-</div>
+<script src="nav.js"></script>
+<script>XNav.init(null);</script>
+<div class="landing" style="padding-top:90px;">
 
-<!-- Mobile Leverage Control -->
-<div class="mobile-leverage-control">
-  <div class="mobile-lev-display">
-    <div class="mobile-lev-value" id="mobileLevDisplay">2.0×</div>
-    <div class="mobile-lev-label">Leverage Factor</div>
-  </div>
-  <div class="slider-container">
-    <div class="slider-track" id="mobileSliderTrack">
-      <div class="slider-fill" id="mobileSliderFill"></div>
-      <div class="slider-thumb" id="mobileSliderThumb"></div>
+  <section class="hero">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      <span>Live on Ink Sepolia</span>
     </div>
-    <div class="slider-labels"><span>-4×</span><span>-2×</span><span>0</span><span>+2×</span><span>+4×</span></div>
-  </div>
-  <div class="slider-notches">
-    <button class="notch-btn" data-lev="-4.0">-4×</button>
-    <button class="notch-btn" data-lev="-2.0">-2×</button>
-    <button class="notch-btn" data-lev="-1.0">-1×</button>
-    <button class="notch-btn" data-lev="0">0×</button>
-    <button class="notch-btn" data-lev="1.0">+1×</button>
-    <button class="notch-btn active" data-lev="2.0">+2×</button>
-    <button class="notch-btn" data-lev="4.0">+4×</button>
-  </div>
-</div>
+    <h1>Leveraged Exposure.<br>No Liquidation.</h1>
+    <p>
+      xLever delivers constant-leverage tokenized positions on any asset —
+      powered by Euler V2 vaults, Pyth oracles, and an auto-deleverage engine
+      that protects you from blowups.
+    </p>
+    <div class="hero-actions">
+      <a href="01-dashboard.html" class="btn-primary">Launch App &rarr;</a>
+      <a href="02-trading-terminal.html" class="btn-secondary">Explore Backtest</a>
+    </div>
+  </section>
 
-<script type="module" src="wallet.js"></script>
-<script src="app.js"></script>
+  <div class="stats-strip">
+    <div class="stat-block"><div class="stat-num">&plusmn;4&times;</div><div class="stat-desc">Max Leverage</div></div>
+    <div class="stat-block"><div class="stat-num">0</div><div class="stat-desc">Liquidations</div></div>
+    <div class="stat-block"><div class="stat-num">2</div><div class="stat-desc">Underlyings</div></div>
+    <div class="stat-block"><div class="stat-num">4</div><div class="stat-desc">Target Chains</div></div>
+  </div>
+
+  <section class="features">
+    <div class="feature-card">
+      <div class="feature-icon">Lx</div>
+      <h3>Constant Leverage</h3>
+      <p>Pick your leverage once — xLever maintains it from entry. No daily resets, no compounding drag, no TQQQ-style decay.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">Ad</div>
+      <h3>Auto-Deleverage</h3>
+      <p>A 5-level cascade smoothly reduces exposure during drawdowns and re-levers on recovery. You stay in the game.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">Ev</div>
+      <h3>Euler V2 Vaults</h3>
+      <p>Built on the Euler Vault Kit — battle-tested, modular, and composable. Your collateral earns yield while leveraged.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">Py</div>
+      <h3>Pyth Oracle TWAP</h3>
+      <p>15-minute TWAP pricing from Pyth Network prevents manipulation and gives the deleverage engine clean signals.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">Jt</div>
+      <h3>Junior Tranche</h3>
+      <p>Buffer capital absorbs first-loss. Junior LPs earn leveraged fees while cushioning senior positions.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">Ai</div>
+      <h3>AI Agent Layer</h3>
+      <p>Autonomous agents manage rebalancing, risk monitoring, and strategy execution — so you don't have to watch 24/7.</p>
+    </div>
+  </section>
+
+  <footer class="landing-footer">
+    <span>xLever Protocol &mdash; Peace, Love, Unity &amp; Respect</span>
+    <div class="footer-links">
+      <a href="06-analytics-backtesting.html">Analytics</a>
+      <a href="05-risk-management.html">Risk</a>
+      <a href="08-admin-dashboard.html">Admin</a>
+    </div>
+  </footer>
+</div>
 </body>
 </html>

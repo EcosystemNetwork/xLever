@@ -32,8 +32,8 @@ from sqlalchemy import (
     Text,         # Unbounded text for error messages and AI reasoning
     func,         # SQL functions like now() for server-side default timestamps
 )
-# JSONB for PostgreSQL-native JSON storage with indexing support (preferences, config, price data)
-from sqlalchemy.dialects.postgresql import JSONB
+# JSON type works across SQLite and PostgreSQL — use instead of dialect-specific JSONB
+from sqlalchemy import JSON as JSONB
 # relationship defines ORM-level links between parent/child tables for eager/lazy loading
 from sqlalchemy.orm import relationship
 
