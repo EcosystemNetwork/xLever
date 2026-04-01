@@ -29,8 +29,8 @@ export default defineConfig({
   ],
   // Build configuration controls how Rollup bundles the production output
   build: {
-    // Output the production build one level up into /dist (relative to root, so project-root/dist)
-    outDir: '../dist',
+    // Output the production build to project root /dist (absolute path for Vercel compatibility)
+    outDir: resolve(__dirname, 'dist'),
     // Clear the dist folder before each build to avoid stale files from previous builds
     emptyOutDir: true,
     // Copy public directory files to dist
