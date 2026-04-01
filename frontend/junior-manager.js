@@ -296,15 +296,23 @@ async function depositJuniorMultiAsset() {
       maxPriorityFeePerGas: 1000000000n
     });
 
-    await publicClient.waitForTransactionReceipt({ hash: depositTx });
+    console.log('Waiting for deposit confirmation...');
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: depositTx });
+    console.log('✓ Deposit confirmed:', receipt);
 
     showToast(`✓ Successfully deposited ${depositAmount} ${asset.symbol}!`, 'success');
     
+    // Wait a moment for state to update
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     // Refresh UI
+    console.log('Refreshing balances and UI...');
     await fetchBalances();
+    await updateAssetUI();
     await updateJuniorPageUI();
     
     document.getElementById('depositAmount').value = '';
+    console.log('✓ UI refreshed');
   } catch (error) {
     console.error('Junior deposit failed:', error);
     showToast(`Deposit failed: ${error.shortMessage || error.message}`, 'error');
