@@ -156,10 +156,10 @@ const EULER_ADDRESSES = {
     eVaultFactory: '0x29a56a1b8214D9Cf7c5561811750D5cBDb45CC8e',
     usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     markets: {
-      USDC: { vault: null, decimals: 6 },
-      WETH: { vault: null, decimals: 18 },
-      wstETH: { vault: null, decimals: 18 },
-      USDT: { vault: null, decimals: 6 },
+      USDC: { vault: '0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9', decimals: 6 },
+      WETH: { vault: '0xD8b27CF359b7D15710a5BE299AF6e7Bf904984C2', decimals: 18 },
+      wstETH: { vault: '0xbC4B4AC47582c3AA228917616B53b543b0367b0a', decimals: 18 },
+      USDT: { vault: '0x313603FA690301b0CaeEf8069c065862f9162162', decimals: 6 },
     },
   },
 }
@@ -176,6 +176,13 @@ const EVAULT_ABI = [
   { type: 'function', name: 'totalBorrows', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'interestRate', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'accountLiquidity', inputs: [{ name: 'account', type: 'address' }, { name: 'liquidation', type: 'bool' }], outputs: [{ name: 'collateral', type: 'uint256' }, { name: 'liability', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'interestAccrued', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'interestRateModel', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
+  { type: 'function', name: 'asset', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
+  { type: 'function', name: 'convertToAssets', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'convertToShares', inputs: [{ name: 'assets', type: 'uint256' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'maxDeposit', inputs: [{ name: '', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'maxWithdraw', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ]
 
 const ERC20_ABI = [
@@ -222,10 +229,10 @@ class EulerV2Adapter extends ILendingAdapter {
     for (const [symbol, config] of Object.entries(this.addresses.markets)) {
       if (!config.vault) continue
       try {
-        const [totalSupply, totalBorrows] = await Promise.all([
+        const [totalSupply, totalBorrows] = await this._retry(() => Promise.all([
           pc.readContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'totalSupply' }),
           pc.readContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'totalBorrows' }),
-        ])
+        ]))
         const supply = Number(totalSupply) / (10 ** config.decimals)
         const borrows = Number(totalBorrows) / (10 ** config.decimals)
         const utilization = supply > 0 ? borrows / supply : 0
@@ -264,10 +271,10 @@ class EulerV2Adapter extends ILendingAdapter {
     for (const [symbol, config] of Object.entries(this.addresses.markets)) {
       if (!config.vault) continue
       try {
-        const [balance, debt] = await Promise.all([
+        const [balance, debt] = await this._retry(() => Promise.all([
           pc.readContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'balanceOf', args: [address] }),
           pc.readContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'debtOf', args: [address] }).catch(() => 0n),
-        ])
+        ]))
         const balNum = Number(balance) / (10 ** config.decimals)
         const debtNum = Number(debt) / (10 ** config.decimals)
 
@@ -293,7 +300,7 @@ class EulerV2Adapter extends ILendingAdapter {
   async getIdleBalance(address) {
     if (!address || !this.addresses.usdc) return 0
     try {
-      const bal = await window.xLeverContracts.getBalance(this.addresses.usdc, address)
+      const bal = await this._retry(() => window.xLeverContracts.getBalance(this.addresses.usdc, address))
       return parseFloat(bal.formatted)
     } catch { return 0 }
   }
@@ -312,14 +319,14 @@ class EulerV2Adapter extends ILendingAdapter {
     const amountWei = BigInt(Math.floor(amount * (10 ** config.decimals)))
 
     // Approve if needed
-    const allowance = await pc.readContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'allowance', args: [address, config.vault] })
+    const allowance = await this._retry(() => pc.readContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'allowance', args: [address, config.vault] }))
     if (allowance < amountWei) {
-      const approveTx = await wc.writeContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'approve', args: [config.vault, amountWei], account: address, chain: this._viemChain() })
-      await pc.waitForTransactionReceipt({ hash: approveTx })
+      const approveTx = await this._retry(() => wc.writeContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'approve', args: [config.vault, amountWei], account: address, chain: this._viemChain() }))
+      await this._retry(() => pc.waitForTransactionReceipt({ hash: approveTx }))
     }
 
-    const hash = await wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'deposit', args: [amountWei, address], account: address, chain: this._viemChain() })
-    await pc.waitForTransactionReceipt({ hash })
+    const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'deposit', args: [amountWei, address], account: address, chain: this._viemChain() }))
+    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
     return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
   }
 
@@ -334,8 +341,8 @@ class EulerV2Adapter extends ILendingAdapter {
     const pc = contracts.getPublicClient()
     const amountWei = BigInt(Math.floor(amount * (10 ** config.decimals)))
 
-    const hash = await wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'withdraw', args: [amountWei, address, address], account: address, chain: this._viemChain() })
-    await pc.waitForTransactionReceipt({ hash })
+    const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'withdraw', args: [amountWei, address, address], account: address, chain: this._viemChain() }))
+    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
     return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
   }
 
@@ -350,8 +357,8 @@ class EulerV2Adapter extends ILendingAdapter {
     const pc = contracts.getPublicClient()
     const amountWei = BigInt(Math.floor(amount * (10 ** config.decimals)))
 
-    const hash = await wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'borrow', args: [amountWei, address], account: address, chain: this._viemChain() })
-    await pc.waitForTransactionReceipt({ hash })
+    const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'borrow', args: [amountWei, address], account: address, chain: this._viemChain() }))
+    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
     return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
   }
 
@@ -367,15 +374,45 @@ class EulerV2Adapter extends ILendingAdapter {
     const amountWei = BigInt(Math.floor(amount * (10 ** config.decimals)))
 
     // Approve repayment
-    const allowance = await pc.readContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'allowance', args: [address, config.vault] })
+    const allowance = await this._retry(() => pc.readContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'allowance', args: [address, config.vault] }))
     if (allowance < amountWei) {
-      const approveTx = await wc.writeContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'approve', args: [config.vault, amountWei], account: address, chain: this._viemChain() })
-      await pc.waitForTransactionReceipt({ hash: approveTx })
+      const approveTx = await this._retry(() => wc.writeContract({ address: this.addresses.usdc, abi: ERC20_ABI, functionName: 'approve', args: [config.vault, amountWei], account: address, chain: this._viemChain() }))
+      await this._retry(() => pc.waitForTransactionReceipt({ hash: approveTx }))
     }
 
-    const hash = await wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'repay', args: [amountWei, address], account: address, chain: this._viemChain() })
-    await pc.waitForTransactionReceipt({ hash })
+    const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'repay', args: [amountWei, address], account: address, chain: this._viemChain() }))
+    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
     return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
+  }
+
+  /**
+   * Retry wrapper with exponential backoff for RPC calls.
+   * Handles Ink Sepolia rate limiting (HTTP 429) and transient errors.
+   * @param {Function} fn - Async function to retry
+   * @param {number} [maxAttempts=3] - Maximum number of attempts
+   * @returns {Promise<*>} Result of the function call
+   */
+  async _retry(fn, maxAttempts = 3) {
+    const delays = [1000, 2000, 4000] // exponential backoff: 1s, 2s, 4s
+    let lastError
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await fn()
+      } catch (err) {
+        lastError = err
+        const isRetryable = err?.status === 429 ||
+          err?.code === 'TIMEOUT' ||
+          err?.message?.includes('rate limit') ||
+          err?.message?.includes('Too Many Requests') ||
+          err?.message?.includes('ECONNRESET') ||
+          err?.message?.includes('fetch failed')
+        if (!isRetryable || attempt === maxAttempts - 1) throw err
+        const delay = delays[attempt] || delays[delays.length - 1]
+        console.warn(`[EulerV2] RPC call failed (attempt ${attempt + 1}/${maxAttempts}), retrying in ${delay}ms...`, err.message)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+    throw lastError
   }
 
   _viemChain() {
@@ -536,168 +573,71 @@ class KaminoAdapter extends ILendingAdapter {
     } catch { return 0 }
   }
 
-  async supply(asset, amount) {
-    const provider = this._getProvider()
-    const conn = this._getConnection()
-    if (!provider || !conn) throw new Error('Solana wallet or SDK not available')
-    if (!window.solanaWeb3) throw new Error('@solana/web3.js not loaded')
+  // ─── Transaction methods ───────────────────────────────────
+  // Real Kamino Lending instructions require the @kamino-finance/klend-sdk
+  // which builds the full account layout for each operation:
+  //
+  //   Account keys for a deposit instruction (example):
+  //     [0] owner (signer, writable)        - wallet paying for the tx
+  //     [1] obligation PDA (writable)        - user's obligation account
+  //     [2] lending market (writable)        - KAMINO_CONFIG.mainMarket
+  //     [3] reserve (writable)               - the reserve being deposited into
+  //     [4] reserve liquidity supply (writable) - reserve's SPL token vault
+  //     [5] reserve collateral mint (writable)  - cToken mint for the reserve
+  //     [6] user source liquidity (writable) - user's SPL token account (source)
+  //     [7] user destination collateral (writable) - user's cToken account (dest)
+  //     [8] SPL Token program               - TokenkegQEqKKN4P7s...
+  //     [9] Lending program                  - KLend2g3cP87ber41G...
+  //    [10] System program                   - 11111111111111111...
+  //    [11] Rent sysvar                      - SysvarRent11111111...
+  //
+  // Withdraw, borrow, and repay have similar layouts with slight variations
+  // (e.g., borrow adds the fee receiver account, repay swaps source/dest).
+  //
+  // To integrate the real SDK:
+  //   1. npm install @kamino-finance/klend-sdk
+  //   2. Import KaminoMarket and KaminoAction
+  //   3. Replace _requireKaminoSdk() calls below with SDK instruction builders
+  //   4. The read methods (getMarkets, getPositions, getIdleBalance) already work
 
+  /**
+   * Throws a clear error directing developers to install the Kamino SDK.
+   * All write methods delegate here until the SDK is integrated.
+   */
+  _requireKaminoSdk(operation) {
+    throw new Error(
+      `Kamino SDK required for mainnet transactions. ` +
+      `Cannot execute "${operation}" without @kamino-finance/klend-sdk. ` +
+      `Install with: npm install @kamino-finance/klend-sdk`
+    )
+  }
+
+  async supply(asset, amount) {
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-
-    const { PublicKey, Transaction, SystemProgram } = window.solanaWeb3
-    const address = provider.publicKey
-
-    // Build Kamino deposit instruction
-    // In production this uses the Kamino SDK's createDepositInstruction
-    const lendingProgram = new PublicKey(KAMINO_CONFIG.lendingProgram)
-    const reserve = new PublicKey(config.reserve)
-    const amountLamports = BigInt(Math.floor(amount * (10 ** config.decimals)))
-
-    // Construct the deposit ix data: [1 (deposit tag), amount as u64 LE]
-    const data = Buffer.alloc(9)
-    data.writeUInt8(1, 0) // instruction tag for deposit
-    data.writeBigUInt64LE(amountLamports, 1)
-
-    const instruction = {
-      programId: lendingProgram,
-      keys: [
-        { pubkey: address, isSigner: true, isWritable: true },
-        { pubkey: reserve, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(KAMINO_CONFIG.mainMarket), isSigner: false, isWritable: true },
-      ],
-      data,
-    }
-
-    const tx = new Transaction().add(instruction)
-    tx.feePayer = address
-    tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash
-
-    const signed = await provider.signTransaction(tx)
-    const sig = await conn.sendRawTransaction(signed.serialize())
-    await conn.confirmTransaction(sig, 'confirmed')
-
-    return { success: true, hash: sig, explorerUrl: `${this.config.explorer}/tx/${sig}` }
+    // TODO: Replace with KaminoAction.buildDepositTxns() from @kamino-finance/klend-sdk
+    this._requireKaminoSdk('supply')
   }
 
   async withdraw(asset, amount) {
-    const provider = this._getProvider()
-    const conn = this._getConnection()
-    if (!provider || !conn) throw new Error('Solana wallet or SDK not available')
-    if (!window.solanaWeb3) throw new Error('@solana/web3.js not loaded')
-
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-
-    const { PublicKey, Transaction } = window.solanaWeb3
-    const address = provider.publicKey
-    const lendingProgram = new PublicKey(KAMINO_CONFIG.lendingProgram)
-    const reserve = new PublicKey(config.reserve)
-    const amountLamports = BigInt(Math.floor(amount * (10 ** config.decimals)))
-
-    const data = Buffer.alloc(9)
-    data.writeUInt8(2, 0) // instruction tag for withdraw
-    data.writeBigUInt64LE(amountLamports, 1)
-
-    const instruction = {
-      programId: lendingProgram,
-      keys: [
-        { pubkey: address, isSigner: true, isWritable: true },
-        { pubkey: reserve, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(KAMINO_CONFIG.mainMarket), isSigner: false, isWritable: true },
-      ],
-      data,
-    }
-
-    const tx = new Transaction().add(instruction)
-    tx.feePayer = address
-    tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash
-
-    const signed = await provider.signTransaction(tx)
-    const sig = await conn.sendRawTransaction(signed.serialize())
-    await conn.confirmTransaction(sig, 'confirmed')
-
-    return { success: true, hash: sig, explorerUrl: `${this.config.explorer}/tx/${sig}` }
+    // TODO: Replace with KaminoAction.buildWithdrawTxns() from @kamino-finance/klend-sdk
+    this._requireKaminoSdk('withdraw')
   }
 
   async borrow(asset, amount) {
-    const provider = this._getProvider()
-    const conn = this._getConnection()
-    if (!provider || !conn) throw new Error('Solana wallet or SDK not available')
-    if (!window.solanaWeb3) throw new Error('@solana/web3.js not loaded')
-
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-
-    const { PublicKey, Transaction } = window.solanaWeb3
-    const address = provider.publicKey
-    const lendingProgram = new PublicKey(KAMINO_CONFIG.lendingProgram)
-    const reserve = new PublicKey(config.reserve)
-    const amountLamports = BigInt(Math.floor(amount * (10 ** config.decimals)))
-
-    const data = Buffer.alloc(9)
-    data.writeUInt8(3, 0) // instruction tag for borrow
-    data.writeBigUInt64LE(amountLamports, 1)
-
-    const instruction = {
-      programId: lendingProgram,
-      keys: [
-        { pubkey: address, isSigner: true, isWritable: true },
-        { pubkey: reserve, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(KAMINO_CONFIG.mainMarket), isSigner: false, isWritable: true },
-      ],
-      data,
-    }
-
-    const tx = new Transaction().add(instruction)
-    tx.feePayer = address
-    tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash
-
-    const signed = await provider.signTransaction(tx)
-    const sig = await conn.sendRawTransaction(signed.serialize())
-    await conn.confirmTransaction(sig, 'confirmed')
-
-    return { success: true, hash: sig, explorerUrl: `${this.config.explorer}/tx/${sig}` }
+    // TODO: Replace with KaminoAction.buildBorrowTxns() from @kamino-finance/klend-sdk
+    this._requireKaminoSdk('borrow')
   }
 
   async repay(asset, amount) {
-    const provider = this._getProvider()
-    const conn = this._getConnection()
-    if (!provider || !conn) throw new Error('Solana wallet or SDK not available')
-    if (!window.solanaWeb3) throw new Error('@solana/web3.js not loaded')
-
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
-
-    const { PublicKey, Transaction } = window.solanaWeb3
-    const address = provider.publicKey
-    const lendingProgram = new PublicKey(KAMINO_CONFIG.lendingProgram)
-    const reserve = new PublicKey(config.reserve)
-    const amountLamports = BigInt(Math.floor(amount * (10 ** config.decimals)))
-
-    const data = Buffer.alloc(9)
-    data.writeUInt8(4, 0) // instruction tag for repay
-    data.writeBigUInt64LE(amountLamports, 1)
-
-    const instruction = {
-      programId: lendingProgram,
-      keys: [
-        { pubkey: address, isSigner: true, isWritable: true },
-        { pubkey: reserve, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(KAMINO_CONFIG.mainMarket), isSigner: false, isWritable: true },
-      ],
-      data,
-    }
-
-    const tx = new Transaction().add(instruction)
-    tx.feePayer = address
-    tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash
-
-    const signed = await provider.signTransaction(tx)
-    const sig = await conn.sendRawTransaction(signed.serialize())
-    await conn.confirmTransaction(sig, 'confirmed')
-
-    return { success: true, hash: sig, explorerUrl: `${this.config.explorer}/tx/${sig}` }
+    // TODO: Replace with KaminoAction.buildRepayTxns() from @kamino-finance/klend-sdk
+    this._requireKaminoSdk('repay')
   }
 
   explorerUrl(hash) {
@@ -846,129 +786,80 @@ class EvaaAdapter extends ILendingAdapter {
     return 0
   }
 
-  async supply(asset, amount) {
-    const provider = this._getProvider()
-    if (!provider) throw new Error('TON wallet not connected')
+  // ─── Transaction methods ───────────────────────────────────
+  // Real EVAA Protocol transactions use TL-B encoded internal messages.
+  // The EVAA SDK (@evaafi/sdk) builds the correct Cell payloads:
+  //
+  //   Supply (TON native):
+  //     Internal message to master contract with:
+  //       op: 0x1 (supply)  |  query_id: uint64  |  asset_id: uint256
+  //       amount: Coins     |  Forward TON value = deposit amount + gas
+  //
+  //   Supply (Jetton, e.g., USDT/USDC):
+  //     Jetton transfer to EVAA's jetton wallet with forward_payload:
+  //       op: 0xf8a7ea5 (jetton transfer)  |  query_id: uint64
+  //       amount: VarUint16  |  destination: EVAA master address
+  //       response_destination: sender  |  forward_ton_amount: ~0.3 TON gas
+  //       forward_payload: Cell{ op: 0x1, asset_id: uint256 }
+  //
+  //   Withdraw:
+  //     Internal message to user's EVAA position contract:
+  //       op: 0x2 (withdraw)  |  query_id: uint64  |  asset_id: uint256
+  //       amount: Coins  |  Forward TON: ~0.3 TON gas
+  //
+  //   Borrow:
+  //     Internal message to user's EVAA position contract:
+  //       op: 0x3 (borrow)  |  query_id: uint64  |  asset_id: uint256
+  //       amount: Coins  |  Forward TON: ~0.3 TON gas
+  //
+  //   Repay:
+  //     Same pattern as supply (native TON or jetton transfer with forward_payload)
+  //       op: 0x4 (repay)  |  asset_id: uint256  |  amount: Coins
+  //
+  // To integrate the real SDK:
+  //   1. npm install @evaafi/sdk
+  //   2. Import Evaa and openContract
+  //   3. Replace _requireEvaaSdk() calls below with SDK message builders
+  //   4. The read methods (getMarkets, getPositions, getIdleBalance) already work
 
+  /**
+   * Throws a clear error directing developers to install the EVAA SDK.
+   * All write methods delegate here until the SDK is integrated.
+   */
+  _requireEvaaSdk(operation) {
+    throw new Error(
+      `EVAA SDK required for mainnet transactions. ` +
+      `Cannot execute "${operation}" without @evaafi/sdk. ` +
+      `Install with: npm install @evaafi/sdk`
+    )
+  }
+
+  async supply(asset, amount) {
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-
-    const amountNano = BigInt(Math.floor(amount * (10 ** config.decimals)))
-
-    // Build EVAA supply message
-    // Op code for supply = 0x1 (simplified — real EVAA uses TL-B encoded messages)
-    const payload = this._buildPayload(0x01, config.poolId, amountNano)
-
-    const tx = {
-      validUntil: Math.floor(Date.now() / 1000) + 300,
-      messages: [{
-        address: EVAA_CONFIG.masterAddress,
-        amount: asset === 'TON' ? amountNano.toString() : '100000000', // 0.1 TON gas for jetton ops
-        payload,
-      }],
-    }
-
-    const result = await provider.sendTransaction(tx)
-    const hash = typeof result === 'string' ? result : result?.boc || 'pending'
-
-    return { success: true, hash, explorerUrl: `${this.config.explorer}/tx/${hash}` }
+    // TODO: Replace with Evaa.createSupplyMessage() from @evaafi/sdk
+    this._requireEvaaSdk('supply')
   }
 
   async withdraw(asset, amount) {
-    const provider = this._getProvider()
-    if (!provider) throw new Error('TON wallet not connected')
-
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-
-    const amountNano = BigInt(Math.floor(amount * (10 ** config.decimals)))
-    const payload = this._buildPayload(0x02, config.poolId, amountNano)
-
-    const tx = {
-      validUntil: Math.floor(Date.now() / 1000) + 300,
-      messages: [{
-        address: EVAA_CONFIG.masterAddress,
-        amount: '100000000', // 0.1 TON gas
-        payload,
-      }],
-    }
-
-    const result = await provider.sendTransaction(tx)
-    const hash = typeof result === 'string' ? result : result?.boc || 'pending'
-
-    return { success: true, hash, explorerUrl: `${this.config.explorer}/tx/${hash}` }
+    // TODO: Replace with Evaa.createWithdrawMessage() from @evaafi/sdk
+    this._requireEvaaSdk('withdraw')
   }
 
   async borrow(asset, amount) {
-    const provider = this._getProvider()
-    if (!provider) throw new Error('TON wallet not connected')
-
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-
-    const amountNano = BigInt(Math.floor(amount * (10 ** config.decimals)))
-    const payload = this._buildPayload(0x03, config.poolId, amountNano)
-
-    const tx = {
-      validUntil: Math.floor(Date.now() / 1000) + 300,
-      messages: [{
-        address: EVAA_CONFIG.masterAddress,
-        amount: '100000000',
-        payload,
-      }],
-    }
-
-    const result = await provider.sendTransaction(tx)
-    const hash = typeof result === 'string' ? result : result?.boc || 'pending'
-
-    return { success: true, hash, explorerUrl: `${this.config.explorer}/tx/${hash}` }
+    // TODO: Replace with Evaa.createBorrowMessage() from @evaafi/sdk
+    this._requireEvaaSdk('borrow')
   }
 
   async repay(asset, amount) {
-    const provider = this._getProvider()
-    if (!provider) throw new Error('TON wallet not connected')
-
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-
-    const amountNano = BigInt(Math.floor(amount * (10 ** config.decimals)))
-    const payload = this._buildPayload(0x04, config.poolId, amountNano)
-
-    const tx = {
-      validUntil: Math.floor(Date.now() / 1000) + 300,
-      messages: [{
-        address: EVAA_CONFIG.masterAddress,
-        amount: asset === 'TON' ? amountNano.toString() : '100000000',
-        payload,
-      }],
-    }
-
-    const result = await provider.sendTransaction(tx)
-    const hash = typeof result === 'string' ? result : result?.boc || 'pending'
-
-    return { success: true, hash, explorerUrl: `${this.config.explorer}/tx/${hash}` }
-  }
-
-  _buildPayload(opCode, poolId, amount) {
-    // Build a base64-encoded BOC cell for EVAA operations
-    // In production, use @ton/ton Cell.beginCell() for proper TL-B serialization
-    // This is a simplified payload that EVAA's contract will parse
-    if (window.TonCore) {
-      const { beginCell } = window.TonCore
-      const cell = beginCell()
-        .storeUint(opCode, 32)   // operation code
-        .storeUint(0, 64)        // query id
-        .storeUint(poolId, 8)    // pool index
-        .storeCoins(amount)      // amount in nanotons/jetton units
-        .endCell()
-      return cell.toBoc().toString('base64')
-    }
-    // Fallback: hex-encode a minimal payload
-    const hex = opCode.toString(16).padStart(8, '0') +
-                '0000000000000000' +
-                poolId.toString(16).padStart(2, '0') +
-                amount.toString(16).padStart(32, '0')
-    return hex
+    // TODO: Replace with Evaa.createRepayMessage() from @evaafi/sdk
+    this._requireEvaaSdk('repay')
   }
 
   explorerUrl(hash) {

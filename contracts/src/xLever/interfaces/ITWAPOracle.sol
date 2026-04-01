@@ -24,4 +24,6 @@ interface ITWAPOracle {
     function isStale() external view returns (bool);
     // Check if oracle has received enough updates for reliable TWAP pricing
     function hasSufficientUpdates() external view returns (bool);
+    // Transfer updater role to a new address
+    function setUpdater(address _newUpdater) external;
 }

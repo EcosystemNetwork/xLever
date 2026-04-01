@@ -24,6 +24,7 @@
   .landing-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 20px 40px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
   }
   .landing-header .logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
   .landing-header .logo span { color: var(--accent); }
@@ -151,9 +152,21 @@
 </style>
 </head>
 <body>
+<div id="xnavContainer">
 <script src="nav.js"></script>
 <script>XNav.init(null);</script>
+</div>
 <div class="flashlight" id="flashlight"></div>
+
+<!-- Landing Header -->
+<header class="landing-header" id="landingHeader" style="display:none;">
+  <div class="logo">x<span>Lever</span></div>
+  <div class="landing-header-links">
+    <a href="#features">Features</a>
+    <a href="https://github.com/madschristensen99/xLever" target="_blank">GitHub</a>
+    <a href="#" id="headerLaunchBtn" class="btn-primary" style="padding:10px 24px; font-size:14px; border-radius:6px;">Launch App</a>
+  </div>
+</header>
 
 <!-- How It Works Page (hidden by default, toggled by app.js) -->
 <div id="howItWorksPage" class="how-it-works-page" style="display: none;">
@@ -262,7 +275,7 @@
 </div>
 
 <!-- Landing Page -->
-<div class="landing" id="landingPage" style="padding-top:90px;">
+<div class="landing" id="landingPage" style="display:none; padding-top:90px;">
   <div class="hero">
     <div class="hero-badge">
       <div class="hero-badge-dot"></div>
@@ -283,7 +296,7 @@
     <div class="stat-block"><div class="stat-num">4</div><div class="stat-desc">Target Chains</div></div>
   </div>
 
-  <div class="features">
+  <div class="features" id="features">
     <div class="feature-card">
       <div class="feature-icon">×</div>
       <h3>Constant Leverage</h3>
@@ -323,21 +336,31 @@
   })();
 
   // Landing page navigation
+  function showApp() {
+    document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('landingHeader').style.display = 'none';
+    document.getElementById('xnavContainer').style.display = 'block';
+    document.getElementById('mainApp').style.display = 'block';
+  }
   document.getElementById('launchAppBtn').addEventListener('click', (e) => {
     e.preventDefault();
-    document.getElementById('landingPage').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
+    showApp();
+  });
+  document.getElementById('headerLaunchBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    showApp();
   });
   document.getElementById('learnMoreBtn').addEventListener('click', (e) => {
     e.preventDefault();
     document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('landingHeader').style.display = 'none';
     document.getElementById('howItWorksPage').style.display = 'block';
     window.scrollTo(0, 0);
   });
 </script>
 
 <!-- Main App Container -->
-<div id="mainApp" class="main-app" style="display:none;">
+<div id="mainApp" class="main-app">
 <div class="header">
   <div class="header-left">
     <div class="logo">x<span>Lever</span></div>

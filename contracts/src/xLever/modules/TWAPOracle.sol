@@ -158,6 +158,14 @@ contract TWAPOracle is ITWAPOracle {
         return (diff * 10000) / twap;
     }
 
+    /// @notice Transfer updater role to a new address
+    // Allows the current updater or vault to reassign who can push prices
+    function setUpdater(address _newUpdater) external {
+        require(msg.sender == updater || msg.sender == vault, "Not authorized");
+        require(_newUpdater != address(0), "Zero address");
+        updater = _newUpdater;
+    }
+
     /// @notice Initialize buffer with starting price
     // Must be called once after deployment to fill all 75 slots with a valid starting price
     function initializeBuffer(uint128 startPrice) external onlyUpdater {
