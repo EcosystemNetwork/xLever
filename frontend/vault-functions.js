@@ -5,7 +5,7 @@
 // Deposit USDC into vault with leverage
 async function depositToVault(asset, amountUSDC, leverageBps) {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'warning');
     return;
   }
 
@@ -63,7 +63,7 @@ async function depositToVault(asset, amountUSDC, leverageBps) {
 // Withdraw from vault
 async function withdrawFromVault(asset, amountUSDC) {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'warning');
     return;
   }
 
@@ -145,7 +145,7 @@ async function quickDeposit() {
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
   
   if (!depositAmount || parseFloat(depositAmount) <= 0) {
-    alert('Please enter a valid deposit amount');
+    showToast('Please enter a valid deposit amount', 'warning');
     return;
   }
 
@@ -159,10 +159,10 @@ async function quickDeposit() {
 
     await depositToVault(selectedAsset, parseFloat(depositAmount), leverageBps);
 
-    alert('Deposit successful! 🎉');
+    showToast('Deposit successful!', 'success');
     document.getElementById('depositAmount').value = '';
   } catch (error) {
-    alert(`Deposit failed: ${error.message}`);
+    showToast(`Deposit failed: ${error.message}`, 'error');
   } finally {
     document.getElementById('depositBtn').disabled = false;
     document.getElementById('depositBtn').textContent = 'Deposit';
@@ -175,7 +175,7 @@ async function quickWithdraw() {
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
   
   if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-    alert('Please enter a valid withdrawal amount');
+    showToast('Please enter a valid withdrawal amount', 'warning');
     return;
   }
 
@@ -185,10 +185,10 @@ async function quickWithdraw() {
 
     await withdrawFromVault(selectedAsset, parseFloat(withdrawAmount));
 
-    alert('Withdrawal successful! 💰');
+    showToast('Withdrawal successful!', 'success');
     document.getElementById('withdrawAmount').value = '';
   } catch (error) {
-    alert(`Withdrawal failed: ${error.message}`);
+    showToast(`Withdrawal failed: ${error.message}`, 'error');
   } finally {
     document.getElementById('withdrawBtn').disabled = false;
     document.getElementById('withdrawBtn').textContent = 'Withdraw';

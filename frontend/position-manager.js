@@ -87,7 +87,7 @@ async function ensureCorrectNetwork() {
     const currentChainId = parseInt(chainId, 16);
     
     if (currentChainId !== 763373) {
-      alert('⚠️ Wrong Network!\n\nPlease switch to Ink Sepolia in MetaMask.\n\nNetwork: Ink Sepolia\nChain ID: 763373 (0xBA6ED)\nRPC: https://ink-sepolia.drpc.org\n\nYou are currently on chain ID: ' + currentChainId);
+      showToast(`Wrong Network!\n\nPlease switch to Ink Sepolia in MetaMask.\n\nChain ID: 763373\nCurrent: ${currentChainId}`, 'warning', 6000);
       return false;
     }
     return true;
@@ -104,12 +104,12 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
   
   if (!connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'warning');
     return;
   }
   
   if (!amount || parseFloat(amount) <= 0) {
-    alert('Please enter a valid USDC amount');
+    showToast('Please enter a valid USDC amount', 'warning');
     return;
   }
 
@@ -182,11 +182,11 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     await fetchBalances();
     await loadUserPositions();
     
-    alert(`Position opened successfully! 🎉\n${amount} USDC @ ${currentLeverage}x leverage`);
+    showToast(`Position opened successfully!\n${amount} USDC @ ${currentLeverage}x leverage`, 'success');
     amountInput.value = '';
   } catch (error) {
     console.error('Failed to open position:', error);
-    alert(`Failed to open position: ${error.message}`);
+    showToast(`Failed to open position: ${error.message}`, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Open Position';
@@ -313,10 +313,10 @@ window.closePosition = async function(asset, vaultAddress) {
     await fetchBalances();
     await loadUserPositions();
     
-    alert(`Position closed successfully! 💰`);
+    showToast('Position closed successfully!', 'success');
   } catch (error) {
     console.error('Failed to close position:', error);
-    alert(`Failed to close position: ${error.message}`);
+    showToast(`Failed to close position: ${error.message}`, 'error');
   }
 };
 
