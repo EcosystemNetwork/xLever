@@ -1,0 +1,7 @@
+contracts/
+ton/
+server/
+.claude/
+.gitnexus/
+node_modules/
+*.db

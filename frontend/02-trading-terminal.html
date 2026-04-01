@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever Terminal | Institutional DeFi</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "tertiary-container": "#008441",
+                "surface-container-low": "#1b1b1f",
+                "inverse-surface": "#e3e2e6",
+                "on-secondary-fixed-variant": "#004495",
+                "surface-container-highest": "#343538",
+                "inverse-on-surface": "#303034",
+                "primary-fixed": "#e8deff",
+                "on-error-container": "#ffdad6",
+                "secondary-container": "#0066da",
+                "on-secondary": "#002e6a",
+                "error-container": "#93000a",
+                "surface-bright": "#38393c",
+                "tertiary-fixed": "#62ff96",
+                "background": "#121316",
+                "secondary-fixed-dim": "#adc6ff",
+                "surface-container": "#1f1f23",
+                "on-surface-variant": "#cac3d8",
+                "primary": "#cdbdff",
+                "tertiary-fixed-dim": "#00e475",
+                "error": "#ffb4ab",
+                "on-surface": "#e3e2e6",
+                "surface-container-high": "#292a2d",
+                "surface-tint": "#cdbdff",
+                "primary-container": "#7c4dff",
+                "on-primary": "#370096",
+                "on-secondary-fixed": "#001a42",
+                "on-tertiary-fixed-variant": "#005226",
+                "tertiary": "#00e475",
+                "on-tertiary-fixed": "#00210b",
+                "on-primary-container": "#fcf6ff",
+                "outline": "#948ea1",
+                "secondary": "#adc6ff",
+                "inverse-primary": "#6833ea",
+                "outline-variant": "#494455",
+                "on-error": "#690005",
+                "surface": "#121316",
+                "surface-dim": "#121316",
+                "on-primary-fixed-variant": "#4f00d0",
+                "on-secondary-container": "#e6ecff",
+                "secondary-fixed": "#d8e2ff",
+                "surface-variant": "#343538",
+                "on-tertiary-container": "#e8ffe7",
+                "primary-fixed-dim": "#cdbdff",
+                "on-tertiary": "#003918",
+                "on-background": "#e3e2e6",
+                "on-primary-fixed": "#20005f",
+                "surface-container-lowest": "#0d0e11"
+              },
+              fontFamily: {
+                "headline": ["DM Sans"],
+                "body": ["DM Sans"],
+                "label": ["DM Sans"],
+                "mono": ["JetBrains Mono"]
+              },
+              borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+            },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'DM Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 1.25rem;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #121316; }
+        ::-webkit-scrollbar-thumb { background: #343538; border-radius: 2px; }
+        .etched-border { border: 1px solid rgba(73, 68, 85, 0.15); }
+        .leverage-grid { grid-template-columns: repeat(7, 1fr); }
+
+        /* Ticker Search Dropdown */
+        .ticker-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 60; max-height: 420px; overflow-y: auto; display: none; }
+        .ticker-dropdown.open { display: block; }
+        .ticker-dropdown .cat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; padding: 8px 12px 4px; color: #948ea1; }
+        .ticker-dropdown .ticker-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; cursor: pointer; transition: background 0.1s; }
+        .ticker-dropdown .ticker-row:hover { background: #292a2d; }
+        .ticker-dropdown .ticker-row.active { background: rgba(124,77,255,0.12); }
+        .ticker-dropdown .ticker-sym { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+        .ticker-dropdown .ticker-name { font-size: 11px; color: #8b8fa3; }
+        .ticker-dropdown .ticker-price { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #e3e2e6; }
+
+        /* Skeleton pulse */
+        @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+        .skeleton { background: linear-gradient(90deg, #1f1f23 25%, #292a2d 50%, #1f1f23 75%); background-size: 400px 100%; animation: shimmer 1.5s infinite; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-white">
+<!-- Top Ticker Strip (live prices populated by JS) -->
+<div class="w-full h-10 bg-surface-container-lowest etched-border flex items-center overflow-hidden z-50">
+<div class="flex whitespace-nowrap px-4 gap-8" id="tickerMarquee">
+<div class="flex items-center space-x-3">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">QQQx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="QQQ">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="QQQ">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SPYx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="SPY">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="SPY">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">NVDAx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="NVDA">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="NVDA">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">TSLAx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="TSLA">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="TSLA">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SMHx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="SMH">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="SMH">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">CEGx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="CEG">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="CEG">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">AAPLx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="AAPL">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="AAPL">--</span>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">STRKx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="STRK">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="STRK">--</span>
+</div>
+</div>
+</div>
+<!-- Nav + Risk Banner rendered by nav.js -->
+<script src="nav.js"></script>
+<script>XNav.init('trading');</script>
+<div class="flex h-[calc(100vh-148px)] overflow-hidden" style="margin-top:36px">
+<!-- Sidebar Navigation -->
+<aside class="flex flex-col w-16 md:w-64 border-r border-[#494455]/15 bg-[#1b1b1f] shrink-0">
+<div class="p-4 border-b border-outline-variant/10 hidden md:block">
+<h2 class="font-headline font-bold text-on-surface text-sm">xLever Terminal</h2>
+<p class="text-[10px] text-outline uppercase tracking-widest mt-0.5">Institutional DeFi</p>
+</div>
+<div class="flex flex-col gap-1 p-2 flex-grow">
+<a class="flex items-center gap-3 px-3 py-2 text-[#7c4dff] bg-[#292a2d] rounded-sm group" href="#">
+<span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
+<span class="text-sm font-medium hidden md:block">Tickers</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#292a2d] transition-colors rounded-sm group" href="#">
+<span class="material-symbols-outlined" data-icon="rss_feed">rss_feed</span>
+<span class="text-sm font-medium hidden md:block">Live Feed</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#292a2d] transition-colors rounded-sm group" href="#">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="text-sm font-medium hidden md:block">Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#292a2d] transition-colors rounded-sm group" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-sm font-medium hidden md:block">Settings</span>
+</a>
+</div>
+<div class="mt-auto p-4 hidden md:block">
+<div class="bg-surface-container-highest p-3 rounded-sm space-y-2">
+<div class="flex justify-between text-[10px] text-outline">
+<span>Buying Power</span>
+<span class="mono text-on-surface" id="buyingPowerDisplay">$0.00</span>
+</div>
+<div class="w-full h-1 bg-surface-dim rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-[0%]" id="buyingPowerBar"></div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Terminal Workspace -->
+<main class="flex-grow flex flex-col md:flex-row overflow-hidden bg-background">
+<!-- Left Panel: Chart Area (65%) -->
+<section class="w-full md:w-[65%] flex flex-col border-r border-outline-variant/15">
+<!-- Chart Header with Searchable Ticker Selector -->
+<div class="h-12 flex items-center justify-between px-4 bg-surface-container-lowest/50 border-b border-outline-variant/10">
+<div class="flex items-center gap-4">
+<!-- Searchable Ticker Selector -->
+<div class="relative" id="tickerSelectorWrap">
+<button id="tickerSelectorBtn" class="flex items-center gap-2 bg-surface-container-high rounded-sm px-3 py-1.5 border border-outline-variant/10 hover:border-primary-container/40 transition-colors">
+  <span class="mono text-sm font-bold text-on-surface" id="activeTickerLabel">QQQx</span>
+  <span class="text-[10px] text-outline hidden sm:inline" id="activeTickerName">Nasdaq-100 ETF</span>
+  <span class="mono text-sm font-semibold text-tertiary" id="activeTickerPrice">---</span>
+  <span class="material-symbols-outlined text-sm text-outline">expand_more</span>
+</button>
+<!-- Dropdown -->
+<div class="ticker-dropdown bg-surface-container-lowest border border-outline-variant/20 rounded-sm shadow-2xl mt-1 w-80" id="tickerDropdown">
+  <div class="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 p-2">
+    <div class="relative">
+      <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
+      <input id="tickerSearch" type="text" placeholder="Search assets..." class="w-full bg-surface-container-high text-on-surface text-xs pl-8 pr-3 py-2 rounded-sm border border-outline-variant/10 focus:border-primary-container focus:outline-none mono" autocomplete="off"/>
+    </div>
+    <!-- Quick category filters -->
+    <div class="flex gap-1 mt-2 flex-wrap" id="catFilters">
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-primary-container/15 text-primary" data-cat="all">All</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="index">Index</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="tech">Tech</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="semi">Semis</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="energy">Energy</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="sector">Sector</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="commodity">Cmdty</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="crypto">Crypto</button>
+    </div>
+  </div>
+  <div id="tickerList" class="py-1">
+    <!-- Populated by JS from assets.js -->
+  </div>
+  <div class="px-3 py-2 border-t border-outline-variant/10 text-[9px] text-outline mono">
+    <span id="tickerCount">33</span> assets available
+  </div>
+</div>
+</div>
+<!-- Favorite tickers (quick access) -->
+<div class="hidden md:flex gap-0.5 bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10">
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all bg-primary-container text-on-primary-container" data-sym="QQQ">QQQx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SPY">SPYx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="NVDA">NVDAx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="TSLA">TSLAx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="AAPL">AAPLx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SMH">SMHx</button>
+</div>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<div class="flex gap-1" id="timeframeBtns">
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="1M">1M</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="3M">3M</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-primary bg-primary-container/10 rounded-sm" data-tf="1Y">1Y</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="5Y">5Y</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="MAX">MAX</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="chart-type-btn p-1 hover:bg-surface-container-high rounded-sm text-outline" data-type="candlestick" title="Candlestick">
+<span class="material-symbols-outlined" data-icon="candlestick_chart">candlestick_chart</span>
+</button>
+<button class="chart-type-btn p-1 bg-surface-container-high rounded-sm text-primary" data-type="area" title="Area">
+<span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
+</button>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Drawing Tools -->
+<div class="flex items-center gap-0.5 bg-surface-container rounded-sm p-0.5 border border-outline-variant/10">
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="hline" title="Horizontal Line (Support/Resistance)">
+<span class="material-symbols-outlined text-[18px]" data-icon="horizontal_rule">horizontal_rule</span>
+</button>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="trendline" title="Trend Line">
+<span class="material-symbols-outlined text-[18px]" data-icon="trending_up">trending_up</span>
+</button>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="rect" title="Rectangle Zone">
+<span class="material-symbols-outlined text-[18px]" data-icon="crop_landscape">crop_landscape</span>
+</button>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="fib" title="Fibonacci Retracement">
+<span class="material-symbols-outlined text-[18px]" data-icon="stacked_line_chart">stacked_line_chart</span>
+</button>
+</div>
+<!-- Agent Strategy Dropdown -->
+<div class="relative" id="strategyDropdownWrap">
+<button id="strategyDropdownBtn" class="flex items-center gap-1 px-2 py-1 bg-surface-container rounded-sm border border-outline-variant/10 hover:border-primary-container/40 transition-colors" title="Agent Strategy Overlay">
+<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="smart_toy">smart_toy</span>
+<span class="text-[10px] font-medium text-outline hidden lg:inline">Strategy</span>
+<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+</button>
+<div id="strategyDropdown" class="hidden absolute right-0 top-full mt-1 w-56 bg-surface-container-low border border-outline-variant/20 rounded-sm shadow-xl z-30">
+<div class="p-2 border-b border-outline-variant/10">
+  <span class="text-[9px] uppercase tracking-widest text-outline font-bold">Agent Strategy</span>
+</div>
+<div class="p-1.5 space-y-0.5">
+  <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="safe">
+    <span class="material-symbols-outlined text-[16px] text-tertiary">shield</span>
+    <div>
+      <div class="font-medium">Safe Mode</div>
+      <div class="text-[9px] text-outline">SL bands + de-leverage zones</div>
+    </div>
+  </button>
+  <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="target">
+    <span class="material-symbols-outlined text-[16px] text-secondary">adjust</span>
+    <div>
+      <div class="font-medium">Target Exposure</div>
+      <div class="text-[9px] text-outline">Rebalance bands + entry levels</div>
+    </div>
+  </button>
+  <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="accumulate">
+    <span class="material-symbols-outlined text-[16px] text-primary">trending_up</span>
+    <div>
+      <div class="font-medium">Accumulate (DCA)</div>
+      <div class="text-[9px] text-outline">DCA levels + take-profit targets</div>
+    </div>
+  </button>
+</div>
+<div class="p-1.5 border-t border-outline-variant/10">
+  <button id="clearStrategyBtn" class="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] text-outline hover:text-error hover:bg-surface-container-high rounded-sm transition-colors">
+    <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+    Clear All Drawings
+  </button>
+</div>
+</div>
+</div>
+<div class="h-4 w-px bg-outline-variant/30"></div>
+<button class="p-1 hover:bg-surface-container-high rounded-sm text-outline" id="fullscreenBtn" title="Fullscreen">
+<span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
+</button>
+</div>
+</div>
+<!-- Live Chart (lightweight-charts) -->
+<div class="flex-grow relative bg-[#0a0b0e] overflow-hidden" id="chartWrap">
+<!-- Chart renders here -->
+<div id="tv-chart" class="absolute inset-0"></div>
+<!-- Price overlay (populated by chart engine) -->
+<div class="absolute left-4 top-3 z-10 pointer-events-none">
+<div class="mono text-[10px] text-outline uppercase tracking-widest" id="chartLabel">QQQx 2.0x Leveraged</div>
+<div class="mono text-2xl font-bold text-on-surface" id="chartPrice">--</div>
+<div class="mono text-xs" id="chartChange">--</div>
+</div>
+<!-- Chart loading skeleton -->
+<div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-[#0a0b0e] z-20">
+  <div class="text-center space-y-3">
+    <div class="w-48 h-2 skeleton mx-auto"></div>
+    <div class="w-32 h-2 skeleton mx-auto"></div>
+    <div class="text-[10px] text-outline uppercase tracking-widest mono mt-4">Loading chart data...</div>
+  </div>
+</div>
+<!-- Chart Markers Legend -->
+<div class="absolute bottom-4 left-4 p-2 bg-surface-container-lowest/80 border border-outline-variant/20 rounded-sm backdrop-blur-sm z-10">
+<div class="flex gap-4 items-center flex-wrap">
+<div class="flex items-center gap-1.5">
+<span class="text-yellow-400 font-bold">↓</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">De-Leverage</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-tertiary font-bold">↑</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">Re-Leverage</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-error">●</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">Circuit Breaker</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[#00e475] font-bold">↑</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">Agent Buy</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[#ff5252] font-bold">↓</span>
+<span class="text-[9px] uppercase tracking-tighter text-outline">Agent Sell</span>
+</div>
+</div>
+</div>
+<!-- Active drawing tool indicator -->
+<div id="drawToolIndicator" class="hidden absolute top-3 right-4 z-10 px-2 py-1 bg-primary-container/90 rounded-sm backdrop-blur-sm">
+<span class="text-[9px] uppercase tracking-widest text-on-primary-container font-bold mono" id="drawToolLabel">Drawing</span>
+<span class="text-[9px] text-on-primary-container/60 ml-1">Right-click to cancel</span>
+</div>
+</div>
+<!-- Bottom Indicators Strip -->
+<div class="h-16 border-t border-outline-variant/15 grid grid-cols-4 items-center px-4 bg-surface-container-lowest/30">
+<div class="space-y-1">
+<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">RSI (14)</span>
+<div class="flex items-center gap-2">
+<span class="mono text-sm text-on-surface">58.3</span>
+<div class="w-16 h-1 bg-surface-container-highest rounded-full">
+<div class="h-full bg-secondary w-[58%]"></div>
+</div>
+</div>
+</div>
+<div class="space-y-1">
+<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">MACD (12,26,9)</span>
+<div class="flex items-center gap-2">
+<span class="mono text-sm text-tertiary">1.24</span>
+<span class="material-symbols-outlined text-xs text-tertiary" data-icon="trending_up">trending_up</span>
+</div>
+</div>
+<div class="space-y-1">
+<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">Volume 24h</span>
+<div class="flex items-center gap-2 text-on-surface">
+<span class="mono text-sm">2.4M</span>
+<span class="mono text-[10px] text-outline">QQQx</span>
+</div>
+</div>
+<div class="space-y-1">
+<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">24h Range</span>
+<div class="flex items-center justify-between mono text-[10px] mb-1">
+<span>481.12</span>
+<span>490.45</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full relative overflow-hidden">
+<div class="absolute h-full bg-primary w-[3px] left-[70%]"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel: Order Entry (35%) -->
+<section class="w-full md:w-[35%] flex flex-col bg-surface-container-low border-l border-outline-variant/10 overflow-y-auto pb-8">
+<!-- No Liquidation Badge -->
+<div class="mx-4 mt-4 p-3 bg-primary-container/10 border border-primary-container/30 rounded-sm flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="verified_user">verified_user</span>
+<div>
+<p class="text-[11px] font-bold text-on-surface leading-tight">No Liquidation Risk</p>
+<p class="text-[9px] text-outline leading-tight">Risk socialized via Junior tranche</p>
+</div>
+</div>
+<!-- Order Form -->
+<div class="p-4 space-y-5">
+<div class="flex gap-4 border-b border-outline-variant/10 pb-1">
+<button class="text-xs font-bold text-primary border-b-2 border-primary pb-2 px-1">Market</button>
+<button class="text-xs font-bold text-outline hover:text-on-surface pb-2 px-1">Limit</button>
+<button class="text-xs font-bold text-outline hover:text-on-surface pb-2 px-1">Stop</button>
+</div>
+<div class="space-y-3">
+<div class="space-y-1.5">
+<div class="flex justify-between">
+<label class="text-[10px] uppercase font-bold text-outline tracking-wider">Size (USD)</label>
+<span class="text-[10px] text-outline mono" id="balanceLabel">Bal: 0</span>
+</div>
+<div class="relative group">
+<input class="w-full bg-surface-container-lowest border-none focus:ring-0 mono text-lg p-3 rounded-sm text-on-surface" type="text" value="10,000"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-outline">USDC</span>
+</div>
+</div>
+<!-- Bidirectional Leverage Slider -->
+<div class="space-y-3 py-2">
+<div class="flex justify-between items-end">
+<label class="text-[10px] uppercase font-bold text-outline tracking-wider">Leverage</label>
+<span class="mono text-2xl font-bold"><span id="leverage-display" style="color:#00e676">+2.0</span><span class="text-xs text-outline">x</span></span>
+</div>
+<!-- Interactive Bidirectional Slider -->
+<div class="relative h-12 flex flex-col justify-center">
+<div class="leverage-slider-track">
+  <div class="leverage-center-mark"></div>
+  <div class="leverage-fill" style="left:50%;width:25%;background:#00e676;"></div>
+  <div class="leverage-handle" style="left:75%;background:#00e676;"></div>
+</div>
+<!-- Quick Select Notches -->
+<div class="grid leverage-grid w-full mt-4">
+<button data-leverage="-4" class="text-[8px] mono font-bold text-outline hover:text-error transition-colors">-4x</button>
+<button data-leverage="-2" class="text-[8px] mono font-bold text-outline hover:text-error transition-colors">-2x</button>
+<button data-leverage="-1" class="text-[8px] mono font-bold text-outline hover:text-error transition-colors">-1x</button>
+<button data-leverage="0" class="text-[8px] mono font-bold text-on-surface transition-colors">0x</button>
+<button data-leverage="1" class="text-[8px] mono font-bold text-outline hover:text-tertiary transition-colors">+1x</button>
+<button data-leverage="2" class="text-[8px] mono font-bold transition-colors" style="font-weight:800;color:#00e676;">+2x</button>
+<button data-leverage="4" class="text-[8px] mono font-bold text-outline hover:text-tertiary transition-colors">+4x</button>
+</div>
+</div>
+</div>
+<!-- Risk Meter -->
+<div class="space-y-2 pt-2">
+<label class="text-[10px] uppercase font-bold text-outline tracking-wider">Risk Profile</label>
+<div class="h-2 flex gap-0.5 w-full rounded-full overflow-hidden bg-surface-container-highest">
+<div class="risk-segment h-full w-1/4 bg-blue-500/50 transition-colors duration-200" title="Conservative"></div>
+<div class="risk-segment h-full w-1/4 bg-tertiary transition-colors duration-200" title="Moderate"></div>
+<div class="risk-segment h-full w-1/4 bg-surface-container-highest transition-colors duration-200" title="Aggressive"></div>
+<div class="risk-segment h-full w-1/4 bg-surface-container-highest transition-colors duration-200" title="Maximum Risk"></div>
+</div>
+<div class="flex justify-between text-[8px] mono text-outline font-bold uppercase tracking-tighter">
+<span>Cons.</span><span>Mod.</span><span>Aggr.</span><span>Max</span>
+</div>
+</div>
+<!-- Strategy Info Panel -->
+<div class="bg-surface-container-lowest/50 border border-outline-variant/10 rounded-sm p-3 space-y-2">
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Leverage Type</span>
+<span class="mono text-on-surface">Constant from Entry</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Annual Fee</span>
+<span class="mono text-on-surface" id="annual-fee-display">0% APR</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Fee Split</span>
+<span class="mono text-on-surface text-right" id="feeSplitDisplay">- / - / -</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Oracle</span>
+<span class="mono text-on-surface">15-min TWAP (Pyth)</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Rebalance</span>
+<span class="mono text-on-surface">On User Adjust</span>
+</div>
+</div>
+<div class="pt-2 space-y-2">
+<button id="open-position-btn" class="w-full py-4 bg-tertiary text-on-tertiary font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-tertiary/10">
+                                Open Position
+                            </button>
+</div>
+</div>
+</div>
+<!-- Buffer Tranche Info Section -->
+<div class="mx-4 mb-4 p-3 bg-surface-container-lowest/50 border border-outline-variant/10 rounded-sm space-y-2">
+<h3 class="text-[10px] font-bold text-outline uppercase tracking-wider border-b border-outline-variant/10 pb-1 mb-2">Tranche Health</h3>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Pool Structure</span>
+<span class="mono text-on-surface" id="poolStructureDisplay">0% Senior / 0% Junior</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Junior APY</span>
+<span class="mono text-tertiary font-bold">Dynamic</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Buffer Health</span>
+<span class="mono text-tertiary font-bold flex items-center gap-1">✓ Healthy</span>
+</div>
+<div class="flex justify-between text-[10px]">
+<span class="text-outline">Insurance Fund</span>
+<span class="mono text-on-surface" id="insuranceFundDisplay">$0</span>
+</div>
+</div>
+<!-- Order Book Depth (Compact) -->
+<div class="flex-grow flex flex-col mx-4 etched-border bg-surface-container-lowest/30">
+<div class="p-2 flex justify-between items-center border-b border-outline-variant/5">
+<span class="text-[10px] uppercase font-bold text-outline tracking-wider">Order Book</span>
+<span class="text-[10px] text-outline mono" id="orderBookSpread">Spread: -</span>
+</div>
+<div class="flex flex-col h-32 overflow-hidden font-mono text-[9px]">
+<!-- Asks -->
+<div class="flex-grow flex flex-col-reverse justify-end">
+<div class="flex justify-between px-2 py-0.5">
+<span class="text-error" id="askPrice1">-</span>
+<span class="text-outline" id="askSize1">-</span>
+</div>
+<div class="flex justify-between px-2 py-0.5">
+<span class="text-error" id="askPrice2">-</span>
+<span class="text-outline" id="askSize2">-</span>
+</div>
+</div>
+<!-- Current Price -->
+<div class="bg-surface-container-highest/30 py-1 px-2 flex justify-center items-center border-y border-outline-variant/10">
+<span class="mono text-xs font-bold text-tertiary" id="orderBookMidPrice">-</span>
+</div>
+<!-- Bids -->
+<div class="flex-grow flex flex-col justify-start">
+<div class="flex justify-between px-2 py-0.5">
+<span class="text-tertiary" id="bidPrice1">-</span>
+<span class="text-outline" id="bidSize1">-</span>
+</div>
+<div class="flex justify-between px-2 py-0.5">
+<span class="text-tertiary" id="bidPrice2">-</span>
+<span class="text-outline" id="bidSize2">-</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+<!-- Bottom Panel: Positions Table -->
+<div class="h-44 bg-surface-container-lowest border-t border-outline-variant/20 overflow-hidden" id="positionsPanel">
+<div class="flex items-center justify-between h-8 px-4 bg-surface-container border-b border-outline-variant/10">
+<div class="flex gap-6">
+<button class="pos-tab text-[11px] font-bold text-primary border-b border-primary h-full" data-tab="positions">Positions (<span id="posCount">0</span>)</button>
+<button class="pos-tab text-[11px] font-bold text-outline hover:text-on-surface h-full" data-tab="orders">Open Orders (<span id="orderCount">0</span>)</button>
+<button class="pos-tab text-[11px] font-bold text-outline hover:text-on-surface h-full" data-tab="history">History</button>
+</div>
+<div class="flex items-center gap-2 text-[9px] text-outline mono uppercase tracking-wider">
+  <span id="walletStatusDot" class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+  <span id="walletStatusText">No wallet connected</span>
+</div>
+</div>
+<div class="overflow-auto h-[calc(100%-32px)]" id="positionsBody">
+<!-- Empty state (shown when no wallet connected) -->
+<div id="positionsEmpty" class="flex flex-col items-center justify-center h-full text-center py-6">
+  <span class="material-symbols-outlined text-3xl text-outline/40 mb-2">account_balance_wallet</span>
+  <p class="text-xs text-outline">Connect your wallet to view positions</p>
+  <p class="text-[10px] text-outline/60 mt-1">Your leveraged positions will appear here</p>
+</div>
+<!-- Positions table (shown when wallet connected) -->
+<table class="w-full text-left border-collapse" id="positionsTable" style="display:none">
+<thead class="sticky top-0 bg-surface-container-lowest z-10">
+<tr class="text-[10px] text-outline uppercase tracking-wider font-bold border-b border-outline-variant/10">
+<th class="px-4 py-2">Asset</th>
+<th class="px-4 py-2">Side</th>
+<th class="px-4 py-2">Size</th>
+<th class="px-4 py-2">Leverage</th>
+<th class="px-4 py-2">Entry</th>
+<th class="px-4 py-2">Mark</th>
+<th class="px-4 py-2">P/L (Socialized)</th>
+<th class="px-4 py-2 text-right">Action</th>
+</tr>
+</thead>
+<tbody class="mono text-[11px]" id="positionsTbody">
+<tr class="hover:bg-surface-container transition-colors group">
+<td class="px-4 py-2.5 font-headline font-bold text-on-surface">QQQx 3×</td>
+<td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
+<td class="px-4 py-2.5 text-on-surface">10,000.00 USDC</td>
+<td class="px-4 py-2.5 text-outline">+2.00x</td>
+<td class="px-4 py-2.5 text-outline">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
+<td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors group border-t border-outline-variant/5">
+<td class="px-4 py-2.5 font-headline font-bold text-on-surface">NVDAx 2×</td>
+<td class="px-4 py-2.5"><span class="bg-error/10 text-error px-1.5 py-0.5 rounded-sm font-bold">SHORT</span></td>
+<td class="px-4 py-2.5 text-on-surface">5,450.00 USDC</td>
+<td class="px-4 py-2.5 text-outline">-4.00x</td>
+<td class="px-4 py-2.5 text-outline">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
+<td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors group border-t border-outline-variant/5">
+<td class="px-4 py-2.5 font-headline font-bold text-on-surface">SPYx 2×</td>
+<td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
+<td class="px-4 py-2.5 text-on-surface">8,000.00 USDC</td>
+<td class="px-4 py-2.5 text-outline">+2.00x</td>
+<td class="px-4 py-2.5 text-outline">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
+<td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Terminal Footer -->
+<footer class="fixed bottom-0 w-full z-50 h-8 flex items-center justify-between px-4 border-t border-[#494455]/15 bg-[#0a0b0e]">
+<div class="flex items-center gap-6">
+<span class="mono text-[10px] uppercase tracking-widest text-[#00e475]">
+  <span id="footerNetwork">Ink Sepolia</span> | Block: <span id="footerBlock">---</span>
+</span>
+<div class="flex items-center gap-4">
+<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase mono tracking-tighter" href="#">Status</a>
+<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase mono tracking-tighter" href="#">Docs</a>
+<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase mono tracking-tighter" href="#">Support</a>
+</div>
+</div>
+<div class="flex items-center gap-4 text-slate-500">
+<span class="text-[10px] mono" id="footerClock">UTC --:--:--</span>
+<span class="material-symbols-outlined text-[14px] text-[#00e475]" data-icon="circle" style="font-variation-settings: 'FILL' 1;">circle</span>
+<span class="text-[10px] uppercase mono">Terminal Active</span>
+</div>
+</footer>
+<script type="module" src="assets.js"></script>
+<script type="module" src="wallet.js"></script>
+<script type="module" src="pyth.js"></script>
+<script type="module" src="contracts.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  XAuthGate.init({
+    mode: 'disable',
+    actionSelectors: ['#open-position-btn', '#executeTrade', '[data-action="trade"]']
+  });
+});
+</script>
+<script src="chart-strategy-tools.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ═══════════════════════════════════════════
+  // LIVE UTC CLOCK
+  // ═══════════════════════════════════════════
+  const clockEl = document.getElementById('footerClock');
+  function updateClock() {
+    const now = new Date();
+    clockEl.textContent = 'UTC ' + now.toISOString().slice(11, 19);
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ═══════════════════════════════════════════
+  // SEARCHABLE TICKER SELECTOR
+  // ═══════════════════════════════════════════
+  let activeSym = 'QQQ';
+  const CAT_LABELS = { index: 'Index ETFs', sector: 'Sector ETFs', tech: 'Mega-Cap Tech', semi: 'Semiconductors', energy: 'Energy & Infrastructure', commodity: 'Commodities', crypto: 'Crypto-Adjacent' };
+
+  function waitForAssets() {
+    return new Promise(resolve => {
+      if (window.xLeverAssets) return resolve(window.xLeverAssets);
+      const check = setInterval(() => {
+        if (window.xLeverAssets) { clearInterval(check); resolve(window.xLeverAssets); }
+      }, 50);
+    });
+  }
+
+  waitForAssets().then(assets => {
+    const dropdown = document.getElementById('tickerDropdown');
+    const listEl = document.getElementById('tickerList');
+    const searchInput = document.getElementById('tickerSearch');
+    const btn = document.getElementById('tickerSelectorBtn');
+    const countEl = document.getElementById('tickerCount');
+    let currentCat = 'all';
+
+    function renderList(filter = '', cat = 'all') {
+      const q = filter.toLowerCase();
+      let html = '';
+      let count = 0;
+      const cats = Object.keys(assets.CATEGORIES);
+      cats.forEach(c => {
+        if (cat !== 'all' && cat !== c) return;
+        const items = assets.CATEGORIES[c].filter(a =>
+          a.sym.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)
+        );
+        if (!items.length) return;
+        html += `<div class="cat-label">${CAT_LABELS[c] || c}</div>`;
+        items.forEach(a => {
+          const isActive = a.sym === activeSym;
+          html += `<div class="ticker-row${isActive ? ' active' : ''}" data-sym="${a.sym}">
+            <div class="flex items-center gap-2">
+              <span class="ticker-sym${isActive ? ' text-primary-container' : ' text-on-surface'}">${a.sym}x</span>
+              <span class="ticker-name">${a.name}</span>
+            </div>
+            <span class="ticker-price" data-dp="${a.sym}">---</span>
+          </div>`;
+          count++;
+        });
+      });
+      listEl.innerHTML = html || '<div class="px-4 py-6 text-center text-xs text-outline">No assets match your search</div>';
+      countEl.textContent = count;
+
+      listEl.querySelectorAll('.ticker-row').forEach(row => {
+        row.addEventListener('click', () => selectTicker(row.dataset.sym));
+      });
+    }
+
+    function selectTicker(sym) {
+      activeSym = sym;
+      const a = assets.ASSETS.find(x => x.sym === sym);
+      document.getElementById('activeTickerLabel').textContent = sym + 'x';
+      document.getElementById('activeTickerName').textContent = a ? a.name : '';
+      dropdown.classList.remove('open');
+
+      // Update fav buttons
+      document.querySelectorAll('.fav-ticker').forEach(b => {
+        if (b.dataset.sym === sym) {
+          b.classList.add('bg-primary-container', 'text-on-primary-container');
+          b.classList.remove('text-outline');
+        } else {
+          b.classList.remove('bg-primary-container', 'text-on-primary-container');
+          b.classList.add('text-outline');
+        }
+      });
+
+      // Set active asset in contracts adapter (switches vault address too)
+      if (window.xLeverContracts) {
+        window.xLeverContracts.setActiveAsset(sym);
+        const hasVault = window.xLeverContracts.isVaultDeployed(sym);
+        const tradeBtn = document.getElementById('executeTrade') || document.querySelector('[data-action="trade"]');
+        if (!hasVault) {
+          XToast.show(`${sym}x vault not yet deployed — chart & data available, trading disabled`, 'warn', 4000);
+          if (tradeBtn) { tradeBtn.disabled = true; tradeBtn.title = 'Vault not deployed for this asset'; }
+        } else {
+          if (tradeBtn) { tradeBtn.disabled = false; tradeBtn.title = ''; }
+        }
+      }
+
+      // Update chart label
+      const lev = window.XLeverage ? XLeverage.getLeverage() : 2;
+      document.getElementById('chartLabel').textContent = sym + 'x ' + Math.abs(lev).toFixed(1) + 'x Leveraged';
+
+      // Reload chart data
+      loadChartData(sym);
+
+      XToast.show(`Switched to ${sym}x`, 'info', 2000);
+      renderList(searchInput.value, currentCat);
+    }
+
+    // Toggle dropdown
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      if (dropdown.classList.contains('open')) {
+        searchInput.focus();
+        renderList('', currentCat);
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('tickerSelectorWrap').contains(e.target)) {
+        dropdown.classList.remove('open');
+      }
+    });
+
+    // Search input
+    searchInput.addEventListener('input', () => renderList(searchInput.value, currentCat));
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') dropdown.classList.remove('open');
+      if (e.key === 'Enter') {
+        const first = listEl.querySelector('.ticker-row');
+        if (first) selectTicker(first.dataset.sym);
+      }
+    });
+
+    // Category filter buttons
+    document.querySelectorAll('.cat-filter-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        currentCat = b.dataset.cat;
+        document.querySelectorAll('.cat-filter-btn').forEach(x => {
+          x.classList.remove('bg-primary-container/15', 'text-primary');
+          x.classList.add('text-outline');
+        });
+        b.classList.add('bg-primary-container/15', 'text-primary');
+        b.classList.remove('text-outline');
+        renderList(searchInput.value, currentCat);
+      });
+    });
+
+    // Fav ticker quick buttons
+    document.querySelectorAll('.fav-ticker').forEach(b => {
+      b.addEventListener('click', () => selectTicker(b.dataset.sym));
+    });
+
+    renderList();
+  });
+
+  // ═══════════════════════════════════════════
+  // LIGHTWEIGHT CHARTS — LIVE CHART
+  // ═══════════════════════════════════════════
+  let chart = null;
+  let areaSeries = null;
+  let candleSeries = null;
+  let currentChartType = 'area';
+
+  function initChart() {
+    const container = document.getElementById('tv-chart');
+    chart = LightweightCharts.createChart(container, {
+      layout: { background: { type: 'solid', color: '#0a0b0e' }, textColor: '#948ea1', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 },
+      grid: { vertLines: { color: 'rgba(148,142,161,0.04)' }, horzLines: { color: 'rgba(148,142,161,0.04)' } },
+      crosshair: { mode: 0, vertLine: { color: '#7c4dff40', width: 1, style: 2 }, horzLine: { color: '#7c4dff40', width: 1, style: 2 } },
+      rightPriceScale: { borderColor: '#49445520', scaleMargins: { top: 0.15, bottom: 0.05 } },
+      timeScale: { borderColor: '#49445520', timeVisible: false },
+      handleScroll: true,
+      handleScale: true,
+    });
+
+    areaSeries = chart.addAreaSeries({
+      lineColor: '#7c4dff',
+      topColor: 'rgba(124,77,255,0.25)',
+      bottomColor: 'rgba(124,77,255,0.01)',
+      lineWidth: 2,
+    });
+
+    candleSeries = chart.addCandlestickSeries({
+      upColor: '#00e475',
+      downColor: '#ff5252',
+      borderUpColor: '#00e475',
+      borderDownColor: '#ff5252',
+      wickUpColor: '#00e47580',
+      wickDownColor: '#ff525280',
+      visible: false,
+    });
+
+    // Responsive resize
+    const ro = new ResizeObserver(() => {
+      chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+    });
+    ro.observe(container);
+
+    // Crosshair move for price overlay
+    chart.subscribeCrosshairMove(param => {
+      if (!param.time || !param.seriesData) return;
+      const visible = currentChartType === 'area' ? areaSeries : candleSeries;
+      const data = param.seriesData.get(visible);
+      if (data) {
+        const price = data.close !== undefined ? data.close : data.value;
+        if (price) document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
+      }
+    });
+  }
+
+  // Generate synthetic OHLC data for a ticker (seeds by symbol for consistency)
+  function generateChartData(sym, days = 365) {
+    const seed = Array.from(sym).reduce((s, c) => s + c.charCodeAt(0), 0);
+    let rng = seed;
+    function rand() { rng = (rng * 16807 + 0) % 2147483647; return rng / 2147483647; }
+    function randn() { return Math.sqrt(-2 * Math.log(rand())) * Math.cos(2 * Math.PI * rand()); }
+
+    const basePrice = 100 + (seed % 400);
+    const data = [];
+    let price = basePrice;
+    const now = Math.floor(Date.now() / 1000);
+    const dayS = 86400;
+
+    for (let i = days; i >= 0; i--) {
+      const time = now - (i * dayS);
+      const drift = 0.0003;
+      const vol = 0.015 + (seed % 10) * 0.002;
+      const ret = drift + vol * randn();
+      price *= (1 + ret);
+      const o = price * (1 + (rand() - 0.5) * 0.005);
+      const c = price;
+      const h = Math.max(o, c) * (1 + rand() * 0.008);
+      const l = Math.min(o, c) * (1 - rand() * 0.008);
+      data.push({ time, open: +o.toFixed(2), high: +h.toFixed(2), low: +l.toFixed(2), close: +c.toFixed(2), value: +c.toFixed(2) });
+    }
+    return data;
+  }
+
+  function loadChartData(sym) {
+    const loading = document.getElementById('chartLoading');
+    if (loading) loading.style.display = 'flex';
+
+    // Simulate a brief load
+    setTimeout(() => {
+      const data = generateChartData(sym);
+      areaSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+      candleSeries.setData(data);
+
+      // Update price overlay
+      const last = data[data.length - 1];
+      const prev = data[data.length - 2];
+      if (last) {
+        document.getElementById('chartPrice').textContent = '$' + last.close.toFixed(2);
+        document.getElementById('activeTickerPrice').textContent = '$' + last.close.toFixed(2);
+        const chg = ((last.close - prev.close) / prev.close * 100);
+        const chgEl = document.getElementById('chartChange');
+        chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        chgEl.className = 'mono text-xs ' + (chg >= 0 ? 'text-tertiary' : 'text-error');
+      }
+
+      if (loading) loading.style.display = 'none';
+      chart.timeScale().fitContent();
+    }, 300);
+  }
+
+  // Chart type toggle
+  document.querySelectorAll('.chart-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chart-type-btn').forEach(b => {
+        b.classList.remove('bg-surface-container-high', 'text-primary');
+        b.classList.add('text-outline');
+      });
+      btn.classList.add('bg-surface-container-high', 'text-primary');
+      btn.classList.remove('text-outline');
+
+      currentChartType = btn.dataset.type;
+      areaSeries.applyOptions({ visible: currentChartType === 'area' });
+      candleSeries.applyOptions({ visible: currentChartType === 'candlestick' });
+    });
+  });
+
+  // Timeframe buttons
+  const tfDays = { '1M': 30, '3M': 90, '1Y': 365, '5Y': 1825, 'MAX': 3650 };
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tf-btn').forEach(b => {
+        b.classList.remove('text-primary', 'bg-primary-container/10');
+        b.classList.add('text-outline');
+      });
+      btn.classList.add('text-primary', 'bg-primary-container/10');
+      btn.classList.remove('text-outline');
+
+      const days = tfDays[btn.dataset.tf] || 365;
+      const data = generateChartData(activeSym, days);
+      areaSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+      candleSeries.setData(data);
+      chart.timeScale().fitContent();
+    });
+  });
+
+  // Fullscreen toggle
+  document.getElementById('fullscreenBtn').addEventListener('click', () => {
+    const wrap = document.getElementById('chartWrap');
+    if (!document.fullscreenElement) wrap.requestFullscreen();
+    else document.exitFullscreen();
+  });
+
+  // Init chart
+  initChart();
+  loadChartData('QQQ');
+
+  // ═══════════════════════════════════════════
+  // STRATEGY DRAWING TOOLS
+  // ═══════════════════════════════════════════
+  ChartStrategyTools.init(chart, () => currentChartType === 'area' ? areaSeries : candleSeries);
+
+  // Drawing tool buttons
+  const toolIndicator = document.getElementById('drawToolIndicator');
+  const toolLabel = document.getElementById('drawToolLabel');
+  const TOOL_NAMES = { hline: 'Horizontal Line', trendline: 'Trend Line', rect: 'Rectangle Zone', fib: 'Fibonacci' };
+
+  document.querySelectorAll('.draw-tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tool = btn.dataset.tool;
+      const isActive = btn.classList.contains('bg-primary-container');
+      if (isActive) {
+        ChartStrategyTools.setTool(null);
+        toolIndicator.classList.add('hidden');
+      } else {
+        ChartStrategyTools.setTool(tool);
+        toolLabel.textContent = TOOL_NAMES[tool] || tool;
+        toolIndicator.classList.remove('hidden');
+      }
+    });
+  });
+
+  // ESC to cancel drawing
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      ChartStrategyTools.setTool(null);
+      toolIndicator.classList.add('hidden');
+    }
+  });
+
+  // Strategy dropdown toggle
+  const stratDropBtn = document.getElementById('strategyDropdownBtn');
+  const stratDrop = document.getElementById('strategyDropdown');
+  stratDropBtn.addEventListener('click', () => stratDrop.classList.toggle('hidden'));
+  document.addEventListener('click', e => {
+    if (!document.getElementById('strategyDropdownWrap').contains(e.target)) stratDrop.classList.add('hidden');
+  });
+
+  // Strategy presets — generate strategy overlay from current chart data
+  document.querySelectorAll('.strategy-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      stratDrop.classList.add('hidden');
+      const mode = btn.dataset.strategy;
+      const data = generateChartData(activeSym);
+      const last = data[data.length - 1];
+      const price = last.close;
+
+      // Calculate strategy levels based on agent mode
+      let strategy = { label: mode.charAt(0).toUpperCase() + mode.slice(1), direction: 'long', signals: [] };
+
+      if (mode === 'safe') {
+        // Safe mode: tight SL, conservative TP, de-leverage zones
+        strategy.entry = price;
+        strategy.stopLoss = +(price * 0.95).toFixed(2);
+        strategy.takeProfit = +(price * 1.08).toFixed(2);
+        // Mark recent high-volatility days as circuit breaker signals
+        for (let i = data.length - 30; i < data.length; i++) {
+          const d = data[i];
+          const move = Math.abs(d.close - d.open) / d.open;
+          if (move > 0.025) {
+            strategy.signals.push({ time: d.time, type: 'info', text: 'VOL' });
+          }
+        }
+      } else if (mode === 'target') {
+        // Target mode: entry + rebalance band
+        strategy.entry = price;
+        strategy.takeProfit = +(price * 1.12).toFixed(2);
+        strategy.stopLoss = +(price * 0.92).toFixed(2);
+        const bandH = +(price * 1.03).toFixed(2);
+        const bandL = +(price * 0.97).toFixed(2);
+        strategy.zone = {
+          high: bandH, low: bandL,
+          timeStart: data[data.length - 60].time,
+          timeEnd: data[data.length - 1].time,
+        };
+        // Mark rebalance trigger points
+        for (let i = data.length - 60; i < data.length; i++) {
+          if (data[i].close > bandH) strategy.signals.push({ time: data[i].time, type: 'sell', text: 'REBAL' });
+          else if (data[i].close < bandL) strategy.signals.push({ time: data[i].time, type: 'buy', text: 'REBAL' });
+        }
+      } else if (mode === 'accumulate') {
+        // Accumulate: DCA entry levels + profit targets
+        strategy.entry = price;
+        strategy.takeProfit = +(price * 1.20).toFixed(2);
+        strategy.stopLoss = +(price * 0.85).toFixed(2);
+        // DCA buy levels
+        const dcaLevels = [0.97, 0.93, 0.88];
+        dcaLevels.forEach((mult, idx) => {
+          ChartStrategyTools.addHLine(+(price * mult).toFixed(2), {
+            color: '#29b6f6',
+            label: `DCA ${idx + 1}`,
+            dashed: true,
+          });
+        });
+        // Mark simulated DCA entries over last 90 days
+        let dcaInterval = 0;
+        for (let i = data.length - 90; i < data.length; i += 14) {
+          strategy.signals.push({ time: data[i].time, type: 'buy', text: 'DCA' });
+        }
+      }
+
+      ChartStrategyTools.drawStrategy(strategy);
+    });
+  });
+
+  // Clear all drawings
+  document.getElementById('clearStrategyBtn').addEventListener('click', () => {
+    ChartStrategyTools.clearAll();
+    stratDrop.classList.add('hidden');
+  });
+
+  // ═══════════════════════════════════════════
+  // PYTH LIVE PRICES — Ticker strip + dropdown
+  // ═══════════════════════════════════════════
+  async function fetchLivePrices() {
+    try {
+      const pyth = window.xLeverPyth;
+      if (!pyth) return;
+      const data = await pyth.getAllPrices();
+      data.prices.forEach(p => {
+        const sym = p.symbol.replace('/USD', '');
+        // Update ticker strip
+        const priceEl = document.querySelector(`[data-ticker-price="${sym}"]`);
+        if (priceEl) priceEl.textContent = p.price.toFixed(2);
+        // Update dropdown prices
+        document.querySelectorAll(`[data-dp="${sym}"]`).forEach(el => {
+          el.textContent = '$' + p.price.toFixed(2);
+        });
+        // Update active ticker price if matching
+        if (sym === activeSym) {
+          document.getElementById('activeTickerPrice').textContent = '$' + p.price.toFixed(2);
+        }
+      });
+    } catch (e) {
+      console.warn('Live price fetch failed:', e);
+    }
+  }
+
+  // Fetch prices on load + every 15s
+  setTimeout(fetchLivePrices, 1000);
+  setInterval(fetchLivePrices, 15000);
+
+  // ═══════════════════════════════════════════
+  // OPEN POSITION BUTTON
+  // ═══════════════════════════════════════════
+  const openBtn = document.getElementById('open-position-btn');
+  if (openBtn) {
+    openBtn.addEventListener('click', () => {
+      const leverage = XLeverage.getLeverage();
+      if (leverage === 0) return;
+
+      const ticker = activeSym + 'x';
+      const sizeInput = document.querySelector('input[type="text"]');
+      const sizeStr = sizeInput ? sizeInput.value.replace(/,/g, '') : '10000';
+      const size = parseFloat(sizeStr) || 10000;
+
+      const priceEl = document.getElementById('chartPrice');
+      const price = priceEl ? priceEl.textContent.replace('$', '') : '0';
+
+      const feeEl = document.getElementById('annual-fee-display');
+      const fee = feeEl ? feeEl.textContent : '1.0% APR';
+
+      XModal.confirmTrade({ asset: ticker, leverage, size, price, fee });
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // ORDER TYPE TABS
+  // ═══════════════════════════════════════════
+  const orderTabs = document.querySelectorAll('.border-b.border-outline-variant\\/10.pb-1 button');
+  orderTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      orderTabs.forEach(t => {
+        t.classList.remove('text-primary', 'border-b-2', 'border-primary');
+        t.classList.add('text-outline');
+      });
+      tab.classList.add('text-primary', 'border-b-2', 'border-primary');
+      tab.classList.remove('text-outline');
+    });
+  });
+
+  // ═══════════════════════════════════════════
+  // POSITIONS TABLE — Wallet-aware
+  // ═══════════════════════════════════════════
+  function updatePositionsState(connected) {
+    const empty = document.getElementById('positionsEmpty');
+    const table = document.getElementById('positionsTable');
+    const dot = document.getElementById('walletStatusDot');
+    const txt = document.getElementById('walletStatusText');
+
+    if (connected) {
+      dot.className = 'w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse';
+      txt.textContent = 'Wallet connected';
+      if (empty) empty.style.display = 'none';
+      if (table) table.style.display = 'table';
+    } else {
+      dot.className = 'w-1.5 h-1.5 rounded-full bg-outline';
+      txt.textContent = 'No wallet connected';
+      if (empty) empty.style.display = 'flex';
+      if (table) table.style.display = 'none';
+    }
+  }
+
+  // Listen for wallet connection events
+  const walletCheck = setInterval(() => {
+    if (window.xLeverWallet) {
+      clearInterval(walletCheck);
+      const modal = window.xLeverWallet;
+      modal.subscribeEvents(ev => {
+        if (ev.data?.event === 'CONNECT_SUCCESS') updatePositionsState(true);
+        if (ev.data?.event === 'DISCONNECT_SUCCESS') updatePositionsState(false);
+      });
+    }
+  }, 100);
+
+  // Adjust buttons in positions table
+  document.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent.trim() === 'Adjust') {
+      btn.addEventListener('click', async () => {
+        const contracts = window.xLeverContracts;
+        if (!contracts || !contracts.ADDRESSES.vault) {
+          XToast.show('Vault not deployed — adjust is simulated', 'info', 2500);
+          return;
+        }
+        const input = prompt('Enter new leverage (e.g. 2.0 for 2x long, -1.5 for 1.5x short):');
+        if (!input) return;
+        const newLev = parseFloat(input);
+        if (isNaN(newLev) || Math.abs(newLev) > 4) {
+          XToast.show('Invalid leverage: must be between -4.0 and 4.0', 'error');
+          return;
+        }
+        try {
+          XToast.show('Adjusting leverage...', 'info', 3000);
+          const result = await contracts.adjustLeverage(newLev);
+          XToast.show('Leverage adjusted — tx: ' + result.hash.slice(0, 10) + '...', 'success');
+        } catch (err) {
+          XToast.show('Adjust failed: ' + (err.shortMessage || err.message), 'error');
+        }
+      });
+    }
+  });
+
+  // Position tab toggles
+  document.querySelectorAll('.pos-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.pos-tab').forEach(t => {
+        t.classList.remove('text-primary', 'border-b', 'border-primary');
+        t.classList.add('text-outline');
+      });
+      tab.classList.add('text-primary', 'border-b', 'border-primary');
+      tab.classList.remove('text-outline');
+    });
+  });
+
+  // ═══════════════════════════════════════════
+  // BLOCK NUMBER — fetch from RPC
+  // ═══════════════════════════════════════════
+  async function fetchBlock() {
+    try {
+      const rpcUrl = window.viem?.inkSepolia?.rpcUrls?.default?.http?.[0] || 'https://rpc-gel-sepolia.inkonchain.com';
+      const resp = await fetch(rpcUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 })
+      });
+      const json = await resp.json();
+      document.getElementById('footerBlock').textContent = parseInt(json.result, 16).toLocaleString();
+    } catch (e) {
+      document.getElementById('footerBlock').textContent = '---';
+    }
+  }
+  fetchBlock();
+  setInterval(fetchBlock, 12000);
+});
+</script>
+<script src="risk-engine.js"></script>
+<script src="risk-live.js"></script>
+<script>
+// Risk banner: live Pyth oracle polling via RiskLive (updates every 15s)
+(function(){
+  var SC = { NORMAL:'#00e676', WARNING:'#ffd740', RESTRICTED:'#ff9100', EMERGENCY:'#ff5252' };
+
+  function updateBanner(ev) {
+    if (ev.state === 'RESTRICTED' || ev.state === 'EMERGENCY') {
+      var openBtn = document.getElementById('open-position-btn');
+      if (openBtn) {
+        openBtn.disabled = true;
+        openBtn.style.opacity = '0.4';
+        openBtn.style.pointerEvents = 'none';
+        openBtn.title = ev.state + ': new positions blocked — ' + (ev.reasons[0]?.reason || '');
+      }
+      document.querySelectorAll('button').forEach(function(btn) {
+        if (btn.textContent.trim() === 'Adjust') {
+          btn.disabled = true;
+          btn.style.opacity = '0.4';
+          btn.title = ev.state + ': adjustments blocked';
+        }
+      });
+      if (window.XLeverage && ev.leverageCap < 4) {
+        window.XLeverage._riskCap = ev.leverageCap;
+      }
+    } else {
+      var openBtn = document.getElementById('open-position-btn');
+      if (openBtn) {
+        openBtn.disabled = false;
+        openBtn.style.opacity = '';
+        openBtn.style.pointerEvents = '';
+        openBtn.title = '';
+      }
+      document.querySelectorAll('button').forEach(function(btn) {
+        if (btn.textContent.trim() === 'Adjust') {
+          btn.disabled = false;
+          btn.style.opacity = '';
+          btn.title = '';
+        }
+      });
+      if (window.XLeverage) window.XLeverage._riskCap = 4.0;
+    }
+  }
+
+  setTimeout(function() {
+    if (window.RiskLive) {
+      window.RiskLive.subscribe(function(state) {
+        if (state) updateBanner(state);
+      });
+      window.RiskLive.start(15000);
+    }
+  }, 1500);
+})();
+</script>
+</body></html>

@@ -41,6 +41,7 @@ runs = 1000
 
 [rpc_endpoints]
 ink-sepolia = "https://rpc-gel-sepolia.inkonchain.com"
+eth-sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
 
 [etherscan]
 ink-sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://explorer-sepolia.inkonchain.com/api" }

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever Risk Sentinel — Test Harness</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "background": "#0a0b0e",
+          "surface": "#121316",
+          "surface-container": "#1f1f23",
+          "surface-container-low": "#1b1b1f",
+          "surface-container-high": "#292a2d",
+          "outline-variant": "#252833",
+          "outline": "#948ea1",
+          "on-surface": "#e3e2e6",
+          "on-surface-variant": "#cac3d8",
+          "primary-container": "#7c4dff",
+          "primary": "#cdbdff",
+          "tertiary": "#00e476",
+          "error": "#ff5252",
+          "warning": "#ffd740",
+        },
+        fontFamily: {
+          "headline": ["Space Grotesk"],
+          "body": ["DM Sans"],
+          "mono": ["JetBrains Mono"],
+        },
+      },
+    },
+  }
+</script>
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #0a0b0e; }
+  ::-webkit-scrollbar-thumb { background: #252833; border-radius: 2px; }
+</style>
+</head>
+<body class="bg-background text-on-surface font-body antialiased p-6">
+
+<div class="max-w-6xl mx-auto">
+  <header class="mb-8">
+    <h1 class="font-headline text-2xl tracking-tight uppercase">Risk Sentinel — Test Harness</h1>
+    <p class="text-sm text-outline mt-1">Deterministic tests for all guardrail transitions. Open DevTools console for details.</p>
+  </header>
+
+  <!-- Test results summary -->
+  <div id="summary" class="mb-6 p-4 bg-surface-container-low border border-outline-variant rounded-lg flex items-center gap-4">
+    <span class="material-symbols-outlined text-2xl" id="summaryIcon">hourglass_top</span>
+    <div>
+      <div class="font-mono text-lg" id="summaryText">Running tests...</div>
+      <div class="text-xs text-outline" id="summaryDetail"></div>
+    </div>
+  </div>
+
+  <!-- Test results list -->
+  <div id="results" class="space-y-2"></div>
+
+  <!-- Scenario timelines -->
+  <h2 class="font-headline text-lg tracking-tight uppercase mt-10 mb-4">Demo Scenario Timelines</h2>
+  <div id="scenarios" class="space-y-6"></div>
+</div>
+
+<script src="risk-engine.js"></script>
+<script>
+(function() {
+  const results = [];
+  let passed = 0, failed = 0;
+
+  function assert(condition, name, detail = '') {
+    if (condition) {
+      passed++;
+      results.push({ pass: true, name, detail });
+    } else {
+      failed++;
+      results.push({ pass: false, name, detail });
+      console.error(`FAIL: ${name}`, detail);
+    }
+  }
+
+  function assertState(inputs, expectedState, testName) {
+    const ev = RiskEngine.evaluate(inputs);
+    assert(ev.state === expectedState, testName,
+      `Expected ${expectedState}, got ${ev.state}. Reasons: ${ev.reasons.map(r => r.reason).join('; ')}`);
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 1. NORMAL STATE TESTS
+  // ───────────────────────────────────────────────────────
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.001, drawdown: 0.02,
+    healthFactor: 2.5, volatility: 0.20, utilization: 0.40,
+  }, 'NORMAL', 'Normal: all inputs within safe bounds');
+
+  assertState({
+    oracleAgeSec: 0, oracleDivergence: 0, drawdown: 0,
+    healthFactor: 10, volatility: 0, utilization: 0,
+  }, 'NORMAL', 'Normal: perfect conditions');
+
+  assertState({}, 'NORMAL', 'Normal: default/empty inputs');
+
+  // ───────────────────────────────────────────────────────
+  // 2. WARNING STATE TESTS
+  // ───────────────────────────────────────────────────────
+
+  assertState({
+    oracleAgeSec: 310, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'WARNING', 'Warning: oracle stale (310s > 300s threshold)');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.015, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'WARNING', 'Warning: oracle divergence (1.5% > 1% threshold)');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.06,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'WARNING', 'Warning: drawdown 6% exceeds 5% threshold');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 1.4, volatility: 0.20, utilization: 0.40,
+  }, 'WARNING', 'Warning: health factor 1.4 below 1.5 threshold');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.55, utilization: 0.40,
+  }, 'WARNING', 'Warning: volatility 55% exceeds 50% threshold');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.80,
+  }, 'WARNING', 'Warning: utilization 80% exceeds 75% threshold');
+
+  // ───────────────────────────────────────────────────────
+  // 3. RESTRICTED STATE TESTS
+  // ───────────────────────────────────────────────────────
+
+  assertState({
+    oracleAgeSec: 920, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'RESTRICTED', 'Restricted: oracle critically stale (920s > 900s)');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.035, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'RESTRICTED', 'Restricted: oracle divergence 3.5% exceeds 3%');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.18,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'RESTRICTED', 'Restricted: drawdown 18% exceeds 15%');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 1.15, volatility: 0.20, utilization: 0.40,
+  }, 'RESTRICTED', 'Restricted: health factor 1.15 below 1.2');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.85, utilization: 0.40,
+  }, 'RESTRICTED', 'Restricted: volatility 85% exceeds 80%');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.92,
+  }, 'RESTRICTED', 'Restricted: utilization 92% exceeds 90%');
+
+  // ───────────────────────────────────────────────────────
+  // 4. EMERGENCY STATE TESTS
+  // ───────────────────────────────────────────────────────
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.32,
+    healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+  }, 'EMERGENCY', 'Emergency: drawdown 32% exceeds 30%');
+
+  assertState({
+    oracleAgeSec: 10, oracleDivergence: 0.002, drawdown: 0.02,
+    healthFactor: 1.02, volatility: 0.20, utilization: 0.40,
+  }, 'EMERGENCY', 'Emergency: health factor 1.02 below 1.05');
+
+  // ───────────────────────────────────────────────────────
+  // 5. WORST-STATE-WINS (multiple triggers)
+  // ───────────────────────────────────────────────────────
+
+  {
+    const ev = RiskEngine.evaluate({
+      oracleAgeSec: 310, oracleDivergence: 0.002, drawdown: 0.18,
+      healthFactor: 2.0, volatility: 0.20, utilization: 0.40,
+    });
+    assert(ev.state === 'RESTRICTED', 'Escalation: WARNING oracle + RESTRICTED drawdown → RESTRICTED',
+      `Got ${ev.state}, reasons: ${ev.reasons.length}`);
+    assert(ev.reasons.length >= 2, 'Escalation: multiple reasons reported');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 6. LEVERAGE CAP TESTS
+  // ───────────────────────────────────────────────────────
+
+  {
+    const normal = RiskEngine.evaluate({ drawdown: 0, healthFactor: 3, volatility: 0.1, utilization: 0.3, oracleAgeSec: 5, oracleDivergence: 0 });
+    assert(normal.leverageCap === 4.0, 'Leverage cap: NORMAL → 4.0×');
+  }
+  {
+    const warn = RiskEngine.evaluate({ drawdown: 0.06, healthFactor: 3, volatility: 0.1, utilization: 0.3, oracleAgeSec: 5, oracleDivergence: 0 });
+    assert(warn.leverageCap === 3.0, 'Leverage cap: WARNING → 3.0×');
+  }
+  {
+    const restr = RiskEngine.evaluate({ drawdown: 0.18, healthFactor: 3, volatility: 0.1, utilization: 0.3, oracleAgeSec: 5, oracleDivergence: 0 });
+    assert(restr.leverageCap === 1.5, 'Leverage cap: RESTRICTED → 1.5×');
+  }
+  {
+    const emerg = RiskEngine.evaluate({ drawdown: 0.35, healthFactor: 3, volatility: 0.1, utilization: 0.3, oracleAgeSec: 5, oracleDivergence: 0 });
+    assert(emerg.leverageCap === 0.0, 'Leverage cap: EMERGENCY → 0.0×');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 7. DELEVERAGE LEVEL TESTS
+  // ───────────────────────────────────────────────────────
+
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.04 });
+    assert(ev.deleverageLevel === 0, 'Deleverage level 0: drawdown 4% → no action');
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.12 });
+    assert(ev.deleverageLevel === 1, 'Deleverage level 1: drawdown 12% → reduce 25%');
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.16 });
+    assert(ev.deleverageLevel === 2, 'Deleverage level 2: drawdown 16% → reduce 50%');
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.25 });
+    assert(ev.deleverageLevel === 3, 'Deleverage level 3: drawdown 25% → cap 1.5×');
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.33 });
+    assert(ev.deleverageLevel === 4, 'Deleverage level 4: drawdown 33% → force 1.0×');
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.45 });
+    assert(ev.deleverageLevel === 5, 'Deleverage level 5: drawdown 45% → liquidation');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 8. AUTO-DELEVERAGE RECOMMENDATION TESTS
+  // ───────────────────────────────────────────────────────
+
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.25 });
+    const rec = RiskEngine.deleverageRecommendation(3.0, ev);
+    assert(rec.shouldAutoExecute === true, 'Auto-exec: level 3 triggers auto-execution');
+    assert(rec.recommendedLeverage <= 1.5, 'Auto-exec: level 3 caps at 1.5×',
+      `Got ${rec.recommendedLeverage}`);
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.12 });
+    const rec = RiskEngine.deleverageRecommendation(3.0, ev);
+    assert(rec.shouldAutoExecute === false, 'No auto-exec: level 1 is recommendation only');
+    assert(rec.recommendedLeverage <= 2.25, 'Level 1: recommends 75% of current leverage',
+      `Got ${rec.recommendedLeverage}`);
+  }
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.45 });
+    const rec = RiskEngine.deleverageRecommendation(3.0, ev);
+    assert(rec.shouldAutoExecute === true, 'Auto-exec: level 5 triggers auto-execution');
+    assert(rec.recommendedLeverage === 0, 'Level 5: full liquidation → 0×');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 9. SHORT POSITION DELEVERAGE
+  // ───────────────────────────────────────────────────────
+
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.33 });
+    const rec = RiskEngine.deleverageRecommendation(-3.0, ev);
+    assert(rec.recommendedLeverage <= 0, 'Short deleverage: maintains negative sign',
+      `Got ${rec.recommendedLeverage}`);
+    assert(Math.abs(rec.recommendedLeverage) <= 1.0, 'Short deleverage: level 4 forces to ±1.0×');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 10. ORACLE HEALTH CHECK
+  // ───────────────────────────────────────────────────────
+
+  {
+    const oh = RiskEngine.checkOracle(100, 100.5, 1000, 1010);
+    assert(oh.healthy === true, 'Oracle healthy: fresh + low divergence');
+    assert(oh.ageSec === 10, 'Oracle age computed correctly');
+    assert(oh.divergence < 0.01, 'Oracle divergence computed correctly');
+  }
+  {
+    const oh = RiskEngine.checkOracle(100, 105, 1000, 1400);
+    assert(oh.healthy === false, 'Oracle unhealthy: stale + high divergence');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 11. SCENARIO RUNNER TESTS
+  // ───────────────────────────────────────────────────────
+
+  {
+    const timeline = RiskEngine.runScenario(
+      RiskEngine.DEMO_SCENARIOS.normalMarket.ticks,
+      RiskEngine.DEMO_SCENARIOS.normalMarket.startLeverage
+    );
+    const allNormal = timeline.every(t => t.state === 'NORMAL');
+    assert(allNormal, 'Scenario: Normal market stays NORMAL throughout');
+    assert(timeline.length === 8, 'Scenario: Normal market has 8 ticks');
+    const noAutoExec = timeline.every(t => !t.shouldAutoExecute);
+    assert(noAutoExec, 'Scenario: Normal market has no auto-executions');
+  }
+
+  {
+    const timeline = RiskEngine.runScenario(
+      RiskEngine.DEMO_SCENARIOS.stressedMarket.ticks,
+      RiskEngine.DEMO_SCENARIOS.stressedMarket.startLeverage
+    );
+    const states = timeline.map(t => t.state);
+    assert(states[0] === 'NORMAL', 'Scenario: Stressed market starts NORMAL');
+    assert(states.includes('WARNING'), 'Scenario: Stressed market passes through WARNING');
+    assert(states.includes('RESTRICTED'), 'Scenario: Stressed market passes through RESTRICTED');
+    assert(states.includes('EMERGENCY'), 'Scenario: Stressed market reaches EMERGENCY');
+
+    const hasAutoExec = timeline.some(t => t.shouldAutoExecute);
+    assert(hasAutoExec, 'Scenario: Stressed market triggers auto-deleverage');
+
+    const lastTick = timeline[timeline.length - 1];
+    assert(lastTick.leverageAfter === 0, 'Scenario: Stressed market ends with liquidation (0× leverage)');
+  }
+
+  {
+    const timeline = RiskEngine.runScenario(
+      RiskEngine.DEMO_SCENARIOS.oracleFailure.ticks,
+      RiskEngine.DEMO_SCENARIOS.oracleFailure.startLeverage
+    );
+    const states = timeline.map(t => t.state);
+    assert(states.includes('WARNING'), 'Scenario: Oracle failure triggers WARNING');
+    assert(states.includes('RESTRICTED'), 'Scenario: Oracle failure triggers RESTRICTED');
+    // Oracle recovers at end
+    const lastState = states[states.length - 1];
+    assert(lastState === 'NORMAL', 'Scenario: Oracle failure recovers to NORMAL');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // 12. BOUNDARY / EDGE-CASE TESTS
+  // ───────────────────────────────────────────────────────
+
+  assertState({
+    oracleAgeSec: 300, oracleDivergence: 0.01, drawdown: 0.05,
+    healthFactor: 1.5, volatility: 0.50, utilization: 0.75,
+  }, 'NORMAL', 'Boundary: exactly at WARNING thresholds → stays NORMAL (strict inequality)');
+
+  assertState({
+    oracleAgeSec: 900, oracleDivergence: 0.03, drawdown: 0.15,
+    healthFactor: 1.2, volatility: 0.80, utilization: 0.90,
+  }, 'NORMAL', 'Boundary: exactly at RESTRICTED thresholds → stays below (strict inequality)');
+
+  {
+    const ev = RiskEngine.evaluate({ drawdown: 0.10 });
+    assert(ev.deleverageLevel === 1, 'Boundary: exactly 10% drawdown → level 1 (>=)');
+  }
+
+  // ───────────────────────────────────────────────────────
+  // RENDER RESULTS
+  // ───────────────────────────────────────────────────────
+
+  const container = document.getElementById('results');
+  results.forEach(r => {
+    const div = document.createElement('div');
+    div.className = `flex items-start gap-3 p-3 rounded border ${
+      r.pass
+        ? 'bg-[#00e676]/5 border-[#00e676]/20'
+        : 'bg-[#ff5252]/5 border-[#ff5252]/20'
+    }`;
+    div.innerHTML = `
+      <span class="material-symbols-outlined text-base mt-0.5 ${r.pass ? 'text-[#00e676]' : 'text-[#ff5252]'}">${r.pass ? 'check_circle' : 'cancel'}</span>
+      <div>
+        <div class="font-mono text-xs ${r.pass ? 'text-[#00e676]' : 'text-[#ff5252]'}">${r.pass ? 'PASS' : 'FAIL'}: ${r.name}</div>
+        ${r.detail ? `<div class="text-[10px] text-outline mt-0.5 font-mono">${r.detail}</div>` : ''}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  // Summary
+  const summaryIcon = document.getElementById('summaryIcon');
+  const summaryText = document.getElementById('summaryText');
+  const summaryDetail = document.getElementById('summaryDetail');
+  const summaryDiv = document.getElementById('summary');
+
+  if (failed === 0) {
+    summaryIcon.textContent = 'verified';
+    summaryIcon.classList.add('text-[#00e676]');
+    summaryText.textContent = `All ${passed} tests passed`;
+    summaryText.classList.add('text-[#00e676]');
+    summaryDiv.classList.add('border-[#00e676]/30');
+  } else {
+    summaryIcon.textContent = 'error';
+    summaryIcon.classList.add('text-[#ff5252]');
+    summaryText.textContent = `${failed} of ${passed + failed} tests failed`;
+    summaryText.classList.add('text-[#ff5252]');
+    summaryDiv.classList.add('border-[#ff5252]/30');
+  }
+  summaryDetail.textContent = `${passed} passed · ${failed} failed · ${passed + failed} total`;
+
+  // ───────────────────────────────────────────────────────
+  // RENDER SCENARIO TIMELINES
+  // ───────────────────────────────────────────────────────
+
+  const scenarioContainer = document.getElementById('scenarios');
+  const stateColors = { NORMAL: '#00e676', WARNING: '#ffd740', RESTRICTED: '#ff9100', EMERGENCY: '#ff5252' };
+
+  Object.entries(RiskEngine.DEMO_SCENARIOS).forEach(([key, scenario]) => {
+    const timeline = RiskEngine.runScenario(scenario.ticks, scenario.startLeverage);
+
+    const section = document.createElement('div');
+    section.className = 'bg-surface-container-low border border-outline-variant rounded-lg p-6';
+    section.innerHTML = `
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-headline text-base tracking-tight uppercase">${scenario.name}</h3>
+          <p class="text-xs text-outline">${scenario.description}</p>
+        </div>
+        <span class="px-2 py-0.5 rounded font-mono text-[10px]" style="background:${stateColors[timeline[timeline.length-1].state]}20; color:${stateColors[timeline[timeline.length-1].state]}">
+          Final: ${timeline[timeline.length-1].state}
+        </span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left font-mono text-[10px] border-collapse">
+          <thead class="bg-surface-container-high text-outline uppercase tracking-tighter">
+            <tr>
+              <th class="px-3 py-2">Tick</th>
+              <th class="px-3 py-2">State</th>
+              <th class="px-3 py-2 text-right">Drawdown</th>
+              <th class="px-3 py-2 text-right">Health</th>
+              <th class="px-3 py-2 text-right">Oracle Age</th>
+              <th class="px-3 py-2 text-right">Lev Cap</th>
+              <th class="px-3 py-2 text-right">Lev After</th>
+              <th class="px-3 py-2">Action</th>
+              <th class="px-3 py-2">Triggers</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline-variant/10">
+            ${timeline.map(t => `
+              <tr class="hover:bg-white/5">
+                <td class="px-3 py-2">${t.tick}</td>
+                <td class="px-3 py-2">
+                  <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${stateColors[t.state]}"></span>
+                  <span style="color:${stateColors[t.state]}">${t.state}</span>
+                </td>
+                <td class="px-3 py-2 text-right">${(t.inputs.drawdown * 100).toFixed(1)}%</td>
+                <td class="px-3 py-2 text-right">${t.inputs.healthFactor.toFixed(2)}</td>
+                <td class="px-3 py-2 text-right">${t.inputs.oracleAgeSec}s</td>
+                <td class="px-3 py-2 text-right">${t.leverageCap}×</td>
+                <td class="px-3 py-2 text-right ${t.shouldAutoExecute ? 'text-error font-bold' : ''}">${t.leverageAfter.toFixed(1)}×</td>
+                <td class="px-3 py-2">${t.deleverageLabel}</td>
+                <td class="px-3 py-2 text-[9px] text-outline max-w-xs truncate">${t.reasons.map(r => r.reason).join(' | ') || '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    scenarioContainer.appendChild(section);
+  });
+
+  console.log(`\n✅ Risk Sentinel Tests: ${passed} passed, ${failed} failed (${passed + failed} total)\n`);
+})();
+</script>
+</body>
+</html>

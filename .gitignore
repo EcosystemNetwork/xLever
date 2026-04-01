@@ -1,29 +1,11 @@
-# Environment variables (contains private keys and secrets)
-.env
-.env.local
-.env.*.local
-
-# Foundry / Solidity
-cache/
-out/
-broadcast/
-deployments/*.json
-!deployments/.gitkeep
-
-# Node modules (if using npm/yarn)
 node_modules/
-package-lock.json
-yarn.lock
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
 dist/
+.mcp.json
+.stitch/
+.env
+.env.*
+.vercel
+.gitnexus
 downloads/
 eggs/
 .eggs/

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever | Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                colors: {
+                    "secondary": "#adc6ff",
+                    "surface-container-high": "#292a2d",
+                    "on-surface": "#e3e2e6",
+                    "outline-variant": "#494455",
+                    "tertiary-container": "#008441",
+                    "on-secondary-fixed-variant": "#004495",
+                    "inverse-primary": "#6833ea",
+                    "secondary-container": "#0066da",
+                    "on-primary": "#370096",
+                    "primary-container": "#7c4dff",
+                    "on-surface-variant": "#cac3d8",
+                    "on-tertiary-container": "#e8ffe7",
+                    "on-background": "#e3e2e6",
+                    "on-secondary-container": "#e6ecff",
+                    "secondary-fixed-dim": "#adc6ff",
+                    "surface-dim": "#121316",
+                    "on-tertiary": "#003918",
+                    "primary": "#cdbdff",
+                    "on-error-container": "#ffdad6",
+                    "surface-bright": "#38393c",
+                    "outline": "#948ea1",
+                    "inverse-surface": "#e3e2e6",
+                    "surface-variant": "#343538",
+                    "surface-tint": "#cdbdff",
+                    "tertiary": "#00e475",
+                    "tertiary-fixed-dim": "#00e475",
+                    "surface": "#121316",
+                    "inverse-on-surface": "#303034",
+                    "primary-fixed": "#e8deff",
+                    "surface-container-lowest": "#0d0e11",
+                    "background": "#121316",
+                    "surface-container": "#1f1f23",
+                    "error-container": "#93000a",
+                    "on-tertiary-fixed-variant": "#005226",
+                    "on-secondary": "#002e6a",
+                    "on-primary-container": "#fcf6ff",
+                    "on-tertiary-fixed": "#00210b",
+                    "on-primary-fixed-variant": "#4f00d0",
+                    "surface-container-low": "#1b1b1f",
+                    "secondary-fixed": "#d8e2ff",
+                    "on-secondary-fixed": "#001a42",
+                    "on-primary-fixed": "#20005f",
+                    "primary-fixed-dim": "#cdbdff",
+                    "on-error": "#690005",
+                    "surface-container-highest": "#343538",
+                    "error": "#ffb4ab",
+                    "tertiary-fixed": "#62ff96"
+                },
+                fontFamily: {
+                    "headline": ["Space+Grotesk", "sans-serif"],
+                    "body": ["DM Sans", "sans-serif"],
+                    "label": ["DM Sans", "sans-serif"],
+                    "mono": ["JetBrains Mono", "monospace"]
+                },
+                borderRadius: {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+                },
+            },
+        },
+    }
+</script>
+<style>
+    body { font-family: 'DM Sans', sans-serif; background-color: #0a0b0e; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0a0b0e; }
+    ::-webkit-scrollbar-thumb { background: #494455; border-radius: 10px; }
+    .bar { transition: height 0.4s ease; }
+    .stat-card { transition: border-color 0.2s ease; }
+    .stat-card:hover { border-color: #7c4dff40; }
+</style>
+</head>
+<body class="text-on-surface overflow-x-hidden pb-12">
+<script src="nav.js"></script>
+<script>XNav.init('admin');</script>
+
+<main class="pt-28 px-6 max-w-[1600px] mx-auto space-y-6">
+
+<!-- Page Header -->
+<div class="flex items-center justify-between">
+  <div>
+    <h1 class="font-['Space_Grotesk'] text-2xl font-bold text-on-surface">Admin Dashboard</h1>
+    <p class="text-xs text-on-surface-variant mt-1">Platform analytics &amp; user activity</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <button onclick="refreshAll()" class="flex items-center gap-2 px-4 py-2 bg-[#12141a] border border-[#252833] rounded text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+      <span class="material-symbols-outlined text-base" id="refreshIcon">refresh</span>
+      Refresh
+    </button>
+    <div class="flex items-center gap-2 bg-[#12141a] px-3 py-2 border border-[#252833] rounded">
+      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse" id="liveIndicator"></div>
+      <span class="font-mono text-[10px] text-[#8b8fa3] uppercase tracking-widest">Live</span>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="statsGrid">
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-primary">group</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Total Users</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statTotalUsers">--</p>
+  </div>
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-tertiary">login</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Total Sessions</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statTotalSessions">--</p>
+  </div>
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-[#00e676]">radio_button_checked</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Active Now</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-[#00e676]" id="statActiveNow">--</p>
+  </div>
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-secondary">trending_up</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Open Positions</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statOpenPositions">--</p>
+  </div>
+</div>
+
+<!-- Second Row Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-on-surface-variant">swap_horiz</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Total Positions</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statTotalPositions">--</p>
+  </div>
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-primary">smart_toy</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Agent Runs</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statAgentRuns">--</p>
+  </div>
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-tertiary">precision_manufacturing</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Active Agents</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statActiveAgents">--</p>
+  </div>
+  <div class="stat-card bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-base text-[#ffd740]">notifications_active</span>
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Total Alerts</p>
+    </div>
+    <p class="font-mono text-2xl font-semibold text-on-surface" id="statTotalAlerts">--</p>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Daily Activity Chart -->
+  <div class="bg-surface-container-low border border-outline-variant/10 rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-sm font-semibold text-on-surface">Daily Activity</h2>
+        <p class="text-[10px] text-on-surface-variant mt-0.5">Logins &amp; new registrations (last 30 days)</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2.5 h-2.5 rounded-sm bg-[#7c4dff]"></div>
+          <span class="text-[10px] text-on-surface-variant">Logins</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-2.5 h-2.5 rounded-sm bg-[#00e676]"></div>
+          <span class="text-[10px] text-on-surface-variant">New Users</span>
+        </div>
+      </div>
+    </div>
+    <div class="h-48 flex items-end gap-[3px] overflow-x-auto" id="dailyChart">
+      <div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Hourly Distribution Chart -->
+  <div class="bg-surface-container-low border border-outline-variant/10 rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-sm font-semibold text-on-surface">Hourly Distribution</h2>
+        <p class="text-[10px] text-on-surface-variant mt-0.5">Sessions by hour of day (UTC)</p>
+      </div>
+    </div>
+    <div class="h-48 flex items-end gap-[3px]" id="hourlyChart">
+      <div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- User Table & Recent Sessions -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- User Table (2/3 width) -->
+  <div class="lg:col-span-2 bg-surface-container-low border border-outline-variant/10 rounded-lg">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
+      <div>
+        <h2 class="text-sm font-semibold text-on-surface">Users</h2>
+        <p class="text-[10px] text-on-surface-variant mt-0.5">All registered wallets</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="userSort" onchange="loadUsers()" class="bg-[#12141a] border border-[#252833] rounded text-[11px] text-on-surface-variant px-2 py-1.5 focus:outline-none focus:border-primary">
+          <option value="last_seen">Last Seen</option>
+          <option value="created_at">Created</option>
+          <option value="wallet_address">Wallet</option>
+        </select>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold border-b border-outline-variant/10">
+            <th class="text-left px-5 py-3">Wallet</th>
+            <th class="text-left px-3 py-3">Created</th>
+            <th class="text-left px-3 py-3">Last Seen</th>
+            <th class="text-center px-3 py-3">Sessions</th>
+            <th class="text-center px-3 py-3">Positions</th>
+            <th class="text-center px-3 py-3">Agents</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr><td colspan="6" class="text-center py-8 text-on-surface-variant text-xs">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Sessions (1/3 width) -->
+  <div class="bg-surface-container-low border border-outline-variant/10 rounded-lg">
+    <div class="px-5 py-4 border-b border-outline-variant/10">
+      <h2 class="text-sm font-semibold text-on-surface">Recent Sessions</h2>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Latest wallet connections</p>
+    </div>
+    <div class="divide-y divide-outline-variant/10 max-h-[400px] overflow-y-auto" id="sessionsList">
+      <div class="px-5 py-4 text-center text-on-surface-variant text-xs">Loading...</div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const API = '/api/admin';
+
+function fmt(n) {
+  if (n === null || n === undefined) return '--';
+  return n.toLocaleString();
+}
+
+function shortAddr(addr) {
+  if (!addr) return '--';
+  return addr.slice(0, 6) + '...' + addr.slice(-4);
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '--';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if (diff < 2592000) return Math.floor(diff / 86400) + 'd ago';
+  return d.toLocaleDateString();
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '--';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
+function fmtDuration(seconds) {
+  if (!seconds) return 'active';
+  if (seconds < 60) return seconds + 's';
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+  return Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
+}
+
+// ─── Load Platform Stats ────────────────────────────────────────
+async function loadStats() {
+  try {
+    const res = await fetch(API + '/stats');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const s = await res.json();
+    document.getElementById('statTotalUsers').textContent = fmt(s.total_users);
+    document.getElementById('statTotalSessions').textContent = fmt(s.total_sessions);
+    document.getElementById('statActiveNow').textContent = fmt(s.active_sessions);
+    document.getElementById('statOpenPositions').textContent = fmt(s.open_positions);
+    document.getElementById('statTotalPositions').textContent = fmt(s.total_positions);
+    document.getElementById('statAgentRuns').textContent = fmt(s.total_agent_runs);
+    document.getElementById('statActiveAgents').textContent = fmt(s.active_agents);
+    document.getElementById('statTotalAlerts').textContent = fmt(s.total_alerts);
+  } catch (e) {
+    console.error('Failed to load stats:', e);
+  }
+}
+
+// ─── Daily Activity Chart ───────────────────────────────────────
+async function loadDailyChart() {
+  try {
+    const res = await fetch(API + '/activity/daily?days=30');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const container = document.getElementById('dailyChart');
+
+    if (!data.length) {
+      container.innerHTML = '<div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">No activity data yet</div>';
+      return;
+    }
+
+    const maxVal = Math.max(...data.map(d => Math.max(d.logins, d.new_users)), 1);
+    container.innerHTML = data.map(d => {
+      const loginH = Math.max((d.logins / maxVal) * 100, 2);
+      const newH = Math.max((d.new_users / maxVal) * 100, 2);
+      const day = d.date.slice(5); // MM-DD
+      return `
+        <div class="flex-1 min-w-[14px] flex flex-col items-center gap-0.5 group relative">
+          <div class="w-full flex flex-col items-center gap-[1px] flex-1 justify-end">
+            <div class="bar w-full bg-[#7c4dff] rounded-t-sm" style="height:${loginH}%"></div>
+            <div class="bar w-full bg-[#00e676] rounded-t-sm" style="height:${newH}%"></div>
+          </div>
+          <span class="text-[8px] text-on-surface-variant/50 rotate-[-45deg] origin-top-left mt-1 hidden md:block">${day}</span>
+          <div class="absolute -top-14 left-1/2 -translate-x-1/2 bg-surface-container-highest border border-outline-variant/20 rounded px-2 py-1 hidden group-hover:block z-10 whitespace-nowrap">
+            <p class="text-[10px] text-on-surface-variant">${d.date}</p>
+            <p class="text-[10px] text-primary font-mono">${d.logins} logins</p>
+            <p class="text-[10px] text-tertiary font-mono">${d.new_users} new</p>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('Failed to load daily chart:', e);
+    document.getElementById('dailyChart').innerHTML = '<div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">Failed to load</div>';
+  }
+}
+
+// ─── Hourly Distribution Chart ──────────────────────────────────
+async function loadHourlyChart() {
+  try {
+    const res = await fetch(API + '/activity/hourly');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const container = document.getElementById('hourlyChart');
+
+    const maxVal = Math.max(...data.map(d => d.sessions), 1);
+    container.innerHTML = data.map(d => {
+      const h = Math.max((d.sessions / maxVal) * 100, 2);
+      const label = d.hour.toString().padStart(2, '0') + ':00';
+      return `
+        <div class="flex-1 min-w-[12px] flex flex-col items-center gap-0.5 group relative">
+          <div class="w-full flex items-end flex-1">
+            <div class="bar w-full bg-secondary/60 hover:bg-secondary rounded-t-sm transition-colors" style="height:${h}%"></div>
+          </div>
+          <span class="text-[8px] text-on-surface-variant/50 ${d.hour % 3 === 0 ? '' : 'hidden md:block'}">${d.hour}</span>
+          <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface-container-highest border border-outline-variant/20 rounded px-2 py-1 hidden group-hover:block z-10 whitespace-nowrap">
+            <p class="text-[10px] text-on-surface-variant">${label}</p>
+            <p class="text-[10px] text-secondary font-mono">${d.sessions} sessions</p>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('Failed to load hourly chart:', e);
+    document.getElementById('hourlyChart').innerHTML = '<div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">Failed to load</div>';
+  }
+}
+
+// ─── User Table ─────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const sort = document.getElementById('userSort').value;
+    const res = await fetch(API + '/users?limit=50&sort=' + sort);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const users = await res.json();
+    const tbody = document.getElementById('usersTableBody');
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-on-surface-variant text-xs">No users yet</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+      <tr class="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+        <td class="px-5 py-3">
+          <span class="font-mono text-xs text-on-surface" title="${u.wallet_address}">${shortAddr(u.wallet_address)}</span>
+        </td>
+        <td class="px-3 py-3 text-xs text-on-surface-variant">${fmtDate(u.created_at)}</td>
+        <td class="px-3 py-3 text-xs text-on-surface-variant">${timeAgo(u.last_seen)}</td>
+        <td class="px-3 py-3 text-center">
+          <span class="font-mono text-xs text-primary">${u.total_sessions}</span>
+        </td>
+        <td class="px-3 py-3 text-center">
+          <span class="font-mono text-xs text-on-surface-variant">${u.total_positions}</span>
+        </td>
+        <td class="px-3 py-3 text-center">
+          <span class="font-mono text-xs text-on-surface-variant">${u.total_agent_runs}</span>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load users:', e);
+    document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-on-surface-variant text-xs">Failed to load</td></tr>';
+  }
+}
+
+// ─── Recent Sessions ────────────────────────────────────────────
+async function loadSessions() {
+  try {
+    const res = await fetch(API + '/sessions?limit=20');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const sessions = await res.json();
+    const container = document.getElementById('sessionsList');
+
+    if (!sessions.length) {
+      container.innerHTML = '<div class="px-5 py-4 text-center text-on-surface-variant text-xs">No sessions yet</div>';
+      return;
+    }
+
+    container.innerHTML = sessions.map(s => `
+      <div class="px-5 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-2 h-2 rounded-full flex-shrink-0 ${s.disconnected_at ? 'bg-on-surface-variant/30' : 'bg-[#00e676] animate-pulse'}"></div>
+          <div class="min-w-0">
+            <p class="font-mono text-[11px] text-on-surface truncate" title="${s.wallet_address}">${shortAddr(s.wallet_address)}</p>
+            <p class="text-[10px] text-on-surface-variant mt-0.5">${s.page || 'unknown page'}</p>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <p class="text-[10px] text-on-surface-variant">${timeAgo(s.connected_at)}</p>
+          <p class="font-mono text-[10px] ${s.disconnected_at ? 'text-on-surface-variant/50' : 'text-[#00e676]'}">${fmtDuration(s.duration_seconds)}</p>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load sessions:', e);
+    document.getElementById('sessionsList').innerHTML = '<div class="px-5 py-4 text-center text-on-surface-variant text-xs">Failed to load</div>';
+  }
+}
+
+// ─── Refresh All ────────────────────────────────────────────────
+async function refreshAll() {
+  const icon = document.getElementById('refreshIcon');
+  icon.style.animation = 'spin 0.6s linear';
+  setTimeout(() => icon.style.animation = '', 600);
+  await Promise.all([loadStats(), loadDailyChart(), loadHourlyChart(), loadUsers(), loadSessions()]);
+}
+
+// Initial load
+refreshAll();
+
+// Auto-refresh every 30 seconds
+setInterval(refreshAll, 30000);
+</script>
+
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+
+<script type="module" src="wallet.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
+</body>
+</html>

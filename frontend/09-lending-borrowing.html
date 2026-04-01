@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever | Lending & Borrowing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "tertiary-container": "#196ee2",
+        "surface-bright": "#38393c",
+        "surface-container-highest": "#343538",
+        "inverse-primary": "#6833ea",
+        "on-primary-container": "#fcf6ff",
+        "tertiary-fixed": "#d8e2ff",
+        "primary-fixed": "#e8deff",
+        "primary-container": "#7c4dff",
+        "secondary-fixed": "#62ff96",
+        "on-secondary-fixed-variant": "#005226",
+        "outline": "#948ea1",
+        "inverse-on-surface": "#303034",
+        "on-primary": "#370096",
+        "error-container": "#93000a",
+        "primary-fixed-dim": "#cdbdff",
+        "on-surface": "#e3e2e6",
+        "on-primary-fixed": "#20005f",
+        "on-secondary-container": "#00622e",
+        "on-tertiary-fixed-variant": "#004495",
+        "on-error": "#690005",
+        "on-secondary": "#003918",
+        "on-tertiary": "#002e6a",
+        "tertiary": "#adc6ff",
+        "primary": "#cdbdff",
+        "secondary-container": "#05e777",
+        "on-background": "#e3e2e6",
+        "secondary": "#7dffa2",
+        "tertiary-fixed-dim": "#adc6ff",
+        "on-tertiary-fixed": "#001a42",
+        "inverse-surface": "#e3e2e6",
+        "surface-dim": "#121316",
+        "surface-container-low": "#1b1b1f",
+        "surface-container-lowest": "#0d0e11",
+        "surface-variant": "#343538",
+        "on-tertiary-container": "#f8f8ff",
+        "outline-variant": "#494455",
+        "secondary-fixed-dim": "#00e475",
+        "surface-tint": "#cdbdff",
+        "error": "#ffb4ab",
+        "on-secondary-fixed": "#00210b",
+        "on-surface-variant": "#cac3d8",
+        "surface-container-high": "#292a2d",
+        "surface-container": "#1f1f23",
+        "surface": "#121316",
+        "background": "#121316",
+        "on-primary-fixed-variant": "#4f00d0",
+        "on-error-container": "#ffdad6"
+      },
+      fontFamily: {
+        "headline": ["Space Grotesk"],
+        "body": ["Inter"],
+        "label": ["Inter"],
+        "mono": ["JetBrains Mono"],
+        "display": ["DM Sans"]
+      },
+      borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+  }
+  .terminal-scroll::-webkit-scrollbar { width: 4px; }
+  .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+  .terminal-scroll::-webkit-scrollbar-thumb { background: #343538; border-radius: 10px; }
+  .mode-card { cursor: pointer; transition: all 0.2s; }
+  .mode-card:hover { border-color: rgba(124, 77, 255, 0.3); }
+  .mode-card.selected { border-color: #7c4dff; background: rgba(124, 77, 255, 0.06); }
+  .mode-card.selected .mode-icon { color: #7c4dff; }
+  .slider-track { -webkit-appearance: none; appearance: none; background: #343538; height: 6px; border-radius: 3px; outline: none; }
+  .slider-track::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #7c4dff; cursor: pointer; box-shadow: 0 0 8px rgba(124,77,255,0.4); }
+  .slider-track::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #7c4dff; cursor: pointer; border: none; }
+  .toggle-switch { position: relative; width: 48px; height: 26px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #343538; border-radius: 13px; transition: 0.3s; }
+  .toggle-slider::before { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #8b8fa3; left: 3px; bottom: 3px; transition: 0.3s; }
+  .toggle-switch input:checked + .toggle-slider { background: #7c4dff; }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); background: #fff; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .log-entry { animation: fadeIn 0.3s ease-out; }
+  .pulse-ring { animation: pulseRing 2s ease-out infinite; }
+  @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
+  .util-bar { height: 6px; border-radius: 3px; background: #343538; overflow: hidden; }
+  .util-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .market-row:hover { background: rgba(124, 77, 255, 0.04); }
+</style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased">
+
+<script src="nav.js"></script>
+<script>XNav.init('lending');</script>
+
+<main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
+
+<!-- Lending Agent Status Bar -->
+<div class="bg-surface-container-low border border-outline-variant/20 rounded-lg px-5 py-3 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+  <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-3 rounded-full bg-[#948ea1]" id="lendingAgentDot"></div>
+      <span class="font-mono text-xs text-on-surface font-semibold uppercase tracking-wider" id="lendingAgentStatus">Lending Agent Idle</span>
+    </div>
+    <div class="hidden md:block w-px h-5 bg-outline-variant/30"></div>
+    <span class="font-mono text-[10px] text-on-surface-variant">Euler V2: <span class="text-secondary" id="eulerStatus">Ready</span></span>
+  </div>
+  <div class="flex items-center gap-4">
+    <span class="font-mono text-[10px] text-on-surface-variant">Total Supplied: <span class="text-secondary font-semibold" id="headerSupplied">$0.00</span></span>
+    <span class="font-mono text-[10px] text-on-surface-variant">Total Borrowed: <span class="text-error font-semibold" id="headerBorrowed">$0.00</span></span>
+    <span class="font-mono text-[10px] text-on-surface-variant">Health: <span class="text-secondary font-semibold" id="headerHealth">--</span></span>
+  </div>
+</div>
+
+<!-- Page Header -->
+<header class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+  <div>
+    <h1 class="text-2xl font-display font-bold text-on-surface">Lending & Borrowing</h1>
+    <p class="text-on-surface-variant font-mono text-sm mt-1 tracking-wider">
+      AI-managed supply & borrow across Euler V2 markets
+    </p>
+  </div>
+  <div class="flex items-center gap-4">
+    <div class="flex items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-lg px-4 py-2.5">
+      <span class="font-mono text-[11px] text-on-surface-variant uppercase tracking-wider">Agent</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="lendingMasterToggle">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="font-mono text-[11px] font-bold uppercase tracking-wider" id="lendingMasterLabel">OFF</span>
+    </div>
+    <div class="flex items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-lg px-4 py-2.5">
+      <span class="font-mono text-[11px] text-on-surface-variant uppercase tracking-wider">Dry Run</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="dryRunToggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+  <!-- LEFT: Markets Overview + Agent Modes -->
+  <div class="lg:col-span-5 space-y-6">
+
+    <!-- Lending Markets Table -->
+    <section>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-tertiary text-lg">account_balance</span>
+        <h2 class="font-display font-bold text-sm text-on-surface uppercase tracking-wider">Euler V2 Markets</h2>
+      </div>
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/10 grid grid-cols-12 gap-2">
+          <span class="col-span-3 font-mono text-[9px] text-on-surface-variant uppercase tracking-wider">Asset</span>
+          <span class="col-span-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-wider text-right">Supply APY</span>
+          <span class="col-span-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-wider text-right">Borrow APY</span>
+          <span class="col-span-3 font-mono text-[9px] text-on-surface-variant uppercase tracking-wider text-right">Utilization</span>
+          <span class="col-span-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-wider text-right">TVL</span>
+        </div>
+        <div id="marketsBody">
+          <!-- USDC Market -->
+          <div class="market-row px-4 py-3 border-b border-outline-variant/5 grid grid-cols-12 gap-2 items-center cursor-pointer" onclick="selectMarket('USDC', event)">
+            <div class="col-span-3 flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-[#2775ca]/15 flex items-center justify-center">
+                <span class="font-mono text-[10px] font-bold text-[#2775ca]">$</span>
+              </div>
+              <div>
+                <p class="font-mono text-xs text-on-surface font-semibold">USDC</p>
+                <p class="font-mono text-[9px] text-on-surface-variant">Stablecoin</p>
+              </div>
+            </div>
+            <span class="col-span-2 font-mono text-xs text-secondary font-semibold text-right" id="usdc-supply-apy">0%</span>
+            <span class="col-span-2 font-mono text-xs text-error font-semibold text-right" id="usdc-borrow-apy">0%</span>
+            <div class="col-span-3 flex items-center gap-2 justify-end">
+              <div class="util-bar w-16">
+                <div class="util-bar-fill bg-secondary" style="width:72%" id="usdc-util-bar"></div>
+              </div>
+              <span class="font-mono text-[10px] text-on-surface-variant" id="usdc-util">72%</span>
+            </div>
+            <span class="col-span-2 font-mono text-[10px] text-on-surface-variant text-right" id="usdc-tvl">$0</span>
+          </div>
+
+          <!-- wQQQx Market -->
+          <div class="market-row px-4 py-3 border-b border-outline-variant/5 grid grid-cols-12 gap-2 items-center cursor-pointer" onclick="selectMarket('wQQQx', event)">
+            <div class="col-span-3 flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-[#7c4dff]/15 flex items-center justify-center">
+                <span class="font-mono text-[10px] font-bold text-[#7c4dff]">Q</span>
+              </div>
+              <div>
+                <p class="font-mono text-xs text-on-surface font-semibold">wQQQx</p>
+                <p class="font-mono text-[9px] text-on-surface-variant">Tokenized QQQ</p>
+              </div>
+            </div>
+            <span class="col-span-2 font-mono text-xs text-secondary font-semibold text-right" id="wqqqx-supply-apy">0%</span>
+            <span class="col-span-2 font-mono text-xs text-error font-semibold text-right" id="wqqqx-borrow-apy">0%</span>
+            <div class="col-span-3 flex items-center gap-2 justify-end">
+              <div class="util-bar w-16">
+                <div class="util-bar-fill bg-primary" style="width:48%" id="wqqqx-util-bar"></div>
+              </div>
+              <span class="font-mono text-[10px] text-on-surface-variant" id="wqqqx-util">48%</span>
+            </div>
+            <span class="col-span-2 font-mono text-[10px] text-on-surface-variant text-right" id="wqqqx-tvl">$0</span>
+          </div>
+
+          <!-- wSPYx Market -->
+          <div class="market-row px-4 py-3 border-b border-outline-variant/5 grid grid-cols-12 gap-2 items-center cursor-pointer" onclick="selectMarket('wSPYx', event)">
+            <div class="col-span-3 flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-[#448aff]/15 flex items-center justify-center">
+                <span class="font-mono text-[10px] font-bold text-[#448aff]">S</span>
+              </div>
+              <div>
+                <p class="font-mono text-xs text-on-surface font-semibold">wSPYx</p>
+                <p class="font-mono text-[9px] text-on-surface-variant">Tokenized SPY</p>
+              </div>
+            </div>
+            <span class="col-span-2 font-mono text-xs text-secondary font-semibold text-right" id="wspyx-supply-apy">0%</span>
+            <span class="col-span-2 font-mono text-xs text-error font-semibold text-right" id="wspyx-borrow-apy">0%</span>
+            <div class="col-span-3 flex items-center gap-2 justify-end">
+              <div class="util-bar w-16">
+                <div class="util-bar-fill bg-tertiary" style="width:54%" id="wspyx-util-bar"></div>
+              </div>
+              <span class="font-mono text-[10px] text-on-surface-variant" id="wspyx-util">54%</span>
+            </div>
+            <span class="col-span-2 font-mono text-[10px] text-on-surface-variant text-right" id="wspyx-tvl">$0</span>
+          </div>
+
+          <!-- WETH Market -->
+          <div class="market-row px-4 py-3 grid grid-cols-12 gap-2 items-center cursor-pointer" onclick="selectMarket('WETH', event)">
+            <div class="col-span-3 flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-[#627eea]/15 flex items-center justify-center">
+                <span class="font-mono text-[10px] font-bold text-[#627eea]">E</span>
+              </div>
+              <div>
+                <p class="font-mono text-xs text-on-surface font-semibold">WETH</p>
+                <p class="font-mono text-[9px] text-on-surface-variant">Wrapped ETH</p>
+              </div>
+            </div>
+            <span class="col-span-2 font-mono text-xs text-secondary font-semibold text-right" id="weth-supply-apy">0%</span>
+            <span class="col-span-2 font-mono text-xs text-error font-semibold text-right" id="weth-borrow-apy">0%</span>
+            <div class="col-span-3 flex items-center gap-2 justify-end">
+              <div class="util-bar w-16">
+                <div class="util-bar-fill bg-[#627eea]" style="width:63%" id="weth-util-bar"></div>
+              </div>
+              <span class="font-mono text-[10px] text-on-surface-variant" id="weth-util">63%</span>
+            </div>
+            <span class="col-span-2 font-mono text-[10px] text-on-surface-variant text-right" id="weth-tvl">$0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agent Strategy Mode Selector -->
+    <section>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary text-lg">smart_toy</span>
+        <h2 class="font-display font-bold text-sm text-on-surface uppercase tracking-wider">Agent Strategy</h2>
+      </div>
+      <div class="grid grid-cols-2 gap-4" id="lendingModeSelector">
+
+        <!-- Yield Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-4 border border-outline-variant/10" data-mode="yield" onclick="selectLendingMode('yield')">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-secondary text-lg">savings</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Yield</h3>
+              <p class="font-mono text-[9px] text-on-surface-variant uppercase">Auto-supply for APY</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-on-surface-variant leading-relaxed">Supply idle capital to highest-APY pools. Rate arbitrage between markets.</p>
+        </div>
+
+        <!-- Leverage Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-4 border border-outline-variant/10" data-mode="leverage" onclick="selectLendingMode('leverage')">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-primary text-lg">bolt</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Leverage</h3>
+              <p class="font-mono text-[9px] text-on-surface-variant uppercase">Borrow for exposure</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-on-surface-variant leading-relaxed">Supply collateral, borrow assets. Auto-manage health factor.</p>
+        </div>
+
+        <!-- Hedge Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-4 border border-outline-variant/10" data-mode="hedge" onclick="selectLendingMode('hedge')">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-9 h-9 rounded-lg bg-tertiary/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-tertiary text-lg">shield</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Hedge</h3>
+              <p class="font-mono text-[9px] text-on-surface-variant uppercase">Offset xLever risk</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-on-surface-variant leading-relaxed">Borrow/supply to hedge active xLever positions automatically.</p>
+        </div>
+
+        <!-- Monitor Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-4 border border-outline-variant/10" data-mode="monitor" onclick="selectLendingMode('monitor')">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-9 h-9 rounded-lg bg-[#ff9800]/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-[#ff9800] text-lg">visibility</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Monitor</h3>
+              <p class="font-mono text-[9px] text-on-surface-variant uppercase">Alerts only</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-on-surface-variant leading-relaxed">Watch markets & positions. No transactions — alerts and insights only.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Policy Configuration -->
+    <section id="lendingConfigPanel" class="hidden">
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="bg-surface-container-high px-5 py-3 flex items-center justify-between border-b border-outline-variant/10">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-base">settings</span>
+            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant" id="lendingConfigTitle">Policy Configuration</span>
+          </div>
+          <span class="font-mono text-[10px] text-on-surface-variant" id="lendingConfigMode">--</span>
+        </div>
+
+        <!-- Yield Config -->
+        <div id="config-yield" class="config-body hidden p-5 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Min Supply APY (%)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0.5" max="10" step="0.5" value="2" class="slider-track flex-1" id="minSupplyApy" oninput="updateLabel('minSupplyApy','minSupplyApyVal','%')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="minSupplyApyVal">2%</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Only supply to pools above this APY</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Reserve Balance (USDC)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="500" step="25" value="50" class="slider-track flex-1" id="reserveBalance" oninput="updateLabel('reserveBalance','reserveBalanceVal','',true)">
+                <span class="font-mono text-sm text-on-surface w-14 text-right" id="reserveBalanceVal">$50</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Keep this amount idle in wallet</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">APY Diff for Rebalance (%)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0.5" max="5" step="0.5" value="1.5" class="slider-track flex-1" id="apyDiffThreshold" oninput="updateLabel('apyDiffThreshold','apyDiffThresholdVal','%')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="apyDiffThresholdVal">1.5%</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Move capital when APY difference exceeds this</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Min Idle Threshold (USDC)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="50" max="1000" step="50" value="100" class="slider-track flex-1" id="minIdleThreshold" oninput="updateLabel('minIdleThreshold','minIdleThresholdVal','',true)">
+                <span class="font-mono text-sm text-on-surface w-14 text-right" id="minIdleThresholdVal">$100</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Supply when idle balance exceeds this</p>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-secondary/20 text-secondary font-bold text-sm border border-secondary/30 hover:bg-secondary/30 active:scale-[0.99] transition-all" onclick="activateLendingPolicy('yield')">
+            Activate Yield Mode
+          </button>
+        </div>
+
+        <!-- Leverage Config -->
+        <div id="config-leverage" class="config-body hidden p-5 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Target Health Factor</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1.3" max="3" step="0.1" value="1.8" class="slider-track flex-1" id="targetHF" oninput="updateLabel('targetHF','targetHFVal','')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="targetHFVal">1.8</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Agent borrows until HF reaches this level</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Min Health Factor</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1.05" max="1.5" step="0.05" value="1.3" class="slider-track flex-1" id="minHF" oninput="updateLabel('minHF','minHFVal','')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="minHFVal">1.3</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Auto-repay below this to avoid liquidation</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Borrow Asset</label>
+              <select class="w-full bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2 font-mono text-xs text-on-surface" id="borrowAsset">
+                <option value="USDC">USDC</option>
+                <option value="wQQQx">wQQQx</option>
+                <option value="wSPYx">wSPYx</option>
+                <option value="WETH">WETH</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Max Leverage Loops</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1" max="5" step="1" value="3" class="slider-track flex-1" id="maxLoops" oninput="updateLabel('maxLoops','maxLoopsVal','x')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="maxLoopsVal">3x</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Max recursive supply/borrow loops</p>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all" onclick="activateLendingPolicy('leverage')">
+            Activate Leverage Mode
+          </button>
+        </div>
+
+        <!-- Hedge Config -->
+        <div id="config-hedge" class="config-body hidden p-5 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Hedge Ratio</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="10" max="100" step="10" value="50" class="slider-track flex-1" id="hedgeRatio" oninput="updateLabel('hedgeRatio','hedgeRatioVal','%')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="hedgeRatioVal">50%</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">% of xLever position to hedge via lending</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Hedge Min Health Factor</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1.2" max="2.5" step="0.1" value="1.5" class="slider-track flex-1" id="hedgeMinHF" oninput="updateLabel('hedgeMinHF','hedgeMinHFVal','')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="hedgeMinHFVal">1.5</span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-3">
+            <p class="font-mono text-[10px] text-on-surface-variant">
+              <span class="text-tertiary font-bold">Note:</span> Hedge mode reads your active xLever position and creates offsetting exposure via Euler V2 lending markets.
+            </p>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-tertiary/20 text-tertiary font-bold text-sm border border-tertiary/30 hover:bg-tertiary/30 active:scale-[0.99] transition-all" onclick="activateLendingPolicy('hedge')">
+            Activate Hedge Mode
+          </button>
+        </div>
+
+        <!-- Monitor Config -->
+        <div id="config-monitor" class="config-body hidden p-5 space-y-5">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs text-on-surface-variant">Health factor alerts</span>
+              <label class="toggle-switch"><input type="checkbox" checked id="alertHF"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs text-on-surface-variant">APY drop alerts</span>
+              <label class="toggle-switch"><input type="checkbox" checked id="alertAPY"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs text-on-surface-variant">High utilization alerts</span>
+              <label class="toggle-switch"><input type="checkbox" checked id="alertUtil"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs text-on-surface-variant">Liquidation risk alerts</span>
+              <label class="toggle-switch"><input type="checkbox" checked id="alertLiq"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-[#ff9800]/20 text-[#ff9800] font-bold text-sm border border-[#ff9800]/30 hover:bg-[#ff9800]/30 active:scale-[0.99] transition-all" onclick="activateLendingPolicy('monitor')">
+            Activate Monitor Mode
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- MIDDLE: Your Positions + Supply/Borrow Panel -->
+  <div class="lg:col-span-4 space-y-6">
+
+    <!-- User Positions -->
+    <section>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-secondary text-lg">account_balance_wallet</span>
+        <h2 class="font-display font-bold text-sm text-on-surface uppercase tracking-wider">Your Positions</h2>
+      </div>
+
+      <!-- Supply Positions -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 mb-4">
+        <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/10 flex items-center justify-between">
+          <span class="font-mono text-[10px] text-secondary uppercase tracking-wider font-bold">Supplied</span>
+          <span class="font-mono text-[10px] text-on-surface-variant" id="totalSupplyValue">$0.00</span>
+        </div>
+        <div id="supplyPositions" class="divide-y divide-outline-variant/5">
+          <div class="px-4 py-6 text-center">
+            <span class="material-symbols-outlined text-outline-variant text-3xl mb-2">inbox</span>
+            <p class="font-mono text-xs text-on-surface-variant">No active supply positions</p>
+            <p class="font-mono text-[10px] text-on-surface-variant mt-1">Supply assets to earn yield</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Borrow Positions -->
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20">
+        <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/10 flex items-center justify-between">
+          <span class="font-mono text-[10px] text-error uppercase tracking-wider font-bold">Borrowed</span>
+          <span class="font-mono text-[10px] text-on-surface-variant" id="totalBorrowValue">$0.00</span>
+        </div>
+        <div id="borrowPositions" class="divide-y divide-outline-variant/5">
+          <div class="px-4 py-6 text-center">
+            <span class="material-symbols-outlined text-outline-variant text-3xl mb-2">credit_card_off</span>
+            <p class="font-mono text-xs text-on-surface-variant">No active borrows</p>
+            <p class="font-mono text-[10px] text-on-surface-variant mt-1">Borrow against your collateral</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Manual Supply/Borrow Panel -->
+    <section>
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="flex border-b border-outline-variant/10">
+          <button class="flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-secondary text-secondary" id="tabSupply" onclick="switchTab('supply')">Supply</button>
+          <button class="flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-transparent text-on-surface-variant" id="tabBorrow" onclick="switchTab('borrow')">Borrow</button>
+          <button class="flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-transparent text-on-surface-variant" id="tabRepay" onclick="switchTab('repay')">Repay</button>
+        </div>
+
+        <!-- Supply Panel -->
+        <div id="panel-supply" class="p-5 space-y-4">
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Asset</label>
+            <select class="w-full bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2.5 font-mono text-xs text-on-surface" id="supplyAsset">
+              <option value="USDC">USDC — 0% APY</option>
+              <option value="wQQQx">wQQQx — 0% APY</option>
+              <option value="wSPYx">wSPYx — 0% APY</option>
+              <option value="WETH">WETH — 0% APY</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Amount</label>
+            <div class="flex items-center gap-2">
+              <input type="text" class="flex-1 bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2.5 font-mono text-sm text-on-surface" placeholder="0.00" id="supplyAmount">
+              <button class="px-3 py-2.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-bold uppercase" onclick="setMaxSupply()">Max</button>
+            </div>
+            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Balance: <span id="supplyBalance">0.00</span></p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-3 space-y-1">
+            <div class="flex justify-between">
+              <span class="font-mono text-[10px] text-on-surface-variant">Supply APY</span>
+              <span class="font-mono text-[10px] text-secondary font-semibold" id="supplyApyPreview">0%</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-mono text-[10px] text-on-surface-variant">Collateral Factor</span>
+              <span class="font-mono text-[10px] text-on-surface" id="supplyLTV">0%</span>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-secondary/20 text-secondary font-bold text-sm border border-secondary/30 hover:bg-secondary/30 active:scale-[0.99] transition-all" onclick="executeSupply()">
+            Supply
+          </button>
+        </div>
+
+        <!-- Borrow Panel -->
+        <div id="panel-borrow" class="hidden p-5 space-y-4">
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Asset</label>
+            <select class="w-full bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2.5 font-mono text-xs text-on-surface" id="borrowAssetSelect">
+              <option value="USDC">USDC — 0% APY</option>
+              <option value="wQQQx">wQQQx — 0% APY</option>
+              <option value="wSPYx">wSPYx — 0% APY</option>
+              <option value="WETH">WETH — 0% APY</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Amount</label>
+            <div class="flex items-center gap-2">
+              <input type="text" class="flex-1 bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2.5 font-mono text-sm text-on-surface" placeholder="0.00" id="borrowAmount">
+              <button class="px-3 py-2.5 rounded bg-error/10 text-error font-mono text-[10px] font-bold uppercase" onclick="setMaxBorrow()">Max Safe</button>
+            </div>
+            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Borrow limit: <span id="borrowLimit">$0.00</span></p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-3 space-y-1">
+            <div class="flex justify-between">
+              <span class="font-mono text-[10px] text-on-surface-variant">Borrow APY</span>
+              <span class="font-mono text-[10px] text-error font-semibold" id="borrowApyPreview">0%</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-mono text-[10px] text-on-surface-variant">Health Factor After</span>
+              <span class="font-mono text-[10px] text-on-surface font-semibold" id="borrowHFPreview">--</span>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-error/20 text-error font-bold text-sm border border-error/30 hover:bg-error/30 active:scale-[0.99] transition-all" onclick="executeBorrow()">
+            Borrow
+          </button>
+        </div>
+
+        <!-- Repay Panel -->
+        <div id="panel-repay" class="hidden p-5 space-y-4">
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Asset</label>
+            <select class="w-full bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2.5 font-mono text-xs text-on-surface" id="repayAssetSelect">
+              <option value="USDC">USDC</option>
+              <option value="wQQQx">wQQQx</option>
+              <option value="wSPYx">wSPYx</option>
+              <option value="WETH">WETH</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Amount</label>
+            <div class="flex items-center gap-2">
+              <input type="text" class="flex-1 bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2.5 font-mono text-sm text-on-surface" placeholder="0.00" id="repayAmount">
+              <button class="px-3 py-2.5 rounded bg-secondary/10 text-secondary font-mono text-[10px] font-bold uppercase" onclick="setMaxRepay()">Max</button>
+            </div>
+            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Outstanding debt: <span id="outstandingDebt">$0.00</span></p>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-secondary/20 text-secondary font-bold text-sm border border-secondary/30 hover:bg-secondary/30 active:scale-[0.99] transition-all" onclick="executeRepay()">
+            Repay
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- RIGHT: Agent Log + Health Monitor -->
+  <div class="lg:col-span-3 space-y-6">
+
+    <!-- Health Factor Gauge -->
+    <section>
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-secondary text-lg">monitor_heart</span>
+            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Health Factor</span>
+          </div>
+          <span class="font-mono text-lg font-bold" id="healthValue" style="color:#00e676">--</span>
+        </div>
+        <div class="util-bar h-3 mb-3">
+          <div class="util-bar-fill h-full bg-gradient-to-r from-error via-[#ff9800] to-secondary" style="width:0%" id="healthBar"></div>
+        </div>
+        <div class="flex justify-between font-mono text-[9px] text-on-surface-variant">
+          <span>1.0 Liquidation</span>
+          <span>1.5 Warning</span>
+          <span>2.0+ Safe</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Collateral</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="totalCollateral">$0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Debt</p>
+            <p class="font-mono text-sm text-error font-bold" id="totalDebt">$0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Net APY</p>
+            <p class="font-mono text-sm font-bold" id="netApy" style="color:#00e676">0%</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Liq. Price</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="liqPrice">--</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agent Activity Log -->
+    <section>
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl flex flex-col" style="max-height: 420px;">
+        <div class="bg-surface-container-high px-4 py-2.5 border-b border-outline-variant/10 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-base">terminal</span>
+            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Agent Log</span>
+          </div>
+          <button class="font-mono text-[9px] text-on-surface-variant hover:text-on-surface uppercase" onclick="clearLog()">Clear</button>
+        </div>
+        <div id="agentLog" class="flex-1 overflow-y-auto terminal-scroll p-3 space-y-1 font-mono text-[11px]">
+          <div class="text-on-surface-variant">Lending agent ready. Select a strategy mode to begin.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agent Stats -->
+    <section id="lendingStatsSection" class="hidden">
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 p-4">
+        <h4 class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-3">Session Stats</h4>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Actions</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="lendingStatActions">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Mode</p>
+            <p class="font-mono text-sm text-primary font-bold" id="lendingStatMode">--</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Uptime</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="lendingStatUptime">0m</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Yield Earned</p>
+            <p class="font-mono text-sm text-secondary font-bold" id="lendingStatYield">$0</p>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button class="flex-1 py-2 rounded bg-surface-container-highest hover:bg-surface-bright text-xs font-bold uppercase transition-colors" onclick="pauseLendingAgent()">
+            <span class="material-symbols-outlined text-sm align-middle">pause</span>
+            <span id="lendingPauseLabel" class="align-middle ml-1">Pause</span>
+          </button>
+          <button class="flex-1 py-2 rounded border border-error/30 text-error hover:bg-error/10 text-xs font-bold uppercase transition-colors" onclick="stopLendingAgent()">
+            <span class="material-symbols-outlined text-sm align-middle">stop</span>
+            <span class="align-middle ml-1">Stop</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</div>
+</main>
+
+<!-- Scripts -->
+<script type="module" src="wallet.js"></script>
+<script type="module" src="lending-adapters.js"></script>
+<script src="lending-agent.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PAGE STATE
+// ═══════════════════════════════════════════════════════════════
+
+let selectedMode = null
+let agentStartTime = null
+let uptimeInterval = null
+
+// ═══════════════════════════════════════════════════════════════
+// MARKET SELECTION
+// ═══════════════════════════════════════════════════════════════
+
+function selectMarket(symbol, evt) {
+  // Highlight selected market row
+  document.querySelectorAll('.market-row').forEach(r => r.classList.remove('bg-primary/5'))
+  if (evt && evt.currentTarget) evt.currentTarget.classList.add('bg-primary/5')
+  // Update supply/borrow dropdowns to selected asset
+  document.getElementById('supplyAsset').value = symbol
+  document.getElementById('borrowAssetSelect').value = symbol
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT MODE SELECTION
+// ═══════════════════════════════════════════════════════════════
+
+function selectLendingMode(mode) {
+  selectedMode = mode
+  // Update card selection UI
+  document.querySelectorAll('#lendingModeSelector .mode-card').forEach(c => c.classList.remove('selected'))
+  document.querySelector(`[data-mode="${mode}"]`).classList.add('selected')
+
+  // Show config panel
+  document.getElementById('lendingConfigPanel').classList.remove('hidden')
+  document.querySelectorAll('.config-body').forEach(b => b.classList.add('hidden'))
+  document.getElementById(`config-${mode}`).classList.remove('hidden')
+  document.getElementById('lendingConfigMode').textContent = mode.toUpperCase()
+}
+
+// ═══════════════════════════════════════════════════════════════
+// POLICY ACTIVATION
+// ═══════════════════════════════════════════════════════════════
+
+function activateLendingPolicy(mode) {
+  const configs = {
+    yield: {
+      mode: 'yield',
+      minSupplyApy: parseFloat(document.getElementById('minSupplyApy').value),
+      reserveBalance: parseFloat(document.getElementById('reserveBalance').value),
+      apyDiffThreshold: parseFloat(document.getElementById('apyDiffThreshold').value),
+      minIdleThreshold: parseFloat(document.getElementById('minIdleThreshold').value),
+    },
+    leverage: {
+      mode: 'leverage',
+      targetHealthFactor: parseFloat(document.getElementById('targetHF').value),
+      minHealthFactor: parseFloat(document.getElementById('minHF').value),
+      borrowAsset: document.getElementById('borrowAsset').value,
+      maxLeverageLoops: parseInt(document.getElementById('maxLoops').value),
+    },
+    hedge: {
+      mode: 'hedge',
+      hedgeRatio: parseFloat(document.getElementById('hedgeRatio').value) / 100,
+      hedgeMinHF: parseFloat(document.getElementById('hedgeMinHF').value),
+    },
+    monitor: {
+      mode: 'monitor',
+      alertHF: document.getElementById('alertHF').checked,
+      alertAPY: document.getElementById('alertAPY').checked,
+      alertUtil: document.getElementById('alertUtil').checked,
+      alertLiq: document.getElementById('alertLiq').checked,
+    },
+  }
+
+  const policy = configs[mode]
+  const dryRun = document.getElementById('dryRunToggle').checked
+
+  window.xLeverLendingAgent.start(policy, {
+    log: addLogEntry,
+    onStats: updateStats,
+    dryRun,
+    intervalMs: 30000,
+  })
+
+  // Update UI
+  document.getElementById('lendingAgentDot').className = 'w-3 h-3 rounded-full bg-[#00e676] pulse-ring'
+  document.getElementById('lendingAgentStatus').textContent = `Lending Agent: ${mode.toUpperCase()}`
+  document.getElementById('lendingMasterToggle').checked = true
+  document.getElementById('lendingMasterLabel').textContent = 'ON'
+  document.getElementById('lendingStatsSection').classList.remove('hidden')
+  document.getElementById('lendingStatMode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1)
+
+  // Start uptime timer
+  agentStartTime = Date.now()
+  if (uptimeInterval) clearInterval(uptimeInterval)
+  uptimeInterval = setInterval(updateUptime, 1000)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT CONTROLS
+// ═══════════════════════════════════════════════════════════════
+
+function pauseLendingAgent() {
+  const agent = window.xLeverLendingAgent
+  if (agent.isRunning()) {
+    agent.pause()
+    document.getElementById('lendingPauseLabel').textContent = 'Resume'
+    document.getElementById('lendingAgentDot').className = 'w-3 h-3 rounded-full bg-[#ff9800]'
+  } else {
+    agent.resume()
+    document.getElementById('lendingPauseLabel').textContent = 'Pause'
+    document.getElementById('lendingAgentDot').className = 'w-3 h-3 rounded-full bg-[#00e676] pulse-ring'
+  }
+}
+
+function stopLendingAgent() {
+  window.xLeverLendingAgent.stop()
+  document.getElementById('lendingAgentDot').className = 'w-3 h-3 rounded-full bg-[#948ea1]'
+  document.getElementById('lendingAgentStatus').textContent = 'Lending Agent Idle'
+  document.getElementById('lendingMasterToggle').checked = false
+  document.getElementById('lendingMasterLabel').textContent = 'OFF'
+  document.getElementById('lendingStatsSection').classList.add('hidden')
+  if (uptimeInterval) clearInterval(uptimeInterval)
+}
+
+// Master toggle
+document.getElementById('lendingMasterToggle').addEventListener('change', (e) => {
+  if (!e.target.checked) {
+    stopLendingAgent()
+  } else if (selectedMode) {
+    activateLendingPolicy(selectedMode)
+  } else {
+    e.target.checked = false
+    addLogEntry('AGENT', 'Select a strategy mode first', 'warn')
+  }
+  document.getElementById('lendingMasterLabel').textContent = e.target.checked ? 'ON' : 'OFF'
+})
+
+// Dry run toggle
+document.getElementById('dryRunToggle').addEventListener('change', (e) => {
+  if (window.xLeverLendingAgent) {
+    window.xLeverLendingAgent.setDryRun(e.target.checked)
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════
+// SUPPLY / BORROW / REPAY TABS
+// ═══════════════════════════════════════════════════════════════
+
+function switchTab(tab) {
+  const tabs = ['supply', 'borrow', 'repay']
+  // Use full static class strings so Tailwind CDN detects them (no dynamic construction)
+  const activeClasses = {
+    supply: 'flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-secondary text-secondary',
+    borrow: 'flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-error text-error',
+    repay:  'flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-secondary text-secondary',
+  }
+  const inactiveClass = 'flex-1 py-3 font-mono text-xs uppercase tracking-wider font-bold text-center transition-colors border-b-2 border-transparent text-on-surface-variant'
+  tabs.forEach(t => {
+    document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab)
+    const btn = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`)
+    btn.className = t === tab ? activeClasses[t] : inactiveClass
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUPPLY / BORROW / REPAY ACTIONS
+// ═══════════════════════════════════════════════════════════════
+
+async function executeSupply() {
+  const asset = document.getElementById('supplyAsset').value
+  const amount = document.getElementById('supplyAmount').value
+  if (!amount || parseFloat(amount) <= 0) {
+    addLogEntry('SUPPLY', 'Enter a valid amount', 'error')
+    return
+  }
+  addLogEntry('SUPPLY', `Supplying ${amount} ${asset} to Euler V2...`, 'info')
+  try {
+    const contracts = window.xLeverContracts
+    if (contracts && asset === 'USDC') {
+      const result = await contracts.depositJunior(amount)
+      addLogEntry('SUPPLY', `Supplied ${amount} USDC. TX: ${result.hash}`, 'success')
+    } else {
+      addLogEntry('SUPPLY', `${asset} supply pending full Euler V2 vault integration`, 'warn')
+    }
+  } catch (e) {
+    addLogEntry('SUPPLY', `Failed: ${e.message}`, 'error')
+  }
+}
+
+async function executeBorrow() {
+  const asset = document.getElementById('borrowAssetSelect').value
+  const amount = document.getElementById('borrowAmount').value
+  if (!amount || parseFloat(amount) <= 0) {
+    addLogEntry('BORROW', 'Enter a valid amount', 'error')
+    return
+  }
+  addLogEntry('BORROW', `Borrowing ${amount} ${asset} — pending Euler V2 borrow integration`, 'warn')
+}
+
+async function executeRepay() {
+  const asset = document.getElementById('repayAssetSelect').value
+  const amount = document.getElementById('repayAmount').value
+  if (!amount || parseFloat(amount) <= 0) {
+    addLogEntry('REPAY', 'Enter a valid amount', 'error')
+    return
+  }
+  addLogEntry('REPAY', `Repaying ${amount} ${asset} — pending Euler V2 repay integration`, 'warn')
+}
+
+function setMaxSupply() {
+  document.getElementById('supplyAmount').value = document.getElementById('supplyBalance').textContent
+}
+function setMaxBorrow() {
+  addLogEntry('BORROW', 'Max safe borrow calculation pending collateral integration', 'info')
+}
+function setMaxRepay() {
+  document.getElementById('repayAmount').value = document.getElementById('outstandingDebt').textContent.replace('$', '')
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT LOG
+// ═══════════════════════════════════════════════════════════════
+
+function addLogEntry(source, message, level = 'info') {
+  const log = document.getElementById('agentLog')
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false })
+  const colors = {
+    info: 'text-on-surface-variant',
+    success: 'text-secondary',
+    warn: 'text-[#ff9800]',
+    error: 'text-error',
+  }
+  const entry = document.createElement('div')
+  entry.className = `log-entry ${colors[level] || colors.info}`
+
+  // Build with textContent to prevent XSS from API/agent data
+  const timeSpan = document.createElement('span')
+  timeSpan.className = 'text-on-surface-variant opacity-50'
+  timeSpan.textContent = time
+  const srcSpan = document.createElement('span')
+  srcSpan.className = 'text-primary font-semibold'
+  srcSpan.textContent = ` [${source}] `
+  const msgSpan = document.createElement('span')
+  msgSpan.textContent = message
+
+  entry.append(timeSpan, srcSpan, msgSpan)
+  log.appendChild(entry)
+  log.scrollTop = log.scrollHeight
+
+  // Keep log manageable
+  while (log.children.length > 200) {
+    log.removeChild(log.firstChild)
+  }
+}
+
+function clearLog() {
+  const log = document.getElementById('agentLog')
+  log.innerHTML = '<div class="text-on-surface-variant">Log cleared.</div>'
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS & UI UPDATES
+// ═══════════════════════════════════════════════════════════════
+
+function updateStats(stats) {
+  document.getElementById('lendingStatActions').textContent = stats.actions || 0
+}
+
+function updateUptime() {
+  if (!agentStartTime) return
+  const elapsed = Math.floor((Date.now() - agentStartTime) / 1000)
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  document.getElementById('lendingStatUptime').textContent = m > 0 ? `${m}m ${s}s` : `${s}s`
+}
+
+function updateLabel(inputId, labelId, suffix, isDollar) {
+  const val = document.getElementById(inputId).value
+  document.getElementById(labelId).textContent = isDollar ? `$${val}` : `${val}${suffix}`
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MARKET DATA POLLING
+// ═══════════════════════════════════════════════════════════════
+
+async function refreshMarketData() {
+  try {
+    const res = await fetch('/api/lending/markets')
+    if (!res.ok) return
+    const data = await res.json()
+
+    for (const [symbol, market] of Object.entries(data)) {
+      const key = symbol.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const supplyEl = document.getElementById(`${key}-supply-apy`)
+      const borrowEl = document.getElementById(`${key}-borrow-apy`)
+      const utilEl = document.getElementById(`${key}-util`)
+      const utilBar = document.getElementById(`${key}-util-bar`)
+      const tvlEl = document.getElementById(`${key}-tvl`)
+
+      if (supplyEl) supplyEl.textContent = `${market.supplyApy.toFixed(2)}%`
+      if (borrowEl) borrowEl.textContent = `${market.borrowApy.toFixed(2)}%`
+      if (utilEl) utilEl.textContent = `${(market.utilization * 100).toFixed(0)}%`
+      if (utilBar) utilBar.style.width = `${(market.utilization * 100).toFixed(0)}%`
+      if (tvlEl) tvlEl.textContent = formatTVL(market.totalSupply)
+    }
+  } catch {
+    // Backend may not be running — use static defaults
+  }
+}
+
+function formatTVL(val) {
+  if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`
+  if (val >= 1e3) return `$${(val / 1e3).toFixed(0)}K`
+  return `$${val.toFixed(0)}`
+}
+
+// Poll market data every 30s
+setInterval(refreshMarketData, 30000)
+refreshMarketData()
+</script>
+
+</body></html>

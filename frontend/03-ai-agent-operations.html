@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever | Smart Agent</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "tertiary-container": "#196ee2",
+        "surface-bright": "#38393c",
+        "surface-container-highest": "#343538",
+        "inverse-primary": "#6833ea",
+        "on-primary-container": "#fcf6ff",
+        "tertiary-fixed": "#d8e2ff",
+        "primary-fixed": "#e8deff",
+        "primary-container": "#7c4dff",
+        "secondary-fixed": "#62ff96",
+        "on-secondary-fixed-variant": "#005226",
+        "outline": "#948ea1",
+        "inverse-on-surface": "#303034",
+        "on-primary": "#370096",
+        "error-container": "#93000a",
+        "primary-fixed-dim": "#cdbdff",
+        "on-surface": "#e3e2e6",
+        "on-primary-fixed": "#20005f",
+        "on-secondary-container": "#00622e",
+        "on-tertiary-fixed-variant": "#004495",
+        "on-error": "#690005",
+        "on-secondary": "#003918",
+        "on-tertiary": "#002e6a",
+        "tertiary": "#adc6ff",
+        "primary": "#cdbdff",
+        "secondary-container": "#05e777",
+        "on-background": "#e3e2e6",
+        "secondary": "#7dffa2",
+        "tertiary-fixed-dim": "#adc6ff",
+        "on-tertiary-fixed": "#001a42",
+        "inverse-surface": "#e3e2e6",
+        "surface-dim": "#121316",
+        "surface-container-low": "#1b1b1f",
+        "surface-container-lowest": "#0d0e11",
+        "surface-variant": "#343538",
+        "on-tertiary-container": "#f8f8ff",
+        "outline-variant": "#494455",
+        "secondary-fixed-dim": "#00e475",
+        "surface-tint": "#cdbdff",
+        "error": "#ffb4ab",
+        "on-secondary-fixed": "#00210b",
+        "on-surface-variant": "#cac3d8",
+        "surface-container-high": "#292a2d",
+        "surface-container": "#1f1f23",
+        "surface": "#121316",
+        "background": "#121316",
+        "on-primary-fixed-variant": "#4f00d0",
+        "on-error-container": "#ffdad6"
+      },
+      fontFamily: {
+        "headline": ["Space Grotesk"],
+        "body": ["Inter"],
+        "label": ["Inter"],
+        "mono": ["JetBrains Mono"],
+        "display": ["DM Sans"]
+      },
+      borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+  }
+  .terminal-scroll::-webkit-scrollbar { width: 4px; }
+  .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+  .terminal-scroll::-webkit-scrollbar-thumb { background: #343538; border-radius: 10px; }
+  .active-glow { box-shadow: inset 0 0 12px rgba(124, 77, 255, 0.15); border: 1px solid rgba(205, 189, 255, 0.1); }
+  .mode-card { cursor: pointer; transition: all 0.2s; }
+  .mode-card:hover { border-color: rgba(124, 77, 255, 0.3); }
+  .mode-card.selected { border-color: #7c4dff; background: rgba(124, 77, 255, 0.06); }
+  .mode-card.selected .mode-icon { color: #7c4dff; }
+  .slider-track { -webkit-appearance: none; appearance: none; background: #343538; height: 6px; border-radius: 3px; outline: none; }
+  .slider-track::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #7c4dff; cursor: pointer; box-shadow: 0 0 8px rgba(124,77,255,0.4); }
+  .slider-track::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #7c4dff; cursor: pointer; border: none; }
+  .toggle-switch { position: relative; width: 48px; height: 26px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #343538; border-radius: 13px; transition: 0.3s; }
+  .toggle-slider::before { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #8b8fa3; left: 3px; bottom: 3px; transition: 0.3s; }
+  .toggle-switch input:checked + .toggle-slider { background: #7c4dff; }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); background: #fff; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .log-entry { animation: fadeIn 0.3s ease-out; }
+  .pulse-ring { animation: pulseRing 2s ease-out infinite; }
+  @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
+</style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased">
+
+<script src="nav.js"></script>
+<script>XNav.init('agents');</script>
+
+<main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
+
+<!-- Smart Account Status Bar -->
+<div class="bg-surface-container-low border border-outline-variant/20 rounded-lg px-5 py-3 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+  <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-3 rounded-full bg-[#00e676] pulse-ring" id="accountDot"></div>
+      <span class="font-mono text-xs text-on-surface font-semibold uppercase tracking-wider" id="accountStatus">Smart Account Active</span>
+    </div>
+    <div class="hidden md:block w-px h-5 bg-outline-variant/30"></div>
+    <span class="font-mono text-[10px] text-on-surface-variant" id="accountAddr">0x7a3f...e92b</span>
+    <div class="hidden md:block w-px h-5 bg-outline-variant/30"></div>
+    <span class="font-mono text-[10px] text-on-surface-variant">Euler V2 Vault: <span class="text-secondary">Connected</span></span>
+  </div>
+  <div class="flex items-center gap-4">
+    <span class="font-mono text-[10px] text-on-surface-variant">Deposit: <span class="text-on-surface font-semibold">$25,000 USDC</span></span>
+    <span class="font-mono text-[10px] text-on-surface-variant">Current Leverage: <span class="text-primary font-semibold" id="currentLevDisplay">2.0×</span></span>
+  </div>
+</div>
+
+<!-- Page Header -->
+<header class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+  <div>
+    <h1 class="text-2xl font-display font-bold text-on-surface">Smart Agent</h1>
+    <p class="text-on-surface-variant font-mono text-sm mt-1 tracking-wider">
+      Programmable portfolio manager for your xLever positions
+    </p>
+  </div>
+  <div class="flex items-center gap-4">
+    <!-- Master Agent Toggle -->
+    <div class="flex items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-lg px-4 py-2.5">
+      <span class="font-mono text-[11px] text-on-surface-variant uppercase tracking-wider">Agent</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="masterToggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="font-mono text-[11px] font-bold uppercase tracking-wider" id="masterLabel">ON</span>
+    </div>
+    <!-- Emergency Override -->
+    <button id="emergencyBtn" class="flex items-center gap-2 px-4 py-2.5 bg-error/10 border border-error/30 rounded-lg hover:bg-error/20 transition-colors" onclick="emergencyStop()">
+      <span class="material-symbols-outlined text-error text-lg">front_hand</span>
+      <span class="font-mono text-[11px] text-error font-bold uppercase tracking-wider">Override</span>
+    </button>
+  </div>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+  <!-- LEFT COLUMN: Strategy Modes + Config -->
+  <div class="lg:col-span-5 space-y-6">
+
+    <!-- Strategy Mode Selector -->
+    <section>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary text-lg">tune</span>
+        <h2 class="font-display font-bold text-sm text-on-surface uppercase tracking-wider">Choose Strategy Mode</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="modeSelector">
+
+        <!-- Safe Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-5 border border-outline-variant/10" data-mode="safe" onclick="selectMode('safe')">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-[#00e676]/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-[#00e676] text-xl">shield</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Safe Mode</h3>
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">De-risk on volatility</p>
+            </div>
+          </div>
+          <p class="text-xs text-on-surface-variant leading-relaxed mb-3">Automatically reduces leverage when volatility or risk thresholds rise. Protects your position during turbulent markets.</p>
+          <div class="flex items-center gap-2">
+            <span class="bg-[#00e676]/10 text-[#00e676] text-[9px] font-bold px-2 py-0.5 rounded uppercase">Low Risk</span>
+            <span class="bg-surface-container-highest text-on-surface-variant text-[9px] font-bold px-2 py-0.5 rounded uppercase">Defensive</span>
+          </div>
+        </div>
+
+        <!-- Target Exposure Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-5 border border-outline-variant/10" data-mode="target" onclick="selectMode('target')">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-[#7c4dff]/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-[#7c4dff] text-xl">my_location</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Target Exposure</h3>
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">Maintain leverage band</p>
+            </div>
+          </div>
+          <p class="text-xs text-on-surface-variant leading-relaxed mb-3">Maintains your chosen leverage band automatically. The agent rebalances when drift exceeds your threshold.</p>
+          <div class="flex items-center gap-2">
+            <span class="bg-[#7c4dff]/10 text-[#7c4dff] text-[9px] font-bold px-2 py-0.5 rounded uppercase">Medium Risk</span>
+            <span class="bg-surface-container-highest text-on-surface-variant text-[9px] font-bold px-2 py-0.5 rounded uppercase">Balanced</span>
+          </div>
+        </div>
+
+        <!-- Accumulation Mode -->
+        <div class="mode-card bg-surface-container-low rounded-lg p-5 border border-outline-variant/10" data-mode="accumulate" onclick="selectMode('accumulate')">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-[#448aff]/10 flex items-center justify-center">
+              <span class="material-symbols-outlined mode-icon text-[#448aff] text-xl">trending_up</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-on-surface text-sm">Accumulation</h3>
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">DCA + profit-taking</p>
+            </div>
+          </div>
+          <p class="text-xs text-on-surface-variant leading-relaxed mb-3">Periodic buying at set intervals with optional profit-taking. Build leveraged exposure over time systematically.</p>
+          <div class="flex items-center gap-2">
+            <span class="bg-[#448aff]/10 text-[#448aff] text-[9px] font-bold px-2 py-0.5 rounded uppercase">Adjustable Risk</span>
+            <span class="bg-surface-container-highest text-on-surface-variant text-[9px] font-bold px-2 py-0.5 rounded uppercase">Growth</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Policy Configuration Panel -->
+    <section id="configPanel" class="hidden">
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="bg-surface-container-high px-5 py-3 flex items-center justify-between border-b border-outline-variant/10">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-base">settings</span>
+            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant" id="configTitle">Policy Configuration</span>
+          </div>
+          <span class="font-mono text-[10px] text-on-surface-variant" id="configModeLabel">—</span>
+        </div>
+
+        <!-- Safe Mode Config -->
+        <div id="config-safe" class="config-body hidden p-5 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Volatility Trigger (Daily Move %)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="2" max="10" step="0.5" value="5" class="slider-track flex-1" id="volTrigger" oninput="updateSliderLabel('volTrigger','volTriggerVal','%')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="volTriggerVal">5%</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">When daily price move exceeds this, agent reduces leverage</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">De-leverage Target</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0.5" max="2" step="0.25" value="1" class="slider-track flex-1" id="deleverageTarget" oninput="updateSliderLabel('deleverageTarget','deleverageTargetVal','×')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="deleverageTargetVal">1×</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Leverage to reduce to when trigger fires</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Max Drawdown Limit</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="3" max="20" step="1" value="8" class="slider-track flex-1" id="maxDrawdown" oninput="updateSliderLabel('maxDrawdown','maxDrawdownVal','%')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="maxDrawdownVal">8%</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Close position entirely if drawdown exceeds this</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Recovery Re-entry</label>
+              <div class="flex items-center gap-3">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="autoReentry" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="font-mono text-xs text-on-surface-variant">Auto re-enter after volatility subsides</span>
+              </div>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all" onclick="activatePolicy('safe')">
+            Activate Safe Mode
+          </button>
+        </div>
+
+        <!-- Target Exposure Config -->
+        <div id="config-target" class="config-body hidden p-5 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Target Leverage</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1" max="4" step="0.25" value="2" class="slider-track flex-1" id="targetLev" oninput="updateSliderLabel('targetLev','targetLevVal','×')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="targetLevVal">2×</span>
+              </div>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Allowed Band (±)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0.1" max="0.5" step="0.05" value="0.25" class="slider-track flex-1" id="bandWidth" oninput="updateSliderLabel('bandWidth','bandWidthVal','×')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="bandWidthVal">0.25×</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Rebalance when leverage drifts outside target ± band</p>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Rebalance Frequency</label>
+              <select class="w-full bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2 font-mono text-xs text-on-surface" id="rebalFreq">
+                <option value="1h">Every 1 hour</option>
+                <option value="4h" selected>Every 4 hours</option>
+                <option value="12h">Every 12 hours</option>
+                <option value="1d">Once daily</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Max Single Rebalance Size</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="5" max="50" step="5" value="20" class="slider-track flex-1" id="maxRebalSize" oninput="updateSliderLabel('maxRebalSize','maxRebalSizeVal','%')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="maxRebalSizeVal">20%</span>
+              </div>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1">Cap on position size change per rebalance</p>
+            </div>
+          </div>
+          <div class="bg-surface-container-highest/50 rounded p-3">
+            <p class="font-mono text-[10px] text-on-surface-variant">
+              <span class="text-primary font-bold">Preview:</span> Agent will maintain <span class="text-on-surface font-semibold" id="previewBand">1.75× – 2.25×</span> leverage on your QQQx position, checking every <span class="text-on-surface font-semibold" id="previewFreq">4 hours</span>.
+            </p>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all" onclick="activatePolicy('target')">
+            Activate Target Exposure
+          </button>
+        </div>
+
+        <!-- Accumulation Config -->
+        <div id="config-accumulate" class="config-body hidden p-5 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Buy Amount (USDC)</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="100" max="5000" step="100" value="500" class="slider-track flex-1" id="buyAmount" oninput="updateSliderLabel('buyAmount','buyAmountVal','',true)">
+                <span class="font-mono text-sm text-on-surface w-16 text-right" id="buyAmountVal">$500</span>
+              </div>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Buy Interval</label>
+              <select class="w-full bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-2 font-mono text-xs text-on-surface" id="buyInterval">
+                <option value="daily">Daily</option>
+                <option value="weekly" selected>Weekly</option>
+                <option value="biweekly">Bi-weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Target Leverage for Buys</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1" max="4" step="0.5" value="2" class="slider-track flex-1" id="accLev" oninput="updateSliderLabel('accLev','accLevVal','×')">
+                <span class="font-mono text-sm text-on-surface w-10 text-right" id="accLevVal">2×</span>
+              </div>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Profit-Taking</label>
+              <div class="space-y-2">
+                <div class="flex items-center gap-3">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="profitTake" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="font-mono text-xs text-on-surface-variant">Enable profit-taking</span>
+                </div>
+                <div class="flex items-center gap-3" id="profitThresholdGroup">
+                  <input type="range" min="5" max="50" step="5" value="15" class="slider-track flex-1" id="profitThreshold" oninput="updateSliderLabel('profitThreshold','profitThresholdVal','%')">
+                  <span class="font-mono text-sm text-on-surface w-10 text-right" id="profitThresholdVal">15%</span>
+                </div>
+                <p class="font-mono text-[9px] text-on-surface-variant">Take 50% profit when position gains exceed this</p>
+              </div>
+            </div>
+          </div>
+          <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all" onclick="activatePolicy('accumulate')">
+            Activate Accumulation Mode
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Active Policy Summary -->
+    <section id="activePolicySection" class="hidden">
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="bg-surface-container-high px-5 py-3 flex items-center justify-between border-b border-outline-variant/10">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-secondary text-base">verified</span>
+            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Active Policy</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            <span class="font-mono text-[10px] text-secondary font-bold uppercase" id="policyStatus">Running</span>
+          </div>
+        </div>
+        <div class="p-5">
+          <!-- Policy Rules Display -->
+          <div id="policyRules" class="space-y-3 mb-5"></div>
+
+          <!-- What the Agent is Allowed To Do -->
+          <div class="bg-surface-container-highest/30 rounded-lg p-4 mb-5">
+            <h4 class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-3">Agent Permissions</h4>
+            <div id="agentPermissions" class="space-y-2"></div>
+          </div>
+
+          <!-- Agent Stats -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+            <div class="bg-surface-container-highest/30 rounded p-3 text-center">
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">Actions Taken</p>
+              <p class="font-mono text-lg text-on-surface font-bold" id="statActions">0</p>
+            </div>
+            <div class="bg-surface-container-highest/30 rounded p-3 text-center">
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">Net PnL Impact</p>
+              <p class="font-mono text-lg text-secondary font-bold" id="statPnl">$0</p>
+            </div>
+            <div class="bg-surface-container-highest/30 rounded p-3 text-center">
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">Uptime</p>
+              <p class="font-mono text-lg text-on-surface font-bold" id="statUptime">0m</p>
+            </div>
+            <div class="bg-surface-container-highest/30 rounded p-3 text-center">
+              <p class="font-mono text-[10px] text-on-surface-variant uppercase">Current Lev.</p>
+              <p class="font-mono text-lg text-primary font-bold" id="statLev">—</p>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="flex gap-3">
+            <button class="flex-1 py-2.5 rounded-lg bg-surface-container-highest hover:bg-surface-bright text-sm font-bold uppercase transition-colors flex items-center justify-center gap-2" onclick="pausePolicy()">
+              <span class="material-symbols-outlined text-base">pause</span>
+              <span id="pauseLabel">Pause</span>
+            </button>
+            <button class="flex-1 py-2.5 rounded-lg border border-error/30 text-error hover:bg-error/10 text-sm font-bold uppercase transition-colors flex items-center justify-center gap-2" onclick="deactivatePolicy()">
+              <span class="material-symbols-outlined text-base">stop</span>
+              Deactivate
+            </button>
+            <button class="py-2.5 px-4 rounded-lg bg-surface-container-highest hover:bg-surface-bright text-sm font-bold uppercase transition-colors flex items-center justify-center gap-2" onclick="reconfigurePolicy()">
+              <span class="material-symbols-outlined text-base">edit</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- MIDDLE: News Swarm Panel -->
+  <section class="lg:col-span-4 flex flex-col gap-4">
+
+    <!-- News Swarm Control -->
+    <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl">
+      <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/20 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-base">hub</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">News Swarm</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <!-- News Swarm Status -->
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full" id="swarmStatusDot" style="background:#948ea1"></span>
+            <span class="font-mono text-[10px] uppercase" id="swarmStatusLabel">Idle</span>
+          </div>
+          <!-- Python Agent Status -->
+          <div class="flex items-center gap-2 pl-3 border-l border-outline-variant/30">
+            <span class="w-2 h-2 rounded-full" id="pythonAgentDot" style="background:#948ea1"></span>
+            <span class="font-mono text-[10px] uppercase" id="pythonAgentLabel">AI Agent: Offline</span>
+          </div>
+        </div>
+      </div>
+      <div class="p-5 space-y-4">
+        <!-- Swarm Stats -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Queue</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="swarmQueue">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Ingested</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="swarmIngested">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Signals</p>
+            <p class="font-mono text-sm text-tertiary font-bold" id="swarmSignals">0</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Verified</p>
+            <p class="font-mono text-sm text-secondary font-bold" id="swarmVerified">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Rejected</p>
+            <p class="font-mono text-sm text-error font-bold" id="swarmRejected">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Executed</p>
+            <p class="font-mono text-sm text-primary font-bold" id="swarmExecuted">0</p>
+          </div>
+        </div>
+
+        <!-- Analyst Weights -->
+        <div class="bg-surface-container-highest/30 rounded-lg p-3">
+          <h4 class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider mb-2">Analyst Weights</h4>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] text-on-surface w-20">Sentiment</span>
+              <input type="range" min="0" max="100" value="30" class="flex-1 accent-primary h-1" id="wSentiment" oninput="updateSwarmWeights()">
+              <span class="font-mono text-[10px] text-primary w-8 text-right" id="wSentimentVal">30%</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] text-on-surface w-20">Technical</span>
+              <input type="range" min="0" max="100" value="40" class="flex-1 accent-tertiary h-1" id="wTechnical" oninput="updateSwarmWeights()">
+              <span class="font-mono text-[10px] text-tertiary w-8 text-right" id="wTechnicalVal">40%</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] text-on-surface w-20">Macro</span>
+              <input type="range" min="0" max="100" value="30" class="flex-1 accent-secondary h-1" id="wMacro" oninput="updateSwarmWeights()">
+              <span class="font-mono text-[10px] text-secondary w-8 text-right" id="wMacroVal">30%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trend Indicator -->
+        <div class="flex items-center justify-between bg-surface-container-highest/30 rounded-lg p-3">
+          <div>
+            <span class="font-mono text-[9px] text-on-surface-variant uppercase">5min Trend</span>
+            <p class="font-mono text-sm font-bold" id="swarmTrend">—</p>
+          </div>
+          <div class="text-right">
+            <span class="font-mono text-[9px] text-on-surface-variant uppercase">Consensus</span>
+            <p class="font-mono text-sm font-bold" id="swarmConsensus">—</p>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-3">
+          <button class="flex-1 py-2 rounded-lg bg-tertiary-container text-on-tertiary-container text-sm font-bold uppercase transition-colors flex items-center justify-center gap-2 hover:opacity-90" onclick="toggleSwarm()" id="swarmToggleBtn">
+            <span class="material-symbols-outlined text-base">play_arrow</span>
+            <span id="swarmToggleLabel">Start Swarm</span>
+          </button>
+          <button class="py-2 px-4 rounded-lg bg-surface-container-highest hover:bg-surface-bright text-sm font-bold uppercase transition-colors" onclick="testInjectNews()" title="Inject test news">
+            <span class="material-symbols-outlined text-base">science</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Signals Feed -->
+    <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 shadow-2xl flex flex-col" style="min-height: 300px;">
+      <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-sm">ssid_chart</span>
+          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Signal Feed</span>
+        </div>
+        <span class="font-mono text-[9px] text-on-surface-variant" id="signalCount">0 signals</span>
+      </div>
+      <div class="p-3 font-mono text-[11px] leading-relaxed flex-1 terminal-scroll overflow-y-auto space-y-1" id="signalFeed">
+        <p class="text-on-surface-variant opacity-60">[--:--:--] Waiting for news swarm...</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- RIGHT COLUMN: Execution Log -->
+  <section class="lg:col-span-3 flex flex-col h-full" style="min-height: 680px;">
+    <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 flex flex-col shadow-2xl">
+      <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="flex gap-1.5">
+            <div class="w-2.5 h-2.5 rounded-full bg-error/50"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-secondary/50"></div>
+          </div>
+          <span class="font-mono text-[10px] text-on-surface-variant ml-2 tracking-widest uppercase">Action Log</span>
+        </div>
+        <button class="font-mono text-[9px] text-on-surface-variant hover:text-on-surface uppercase tracking-wider" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="p-4 font-mono text-[11px] leading-relaxed flex-1 terminal-scroll overflow-y-auto overflow-x-hidden space-y-1.5" id="executionLog">
+        <p class="text-on-surface-variant opacity-60">[--:--:--] Waiting for agent activation...</p>
+      </div>
+      <!-- Agent Prompt Input -->
+      <div class="border-t border-outline-variant/20 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-primary text-sm">chat</span>
+          <span class="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">Prompt Agent</span>
+        </div>
+        <form id="agentPromptForm" class="flex gap-2" onsubmit="handleAgentPrompt(event)">
+          <input type="text" id="agentPromptInput" placeholder="e.g. &quot;Set leverage to 3x&quot; or &quot;Take profit now&quot;" class="flex-1 bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2 font-mono text-[11px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" autocomplete="off">
+          <button type="submit" class="px-3 py-2 bg-primary-container hover:bg-primary-container/80 text-on-primary-container rounded-lg transition-colors flex items-center gap-1" title="Send prompt">
+            <span class="material-symbols-outlined text-base">send</span>
+          </button>
+        </form>
+        <div class="flex flex-wrap gap-1.5 mt-2" id="quickPrompts">
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Reduce leverage to 1x')">Reduce to 1×</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Take profit now')">Take profit</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('What is the current risk level?')">Risk status</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Pause all actions')">Pause</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</main>
+
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-4 h-8 bg-[#1b1b1f] dark:bg-[#1b1b1f] border-t border-[#343538]/20">
+  <div class="flex items-center gap-6">
+    <span class="font-mono text-[10px] uppercase tracking-widest text-[#7dffa2] font-bold">xLever Terminal v1.0.4 | Mainnet</span>
+    <span class="hidden md:block font-mono text-[10px] uppercase tracking-widest text-slate-500">Gas: 12 Gwei</span>
+    <span class="hidden lg:block font-mono text-[10px] uppercase tracking-widest text-slate-500">Block: 19482734</span>
+  </div>
+  <div class="flex items-center gap-4">
+    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="#">Docs</a>
+    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="#">API Status</a>
+    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="#">Support</a>
+  </div>
+</footer>
+
+<script src="risk-engine.js"></script>
+<script src="agent-executor.js"></script>
+<script src="ws-broadcast.js"></script>
+<script src="agent-bridge.js"></script>
+<script src="llm-analyst.js"></script>
+<script src="news-ingest.js"></script>
+<script src="news-verifier.js"></script>
+<script src="news-analysts.js"></script>
+<script src="signal-aggregator.js"></script>
+<script src="agent-coordinator.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// SMART AGENT — xLever Automation Layer
+// ═══════════════════════════════════════════════════════════
+
+const STATE = {
+  activeMode: null,      // 'safe' | 'target' | 'accumulate' | null
+  selectedMode: null,    // mode being configured
+  paused: false,
+  policy: null,          // active policy config object
+  actions: 0,
+  pnl: 0,
+  startTime: null,
+  currentLeverage: 2.0,
+  simInterval: null,
+};
+
+// ──────────────────────────────────────────────────
+// MODE SELECTION
+// ──────────────────────────────────────────────────
+
+function selectMode(mode) {
+  if (STATE.activeMode && !STATE.paused) return; // don't switch while running
+
+  STATE.selectedMode = mode;
+
+  // Update card selection visuals
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`[data-mode="${mode}"]`).classList.add('selected');
+
+  // Show config panel
+  const panel = document.getElementById('configPanel');
+  panel.classList.remove('hidden');
+  document.querySelectorAll('.config-body').forEach(b => b.classList.add('hidden'));
+  document.getElementById(`config-${mode}`).classList.remove('hidden');
+
+  const labels = { safe: 'Safe Mode', target: 'Target Exposure', accumulate: 'Accumulation' };
+  document.getElementById('configModeLabel').textContent = labels[mode];
+  document.getElementById('configTitle').textContent = `Configure ${labels[mode]}`;
+
+  // Update preview for target mode
+  if (mode === 'target') updateTargetPreview();
+}
+
+function updateTargetPreview() {
+  const target = parseFloat(document.getElementById('targetLev').value);
+  const band = parseFloat(document.getElementById('bandWidth').value);
+  document.getElementById('previewBand').textContent = `${(target - band).toFixed(2)}× – ${(target + band).toFixed(2)}×`;
+  document.getElementById('previewFreq').textContent = document.getElementById('rebalFreq').options[document.getElementById('rebalFreq').selectedIndex].text.replace('Every ', '').toLowerCase();
+}
+
+// Listen for target mode input changes
+['targetLev', 'bandWidth'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', updateTargetPreview);
+});
+document.getElementById('rebalFreq')?.addEventListener('change', updateTargetPreview);
+
+function updateSliderLabel(inputId, labelId, suffix, isCurrency) {
+  const val = document.getElementById(inputId).value;
+  document.getElementById(labelId).textContent = isCurrency ? `$${val}` : `${val}${suffix}`;
+}
+
+// ──────────────────────────────────────────────────
+// POLICY ACTIVATION
+// ──────────────────────────────────────────────────
+
+function activatePolicy(mode) {
+  let policy = { mode };
+
+  if (mode === 'safe') {
+    policy.volTrigger = parseFloat(document.getElementById('volTrigger').value);
+    policy.deleverageTarget = parseFloat(document.getElementById('deleverageTarget').value);
+    policy.maxDrawdown = parseFloat(document.getElementById('maxDrawdown').value);
+    policy.autoReentry = document.getElementById('autoReentry').checked;
+  } else if (mode === 'target') {
+    policy.targetLev = parseFloat(document.getElementById('targetLev').value);
+    policy.band = parseFloat(document.getElementById('bandWidth').value);
+    policy.rebalFreq = document.getElementById('rebalFreq').value;
+    policy.maxRebalSize = parseFloat(document.getElementById('maxRebalSize').value);
+  } else if (mode === 'accumulate') {
+    policy.buyAmount = parseFloat(document.getElementById('buyAmount').value);
+    policy.interval = document.getElementById('buyInterval').value;
+    policy.leverage = parseFloat(document.getElementById('accLev').value);
+    policy.profitTake = document.getElementById('profitTake').checked;
+    policy.profitThreshold = parseFloat(document.getElementById('profitThreshold').value);
+  }
+
+  STATE.activeMode = mode;
+  STATE.policy = policy;
+  STATE.paused = false;
+  STATE.actions = 0;
+  STATE.pnl = 0;
+  STATE.startTime = Date.now();
+
+  // Hide config, show active policy
+  document.getElementById('configPanel').classList.add('hidden');
+  showActivePolicy(policy);
+
+  // Start real agent executor (replaces simulation)
+  AgentExecutor.start(policy, {
+    log: logAction,
+    onStats: (s) => { STATE.actions = s.actions; updateStats(); },
+    dryRun: true, // default to dry-run; live mode when wallet connected
+    intervalMs: 15000,
+  });
+
+  logAction('SYSTEM', `Policy activated: ${getModeLabel(mode)}`, 'primary');
+  if (typeof XToast !== 'undefined') XToast.show(`AI Agent activated: ${getModeLabel(mode)}`, 'success');
+  logAction('SYSTEM', `Smart account executing on Euler V2 vault`, 'primary');
+  logAction('POLICY', getPolicyDescription(policy), 'secondary');
+}
+
+function getModeLabel(mode) {
+  return { safe: 'Safe Mode', target: 'Target Exposure', accumulate: 'Accumulation' }[mode];
+}
+
+function getPolicyDescription(policy) {
+  if (policy.mode === 'safe') {
+    return `Watching for >${policy.volTrigger}% daily moves → de-leverage to ${policy.deleverageTarget}×. Max drawdown limit: ${policy.maxDrawdown}%.`;
+  } else if (policy.mode === 'target') {
+    return `Maintaining ${(policy.targetLev - policy.band).toFixed(2)}× – ${(policy.targetLev + policy.band).toFixed(2)}× leverage band. Checking ${policy.rebalFreq}.`;
+  } else {
+    return `Buying $${policy.buyAmount} of QQQx at ${policy.leverage}× leverage ${policy.interval}. Profit-take at ${policy.profitTake ? policy.profitThreshold + '%' : 'disabled'}.`;
+  }
+}
+
+function showActivePolicy(policy) {
+  document.getElementById('activePolicySection').classList.remove('hidden');
+  const rulesEl = document.getElementById('policyRules');
+  const permsEl = document.getElementById('agentPermissions');
+
+  let rulesHTML = '';
+  let permsHTML = '';
+
+  if (policy.mode === 'safe') {
+    rulesHTML = `
+      <div class="flex items-start gap-3 p-3 bg-surface-container-highest/20 rounded">
+        <span class="material-symbols-outlined text-[#00e676] text-base mt-0.5">shield</span>
+        <div>
+          <p class="text-sm text-on-surface font-semibold">Safe Mode — Volatility Shield</p>
+          <p class="text-xs text-on-surface-variant mt-1">If daily price moves more than <span class="text-on-surface font-semibold">${policy.volTrigger}%</span>, reduce leverage to <span class="text-on-surface font-semibold">${policy.deleverageTarget}×</span>.</p>
+          <p class="text-xs text-on-surface-variant">If total drawdown exceeds <span class="text-error font-semibold">${policy.maxDrawdown}%</span>, close the position entirely.</p>
+          ${policy.autoReentry ? '<p class="text-xs text-on-surface-variant">Auto re-entry enabled when volatility normalizes.</p>' : ''}
+        </div>
+      </div>`;
+    permsHTML = `
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Reduce leverage on existing position</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Close position if max drawdown hit</span></div>
+      ${policy.autoReentry ? '<div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Re-open position at original leverage after recovery</span></div>' : ''}
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot increase leverage beyond original</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot open new positions</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
+  } else if (policy.mode === 'target') {
+    rulesHTML = `
+      <div class="flex items-start gap-3 p-3 bg-surface-container-highest/20 rounded">
+        <span class="material-symbols-outlined text-[#7c4dff] text-base mt-0.5">my_location</span>
+        <div>
+          <p class="text-sm text-on-surface font-semibold">Target Exposure — Maintain ${policy.targetLev}×</p>
+          <p class="text-xs text-on-surface-variant mt-1">Allowed band: <span class="text-on-surface font-semibold">${(policy.targetLev - policy.band).toFixed(2)}× – ${(policy.targetLev + policy.band).toFixed(2)}×</span></p>
+          <p class="text-xs text-on-surface-variant">Check frequency: <span class="text-on-surface font-semibold">${policy.rebalFreq}</span> · Max rebalance: <span class="text-on-surface font-semibold">${policy.maxRebalSize}%</span> of position</p>
+        </div>
+      </div>`;
+    permsHTML = `
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Increase or decrease leverage within ${(policy.targetLev - policy.band).toFixed(2)}× – ${(policy.targetLev + policy.band).toFixed(2)}×</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Rebalance up to ${policy.maxRebalSize}% of position per action</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot exceed ${(policy.targetLev + policy.band).toFixed(2)}× leverage</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot change asset allocation</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
+  } else {
+    rulesHTML = `
+      <div class="flex items-start gap-3 p-3 bg-surface-container-highest/20 rounded">
+        <span class="material-symbols-outlined text-[#448aff] text-base mt-0.5">trending_up</span>
+        <div>
+          <p class="text-sm text-on-surface font-semibold">Accumulation — DCA into QQQx</p>
+          <p class="text-xs text-on-surface-variant mt-1">Buy <span class="text-on-surface font-semibold">$${policy.buyAmount}</span> at <span class="text-on-surface font-semibold">${policy.leverage}×</span> leverage, <span class="text-on-surface font-semibold">${policy.interval}</span></p>
+          ${policy.profitTake ? `<p class="text-xs text-on-surface-variant">Take 50% profit when gains exceed <span class="text-secondary font-semibold">${policy.profitThreshold}%</span></p>` : ''}
+        </div>
+      </div>`;
+    permsHTML = `
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Open new leveraged buy orders up to $${policy.buyAmount} per ${policy.interval} period</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Fixed leverage: ${policy.leverage}× only</span></div>
+      ${policy.profitTake ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Sell 50% of position when profit exceeds ${policy.profitThreshold}%</span></div>` : ''}
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot exceed $${policy.buyAmount} per buy</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot change leverage after setup</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
+  }
+
+  rulesEl.innerHTML = rulesHTML;
+  permsEl.innerHTML = permsHTML;
+}
+
+// ──────────────────────────────────────────────────
+// AGENT EXECUTOR (real decision loop — replaces simulation)
+// Agent executor is loaded via agent-executor.js module.
+// The startSimulation/buildSimActions/executeSimAction functions
+// have been replaced by AgentExecutor.start() in activatePolicy().
+// ──────────────────────────────────────────────────
+
+// ──────────────────────────────────────────────────
+// EXECUTION LOG
+// ──────────────────────────────────────────────────
+
+function logAction(src, msg, color) {
+  const log = document.getElementById('executionLog');
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const colorClass = {
+    'primary': 'text-primary',
+    'secondary': 'text-secondary',
+    'yellow-500': 'text-yellow-500',
+    'error': 'text-error',
+    'on-surface-variant': 'text-on-surface-variant opacity-60',
+  }[color] || 'text-on-surface-variant';
+
+  const isSubtle = color === 'on-surface-variant';
+
+  const entry = document.createElement('p');
+  entry.className = `log-entry ${isSubtle ? 'text-on-surface-variant opacity-60' : 'text-on-surface'}`;
+  entry.innerHTML = `[${ts}] <span class="${colorClass} font-bold">${src}</span>: ${msg}`;
+
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+  const log = document.getElementById('executionLog');
+  log.innerHTML = '<p class="text-on-surface-variant opacity-60">[--:--:--] Log cleared.</p>';
+}
+
+// ──────────────────────────────────────────────────
+// CONTROLS
+// ──────────────────────────────────────────────────
+
+function pausePolicy() {
+  const paused = AgentExecutor.pause();
+  STATE.paused = paused;
+  document.getElementById('pauseLabel').textContent = paused ? 'Resume' : 'Pause';
+  document.getElementById('policyStatus').textContent = paused ? 'Paused' : 'Running';
+  document.getElementById('policyStatus').className = `font-mono text-[10px] font-bold uppercase ${paused ? 'text-yellow-500' : 'text-secondary'}`;
+}
+
+function deactivatePolicy() {
+  AgentExecutor.stop();
+
+  logAction('USER', `Policy deactivated: ${getModeLabel(STATE.activeMode)}`, 'error');
+  if (typeof XToast !== 'undefined') XToast.show('AI Agent deactivated', 'warning');
+
+  STATE.activeMode = null;
+  STATE.policy = null;
+  STATE.paused = false;
+
+  document.getElementById('activePolicySection').classList.add('hidden');
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+}
+
+function reconfigurePolicy() {
+  const mode = STATE.activeMode;
+  deactivatePolicy();
+  selectMode(mode);
+}
+
+function emergencyStop() {
+  AgentExecutor.stop();
+
+  logAction('OVERRIDE', 'Emergency override activated. All agent actions halted immediately.', 'error');
+  if (typeof XToast !== 'undefined') XToast.show('EMERGENCY STOP: All agent actions halted', 'error', 6000);
+  logAction('SYSTEM', 'Position frozen at current state. Manual control restored.', 'error');
+
+  STATE.activeMode = null;
+  STATE.policy = null;
+  STATE.paused = false;
+
+  document.getElementById('activePolicySection').classList.add('hidden');
+  document.getElementById('configPanel').classList.add('hidden');
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+
+  // Visual feedback
+  const btn = document.getElementById('emergencyBtn');
+  btn.classList.add('bg-error/30');
+  setTimeout(() => btn.classList.remove('bg-error/30'), 1000);
+}
+
+// ──────────────────────────────────────────────────
+// AGENT PROMPT HANDLER
+// ──────────────────────────────────────────────────
+
+function handleAgentPrompt(e) {
+  e.preventDefault();
+  const input = document.getElementById('agentPromptInput');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+  input.value = '';
+  processAgentPrompt(prompt);
+}
+
+function sendQuickPrompt(prompt) {
+  processAgentPrompt(prompt);
+}
+
+function processAgentPrompt(prompt) {
+  logAction('USER', prompt, 'primary');
+
+  const lower = prompt.toLowerCase();
+
+  // --- Risk / status queries ---
+  if (lower.includes('risk') || lower.includes('status') || lower.includes('how') || lower.includes('what')) {
+    const riskState = typeof RiskEngine !== 'undefined' ? RiskEngine.getState?.() : null;
+    if (riskState) {
+      logAction('AGENT', `Current risk state: ${riskState.level || 'NORMAL'}. Leverage: ${STATE.currentLeverage}×.`, 'secondary');
+    } else {
+      logAction('AGENT', `Current leverage: ${STATE.currentLeverage}×. Active mode: ${STATE.activeMode ? getModeLabel(STATE.activeMode) : 'None'}.`, 'secondary');
+    }
+    return;
+  }
+
+  // --- Pause / stop ---
+  if (lower.includes('pause') || lower.includes('stop') || lower.includes('halt')) {
+    if (STATE.activeMode && !STATE.paused) {
+      pausePolicy();
+      logAction('AGENT', 'All agent actions paused.', 'yellow-500');
+    } else if (STATE.paused) {
+      logAction('AGENT', 'Agent is already paused.', 'on-surface-variant');
+    } else {
+      logAction('AGENT', 'No active policy to pause.', 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Resume ---
+  if (lower.includes('resume') || lower.includes('unpause') || lower.includes('continue')) {
+    if (STATE.paused) {
+      pausePolicy(); // toggles pause → resume
+      logAction('AGENT', 'Agent resumed.', 'secondary');
+    } else {
+      logAction('AGENT', 'Agent is not paused.', 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Take profit ---
+  if (lower.includes('take profit') || lower.includes('profit')) {
+    if (!STATE.activeMode) {
+      logAction('AGENT', 'No active position. Activate a strategy first.', 'yellow-500');
+      return;
+    }
+    logAction('AGENT', 'Initiating profit-take evaluation...', 'secondary');
+    setTimeout(() => {
+      logAction('AGENT', `Profit-take signal sent. Current leverage: ${STATE.currentLeverage}×.`, 'secondary');
+    }, 800);
+    return;
+  }
+
+  // --- Leverage change ---
+  const levMatch = lower.match(/leverage\s*(?:to\s*)?([\d.]+)\s*x?/i) || lower.match(/set\s*(?:to\s*)?([\d.]+)\s*x/i) || lower.match(/([\d.]+)\s*x\s*leverage/i);
+  if (levMatch || lower.includes('reduce') || lower.includes('increase') || lower.includes('leverage')) {
+    let targetLev = levMatch ? parseFloat(levMatch[1]) : null;
+
+    if (lower.includes('reduce') && !targetLev) targetLev = Math.max(1, STATE.currentLeverage - 0.5);
+    if (lower.includes('increase') && !targetLev) targetLev = STATE.currentLeverage + 0.5;
+
+    if (targetLev && targetLev >= 0.5 && targetLev <= 5) {
+      logAction('AGENT', `Adjusting leverage: ${STATE.currentLeverage}× → ${targetLev}×...`, 'primary');
+      setTimeout(() => {
+        STATE.currentLeverage = targetLev;
+        document.getElementById('currentLevDisplay').textContent = `${targetLev}×`;
+        logAction('AGENT', `Leverage adjusted to ${targetLev}×.`, 'secondary');
+        updateStats();
+      }, 1000);
+    } else if (targetLev) {
+      logAction('AGENT', `Leverage ${targetLev}× is out of range (0.5× – 5×).`, 'error');
+    } else {
+      logAction('AGENT', `Current leverage: ${STATE.currentLeverage}×. Specify a target, e.g. "set leverage to 2x".`, 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Close position ---
+  if (lower.includes('close') || lower.includes('exit')) {
+    if (STATE.activeMode) {
+      logAction('AGENT', 'Closing position and deactivating policy...', 'error');
+      setTimeout(() => {
+        deactivatePolicy();
+        STATE.currentLeverage = 0;
+        document.getElementById('currentLevDisplay').textContent = '0×';
+        logAction('AGENT', 'Position closed. All agent actions stopped.', 'error');
+      }, 1200);
+    } else {
+      logAction('AGENT', 'No active position to close.', 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Fallback ---
+  logAction('AGENT', `Understood: "${prompt}". Processing...`, 'on-surface-variant');
+  setTimeout(() => {
+    logAction('AGENT', 'Command noted. Use quick actions or configure a strategy mode for automated execution.', 'on-surface-variant');
+  }, 600);
+}
+
+// Master toggle
+document.getElementById('masterToggle').addEventListener('change', function() {
+  const label = document.getElementById('masterLabel');
+  if (this.checked) {
+    label.textContent = 'ON';
+    label.className = 'font-mono text-[11px] font-bold uppercase tracking-wider text-secondary';
+    logAction('SYSTEM', 'Smart agent enabled.', 'secondary');
+  } else {
+    label.textContent = 'OFF';
+    label.className = 'font-mono text-[11px] font-bold uppercase tracking-wider text-error';
+    if (STATE.activeMode) deactivatePolicy();
+    logAction('SYSTEM', 'Smart agent disabled. Manual mode active.', 'error');
+  }
+});
+
+// ──────────────────────────────────────────────────
+// STATS UPDATER
+// ──────────────────────────────────────────────────
+
+function updateStats() {
+  document.getElementById('statActions').textContent = STATE.actions;
+
+  const pnlEl = document.getElementById('statPnl');
+  pnlEl.textContent = `${STATE.pnl >= 0 ? '+' : ''}$${STATE.pnl.toLocaleString()}`;
+  pnlEl.className = `font-mono text-lg font-bold ${STATE.pnl >= 0 ? 'text-secondary' : 'text-error'}`;
+
+  if (STATE.startTime) {
+    const elapsed = Math.floor((Date.now() - STATE.startTime) / 60000);
+    document.getElementById('statUptime').textContent = elapsed < 60 ? `${elapsed}m` : `${Math.floor(elapsed/60)}h ${elapsed%60}m`;
+  }
+
+  document.getElementById('statLev').textContent = `${STATE.currentLeverage}×`;
+}
+
+// Update stats every second for uptime
+setInterval(updateStats, 1000);
+
+// Initialize master toggle label color
+document.getElementById('masterLabel').className = 'font-mono text-[11px] font-bold uppercase tracking-wider text-secondary';
+
+// ═══════════════════════════════════════════════════════════
+// NEWS SWARM CONTROLS
+// ═══════════════════════════════════════════════════════════
+
+let swarmRunning = false;
+let swarmStatsInterval = null;
+
+function toggleSwarm() {
+  if (swarmRunning) {
+    stopSwarm();
+  } else {
+    startSwarm();
+  }
+}
+
+function startSwarm() {
+  swarmRunning = true;
+  document.getElementById('swarmToggleLabel').textContent = 'Stop Swarm';
+  document.getElementById('swarmToggleBtn').querySelector('.material-symbols-outlined').textContent = 'stop';
+  document.getElementById('swarmStatusDot').style.background = '#05e777';
+  document.getElementById('swarmStatusLabel').textContent = 'Active';
+  document.getElementById('swarmStatusLabel').className = 'font-mono text-[10px] uppercase text-secondary';
+
+  window.AgentCoordinator.start({
+    log: logAction,
+    onDecision: onSwarmDecision,
+    batchSize: 5,
+    processIntervalMs: 3000,
+  });
+
+  // Update swarm stats every 2s
+  swarmStatsInterval = setInterval(updateSwarmStats, 2000);
+  updateSwarmStats();
+}
+
+function stopSwarm() {
+  swarmRunning = false;
+  document.getElementById('swarmToggleLabel').textContent = 'Start Swarm';
+  document.getElementById('swarmToggleBtn').querySelector('.material-symbols-outlined').textContent = 'play_arrow';
+  document.getElementById('swarmStatusDot').style.background = '#948ea1';
+  document.getElementById('swarmStatusLabel').textContent = 'Idle';
+  document.getElementById('swarmStatusLabel').className = 'font-mono text-[10px] uppercase text-on-surface-variant';
+
+  window.AgentCoordinator.stop();
+  if (swarmStatsInterval) { clearInterval(swarmStatsInterval); swarmStatsInterval = null; }
+}
+
+function updateSwarmStats() {
+  const coord = window.AgentCoordinator;
+  const ingest = window.NewsIngest;
+  if (!coord || !ingest) return;
+
+  const stats = coord.stats;
+  document.getElementById('swarmQueue').textContent = ingest.queueSize;
+  document.getElementById('swarmIngested').textContent = ingest.stats.ingested;
+  document.getElementById('swarmSignals').textContent = stats.signalsGenerated;
+  document.getElementById('swarmExecuted').textContent = stats.actionsExecuted;
+  document.getElementById('signalCount').textContent = `${window.SignalAggregator.historySize} signals`;
+
+  // Verifier stats
+  const verifier = window.NewsVerifier;
+  if (verifier) {
+    const vStats = verifier.stats;
+    document.getElementById('swarmVerified').textContent = vStats.verified;
+    document.getElementById('swarmRejected').textContent = vStats.failed;
+  }
+
+  // Trend
+  const trend = coord.recentTrend;
+  if (trend && trend.count > 0) {
+    const trendEl = document.getElementById('swarmTrend');
+    const scoreStr = trend.avgScore > 0 ? `+${trend.avgScore.toFixed(2)}` : trend.avgScore.toFixed(2);
+    trendEl.textContent = `${trend.direction.toUpperCase()} (${scoreStr})`;
+    trendEl.className = `font-mono text-sm font-bold ${trend.direction === 'bullish' ? 'text-secondary' : trend.direction === 'bearish' ? 'text-error' : 'text-on-surface-variant'}`;
+    document.getElementById('swarmConsensus').textContent = `${trend.consensus}/${trend.count} unanimous`;
+  }
+}
+
+function onSwarmDecision(recommendation, audit) {
+  const feed = document.getElementById('signalFeed');
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const priorityLabels = ['CRIT', 'HIGH', 'MED', 'LOW'];
+  const priorityColors = ['text-error', 'text-yellow-500', 'text-tertiary', 'text-on-surface-variant'];
+  const pLabel = priorityLabels[recommendation.newsItem.priority] || 'LOW';
+  const pColor = priorityColors[recommendation.newsItem.priority] || 'text-on-surface-variant';
+
+  const dirColor = recommendation.direction === 'bullish' ? 'text-secondary' : recommendation.direction === 'bearish' ? 'text-error' : 'text-on-surface-variant';
+  const scoreStr = recommendation.score > 0 ? `+${recommendation.score.toFixed(2)}` : recommendation.score.toFixed(2);
+
+  // Verification badge
+  const v = audit.verification;
+  let vBadge = '';
+  if (v) {
+    if (v.verified) {
+      vBadge = `<span class="text-secondary font-bold text-[9px]">✓ VERIFIED ${(v.confidence*100).toFixed(0)}%</span>`;
+    } else {
+      vBadge = `<span class="text-yellow-500 font-bold text-[9px]">⚠ UNVERIFIED${v.flags.length ? ' ' + v.flags[0] : ''}</span>`;
+    }
+  }
+
+  const line = document.createElement('div');
+  line.className = 'flex flex-col gap-0.5 py-1 border-b border-outline-variant/10';
+  line.innerHTML = `
+    <div class="flex items-center gap-2">
+      <span class="text-on-surface-variant opacity-60">[${ts}]</span>
+      <span class="${pColor} font-bold">${pLabel}</span>
+      ${vBadge}
+      <span class="text-on-surface truncate flex-1">${recommendation.newsItem.headline.slice(0, 55)}...</span>
+    </div>
+    <div class="flex items-center gap-3 pl-16">
+      <span class="${dirColor} font-bold">${recommendation.action.toUpperCase()}</span>
+      <span class="text-on-surface-variant">score: <span class="${dirColor}">${scoreStr}</span></span>
+      <span class="text-on-surface-variant">consensus: ${recommendation.consensus}</span>
+      ${audit.executed ? '<span class="text-secondary font-bold">EXEC</span>' : '<span class="text-on-surface-variant">skip</span>'}
+    </div>`;
+
+  // Remove placeholder
+  const placeholder = feed.querySelector('p');
+  if (placeholder && placeholder.textContent.includes('Waiting')) placeholder.remove();
+
+  feed.prepend(line);
+
+  // Trim old entries
+  while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+}
+
+function updateSwarmWeights() {
+  const s = parseInt(document.getElementById('wSentiment').value);
+  const t = parseInt(document.getElementById('wTechnical').value);
+  const m = parseInt(document.getElementById('wMacro').value);
+  const total = s + t + m || 1;
+  const weights = { sentiment: s / total, technical: t / total, macro: m / total };
+  document.getElementById('wSentimentVal').textContent = `${Math.round(weights.sentiment * 100)}%`;
+  document.getElementById('wTechnicalVal').textContent = `${Math.round(weights.technical * 100)}%`;
+  document.getElementById('wMacroVal').textContent = `${Math.round(weights.macro * 100)}%`;
+  if (window.SignalAggregator) window.SignalAggregator.setWeights(weights);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PYTHON AGENT BRIDGE INTEGRATION
+// ═══════════════════════════════════════════════════════════
+
+let pythonAgentConnected = false;
+
+function initPythonAgentBridge() {
+  if (!window.AgentBridge) {
+    logAction('BRIDGE', 'AgentBridge not loaded - Python agent integration disabled', 'yellow-500');
+    return;
+  }
+
+  // Connect to Python agent WebSocket
+  AgentBridge.connect({ log: logAction });
+
+  // Subscribe to connection events
+  AgentBridge.subscribe('connected', () => {
+    pythonAgentConnected = true;
+    logAction('BRIDGE', '✓ Connected to Python AI Trading Agent', 'secondary');
+    document.getElementById('pythonAgentDot').style.background = '#05e777';
+    document.getElementById('pythonAgentLabel').textContent = 'AI Agent: Online';
+    document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-secondary';
+    updatePythonAgentStatus();
+  });
+
+  AgentBridge.subscribe('disconnected', () => {
+    pythonAgentConnected = false;
+    logAction('BRIDGE', 'Disconnected from Python agent', 'yellow-500');
+    document.getElementById('pythonAgentDot').style.background = '#948ea1';
+    document.getElementById('pythonAgentLabel').textContent = 'AI Agent: Offline';
+    document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-on-surface-variant';
+  });
+
+  // Subscribe to trading decisions from Python agent
+  AgentBridge.subscribe('decision_pending', (data) => {
+    logAction('AI-AGENT', `Decision pending: ${data.action} ${data.asset} @ ${data.leverage}x (confidence: ${(data.confidence * 100).toFixed(0)}%)`, 'primary');
+    showPendingDecision(data);
+  });
+
+  AgentBridge.subscribe('decision_approved', (data) => {
+    logAction('AI-AGENT', `✓ Decision approved: ${data.decision_id}`, 'secondary');
+  });
+
+  AgentBridge.subscribe('decision_rejected', (data) => {
+    logAction('AI-AGENT', `✗ Decision rejected: ${data.decision_id} - ${data.reason || 'User rejected'}`, 'error');
+  });
+
+  // Subscribe to position events
+  AgentBridge.subscribe('position_opened', (data) => {
+    logAction('AI-AGENT', `Position opened: ${data.asset} ${data.direction} @ ${data.leverage}x`, 'secondary');
+    STATE.actions++;
+    updateStats();
+  });
+
+  AgentBridge.subscribe('position_closed', (data) => {
+    const pnlStr = data.pnl >= 0 ? `+$${data.pnl.toFixed(2)}` : `-$${Math.abs(data.pnl).toFixed(2)}`;
+    logAction('AI-AGENT', `Position closed: ${data.asset} - PnL: ${pnlStr}`, data.pnl >= 0 ? 'secondary' : 'error');
+    STATE.pnl += data.pnl || 0;
+    updateStats();
+  });
+
+  AgentBridge.subscribe('position_updated', (data) => {
+    logAction('AI-AGENT', `Position updated: ${data.asset} - new leverage: ${data.leverage}x`, 'on-surface-variant');
+  });
+
+  // Subscribe to agent status changes
+  AgentBridge.subscribe('status_change', (status) => {
+    updatePythonAgentStatus(status);
+  });
+
+  // Subscribe to errors
+  AgentBridge.subscribe('error', (data) => {
+    logAction('AI-AGENT', `Error: ${data.message}`, 'error');
+  });
+
+  logAction('BRIDGE', 'Python Agent Bridge initialized - waiting for connection...', 'on-surface-variant');
+}
+
+function updatePythonAgentStatus(status) {
+  const agentStatus = status || AgentBridge.status;
+  if (!agentStatus) return;
+
+  // Update UI elements if they exist
+  const statusEl = document.getElementById('pythonAgentStatus');
+  if (statusEl) {
+    statusEl.textContent = agentStatus.running ? 'Running' : 'Stopped';
+    statusEl.className = `font-mono text-sm ${agentStatus.running ? 'text-secondary' : 'text-on-surface-variant'}`;
+  }
+}
+
+function showPendingDecision(decision) {
+  // Add to signal feed as a pending decision
+  const feed = document.getElementById('signalFeed');
+  if (!feed) return;
+
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const dirColor = decision.action === 'BUY' || decision.action === 'LONG' ? 'text-secondary' : 'text-error';
+
+  const line = document.createElement('div');
+  line.className = 'flex flex-col gap-0.5 py-1 border-b border-outline-variant/10 bg-surface-container-high/30';
+  line.id = `decision-${decision.decision_id}`;
+  line.innerHTML = `
+    <div class="flex items-center gap-2">
+      <span class="text-on-surface-variant opacity-60">[${ts}]</span>
+      <span class="text-primary font-bold">AI-AGENT</span>
+      <span class="text-yellow-500 font-bold text-[9px]">⏳ PENDING APPROVAL</span>
+      <span class="text-on-surface truncate flex-1">${decision.asset || 'SPY'}</span>
+    </div>
+    <div class="flex items-center gap-3 pl-16">
+      <span class="${dirColor} font-bold">${decision.action}</span>
+      <span class="text-on-surface-variant">leverage: <span class="text-primary">${decision.leverage}x</span></span>
+      <span class="text-on-surface-variant">confidence: ${(decision.confidence * 100).toFixed(0)}%</span>
+      <button onclick="approvePythonDecision('${decision.decision_id}')" class="px-2 py-0.5 bg-secondary/20 text-secondary rounded text-xs font-bold hover:bg-secondary/30">APPROVE</button>
+      <button onclick="rejectPythonDecision('${decision.decision_id}')" class="px-2 py-0.5 bg-error/20 text-error rounded text-xs font-bold hover:bg-error/30">REJECT</button>
+    </div>`;
+
+  // Remove placeholder
+  const placeholder = feed.querySelector('p');
+  if (placeholder && placeholder.textContent.includes('Waiting')) placeholder.remove();
+
+  feed.prepend(line);
+}
+
+async function approvePythonDecision(decisionId) {
+  try {
+    await AgentBridge.approveDecision(decisionId);
+    const el = document.getElementById(`decision-${decisionId}`);
+    if (el) {
+      el.querySelector('.text-yellow-500').innerHTML = '<span class="text-secondary font-bold text-[9px]">✓ APPROVED</span>';
+      el.querySelectorAll('button').forEach(btn => btn.remove());
+    }
+  } catch (err) {
+    logAction('BRIDGE', `Failed to approve: ${err.message}`, 'error');
+  }
+}
+
+async function rejectPythonDecision(decisionId) {
+  try {
+    await AgentBridge.rejectDecision(decisionId, 'User rejected from UI');
+    const el = document.getElementById(`decision-${decisionId}`);
+    if (el) {
+      el.querySelector('.text-yellow-500').innerHTML = '<span class="text-error font-bold text-[9px]">✗ REJECTED</span>';
+      el.querySelectorAll('button').forEach(btn => btn.remove());
+    }
+  } catch (err) {
+    logAction('BRIDGE', `Failed to reject: ${err.message}`, 'error');
+  }
+}
+
+async function startPythonAgent() {
+  if (!window.AgentBridge || !pythonAgentConnected) {
+    logAction('BRIDGE', 'Not connected to Python agent', 'error');
+    return;
+  }
+  try {
+    await AgentBridge.startAgent();
+    logAction('AI-AGENT', 'Python trading agent started', 'secondary');
+  } catch (err) {
+    logAction('BRIDGE', `Failed to start agent: ${err.message}`, 'error');
+  }
+}
+
+async function stopPythonAgent() {
+  if (!window.AgentBridge || !pythonAgentConnected) return;
+  try {
+    await AgentBridge.stopAgent();
+    logAction('AI-AGENT', 'Python trading agent stopped', 'yellow-500');
+  } catch (err) {
+    logAction('BRIDGE', `Failed to stop agent: ${err.message}`, 'error');
+  }
+}
+
+async function setPythonAgentMode(mode) {
+  if (!window.AgentBridge || !pythonAgentConnected) return;
+  try {
+    await AgentBridge.setAgentMode(mode);
+    logAction('AI-AGENT', `Agent mode set to: ${mode}`, 'primary');
+  } catch (err) {
+    logAction('BRIDGE', `Failed to set mode: ${err.message}`, 'error');
+  }
+}
+
+// Initialize Python Agent Bridge when page loads
+document.addEventListener('DOMContentLoaded', initPythonAgentBridge);
+
+// ═══════════════════════════════════════════════════════════
+// TEST NEWS INJECTION
+// ═══════════════════════════════════════════════════════════
+
+function testInjectNews() {
+  const testHeadlines = [
+    { headline: 'Fed announces emergency rate cut of 50bps amid market turmoil', body: 'The Federal Reserve made an unscheduled rate cut decision today as market volatility surged.', source: 'test' },
+    { headline: 'NVDA earnings beat expectations, guidance raised for AI chips', body: 'NVIDIA reported Q4 earnings of $5.16 per share, beating estimates by 12%. Revenue guidance raised to $24B.', source: 'test' },
+    { headline: 'China announces new tariffs on US semiconductor exports', body: 'Beijing imposed 25% tariffs on imported chips, escalating trade tensions in the tech sector.', source: 'test' },
+    { headline: 'QQQ breaks above 50-day moving average on strong tech rally', body: 'The Nasdaq-100 ETF surged 2.3% as mega-cap tech stocks led a broad market recovery.', source: 'test' },
+    { headline: 'Oil prices crash 8% on OPEC supply increase announcement', body: 'Crude oil futures plunged after OPEC+ agreed to increase production by 2 million barrels per day.', source: 'test' },
+  ];
+  const item = testHeadlines[Math.floor(Math.random() * testHeadlines.length)];
+  if (window.AgentCoordinator && window.AgentCoordinator.isRunning) {
+    window.AgentCoordinator.injectNews(item.headline, item.body, item.source);
+  } else {
+    logAction('SYSTEM', 'Start the swarm first to inject test news.', 'yellow-500');
+  }
+}
+
+</script>
+
+<script type="module" src="assets.js"></script>
+<script type="module" src="wallet.js"></script>
+<script type="module" src="pyth.js"></script>
+<script type="module" src="contracts.js"></script>
+<script type="module" src="openbb.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
+</body></html>

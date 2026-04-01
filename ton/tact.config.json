@@ -1,0 +1,14 @@
+{
+  "projects": [
+    {
+      "name": "XLeverVault",
+      "path": "./contracts/xlever_vault.tact",
+      "output": "./build/XLeverVault"
+    },
+    {
+      "name": "XLeverFactory",
+      "path": "./contracts/xlever_factory.tact",
+      "output": "./build/XLeverFactory"
+    }
+  ]
+}

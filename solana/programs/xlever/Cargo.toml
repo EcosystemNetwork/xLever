@@ -1,0 +1,21 @@
+[package]
+name = "xlever"
+version = "0.1.0"
+description = "xLever — Leveraged tokenized asset protocol on Solana"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "xlever"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
+pyth-solana-receiver-sdk = "0.4.0"
