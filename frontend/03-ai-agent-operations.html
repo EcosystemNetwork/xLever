@@ -446,9 +446,17 @@ tailwind.config = {
           <span class="material-symbols-outlined text-tertiary text-base">hub</span>
           <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">News Swarm</span>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" id="swarmStatusDot" style="background:#948ea1"></span>
-          <span class="font-mono text-[10px] uppercase" id="swarmStatusLabel">Idle</span>
+        <div class="flex items-center gap-4">
+          <!-- News Swarm Status -->
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full" id="swarmStatusDot" style="background:#948ea1"></span>
+            <span class="font-mono text-[10px] uppercase" id="swarmStatusLabel">Idle</span>
+          </div>
+          <!-- Python Agent Status -->
+          <div class="flex items-center gap-2 pl-3 border-l border-outline-variant/30">
+            <span class="w-2 h-2 rounded-full" id="pythonAgentDot" style="background:#948ea1"></span>
+            <span class="font-mono text-[10px] uppercase" id="pythonAgentLabel">AI Agent: Offline</span>
+          </div>
         </div>
       </div>
       <div class="p-5 space-y-4">
@@ -605,6 +613,7 @@ tailwind.config = {
 <script src="risk-engine.js"></script>
 <script src="agent-executor.js"></script>
 <script src="ws-broadcast.js"></script>
+<script src="agent-bridge.js"></script>
 <script src="llm-analyst.js"></script>
 <script src="news-ingest.js"></script>
 <script src="news-verifier.js"></script>
@@ -1190,6 +1199,197 @@ function updateSwarmWeights() {
   document.getElementById('wMacroVal').textContent = `${Math.round(weights.macro * 100)}%`;
   if (window.SignalAggregator) window.SignalAggregator.setWeights(weights);
 }
+
+// ═══════════════════════════════════════════════════════════
+// PYTHON AGENT BRIDGE INTEGRATION
+// ═══════════════════════════════════════════════════════════
+
+let pythonAgentConnected = false;
+
+function initPythonAgentBridge() {
+  if (!window.AgentBridge) {
+    logAction('BRIDGE', 'AgentBridge not loaded - Python agent integration disabled', 'yellow-500');
+    return;
+  }
+
+  // Connect to Python agent WebSocket
+  AgentBridge.connect({ log: logAction });
+
+  // Subscribe to connection events
+  AgentBridge.subscribe('connected', () => {
+    pythonAgentConnected = true;
+    logAction('BRIDGE', '✓ Connected to Python AI Trading Agent', 'secondary');
+    document.getElementById('pythonAgentDot').style.background = '#05e777';
+    document.getElementById('pythonAgentLabel').textContent = 'AI Agent: Online';
+    document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-secondary';
+    updatePythonAgentStatus();
+  });
+
+  AgentBridge.subscribe('disconnected', () => {
+    pythonAgentConnected = false;
+    logAction('BRIDGE', 'Disconnected from Python agent', 'yellow-500');
+    document.getElementById('pythonAgentDot').style.background = '#948ea1';
+    document.getElementById('pythonAgentLabel').textContent = 'AI Agent: Offline';
+    document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-on-surface-variant';
+  });
+
+  // Subscribe to trading decisions from Python agent
+  AgentBridge.subscribe('decision_pending', (data) => {
+    logAction('AI-AGENT', `Decision pending: ${data.action} ${data.asset} @ ${data.leverage}x (confidence: ${(data.confidence * 100).toFixed(0)}%)`, 'primary');
+    showPendingDecision(data);
+  });
+
+  AgentBridge.subscribe('decision_approved', (data) => {
+    logAction('AI-AGENT', `✓ Decision approved: ${data.decision_id}`, 'secondary');
+  });
+
+  AgentBridge.subscribe('decision_rejected', (data) => {
+    logAction('AI-AGENT', `✗ Decision rejected: ${data.decision_id} - ${data.reason || 'User rejected'}`, 'error');
+  });
+
+  // Subscribe to position events
+  AgentBridge.subscribe('position_opened', (data) => {
+    logAction('AI-AGENT', `Position opened: ${data.asset} ${data.direction} @ ${data.leverage}x`, 'secondary');
+    STATE.actions++;
+    updateStats();
+  });
+
+  AgentBridge.subscribe('position_closed', (data) => {
+    const pnlStr = data.pnl >= 0 ? `+$${data.pnl.toFixed(2)}` : `-$${Math.abs(data.pnl).toFixed(2)}`;
+    logAction('AI-AGENT', `Position closed: ${data.asset} - PnL: ${pnlStr}`, data.pnl >= 0 ? 'secondary' : 'error');
+    STATE.pnl += data.pnl || 0;
+    updateStats();
+  });
+
+  AgentBridge.subscribe('position_updated', (data) => {
+    logAction('AI-AGENT', `Position updated: ${data.asset} - new leverage: ${data.leverage}x`, 'on-surface-variant');
+  });
+
+  // Subscribe to agent status changes
+  AgentBridge.subscribe('status_change', (status) => {
+    updatePythonAgentStatus(status);
+  });
+
+  // Subscribe to errors
+  AgentBridge.subscribe('error', (data) => {
+    logAction('AI-AGENT', `Error: ${data.message}`, 'error');
+  });
+
+  logAction('BRIDGE', 'Python Agent Bridge initialized - waiting for connection...', 'on-surface-variant');
+}
+
+function updatePythonAgentStatus(status) {
+  const agentStatus = status || AgentBridge.status;
+  if (!agentStatus) return;
+
+  // Update UI elements if they exist
+  const statusEl = document.getElementById('pythonAgentStatus');
+  if (statusEl) {
+    statusEl.textContent = agentStatus.running ? 'Running' : 'Stopped';
+    statusEl.className = `font-mono text-sm ${agentStatus.running ? 'text-secondary' : 'text-on-surface-variant'}`;
+  }
+}
+
+function showPendingDecision(decision) {
+  // Add to signal feed as a pending decision
+  const feed = document.getElementById('signalFeed');
+  if (!feed) return;
+
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const dirColor = decision.action === 'BUY' || decision.action === 'LONG' ? 'text-secondary' : 'text-error';
+
+  const line = document.createElement('div');
+  line.className = 'flex flex-col gap-0.5 py-1 border-b border-outline-variant/10 bg-surface-container-high/30';
+  line.id = `decision-${decision.decision_id}`;
+  line.innerHTML = `
+    <div class="flex items-center gap-2">
+      <span class="text-on-surface-variant opacity-60">[${ts}]</span>
+      <span class="text-primary font-bold">AI-AGENT</span>
+      <span class="text-yellow-500 font-bold text-[9px]">⏳ PENDING APPROVAL</span>
+      <span class="text-on-surface truncate flex-1">${decision.asset || 'SPY'}</span>
+    </div>
+    <div class="flex items-center gap-3 pl-16">
+      <span class="${dirColor} font-bold">${decision.action}</span>
+      <span class="text-on-surface-variant">leverage: <span class="text-primary">${decision.leverage}x</span></span>
+      <span class="text-on-surface-variant">confidence: ${(decision.confidence * 100).toFixed(0)}%</span>
+      <button onclick="approvePythonDecision('${decision.decision_id}')" class="px-2 py-0.5 bg-secondary/20 text-secondary rounded text-xs font-bold hover:bg-secondary/30">APPROVE</button>
+      <button onclick="rejectPythonDecision('${decision.decision_id}')" class="px-2 py-0.5 bg-error/20 text-error rounded text-xs font-bold hover:bg-error/30">REJECT</button>
+    </div>`;
+
+  // Remove placeholder
+  const placeholder = feed.querySelector('p');
+  if (placeholder && placeholder.textContent.includes('Waiting')) placeholder.remove();
+
+  feed.prepend(line);
+}
+
+async function approvePythonDecision(decisionId) {
+  try {
+    await AgentBridge.approveDecision(decisionId);
+    const el = document.getElementById(`decision-${decisionId}`);
+    if (el) {
+      el.querySelector('.text-yellow-500').innerHTML = '<span class="text-secondary font-bold text-[9px]">✓ APPROVED</span>';
+      el.querySelectorAll('button').forEach(btn => btn.remove());
+    }
+  } catch (err) {
+    logAction('BRIDGE', `Failed to approve: ${err.message}`, 'error');
+  }
+}
+
+async function rejectPythonDecision(decisionId) {
+  try {
+    await AgentBridge.rejectDecision(decisionId, 'User rejected from UI');
+    const el = document.getElementById(`decision-${decisionId}`);
+    if (el) {
+      el.querySelector('.text-yellow-500').innerHTML = '<span class="text-error font-bold text-[9px]">✗ REJECTED</span>';
+      el.querySelectorAll('button').forEach(btn => btn.remove());
+    }
+  } catch (err) {
+    logAction('BRIDGE', `Failed to reject: ${err.message}`, 'error');
+  }
+}
+
+async function startPythonAgent() {
+  if (!window.AgentBridge || !pythonAgentConnected) {
+    logAction('BRIDGE', 'Not connected to Python agent', 'error');
+    return;
+  }
+  try {
+    await AgentBridge.startAgent();
+    logAction('AI-AGENT', 'Python trading agent started', 'secondary');
+  } catch (err) {
+    logAction('BRIDGE', `Failed to start agent: ${err.message}`, 'error');
+  }
+}
+
+async function stopPythonAgent() {
+  if (!window.AgentBridge || !pythonAgentConnected) return;
+  try {
+    await AgentBridge.stopAgent();
+    logAction('AI-AGENT', 'Python trading agent stopped', 'yellow-500');
+  } catch (err) {
+    logAction('BRIDGE', `Failed to stop agent: ${err.message}`, 'error');
+  }
+}
+
+async function setPythonAgentMode(mode) {
+  if (!window.AgentBridge || !pythonAgentConnected) return;
+  try {
+    await AgentBridge.setAgentMode(mode);
+    logAction('AI-AGENT', `Agent mode set to: ${mode}`, 'primary');
+  } catch (err) {
+    logAction('BRIDGE', `Failed to set mode: ${err.message}`, 'error');
+  }
+}
+
+// Initialize Python Agent Bridge when page loads
+document.addEventListener('DOMContentLoaded', initPythonAgentBridge);
+
+// ═══════════════════════════════════════════════════════════
+// TEST NEWS INJECTION
+// ═══════════════════════════════════════════════════════════
 
 function testInjectNews() {
   const testHeadlines = [
