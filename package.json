@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp frontend/*.js frontend/*.css dist/ 2>/dev/null; true",
     "preview": "vite preview"
   },
   "keywords": [],
