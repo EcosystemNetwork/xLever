@@ -171,7 +171,10 @@ let dataLoading = true; // Loading flag prevents premature chart rendering befor
 let currentTicker = 'QQQ'; // Default to QQQ because it's the primary LTAP product (Nasdaq-100 leveraged exposure)
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area'; // Defaults: 2x long, 1-year view, area chart — the most common user starting point
 let entryDateIndex = 0; // Index into the filtered data array where the backtest starts — 0 means "from period start", click-to-set changes this
-const MIN_LEV = -4.0, MAX_LEV = 4.0; // Leverage bounds: -4x short to +4x long — matches LTAP protocol's maximum supported leverage on Euler V2 EVK
+let isDegenMode = false; // Degen mode flag — toggles between normal (±4x) and degen (±100x) leverage ranges
+let MIN_LEV = -4.0, MAX_LEV = 4.0; // Leverage bounds — mutable to support degen mode switching
+const NORMAL_MIN = -4.0, NORMAL_MAX = 4.0; // Normal mode leverage limits — matches LTAP protocol's maximum supported leverage on Euler V2 EVK
+const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0; // Degen mode leverage limits — for education/entertainment only
 
 async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenBB provides institutional-grade OHLCV data via our local proxy server
   const end = new Date(); // End date is always today — we want the most recent available data
@@ -199,7 +202,8 @@ async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenB
 async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo Finance is free and widely available when OpenBB is down
   const endDate = Math.floor(Date.now() / 1000); // Yahoo uses Unix timestamps (seconds since epoch), not ISO dates
   const startDate = endDate - (years * 365 * 24 * 60 * 60); // Approximate years in seconds — close enough for historical data range requests
-  const url = `/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`; // Proxied through our Express server to avoid CORS and rate-limiting
+  const API_BASE_URL = window.location.hostname === 'localhost' ? '' : 'https://api.wrapsynth.com'; // Use local proxy in dev, wrapsynth API in production
+  const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`; // Proxied through our Express server to avoid CORS and rate-limiting
 
   const resp = await fetch(url); // Fetch from our Yahoo proxy endpoint
   if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`); // Surface HTTP errors clearly for debugging
@@ -237,7 +241,7 @@ async function fetchRealData(symbol, years) { // Orchestrator: tries data source
     console.warn('OpenBB unavailable, falling back to Yahoo:', e.message); // Log but don't crash — Yahoo fallback handles this gracefully
   }
   try {
-    return await fetchFromYahoo(symbol, years); // Second attempt: Yahoo Finance is our fallback with broader ticker coverage
+    return await fetchFromYahoo(symbol, years); // Second attempt: Yahoo Finance via local proxy or wrapsynth API
   } catch (error) {
     console.error('Error fetching real data:', error); // Both sources failed — caller will fall back to generateQQQData synthetic data
     throw error; // Re-throw so loadTickerData's catch block can activate the synthetic fallback
@@ -997,9 +1001,10 @@ function updateAll() { // Master render function — called on every user intera
       markers.push({
         time: levResult.liqTime,
         position: 'belowBar', // Below bar to be visible even when price crashes to zero
-        color: '#ff5252', // Bright red — maximum severity
-        shape: 'arrowDown', // Downward arrow signals terminal decline
-        text: 'LIQUIDATED' // Clear, unambiguous label
+        color: '#ff0000', // Bright red — maximum severity
+        shape: 'circle', // Circle marker for liquidation event
+        text: '💀 LIQUIDATED 💀', // Degen-style skull markers
+        size: 3
       });
     }
 
@@ -1042,30 +1047,38 @@ function updateAll() { // Master render function — called on every user intera
   const overlayPriceEl = document.getElementById('overlayPrice'); // Main price display element overlaid on the top-left of the chart
   if (levResult.liquidated) { // Position was liquidated — show zero price and a prominent liquidation badge
     overlayPriceEl.textContent = '$0.00'; // Liquidated position is worth nothing
-    overlayPriceEl.style.color = '#ff5252'; // Red price to signal total loss
+    overlayPriceEl.style.color = '#ff0000'; // Red price to signal total loss
+    overlayPriceEl.style.fontWeight = '900'; // Extra bold for emphasis
+    overlayPriceEl.style.textShadow = '0 0 10px #ff0000'; // Red glow effect on liquidation
+
     let liqBadge = document.getElementById('liqBadge'); // Check if liquidation badge already exists from a previous render
     if (!liqBadge) { // Create the badge only once — subsequent renders just update its text and show/hide it
       liqBadge = document.createElement('div');
       liqBadge.id = 'liqBadge'; // ID for finding it on subsequent renders
       liqBadge.style.cssText = `
         display:inline-block;
-        background:#ff525233;
-        border:1px solid #ff5252;
-        color:#ff5252;
+        background:#ff0000;
+        border:2px solid #ff0000;
+        color:#000;
         font-family:'JetBrains Mono',monospace;
-        font-size:11px;
-        padding:2px 8px;
-        border-radius:4px;
-        margin-top:4px;
-        letter-spacing:0.5px;
-      `; // Red bordered badge with semi-transparent red background — visually distinct warning element
+        font-size:13px;
+        font-weight:900;
+        padding:6px 12px;
+        border-radius:6px;
+        margin-top:8px;
+        letter-spacing:1px;
+        box-shadow: 0 0 20px #ff0000;
+        animation: liquidation-pulse 1s ease-in-out infinite;
+      `; // Red bordered badge with pulsing glow — maximum visual impact for liquidation events
       overlayPriceEl.parentNode.insertBefore(liqBadge, overlayPriceEl.nextSibling); // Insert right after the price display
     }
-    liqBadge.textContent = `LIQUIDATED ${levResult.liqTime}`; // Show when the liquidation occurred so user knows the exact date
+    liqBadge.textContent = `💀 LIQUIDATED ${levResult.liqTime}`; // Show when the liquidation occurred with skull emoji
     liqBadge.style.display = 'inline-block'; // Make visible
   } else { // Position is still alive — show current NAV and hide any liquidation badge
     overlayPriceEl.textContent = '$' + finalVal.toFixed(2); // Display current value with 2 decimal places (dollar precision)
     overlayPriceEl.style.color = ''; // Reset to default color (inherits from CSS based on profit/loss)
+    overlayPriceEl.style.fontWeight = ''; // Reset bold
+    overlayPriceEl.style.textShadow = ''; // Reset glow
     const liqBadge = document.getElementById('liqBadge');
     if (liqBadge) liqBadge.style.display = 'none'; // Hide the badge — position is not liquidated in this scenario
   }
@@ -1236,12 +1249,31 @@ function updateAll() { // Master render function — called on every user intera
     rf.style.background = 'var(--red)'; // Same red as aggressive — both are high risk
   }
 
+
   document.getElementById('riskText').textContent = riskLabel; // Display the risk category text below the meter
   document.getElementById('bufferReq').textContent = `Buffer: ${(requiredBuffer * 100).toFixed(0)}% junior ratio required`; // Show the minimum junior ratio needed for this leverage level
 
   if (levResult.stats) { // Display deleverage event statistics if the simulation produced them
-    document.getElementById('statDelevEvents').textContent = levResult.stats.totalDeleverageEvents; // Total deleverage events — high count means volatile period or aggressive leverage
-    document.getElementById('statReducedDays').textContent = levResult.stats.timeAtReducedLeverage; // Days at reduced leverage — shows how often auto-deleverage was active
+    const delevEl = document.getElementById('statDelevEvents');
+    delevEl.textContent = levResult.stats.totalDeleverageEvents; // Total deleverage events — high count means volatile period or aggressive leverage
+    if (levResult.liquidated) {
+      delevEl.style.color = '#ff0000';
+      delevEl.style.fontWeight = '900';
+    } else {
+      delevEl.style.color = '';
+      delevEl.style.fontWeight = '';
+    }
+
+    const reducedEl = document.getElementById('statReducedDays');
+    reducedEl.textContent = levResult.stats.timeAtReducedLeverage; // Days at reduced leverage — shows how often auto-deleverage was active
+    if (levResult.liquidated) {
+      reducedEl.textContent = '💀 LIQUIDATED';
+      reducedEl.style.color = '#ff0000';
+      reducedEl.style.fontWeight = '900';
+    } else {
+      reducedEl.style.color = '';
+      reducedEl.style.fontWeight = '';
+    }
   } else { // No stats available (shouldn't happen, but defensive)
     document.getElementById('statDelevEvents').textContent = '0';
     document.getElementById('statReducedDays').textContent = '0';
@@ -1263,8 +1295,12 @@ const mobileSliderTrack = document.getElementById('mobileSliderTrack'); // Mobil
 const mobileSliderThumb = document.getElementById('mobileSliderThumb'); // Mobile slider thumb — mirrors desktop thumb position
 const mobileSliderFill = document.getElementById('mobileSliderFill'); // Mobile slider fill — mirrors desktop fill gradient
 
-function snapLeverage(raw) { // Snap to 0.25 increments (e.g., 1.0, 1.25, 1.5, 1.75, 2.0) — prevents awkward values like 1.37x
-  return Math.round(raw * 4) / 4; // Multiply by 4, round to nearest integer, divide by 4 — produces exact 0.25 steps
+function snapLeverage(raw) { // Snap leverage to clean increments — prevents awkward values like 1.37x
+  if (isDegenMode) {
+    return Math.round(raw); // Degen mode: snap to whole numbers (10x, 25x, etc.) — 0.25 steps are meaningless at 100x
+  } else {
+    return Math.round(raw * 4) / 4; // Normal mode: snap to 0.25 increments (1.0, 1.25, 1.5, 1.75, 2.0)
+  }
 }
 
 function setSliderPos(lev) { // Update the visual position and colors of both desktop and mobile sliders to match the given leverage value
@@ -1303,64 +1339,64 @@ function setSliderPos(lev) { // Update the visual position and colors of both de
   document.getElementById('mobileLevDisplay').textContent = (lev < 0 ? '-' : '') + displayLev + '×'; // Update mobile leverage readout with sign and multiplication symbol
 }
 
-function levFromEvent(e) { // Convert a mouse/touch event position on the desktop slider track to a snapped leverage value
-  const rect = sliderTrack.getBoundingClientRect(); // Get track dimensions for coordinate mapping
-  const x = (e.clientX || e.touches[0].clientX) - rect.left; // Horizontal offset from the left edge of the track — works for both mouse and touch events
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map pixel position to leverage range, clamped to [0,1] to prevent out-of-bounds values
-  return snapLeverage(raw); // Snap to 0.25 increments for clean leverage values
+let isDragging = false; // Tracks whether a slider is currently being dragged
+let currentSlider = null; // Reference to the active slider element (desktop or mobile)
+
+function handleSliderStart(slider, clientX) { // Begin drag — sets active slider and immediately updates leverage to click position
+  isDragging = true;
+  currentSlider = slider;
+  updateLeverageFromPosition(slider, clientX);
 }
 
-let activeSlider = null; // Tracks which slider (desktop or mobile) is currently being dragged — null when idle
-
-function setupSlider(track, isDesktop = true) { // Initialize event listeners for a slider track — called once for desktop and once for mobile
-  function levFromSliderEvent(e) { // Closure over the specific track element — converts event coordinates to leverage using the correct track dimensions
-    const rect = track.getBoundingClientRect(); // Get THIS track's bounding rect (desktop vs mobile may have different positions/sizes)
-    const x = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)) - rect.left; // Extract x position from mouse or touch event with fallback to 0 if neither exists
-    const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map to leverage range with clamping
-    return snapLeverage(raw); // Snap to 0.25 increments
-  }
-
-  track.addEventListener('mousedown', e => { // Desktop: start drag on mousedown — sets the leverage immediately on click (not just on drag)
-    activeSlider = track; // Mark this track as active so mousemove handler knows which track to use for coordinates
-    currentLeverage = levFromSliderEvent(e); // Set leverage to the clicked position immediately — more responsive than waiting for mousemove
-    setSliderPos(currentLeverage); // Update slider visual to match
-    updateAll(); // Re-render chart and stats with new leverage
-  });
-
-  track.addEventListener('touchstart', e => { // Mobile: start drag on touchstart — same logic as mousedown but for touch events
-    activeSlider = track; // Mark as active for touchmove handler
-    currentLeverage = levFromSliderEvent(e); // Set leverage to touch position
-    setSliderPos(currentLeverage); // Update visual
-    updateAll(); // Re-render
-  });
+function updateLeverageFromPosition(slider, clientX) { // Convert pixel position to leverage value and update everything
+  const rect = slider.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, x / rect.width)); // Clamp to [0,1] to prevent out-of-bounds values
+  const raw = MIN_LEV + pct * (MAX_LEV - MIN_LEV); // Map percentage to leverage range
+  currentLeverage = snapLeverage(raw);
+  setSliderPos(currentLeverage);
+  updateAll();
 }
 
-setupSlider(sliderTrack, true); // Initialize desktop slider with its track element
-setupSlider(mobileSliderTrack, false); // Initialize mobile slider — separate track but same behavior
+function handleSliderMove(e) { // Document-level move handler for smooth dragging outside track bounds
+  if (!isDragging || !currentSlider) return;
+  e.preventDefault(); // Prevent page scrolling on mobile while dragging
+  const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+  updateLeverageFromPosition(currentSlider, clientX);
+}
 
-document.addEventListener('mousemove', e => { // Document-level mousemove for smooth dragging — listening on document (not track) so the user can drag outside the track bounds without losing control
-  if (!activeSlider) return; // Not dragging — ignore all mouse moves for performance
-  const rect = activeSlider.getBoundingClientRect(); // Use whichever slider (desktop/mobile) is being dragged
-  const x = e.clientX - rect.left; // Horizontal offset from track left edge
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map to leverage with clamping
-  currentLeverage = snapLeverage(raw); // Snap to 0.25 increments during drag
-  setSliderPos(currentLeverage); // Update slider visual in real-time
-  updateAll(); // Re-render chart on every drag step — gives live preview of leverage changes
-}, { passive: false }); // passive:false allows preventDefault if needed (not used here but prevents browser optimizations that could cause jank)
+function handleSliderEnd() { // Release drag — stop updating leverage on move events
+  isDragging = false;
+  currentSlider = null;
+}
 
-document.addEventListener('touchmove', e => { // Document-level touchmove for mobile drag — same pattern as mousemove
-  if (!activeSlider) return; // Not dragging — ignore
-  e.preventDefault(); // Prevent page scrolling while dragging the slider — without this, the page scrolls instead of the slider moving
-  const rect = activeSlider.getBoundingClientRect(); // Get active slider dimensions
-  const x = e.touches[0].clientX - rect.left; // Touch x position relative to track
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map to leverage range
-  currentLeverage = snapLeverage(raw); // Snap to 0.25
-  setSliderPos(currentLeverage); // Update visual
-  updateAll(); // Re-render chart live during touch drag
-}, { passive: false }); // passive:false required for preventDefault() to work on touchmove
+// Desktop slider — mousedown starts drag immediately on click
+sliderTrack.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  handleSliderStart(sliderTrack, e.clientX);
+});
 
-document.addEventListener('mouseup', () => activeSlider = null); // End desktop drag — release the slider so mousemove stops updating leverage
-document.addEventListener('touchend', () => activeSlider = null); // End mobile drag — same cleanup for touch events
+// Mobile slider — separate track element but same behavior
+mobileSliderTrack.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  handleSliderStart(mobileSliderTrack, e.clientX);
+});
+
+sliderTrack.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  handleSliderStart(sliderTrack, e.touches[0].clientX);
+}, { passive: false });
+
+mobileSliderTrack.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  handleSliderStart(mobileSliderTrack, e.touches[0].clientX);
+}, { passive: false });
+
+// Global move/end handlers — listening on document so drag works even when cursor leaves the track
+document.addEventListener('mousemove', handleSliderMove);
+document.addEventListener('touchmove', handleSliderMove, { passive: false });
+document.addEventListener('mouseup', handleSliderEnd);
+document.addEventListener('touchend', handleSliderEnd);
 
 // Chart click handler for backtesting entry point selection — lets users answer "what if I entered on this date?"
 chart.subscribeClick((param) => { // TradingView's click callback provides the time/price at the clicked point
@@ -1395,6 +1431,161 @@ document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener(
 document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); })); // Quick-select leverage buttons (1x, 2x, 3x, etc.) — set leverage, update slider position, and re-render in one click
 document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); })); // Timeframe buttons (1M, 1Y, 5Y, etc.) — switch period, reset entry point to start of new period, and re-render
 document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); })); // Chart type toggle (area/candlestick/line) — changes which series type is rendered without recomputing data
+
+// ═══════════════════════════════════════════════════
+// TRANCHE SELECTOR (Senior/Junior) — Mads' Junior LP UI
+// ═══════════════════════════════════════════════════
+
+const seniorBtn = document.getElementById('seniorBtn');
+const juniorBtn = document.getElementById('juniorBtn');
+if (seniorBtn && juniorBtn) {
+  seniorBtn.addEventListener('click', () => {
+    document.getElementById('seniorView').style.display = 'grid';
+    document.getElementById('juniorView').style.display = 'none';
+    seniorBtn.classList.add('active');
+    juniorBtn.classList.remove('active');
+  });
+
+  juniorBtn.addEventListener('click', () => {
+    document.getElementById('seniorView').style.display = 'none';
+    document.getElementById('juniorView').style.display = 'block';
+    seniorBtn.classList.remove('active');
+    juniorBtn.classList.add('active');
+  });
+}
+
+// Junior LP Tab Switching (Deposit/Withdraw)
+const depositTab = document.getElementById('depositTab');
+const withdrawTab = document.getElementById('withdrawTab');
+const depositContent = document.getElementById('depositContent');
+const withdrawContent = document.getElementById('withdrawContent');
+
+if (depositTab && withdrawTab) {
+  depositTab.addEventListener('click', () => {
+    depositTab.classList.add('active');
+    withdrawTab.classList.remove('active');
+    depositContent.style.display = 'block';
+    withdrawContent.style.display = 'none';
+  });
+
+  withdrawTab.addEventListener('click', () => {
+    withdrawTab.classList.add('active');
+    depositTab.classList.remove('active');
+    withdrawContent.style.display = 'block';
+    depositContent.style.display = 'none';
+  });
+}
+
+// How It Works Page Navigation
+const howItWorksBtn = document.getElementById('howItWorksBtn');
+if (howItWorksBtn) {
+  howItWorksBtn.addEventListener('click', () => {
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('howItWorksPage').style.display = 'block';
+    window.scrollTo(0, 0);
+  });
+
+  document.getElementById('backToChart').addEventListener('click', () => {
+    document.getElementById('howItWorksPage').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    window.scrollTo(0, 0);
+  });
+
+  document.getElementById('backToChartCTA').addEventListener('click', () => {
+    document.getElementById('howItWorksPage').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    window.scrollTo(0, 0);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// DEGEN MODE TOGGLE — switches between ±4x and ±100x leverage
+// ═══════════════════════════════════════════════════
+
+document.getElementById('degenModeBtn').addEventListener('click', () => {
+  isDegenMode = !isDegenMode;
+  document.body.classList.toggle('degen-mode', isDegenMode);
+
+  const btn = document.getElementById('degenModeBtn');
+
+  if (isDegenMode) {
+    MIN_LEV = DEGEN_MIN;
+    MAX_LEV = DEGEN_MAX;
+    currentLeverage = Math.max(DEGEN_MIN, Math.min(DEGEN_MAX, currentLeverage * 10));
+    updateDegenModeUI();
+    btn.textContent = 'NORMAL MODE';
+    btn.classList.add('normal-mode-active');
+    console.log('🚀 DEGEN MODE ACTIVATED - 100x LEVERAGE UNLOCKED');
+  } else {
+    MIN_LEV = NORMAL_MIN;
+    MAX_LEV = NORMAL_MAX;
+    currentLeverage = Math.max(NORMAL_MIN, Math.min(NORMAL_MAX, currentLeverage / 10));
+    updateNormalModeUI();
+    btn.textContent = '🚀 DEGEN MODE';
+    btn.classList.remove('normal-mode-active');
+    console.log('✓ Normal mode restored');
+  }
+
+  setSliderPos(currentLeverage);
+  updateAll();
+});
+
+function updateDegenModeUI() { // Swap slider labels and notch buttons for degen range
+  const sliderLabels = document.querySelectorAll('.slider-labels');
+  sliderLabels.forEach(label => {
+    label.innerHTML = '<span>-100×</span><span>-50×</span><span>0</span><span>+50×</span><span>+100×</span>';
+  });
+
+  const notchContainer = document.querySelectorAll('.slider-notches');
+  notchContainer.forEach(container => {
+    container.innerHTML = `
+      <button class="notch-btn" data-lev="-100">-100×</button>
+      <button class="notch-btn" data-lev="-50">-50×</button>
+      <button class="notch-btn" data-lev="-25">-25×</button>
+      <button class="notch-btn" data-lev="-10">-10×</button>
+      <button class="notch-btn" data-lev="0">0×</button>
+      <button class="notch-btn" data-lev="10">+10×</button>
+      <button class="notch-btn" data-lev="25">+25×</button>
+      <button class="notch-btn" data-lev="50">+50×</button>
+      <button class="notch-btn" data-lev="100">+100×</button>
+    `;
+    container.querySelectorAll('.notch-btn').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentLeverage = parseFloat(b.dataset.lev);
+        setSliderPos(currentLeverage);
+        updateAll();
+      });
+    });
+  });
+}
+
+function updateNormalModeUI() { // Restore slider labels and notch buttons to normal range
+  const sliderLabels = document.querySelectorAll('.slider-labels');
+  sliderLabels.forEach(label => {
+    label.innerHTML = '<span>-4×</span><span>-2×</span><span>0</span><span>+2×</span><span>+4×</span>';
+  });
+
+  const notchContainer = document.querySelectorAll('.slider-notches');
+  notchContainer.forEach(container => {
+    container.innerHTML = `
+      <button class="notch-btn" data-lev="-4.0">-4×</button>
+      <button class="notch-btn" data-lev="-2.0">-2×</button>
+      <button class="notch-btn" data-lev="-1.0">-1×</button>
+      <button class="notch-btn" data-lev="0">0×</button>
+      <button class="notch-btn" data-lev="1.0">+1×</button>
+      <button class="notch-btn" data-lev="2.0">+2×</button>
+      <button class="notch-btn" data-lev="4.0">+4×</button>
+    `;
+    container.querySelectorAll('.notch-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        currentLeverage = parseFloat(b.dataset.lev);
+        setSliderPos(currentLeverage);
+        updateAll();
+      });
+    });
+  });
+}
 
 new ResizeObserver(() => { // Watch the chart container for size changes — triggers on window resize, sidebar toggle, or any layout shift
   const r = chartEl.getBoundingClientRect(); // Get the current pixel dimensions of the chart container
