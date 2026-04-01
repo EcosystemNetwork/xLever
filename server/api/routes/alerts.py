@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # get_db yields a scoped async DB session per request
 from ..database import get_db
+# SIWE session auth and wallet ownership verification
+from ..auth import require_auth, require_wallet_owner
 # Alert ORM model and status enum for DB operations, User for ownership validation
 from ..models import Alert, AlertStatus, User
 # Request/response schemas for alert creation and serialization
@@ -19,10 +21,12 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 # POST /api/alerts/{wallet_address} — create a new alert for a wallet
 @router.post("/{wallet_address}", response_model=AlertOut)
 async def create_alert(
-    wallet_address: str, body: AlertCreate, db: AsyncSession = Depends(get_db)
+    wallet_address: str,
+    body: AlertCreate,
+    db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
 ):
-    # Normalize to lowercase because wallet addresses are stored in lowercase
-    addr = wallet_address.lower()
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Verify the user exists — alerts must belong to a registered wallet
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()
@@ -53,11 +57,11 @@ async def create_alert(
 @router.get("/{wallet_address}", response_model=list[AlertOut])
 async def get_alerts(
     wallet_address: str,
-    status: AlertStatus | None = AlertStatus.ACTIVE,  # Default to active-only since triggered/dismissed are historical
+    status: AlertStatus | None = AlertStatus.ACTIVE,
     db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
 ):
-    # Normalize to lowercase for consistent DB lookups
-    addr = wallet_address.lower()
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Base query filters by wallet address
     query = select(Alert).where(Alert.wallet_address == addr)
     # Apply status filter if provided — default is ACTIVE so the dashboard shows current alerts
@@ -73,13 +77,20 @@ async def get_alerts(
 
 # DELETE /api/alerts/{alert_id} — dismiss (soft-delete) an alert by changing its status
 @router.delete("/{alert_id}")
-async def dismiss_alert(alert_id: int, db: AsyncSession = Depends(get_db)):
+async def dismiss_alert(
+    alert_id: int,
+    db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
+):
     # Look up the alert by ID
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
-    # 404 if the alert doesn't exist — prevents confusing success responses for invalid IDs
+    # 404 if the alert doesn't exist
     if not alert:
         raise HTTPException(404, "Alert not found")
+    # Verify the caller owns this alert
+    if alert.wallet_address != authenticated_wallet:
+        raise HTTPException(403, "You can only dismiss your own alerts.")
 
     # Soft-delete by setting status to DISMISSED — preserves audit trail instead of hard deleting
     alert.status = AlertStatus.DISMISSED

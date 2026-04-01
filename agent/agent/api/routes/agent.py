@@ -60,6 +60,14 @@ class RejectionRequest(BaseModel):
     reason: str = Field(description="Rejection reason")
 
 
+class ConfigSyncRequest(BaseModel):
+    """Request to sync frontend policy config to agent."""
+
+    mode: str = Field(description="Policy mode: safe, target_exposure, accumulate")
+    paper_mode: Optional[bool] = Field(default=None, description="Paper trading toggle")
+    params: dict = Field(default_factory=dict, description="Mode-specific parameters")
+
+
 # Global agent instance (set by server startup)
 _agent = None
 
@@ -277,4 +285,43 @@ async def stop_agent():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to stop agent: {str(e)}",
+        )
+
+
+@router.post("/config")
+async def sync_config(request: ConfigSyncRequest):
+    """Sync frontend policy configuration to the agent.
+
+    Allows the frontend to push policy mode and parameters
+    (Safe, Target Exposure, Accumulate) to the backend agent.
+    """
+    agent = get_agent()
+
+    try:
+        # Update paper mode if provided
+        if request.paper_mode is not None:
+            agent.paper_mode = request.paper_mode
+
+        # Store policy config on agent for decision loop to use
+        agent._policy_mode = request.mode
+        agent._policy_params = request.params
+
+        # Update risk limits from params if applicable
+        if agent.risk_checker and request.params:
+            limits = agent.risk_checker.limits
+            if "maxDrawdown" in request.params:
+                limits.stop_loss_percent = float(request.params["maxDrawdown"])
+            if "profitThreshold" in request.params:
+                limits.take_profit_percent = float(request.params["profitThreshold"])
+
+        return {
+            "success": True,
+            "mode": request.mode,
+            "paper_mode": agent.paper_mode,
+            "params": request.params,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to sync config: {str(e)}",
         )

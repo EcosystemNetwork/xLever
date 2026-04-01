@@ -46,11 +46,11 @@ pub fn handler(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
     let annual_bps = calculate_annual_fee_bps(leverage);
     let accrued_fee = (deposit as u128)
         .checked_mul(annual_bps as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_mul(elapsed as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000u128 * SECONDS_PER_YEAR as u128)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
 
     // --- PnL calculation -----------------------------------------------
     // pnl = deposit * leverage * (current / entry - 1)
@@ -58,21 +58,21 @@ pub fn handler(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
     let price_delta = current_price as i128 - entry as i128;
     let pnl = (deposit as i128)
         .checked_mul(leverage as i128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_mul(price_delta)
-        .unwrap()
-        .checked_div((entry as i128).checked_mul(10_000).unwrap())
-        .unwrap();
+        .ok_or(XLeverError::MathOverflow)?
+        .checked_div((entry as i128).checked_mul(10_000).ok_or(XLeverError::MathOverflow)?)
+        .ok_or(XLeverError::MathOverflow)?;
 
     // Net value = deposit + pnl - accrued_fee - settled_fees
     let gross_value = (deposit as i128)
         .checked_add(pnl)
-        .unwrap();
+        .ok_or(XLeverError::MathOverflow)?;
     let net_value = gross_value
         .checked_sub(accrued_fee as i128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_sub(position.settled_fees as i128)
-        .unwrap();
+        .ok_or(XLeverError::MathOverflow)?;
 
     // Clamp to zero (position can be underwater).
     let withdrawable = if net_value < 0 { 0u64 } else { net_value as u64 };
@@ -116,9 +116,9 @@ pub fn handler(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
     let close_deposit = if is_full_close { deposit } else { withdraw_amount };
     let notional = (close_deposit as u128)
         .checked_mul(abs_leverage as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
 
     if leverage > 0 {
         vault.gross_long_exposure = vault.gross_long_exposure.saturating_sub(notional);
@@ -143,14 +143,14 @@ pub fn handler(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
     } else {
         let ratio = (withdraw_amount as u128)
             .checked_mul(10_000)
-            .unwrap()
+            .ok_or(XLeverError::MathOverflow)?
             .checked_div(withdrawable as u128)
-            .unwrap() as u64;
+            .ok_or(XLeverError::MathOverflow)? as u64;
         let reduce = (deposit as u128)
             .checked_mul(ratio as u128)
-            .unwrap()
+            .ok_or(XLeverError::MathOverflow)?
             .checked_div(10_000)
-            .unwrap() as u64;
+            .ok_or(XLeverError::MathOverflow)? as u64;
         position.deposit_amount = deposit.saturating_sub(reduce);
         position.settled_fees = position.settled_fees.saturating_add(accrued_fee);
         position.last_fee_timestamp = now;

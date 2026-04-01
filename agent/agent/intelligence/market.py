@@ -11,6 +11,7 @@ from loguru import logger
 from agent.intelligence.tavily import TavilyClient
 from agent.execution.web3_client import Web3Client
 from agent.contracts.addresses import CONTRACTS, PYTH_HERMES_URL, PYTH_FEEDS, ASSETS
+from agent.contracts.abi_loader import HEDGING_VAULT_ABI, EULER_VAULT_ABI
 
 
 @dataclass
@@ -311,23 +312,59 @@ class MarketIntelligence:
         Returns:
             Current pool state
         """
-        # TODO: Implement contract calls to fetch actual pool state
-        # For now, return mock data
-        # This requires:
-        # 1. Load vault ABI
-        # 2. Call vault contract methods
-        # 3. Parse results
+        asset_config = ASSETS[asset]
+        vault_address = asset_config["vault_address"]
+        hedging_vault = asset_config["hedging_vault"]
 
-        logger.warning(f"Using mock pool state for {asset} - implement contract integration")
+        try:
+            # Fetch vault balance (total liquidity) from Euler vault
+            account = self.web3.account.address
+            vault_balance = await self.web3.call_contract_function(
+                vault_address, EULER_VAULT_ABI, "balanceOf", account,
+            )
+            total_liquidity = float(vault_balance) / 1e6  # USDC decimals
 
-        return PoolState(
-            net_exposure_long=50000.0,
-            net_exposure_short=30000.0,
-            junior_ratio=0.35,  # 35% junior LP
-            total_liquidity_usdc=100000.0,
-            funding_rate_bps=500,  # 5% annual
-            health_score=1.6,
-        )
+            # Fetch position from hedging vault
+            position = await self.web3.call_contract_function(
+                hedging_vault, HEDGING_VAULT_ABI, "getPosition", account,
+            )
+            collateral = float(position[0]) / 1e6
+            debt = float(position[1]) / 1e6
+            is_long = position[2]
+
+            # Fetch health score
+            raw_hs = await self.web3.call_contract_function(
+                hedging_vault, HEDGING_VAULT_ABI, "getHealthScore", account,
+            )
+            health_score = float(raw_hs) / 1e18
+
+            net_long = collateral if is_long else 0.0
+            net_short = collateral if not is_long else 0.0
+
+            # Junior ratio estimated from collateral vs debt
+            junior_ratio = max(0.0, (collateral - debt) / collateral) if collateral > 0 else 0.5
+
+            logger.debug(f"Pool state for {asset}: liquidity=${total_liquidity:.2f}, HS={health_score:.3f}")
+
+            return PoolState(
+                net_exposure_long=net_long,
+                net_exposure_short=net_short,
+                junior_ratio=junior_ratio,
+                total_liquidity_usdc=max(total_liquidity, 1.0),
+                funding_rate_bps=500,  # TODO: fetch from contract when available
+                health_score=health_score,
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch pool state for {asset}: {e}, using defaults")
+            return PoolState(
+                net_exposure_long=0.0,
+                net_exposure_short=0.0,
+                junior_ratio=0.5,
+                total_liquidity_usdc=100000.0,
+                funding_rate_bps=500,
+                health_score=2.0,
+            )
 
     async def _get_sentiment(self, asset: str) -> Optional[Dict[str, Any]]:
         """Get market sentiment from Tavily AI Search.

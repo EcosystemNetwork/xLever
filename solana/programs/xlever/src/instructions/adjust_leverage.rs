@@ -46,11 +46,11 @@ pub fn handler(ctx: Context<AdjustLeverage>, new_leverage_bps: i32) -> Result<()
     let annual_bps = calculate_annual_fee_bps(old_leverage);
     let accrued_fee = (deposit as u128)
         .checked_mul(annual_bps as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_mul(elapsed as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000u128 * SECONDS_PER_YEAR as u128)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
 
     // --- Remove old exposure from vault --------------------------------
     let vault = &mut ctx.accounts.vault;
@@ -58,9 +58,9 @@ pub fn handler(ctx: Context<AdjustLeverage>, new_leverage_bps: i32) -> Result<()
     let old_abs = old_leverage.unsigned_abs() as u64;
     let old_notional = (deposit as u128)
         .checked_mul(old_abs as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
 
     if old_leverage > 0 {
         vault.gross_long_exposure = vault.gross_long_exposure.saturating_sub(old_notional);
@@ -74,9 +74,9 @@ pub fn handler(ctx: Context<AdjustLeverage>, new_leverage_bps: i32) -> Result<()
     let new_abs = new_leverage_bps.unsigned_abs() as u64;
     let new_notional = (deposit as u128)
         .checked_mul(new_abs as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
 
     if new_leverage_bps > 0 {
         vault.gross_long_exposure = vault

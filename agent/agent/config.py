@@ -22,8 +22,9 @@ class BlockchainConfig(BaseSettings):
     @validator("private_key")
     def validate_private_key(cls, v: str) -> str:
         """Validate private key format."""
-        if not v or v == "your_private_key_here":
-            raise ValueError("PRIVATE_KEY must be set to a valid private key")
+        stripped = v.removeprefix("0x")
+        if not v or v == "your_private_key_here" or stripped == "0000000000000000000000000000000000000000000000000000000000000001":
+            raise ValueError("PRIVATE_KEY must be set to a valid private key (not a placeholder)")
         # Remove 0x prefix if present for consistency
         return v.removeprefix("0x")
 
@@ -41,8 +42,8 @@ class APIConfig(BaseSettings):
     @validator("tavily_api_key")
     def validate_api_key(cls, v: str) -> str:
         """Validate API key is set."""
-        if not v or v == "your_tavily_api_key_here":
-            raise ValueError("TAVILY_API_KEY must be set")
+        if not v or v in ("your_tavily_api_key_here", "tvly-dev-placeholder"):
+            raise ValueError("TAVILY_API_KEY must be set to a real API key")
         return v
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")

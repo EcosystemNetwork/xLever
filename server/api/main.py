@@ -22,7 +22,7 @@ from .config import get_settings
 # init_db creates tables on startup — avoids manual migration steps during early development
 from .database import init_db
 # Import all route modules to register their endpoints with the app
-from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending
+from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending, auth_routes
 
 # Cache the settings singleton so we don't re-parse env vars on every access
 settings = get_settings()
@@ -130,6 +130,8 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Rate limiting middleware — 60 req/min general, 10 req/min admin endpoints
 app.add_middleware(RateLimitMiddleware)
 
+# SIWE authentication routes (nonce, verify, logout, me)
+app.include_router(auth_routes.router, prefix="/api")
 # Mount each route module under /api prefix to namespace API endpoints away from static files
 # Users route handles wallet registration and preference management
 app.include_router(users.router, prefix="/api")

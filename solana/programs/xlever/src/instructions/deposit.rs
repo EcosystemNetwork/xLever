@@ -102,9 +102,9 @@ pub fn handler(
     let abs_leverage = leverage_bps.unsigned_abs() as u64;
     let notional = (net_deposit as u128)
         .checked_mul(abs_leverage as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
 
     if leverage_bps > 0 {
         vault.gross_long_exposure = vault

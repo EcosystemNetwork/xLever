@@ -9,6 +9,7 @@ from loguru import logger
 
 from agent.config import Settings, get_settings
 from agent.execution.web3_client import Web3Client
+from agent.execution.tx_builder import TransactionBuilder
 from agent.intelligence.tavily import TavilyClient
 from agent.intelligence.market import MarketIntelligence, MarketState
 from agent.strategy.llm_strategy import LLMStrategy, TradingDecision
@@ -67,9 +68,35 @@ class TradingAgent:
         self._shutdown_requested = False
         self._available_capital_usdc: float = 10000.0  # Updated from wallet balance when available
 
+        # Tracking (used by API routes)
+        self.start_time: Optional[datetime] = None
+        self.last_decision_at: Optional[datetime] = None
+        self.total_decisions: int = 0
+        self.total_trades: int = 0
+
+        # Transaction builder (initialized in initialize())
+        self.tx_builder = None
+
         logger.info(
             f"Trading agent created (mode: {'PAPER' if paper_mode else 'LIVE'})"
         )
+
+    @property
+    def hitl(self):
+        """Alias for hitl_controller (used by API routes)."""
+        return self.hitl_controller
+
+    @property
+    def current_position(self):
+        """Current position (used by API routes)."""
+        return self._current_position
+
+    @property
+    def last_health_score(self):
+        """Last health score (used by API routes)."""
+        if self.health_monitor:
+            return self.health_monitor.last_health_score
+        return None
 
     async def initialize(self) -> None:
         """Initialize all agent components."""
@@ -103,6 +130,12 @@ class TradingAgent:
             # Check connection
             if not await self.web3.is_connected():
                 raise Exception("Failed to connect to blockchain")
+
+            # 3b. Transaction builder
+            self.tx_builder = TransactionBuilder(
+                web3_client=self.web3,
+                max_gas_gwei=100,
+            )
 
             # 4. Tavily client (for AI market intelligence)
             self.tavily = TavilyClient(
@@ -287,18 +320,41 @@ class TradingAgent:
         """
         logger.info(f"[LIVE MODE] Executing on-chain: {decision.action.value}")
 
-        # TODO: Implement actual contract interactions
-        # This would involve:
-        # 1. Prepare transaction data
-        # 2. Sign and send transaction
-        # 3. Wait for confirmation
-        # 4. Update position tracking
+        try:
+            tx_hash = await self.tx_builder.execute_decision(
+                decision=decision,
+                slippage_bps=50,
+            )
 
-        await self.alert_manager.critical(
-            title="Live Execution",
-            message=f"Executed {decision.action.value} on-chain",
-            decision=decision.to_dict(),
-        )
+            if tx_hash:
+                self.total_trades += 1
+
+                # Broadcast via WebSocket
+                if self.ws_manager:
+                    from agent.websocket.server import EventType, Severity
+                    await self.ws_manager.broadcast(
+                        event_type=EventType.POSITION_OPENED if decision.action.value in ("OPEN_LONG", "OPEN_SHORT") else EventType.POSITION_CLOSED,
+                        data={"tx_hash": tx_hash, **decision.to_dict()},
+                        message=f"Executed {decision.action.value} on-chain: {tx_hash}",
+                        severity=Severity.INFO,
+                    )
+
+                await self.alert_manager.info(
+                    title="Live Execution",
+                    message=f"Executed {decision.action.value} on-chain: {tx_hash}",
+                    tx_hash=tx_hash,
+                    decision=decision.to_dict(),
+                )
+            else:
+                logger.warning("Transaction builder returned no tx_hash")
+
+        except Exception as e:
+            logger.error(f"On-chain execution failed: {e}")
+            await self.alert_manager.critical(
+                title="Execution Failed",
+                message=f"Failed to execute {decision.action.value}: {str(e)}",
+                decision=decision.to_dict(),
+            )
 
     async def execute_health_action(self, action: HealthAction) -> None:
         """Execute health score remediation action.
@@ -344,6 +400,7 @@ class TradingAgent:
             await self.initialize()
 
         self.running = True
+        self.start_time = datetime.now()
 
         await self.alert_manager.info(
             title="Agent Started",
@@ -394,11 +451,49 @@ class TradingAgent:
                 # 4. Generate and validate decision
                 logger.info("Generating trading decision...")
                 decision = await self.make_decision(market_state)
+                self.total_decisions += 1
+                self.last_decision_at = datetime.now()
+
+                # Broadcast decision via WebSocket
+                if self.ws_manager:
+                    from agent.websocket.server import EventType, Severity
+                    await self.ws_manager.broadcast(
+                        event_type=EventType.DECISION_MADE,
+                        data=decision.to_dict(),
+                        message=f"Decision: {decision.action.value} (confidence: {decision.confidence}%)",
+                        severity=Severity.INFO,
+                    )
+
+                # Store decision in decisions_db
+                from agent.api.routes.decisions import get_decisions_db
+                decisions_db = get_decisions_db()
+                decision_record = {
+                    "id": str(self.total_decisions),
+                    "created_at": datetime.now(),
+                    **decision.to_dict(),
+                    "market_price": market_state.spot_price,
+                    "market_sentiment": market_state.sentiment,
+                    "health_score": health_result.health_score,
+                    "executed": False,
+                    "execution_tx": None,
+                    "execution_error": None,
+                    "required_approval": False,
+                    "approved": None,
+                    "approved_by": None,
+                    "approval_note": None,
+                    "executed_at": None,
+                    "rules_applied": [],
+                    "rules_passed": [],
+                    "rules_failed": decision.rule_violations,
+                }
+                decisions_db[str(self.total_decisions)] = decision_record
 
                 # 5. Execute if approved and not blocked
                 if decision.requires_execution:
                     logger.info(f"Executing decision: {decision.action.value}")
                     await self.execute(decision)
+                    decision_record["executed"] = True
+                    decision_record["executed_at"] = datetime.now()
                 else:
                     logger.debug(
                         f"Decision does not require execution: {decision.action.value}"

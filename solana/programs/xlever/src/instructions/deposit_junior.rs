@@ -32,9 +32,9 @@ pub fn handler(ctx: Context<DepositJunior>, amount: u64) -> Result<()> {
     } else {
         (amount as u128)
             .checked_mul(vault.total_junior_shares as u128)
-            .unwrap()
+            .ok_or(XLeverError::MathOverflow)?
             .checked_div(vault.total_junior_deposits as u128)
-            .unwrap() as u64
+            .ok_or(XLeverError::MathOverflow)? as u64
     };
     require!(shares > 0, XLeverError::ZeroShares);
 

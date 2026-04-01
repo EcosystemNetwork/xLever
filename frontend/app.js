@@ -578,6 +578,20 @@ function initWalletListeners() {
   const modal = window.xLeverWallet; // Reown modal instance set up in wallet.js — may not be ready yet on first call
   if (!modal) return setTimeout(initWalletListeners, 200); // Retry every 200ms because Reown SDK loads asynchronously and may initialize after app.js runs
 
+  // Wire the landing-page "Connect Wallet" button to open the Reown modal
+  const connectBtn = document.getElementById('connectWalletBtn');
+  if (connectBtn) {
+    connectBtn.addEventListener('click', () => modal.open());
+  }
+  // Wire the disconnect button to close the Reown session
+  const disconnectBtn = document.getElementById('disconnectBtn');
+  if (disconnectBtn) {
+    disconnectBtn.addEventListener('click', () => {
+      modal.disconnect();
+      disconnectWallet();
+    });
+  }
+
   modal.subscribeEvents(async (event) => { // Subscribe to all Reown events — we filter for CONNECT/DISCONNECT below
     if (event?.data?.event === 'CONNECT_SUCCESS') { // User approved the wallet connection in their wallet app
       connectedAddress = modal.getAddress(); // Capture the connected address immediately so fetchBalances can use it
@@ -715,17 +729,15 @@ async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenB
   })).filter(d => d.time && d.close > 0); // Filter out any malformed rows — missing dates or zero/negative closes would corrupt simulations
 }
 
-async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo Finance is free and widely available when OpenBB is down
-  const endDate = Math.floor(Date.now() / 1000); // Yahoo uses Unix timestamps (seconds since epoch), not ISO dates
-  const startDate = endDate - (years * 365 * 24 * 60 * 60); // Approximate years in seconds — close enough for historical data range requests
-  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
-  const API_BASE_URL = isLocal ? '' : 'https://api.xlever.markets'; // Use local proxy in dev, xlever API in production
-  const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`; // Proxied through our Express server to avoid CORS and rate-limiting
+async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo Finance via FastAPI /api/prices proxy with DB caching
+  const period = years >= 20 ? 'max' : `${years}y`; // Map years to Yahoo's period format — 'max' for full history, otherwise Ny
+  const url = `/api/prices/${symbol}?period=${period}&interval=1d`; // FastAPI prices endpoint proxies Yahoo with server-side DB cache
 
-  const resp = await fetch(url); // Fetch from our Yahoo proxy endpoint
+  const resp = await fetch(url); // Fetch from our FastAPI prices proxy — works in both dev (Vite proxy) and production
   if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`); // Surface HTTP errors clearly for debugging
 
-  const data = await resp.json(); // Parse Yahoo's nested JSON response format
+  const json = await resp.json(); // FastAPI wraps Yahoo response in PriceResponse {symbol, interval, period, data, cached}
+  const data = json.data; // Unwrap the raw Yahoo chart JSON from the PriceResponse wrapper
   if (!data.chart || !data.chart.result || !data.chart.result[0]) {
     throw new Error('Invalid response from Yahoo Finance API'); // Yahoo sometimes returns empty results for delisted tickers or during outages
   }

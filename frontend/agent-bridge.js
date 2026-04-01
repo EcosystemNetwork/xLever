@@ -16,7 +16,7 @@ const AgentBridge = (() => {
   // CONFIGURATION
   // ═══════════════════════════════════════════════════════════════
 
-  const isLocal = window.location.hostname === 'localhost'
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.')
   const CONFIG = {
     // Python agent endpoints — use localhost in dev, production API otherwise
     WS_URL: isLocal ? 'ws://localhost:8765' : `wss://${window.location.host}/ws/agent`,

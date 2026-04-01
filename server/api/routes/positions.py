@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # get_db yields a scoped async DB session per request
 from ..database import get_db
+# Wallet address format validation and SIWE session auth
+from ..auth import validate_wallet_address, require_auth, require_wallet_owner
 # Position ORM model and PositionStatus enum for filtering queries
 from ..models import Position, PositionStatus
 # Response schemas that control what fields are serialized to the client
@@ -26,10 +28,11 @@ async def get_positions(
     limit: int = Query(50, le=200),         # Page size capped at 200 to prevent huge queries
     offset: int = Query(0, ge=0),           # Pagination offset must be non-negative
     db: AsyncSession = Depends(get_db),     # Injected DB session
+    authenticated_wallet: str = Depends(require_auth),  # SIWE session required
 ):
     """Get positions for a wallet, optionally filtered by status and asset."""
-    # Normalize to lowercase for consistent lookups (addresses are stored lowercase)
-    addr = wallet_address.lower()
+    # Verify the caller owns the requested wallet address
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Base query filters by wallet address — all positions belong to a specific wallet
     query = select(Position).where(Position.wallet_address == addr)
 
@@ -57,10 +60,13 @@ async def get_positions(
 
 # GET /api/positions/{wallet_address}/active — shortcut for open positions only
 @router.get("/{wallet_address}/active", response_model=list[PositionOut])
-async def get_active_positions(wallet_address: str, db: AsyncSession = Depends(get_db)):
+async def get_active_positions(
+    wallet_address: str,
+    db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
+):
     """Get all open positions for a wallet."""
-    # Normalize address to lowercase for consistent DB lookups
-    addr = wallet_address.lower()
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Query only open positions sorted by newest first — the dashboard's primary view
     result = await db.execute(
         select(Position)
@@ -73,10 +79,13 @@ async def get_active_positions(wallet_address: str, db: AsyncSession = Depends(g
 
 # GET /api/positions/stats/{wallet_address} — aggregate PnL and fee statistics
 @router.get("/stats/{wallet_address}")
-async def get_position_stats(wallet_address: str, db: AsyncSession = Depends(get_db)):
+async def get_position_stats(
+    wallet_address: str,
+    db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
+):
     """Aggregate stats for a wallet's position history."""
-    # Normalize address to lowercase for consistent DB lookups
-    addr = wallet_address.lower()
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Single query computes all aggregates — avoids multiple round trips to the database
     result = await db.execute(
         select(
