@@ -9,8 +9,10 @@ contract VaultFactory {
     address public immutable usdc;
     address public admin;
     address public treasury;
-    
+    address public pythAdapter;
+
     mapping(address => address) public vaults; // asset => vault
+    mapping(address => bytes32) public feedIds; // asset => Pyth feed ID
     address[] public allVaults;
     
     event VaultCreated(address indexed asset, address vault, uint256 index);
@@ -22,25 +24,30 @@ contract VaultFactory {
         _;
     }
     
-    constructor(address _usdc, address _admin, address _treasury) {
+    constructor(address _usdc, address _admin, address _treasury, address _pythAdapter) {
         require(_usdc != address(0), "Invalid USDC");
         require(_admin != address(0), "Invalid admin");
         require(_treasury != address(0), "Invalid treasury");
-        
+        require(_pythAdapter != address(0), "Invalid Pyth adapter");
+
         usdc = _usdc;
         admin = _admin;
         treasury = _treasury;
+        pythAdapter = _pythAdapter;
     }
     
     /// @notice Create a new vault for an asset
     /// @param asset Address of the tokenized asset (e.g., xQQQ)
+    /// @param feedId Pyth price feed ID for this asset
     /// @return vault Address of the deployed vault
-    function createVault(address asset) external onlyAdmin returns (address vault) {
+    function createVault(address asset, bytes32 feedId) external onlyAdmin returns (address vault) {
         require(asset != address(0), "Invalid asset");
         require(vaults[asset] == address(0), "Vault exists");
-        
-        // Deploy new vault
-        vault = address(new Vault(usdc, asset, admin, treasury));
+        require(feedId != bytes32(0), "Invalid feed ID");
+
+        // Deploy new vault with Pyth oracle
+        vault = address(new Vault(usdc, asset, admin, treasury, pythAdapter, feedId));
+        feedIds[asset] = feedId;
         
         // Register vault
         vaults[asset] = vault;

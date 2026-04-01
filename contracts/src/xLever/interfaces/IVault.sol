@@ -13,10 +13,10 @@ interface IVault {
     event SlowWithdrawalQueued(address indexed user, uint256 amount, uint256 chunks);
     event ProtocolStateChanged(uint8 oldState, uint8 newState);
 
-    // User functions
-    function deposit(uint256 amount, int32 leverageBps) external returns (uint256 positionValue);
-    function withdraw(uint256 amount) external returns (uint256 received);
-    function adjustLeverage(int32 newLeverageBps) external;
+    // User functions — all write paths accept Pyth priceUpdateData
+    function deposit(uint256 amount, int32 leverageBps, bytes[] calldata priceUpdateData) external payable returns (uint256 positionValue);
+    function withdraw(uint256 amount, bytes[] calldata priceUpdateData) external payable returns (uint256 received);
+    function adjustLeverage(int32 newLeverageBps, bytes[] calldata priceUpdateData) external payable;
     function getPosition(address user) external view returns (DataTypes.Position memory);
     function getPositionValue(address user) external view returns (uint256 value, int256 pnl);
 
@@ -24,6 +24,9 @@ interface IVault {
     function depositJunior(uint256 amount) external returns (uint256 shares);
     function withdrawJunior(uint256 shares) external returns (uint256 amount);
     function getJuniorValue() external view returns (uint256 totalValue, uint256 sharePrice);
+
+    // Oracle
+    function updateOracle(bytes[] calldata priceUpdateData) external payable;
 
     // View functions
     function getPoolState() external view returns (DataTypes.PoolState memory);

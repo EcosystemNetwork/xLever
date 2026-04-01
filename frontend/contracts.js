@@ -2,7 +2,8 @@
  * xLever Contract Adapter
  * viem-based interface for xLever Vault + ERC-20 interactions
  */
-import { createPublicClient, createWalletClient, http, custom, parseUnits, formatUnits, encodeFunctionData } from 'viem'
+import { createPublicClient, createWalletClient, http, custom, parseUnits, formatUnits, encodeFunctionData, parseEther } from 'viem'
+import { getPriceForFeed, PYTH_FEEDS } from './pyth.js'
 
 // ═══════════════════════════════════════════════════════════════
 // CHAIN CONFIG
@@ -26,12 +27,14 @@ export const inkSepolia = {
 
 export const ADDRESSES = {
   evc: '0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c',
-  vault: null,           // xLever Vault — set after deploy via setAddress()
+  vault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',  // QQQ Vault (default)
   usdc: '0x6b57475467cd854d36Be7FB614caDa5207838943',       // USDC on Ink Sepolia
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e',     // Wrapped SP500 xStock
   wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',     // Wrapped Nasdaq xStock
-  spyVault: null,        // wSPYx Vault — set after deploy
-  qqqVault: null,        // wQQQx Vault — set after deploy
+  spyVault: '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
+  qqqVault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
+  pyth: '0x2880aB155794e7179c9eE2e38200202908C17B43',       // Pyth on Ink Sepolia
+  pythAdapter: '0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f',
   // Euler V2 core (Ethereum mainnet, for reference)
   euler: {
     evc: '0x0C9a3dd6b8F28529d72d7f9cE918D493519EE383',
@@ -64,13 +67,13 @@ export const ERC20_ABI = [
 ]
 
 export const VAULT_ABI = [
-  // --- Write functions ---
-  { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }], outputs: [{ name: 'positionValue', type: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'adjustLeverage', inputs: [{ name: 'newLeverageBps', type: 'int32' }], outputs: [], stateMutability: 'nonpayable' },
+  // --- Write functions (Pyth pull-oracle: all accept priceUpdateData + msg.value for fee) ---
+  { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'positionValue', type: 'uint256' }], stateMutability: 'payable' },
+  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'payable' },
+  { type: 'function', name: 'adjustLeverage', inputs: [{ name: 'newLeverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
   { type: 'function', name: 'depositJunior', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'shares', type: 'uint256' }], stateMutability: 'nonpayable' },
   { type: 'function', name: 'withdrawJunior', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ name: 'amount', type: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'updatePrice', inputs: [{ name: 'spotPrice', type: 'uint128' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'updateOracle', inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
 
   // --- Read functions ---
   { type: 'function', name: 'getPosition', inputs: [{ name: 'user', type: 'address' }], outputs: [{
@@ -110,6 +113,32 @@ export const VAULT_ABI = [
   { type: 'event', name: 'Withdraw', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'pnl', type: 'uint256' }] },
   { type: 'event', name: 'LeverageAdjusted', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'oldLeverage', type: 'int32' }, { name: 'newLeverage', type: 'int32' }] },
 ]
+
+export const PYTH_ADAPTER_ABI = [
+  { type: 'function', name: 'getUpdateFee', inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'fee', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'readPrice', inputs: [{ name: 'feedId', type: 'bytes32' }, { name: 'maxAgeSec', type: 'uint256' }], outputs: [{ name: 'price', type: 'int64' }, { name: 'conf', type: 'uint64' }, { name: 'publishTime', type: 'uint64' }], stateMutability: 'view' },
+  { type: 'function', name: 'isStale', inputs: [{ name: 'feedId', type: 'bytes32' }, { name: 'maxAgeSec', type: 'uint256' }], outputs: [{ type: 'bool' }], stateMutability: 'view' },
+]
+
+// Map asset symbols to their Pyth feed IDs (used by write functions)
+export const ASSET_FEED_MAP = {
+  QQQ: PYTH_FEEDS['QQQ/USD'],
+  SPY: PYTH_FEEDS['SPY/USD'],
+  AAPL: PYTH_FEEDS['AAPL/USD'],
+  NVDA: PYTH_FEEDS['NVDA/USD'],
+  TSLA: PYTH_FEEDS['TSLA/USD'],
+}
+
+// Current active asset (set by UI, defaults to QQQ)
+let activeAsset = 'QQQ'
+
+export function setActiveAsset(symbol) {
+  activeAsset = symbol
+}
+
+export function getActiveFeedId() {
+  return ASSET_FEED_MAP[activeAsset] || PYTH_FEEDS['QQQ/USD']
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENT SETUP
@@ -266,6 +295,33 @@ export async function getJuniorValue() {
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * Fetch Pyth price update + compute the ETH fee to send with the tx.
+ * Every vault write path calls this first.
+ * @returns {{ updateData: string[], fee: bigint }}
+ */
+async function fetchPythUpdate() {
+  const feedId = getActiveFeedId()
+  const { updateData } = await getPriceForFeed(feedId)
+
+  // Estimate fee on-chain via the adapter (or use a conservative default)
+  let fee = parseUnits('0.001', 18) // 0.001 ETH safe default
+  if (ADDRESSES.pythAdapter) {
+    try {
+      fee = await getPublicClient().readContract({
+        address: ADDRESSES.pythAdapter,
+        abi: PYTH_ADAPTER_ABI,
+        functionName: 'getUpdateFee',
+        args: [updateData],
+      })
+      fee = fee + (fee / 10n) // add 10% buffer for gas margin
+    } catch {
+      // fallback to conservative default
+    }
+  }
+  return { updateData, fee }
+}
+
+/**
  * Open a leveraged position
  * @param {string} amountUsdc - Human-readable USDC amount (e.g., "1000")
  * @param {number} leverage - Leverage as float (e.g., 2.0 or -3.0)
@@ -279,18 +335,22 @@ export async function openPosition(amountUsdc, leverage) {
   const amount = parseUnits(amountUsdc, 6) // USDC = 6 decimals
   const leverageBps = Math.round(leverage * 10000) // 2.0 -> 20000
 
+  // Fetch fresh Pyth price update
+  const { updateData, fee } = await fetchPythUpdate()
+
   // Check and approve USDC if needed
   const allowance = await getAllowance(ADDRESSES.usdc, account, ADDRESSES.vault)
   if (allowance < amount) {
     await approveToken(ADDRESSES.usdc, ADDRESSES.vault, amount)
   }
 
-  // Open position
+  // Open position with Pyth price data
   const hash = await getWalletClient().writeContract({
     address: ADDRESSES.vault,
     abi: VAULT_ABI,
     functionName: 'deposit',
-    args: [amount, leverageBps],
+    args: [amount, leverageBps, updateData],
+    value: fee,
     account,
     chain: inkSepolia,
   })
@@ -306,11 +366,14 @@ export async function closePosition(amountUsdc) {
   const account = await getAccount()
   const amount = parseUnits(amountUsdc, 6)
 
+  const { updateData, fee } = await fetchPythUpdate()
+
   const hash = await getWalletClient().writeContract({
     address: ADDRESSES.vault,
     abi: VAULT_ABI,
     functionName: 'withdraw',
-    args: [amount],
+    args: [amount, updateData],
+    value: fee,
     account,
     chain: inkSepolia,
   })
@@ -326,11 +389,14 @@ export async function adjustLeverage(newLeverage) {
   const account = await getAccount()
   const leverageBps = Math.round(newLeverage * 10000)
 
+  const { updateData, fee } = await fetchPythUpdate()
+
   const hash = await getWalletClient().writeContract({
     address: ADDRESSES.vault,
     abi: VAULT_ABI,
     functionName: 'adjustLeverage',
-    args: [leverageBps],
+    args: [leverageBps, updateData],
+    value: fee,
     account,
     chain: inkSepolia,
   })
@@ -437,6 +503,7 @@ export function formatPoolState(pool) {
 // Expose globally for non-module scripts
 window.xLeverContracts = {
   ADDRESSES, setAddress,
+  ASSET_FEED_MAP, setActiveAsset, getActiveFeedId,
   getBalance, getAllowance, approveToken,
   getPosition, getPositionValue, getPoolState, getTWAP, getMaxLeverage, getFundingRate, getJuniorValue,
   openPosition, closePosition, adjustLeverage, depositJunior, withdrawJunior,

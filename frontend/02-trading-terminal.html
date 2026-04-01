@@ -138,13 +138,37 @@
     </div>
   </div>
   <div class="flex items-center gap-3">
-    <div class="flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
+    <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
       <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ethereum · Solana</span>
+      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeText">Ink Sepolia</span>
     </div>
     <appkit-button size="sm" />
+    <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
+      <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
+    </button>
   </div>
 </nav>
+<div id="mobileNav" class="md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden" style="transition:all 0.25s ease">
+  <div class="flex flex-col p-3 gap-1">
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="01-dashboard.html">Dashboard</a>
+    <a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="02-trading-terminal.html">Trading</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="03-ai-agent-operations.html">AI Agents</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="04-vault-management.html">Vaults</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="05-risk-management.html">Risk</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="06-analytics-backtesting.html">Analytics</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="07-operations-control.html">Operations</a>
+    <div class="flex items-center gap-2 mt-2 px-4 py-2">
+      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
+      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ink Sepolia</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var btn=document.getElementById('mobileMenuBtn'),nav=document.getElementById('mobileNav'),icon=document.getElementById('mobileMenuIcon');
+  if(btn&&nav){btn.addEventListener('click',function(){var open=nav.classList.toggle('hidden');icon.textContent=open?'menu':'close';});}
+})();
+</script>
 <!-- Risk Sentinel Banner -->
 <div id="riskBanner" class="fixed top-14 left-0 right-0 z-40" style="transition:all 0.4s cubic-bezier(0.4,0,0.2,1)">
   <div class="flex items-center justify-between px-6 py-2 border-b" id="riskBannerInner" style="background:#00e67610;border-color:#00e67640">
@@ -545,6 +569,7 @@
 </div>
 </footer>
 <script type="module" src="wallet.js"></script>
+<script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
 <script>
@@ -610,21 +635,91 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Wire up Adjust buttons in positions table
+  // Wire up Adjust buttons in positions table to real adjustLeverage
   document.querySelectorAll('button').forEach(btn => {
     if (btn.textContent.trim() === 'Adjust') {
-      btn.addEventListener('click', () => {
-        XToast.show('Position adjustment panel coming soon', 'info', 2500);
+      btn.addEventListener('click', async () => {
+        const contracts = window.xLeverContracts;
+        if (!contracts || !contracts.ADDRESSES.vault) {
+          XToast.show('Vault not deployed — adjust is simulated', 'info', 2500);
+          return;
+        }
+        // Prompt for new leverage
+        const input = prompt('Enter new leverage (e.g. 2.0 for 2x long, -1.5 for 1.5x short):');
+        if (!input) return;
+        const newLev = parseFloat(input);
+        if (isNaN(newLev) || Math.abs(newLev) > 4) {
+          XToast.show('Invalid leverage: must be between -4.0 and 4.0', 'error');
+          return;
+        }
+        try {
+          XToast.show('Adjusting leverage...', 'info', 3000);
+          const result = await contracts.adjustLeverage(newLev);
+          XToast.show('Leverage adjusted — tx: ' + result.hash.slice(0, 10) + '...', 'success');
+        } catch (err) {
+          XToast.show('Adjust failed: ' + (err.shortMessage || err.message), 'error');
+        }
       });
     }
+  });
+
+  // Wire up asset ticker switches to set active asset in contracts adapter
+  const tickerMapping = { 'QQQx': 'QQQ', 'SPYx': 'SPY', 'AAPLx': 'AAPL', 'NVDAx': 'NVDA', 'TSLAx': 'TSLA' };
+  document.querySelectorAll('.bg-surface-container-high .rounded-sm').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sym = btn.textContent.trim();
+      const mapped = tickerMapping[sym] || 'QQQ';
+      if (window.xLeverContracts) window.xLeverContracts.setActiveAsset(mapped);
+    });
   });
 });
 </script>
 <script src="risk-engine.js"></script>
 <script>
-(function(){
+// Risk banner: try live Pyth data first, fall back to safe defaults
+(async function(){
   var SC = { NORMAL:'#00e676', WARNING:'#ffd740', RESTRICTED:'#ff9100', EMERGENCY:'#ff5252' };
-  var ev = RiskEngine.evaluate({ oracleAgeSec:12, oracleDivergence:0.002, drawdown:0.032, healthFactor:1.84, volatility:0.24, utilization:0.48 });
+
+  // Build risk inputs from live Pyth oracle data when available
+  var inputs = { oracleAgeSec:0, oracleDivergence:0, drawdown:0, healthFactor:2.0, volatility:0.20, utilization:0.45 };
+
+  try {
+    var pyth = window.xLeverPyth;
+    if (pyth) {
+      var data = await pyth.getAllPrices();
+      var qqq = data.prices.find(function(p){ return p.symbol === 'QQQ/USD'; });
+      var spy = data.prices.find(function(p){ return p.symbol === 'SPY/USD'; });
+      if (qqq) {
+        inputs.oracleAgeSec = pyth.oracleAge(qqq.publishTime);
+        // Confidence as a fraction of price ≈ rough volatility proxy
+        if (qqq.price > 0) inputs.volatility = Math.min((qqq.conf / qqq.price) * 50, 1.5);
+      }
+      if (qqq && spy) {
+        // Cross-feed divergence: compare QQQ/SPY ratio against historical ~0.45
+        var ratio = qqq.price / spy.price;
+        inputs.oracleDivergence = Math.abs(ratio - 0.45) / 0.45;
+      }
+    }
+  } catch(e) {
+    console.warn('Risk banner: Pyth fetch failed, using defaults', e);
+  }
+
+  // Read on-chain pool state if vault is deployed
+  try {
+    var contracts = window.xLeverContracts;
+    if (contracts && contracts.ADDRESSES.vault) {
+      var pool = await contracts.getPoolState();
+      if (pool) {
+        var fmt = contracts.formatPoolState(pool);
+        inputs.utilization = fmt.juniorRatio > 0 ? (1 - fmt.juniorRatio) : inputs.utilization;
+        inputs.healthFactor = fmt.state === 'Active' ? 2.0 : fmt.state === 'Stressed' ? 1.3 : fmt.state === 'Paused' ? 1.1 : 0.9;
+      }
+    }
+  } catch(e) {
+    console.warn('Risk banner: pool state fetch failed', e);
+  }
+
+  var ev = RiskEngine.evaluate(inputs);
   var c = SC[ev.state];
   document.getElementById('riskBannerInner').style.background = c+'10';
   document.getElementById('riskBannerInner').style.borderColor = c+'40';
@@ -632,8 +727,32 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bannerIcon').style.color = c;
   document.getElementById('bannerState').textContent = ev.state;
   document.getElementById('bannerState').style.color = c;
-  document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal';
+  document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal — Pyth oracle live';
   document.getElementById('bannerLevCap').textContent = 'Max Leverage: '+ev.leverageCap+'x';
+
+  // ─── PRD 4: Auto-disable trading controls in RESTRICTED/EMERGENCY ───
+  if (ev.state === 'RESTRICTED' || ev.state === 'EMERGENCY') {
+    var openBtn = document.getElementById('open-position-btn');
+    if (openBtn) {
+      openBtn.disabled = true;
+      openBtn.style.opacity = '0.4';
+      openBtn.style.pointerEvents = 'none';
+      openBtn.title = ev.state + ': new positions blocked — ' + (ev.reasons[0]?.reason || '');
+    }
+    // Disable adjust buttons
+    document.querySelectorAll('button').forEach(function(btn) {
+      if (btn.textContent.trim() === 'Adjust') {
+        btn.disabled = true;
+        btn.style.opacity = '0.4';
+        btn.title = ev.state + ': adjustments blocked';
+      }
+    });
+    // Clamp leverage slider to the risk engine's cap
+    if (window.XLeverage && ev.leverageCap < 4) {
+      // Restrict max available leverage
+      window.XLeverage._riskCap = ev.leverageCap;
+    }
+  }
 })();
 </script>
 </body></html>

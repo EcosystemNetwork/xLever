@@ -1,11 +1,48 @@
 import { createAppKit } from '@reown/appkit'
-import { mainnet, arbitrum } from '@reown/appkit/networks'
+import { mainnet } from '@reown/appkit/networks'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 
 // Get your own project ID at https://cloud.reown.com
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID || 'REPLACE_WITH_YOUR_PROJECT_ID'
 
-const networks = [mainnet, arbitrum]
+// xLever supported chains
+const inkSepolia = {
+  id: 763373,
+  name: 'Ink Sepolia',
+  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc-gel-sepolia.inkonchain.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Ink Explorer', url: 'https://explorer-sepolia.inkonchain.com' },
+  },
+}
+
+const solana = {
+  id: 'solana:mainnet',
+  name: 'Solana',
+  nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
+  rpcUrls: {
+    default: { http: ['https://api.mainnet-beta.solana.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Solscan', url: 'https://solscan.io' },
+  },
+}
+
+const ton = {
+  id: 'ton:mainnet',
+  name: 'TON',
+  nativeCurrency: { name: 'Toncoin', symbol: 'TON', decimals: 9 },
+  rpcUrls: {
+    default: { http: ['https://toncenter.com/api/v2/jsonRPC'] },
+  },
+  blockExplorers: {
+    default: { name: 'Tonscan', url: 'https://tonscan.org' },
+  },
+}
+
+const networks = [mainnet, inkSepolia, solana, ton]
 
 const wagmiAdapter = new WagmiAdapter({
   projectId,

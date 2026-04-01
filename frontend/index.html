@@ -7,11 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
-<script type="module">
-  import { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits } from 'https://esm.sh/viem@2.7.15';
-  import { mainnet } from 'https://esm.sh/viem@2.7.15/chains';
-  window.viem = { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits, mainnet };
-</script>
+<script type="module" src="viem-shim.js"></script>
 </head>
 <body>
 <div class="header">
@@ -37,6 +33,22 @@
     <a href="01-dashboard.html" style="background:#7c4dff;color:#fff;padding:6px 16px;border-radius:4px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.2s;">Launch App</a>
     <div class="protocol-tag">xLever Protocol</div>
     <span>Powered by Euler V2 EVK</span>
+  </div>
+</div>
+<!-- App Nav Strip -->
+<div style="background:#0a0b0e;border-bottom:1px solid #252833;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:36px;overflow-x:auto;gap:4px;">
+  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+    <a href="01-dashboard.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">Dashboard</a>
+    <a href="02-trading-terminal.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">Trading</a>
+    <a href="03-ai-agent-operations.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">AI Agents</a>
+    <a href="04-vault-management.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">Vaults</a>
+    <a href="05-risk-management.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">Risk</a>
+    <a href="06-analytics-backtesting.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">Analytics</a>
+    <a href="07-operations-control.html" style="color:#8b8fa3;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;text-decoration:none;white-space:nowrap;transition:color 0.2s;" onmouseover="this.style.color='#e3e2e6'" onmouseout="this.style.color='#8b8fa3'">Operations</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <div style="width:6px;height:6px;border-radius:50%;background:#00e676;"></div>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555970;text-transform:uppercase;letter-spacing:1.5px;">Ink Sepolia</span>
   </div>
 </div>
 <div class="main-layout">

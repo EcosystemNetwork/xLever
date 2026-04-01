@@ -21,6 +21,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: '/01-dashboard.html'
+    open: '/index.html',
+    proxy: {
+      // Forward /api/* to the Python data server
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      }
+    }
   }
 })

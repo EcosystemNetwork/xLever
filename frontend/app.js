@@ -100,10 +100,10 @@ function initWalletListeners() {
   modal.subscribeEvents(async (event) => {
     if (event?.data?.event === 'CONNECT_SUCCESS') {
       connectedAddress = modal.getAddress();
-      const { createPublicClient, http, mainnet } = window.viem;
+      const { createPublicClient, http, inkSepolia } = window.viem;
       publicClient = createPublicClient({
-        chain: mainnet,
-        transport: http('https://ink-sepolia.drpc.org')
+        chain: inkSepolia,
+        transport: http('https://rpc-gel-sepolia.inkonchain.com')
       });
       updateWalletUI();
       await fetchBalances();
@@ -126,10 +126,10 @@ function initWalletListeners() {
       connectedAddress = typeof modal.getAddress === 'function'
         ? modal.getAddress()
         : modal.getAddress?.();
-      const { createPublicClient, http, mainnet } = window.viem;
+      const { createPublicClient, http, inkSepolia } = window.viem;
       publicClient = createPublicClient({
-        chain: mainnet,
-        transport: http('https://ink-sepolia.drpc.org')
+        chain: inkSepolia,
+        transport: http('https://rpc-gel-sepolia.inkonchain.com')
       });
       updateWalletUI();
       fetchBalances();
@@ -186,8 +186,8 @@ async function fetchRealData(symbol, years) {
     const endDate = Math.floor(Date.now() / 1000);
     const startDate = endDate - (years * 365 * 24 * 60 * 60);
     
-    const API_BASE_URL = 'http://localhost:8000';
-    const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
+    // Relative URL — Vite dev server proxies /api/* to the Python backend
+    const url = `/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
     
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);

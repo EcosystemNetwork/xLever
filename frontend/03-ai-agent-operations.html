@@ -109,7 +109,7 @@ tailwind.config = {
     <div class="hidden md:flex gap-1 items-center">
       <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="01-dashboard.html">Dashboard</a>
       <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="02-trading-terminal.html">Trading</a>
-      <a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="03-ai-agent-operations.html">Smart Agent</a>
+      <a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="03-ai-agent-operations.html">AI Agents</a>
       <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="04-vault-management.html">Vaults</a>
       <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="05-risk-management.html">Risk</a>
       <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="06-analytics-backtesting.html">Analytics</a>
@@ -117,13 +117,37 @@ tailwind.config = {
     </div>
   </div>
   <div class="flex items-center gap-3">
-    <div class="flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
+    <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
       <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ethereum · Solana</span>
+      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeText">Ink Sepolia</span>
     </div>
     <appkit-button size="sm" />
+    <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
+      <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
+    </button>
   </div>
 </nav>
+<div id="mobileNav" class="md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden" style="transition:all 0.25s ease">
+  <div class="flex flex-col p-3 gap-1">
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="01-dashboard.html">Dashboard</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="02-trading-terminal.html">Trading</a>
+    <a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="03-ai-agent-operations.html">AI Agents</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="04-vault-management.html">Vaults</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="05-risk-management.html">Risk</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="06-analytics-backtesting.html">Analytics</a>
+    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="07-operations-control.html">Operations</a>
+    <div class="flex items-center gap-2 mt-2 px-4 py-2">
+      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
+      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ink Sepolia</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var btn=document.getElementById('mobileMenuBtn'),nav=document.getElementById('mobileNav'),icon=document.getElementById('mobileMenuIcon');
+  if(btn&&nav){btn.addEventListener('click',function(){var open=nav.classList.toggle('hidden');icon.textContent=open?'menu':'close';});}
+})();
+</script>
 
 <main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
 
@@ -494,6 +518,8 @@ tailwind.config = {
   </div>
 </footer>
 
+<script src="risk-engine.js"></script>
+<script src="agent-executor.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SMART AGENT — xLever Automation Layer
@@ -591,7 +617,14 @@ function activatePolicy(mode) {
   // Hide config, show active policy
   document.getElementById('configPanel').classList.add('hidden');
   showActivePolicy(policy);
-  startSimulation(policy);
+
+  // Start real agent executor (replaces simulation)
+  AgentExecutor.start(policy, {
+    log: logAction,
+    onStats: (s) => { STATE.actions = s.actions; updateStats(); },
+    dryRun: true, // default to dry-run; live mode when wallet connected
+    intervalMs: 15000,
+  });
 
   logAction('SYSTEM', `Policy activated: ${getModeLabel(mode)}`, 'primary');
   if (typeof XToast !== 'undefined') XToast.show(`AI Agent activated: ${getModeLabel(mode)}`, 'success');
@@ -679,113 +712,11 @@ function showActivePolicy(policy) {
 }
 
 // ──────────────────────────────────────────────────
-// SIMULATION ENGINE
+// AGENT EXECUTOR (real decision loop — replaces simulation)
+// Agent executor is loaded via agent-executor.js module.
+// The startSimulation/buildSimActions/executeSimAction functions
+// have been replaced by AgentExecutor.start() in activatePolicy().
 // ──────────────────────────────────────────────────
-
-function startSimulation(policy) {
-  if (STATE.simInterval) clearInterval(STATE.simInterval);
-
-  // Run simulated actions based on policy mode
-  const actions = buildSimActions(policy);
-  let idx = 0;
-
-  // First action quickly
-  setTimeout(() => {
-    if (STATE.activeMode && !STATE.paused && idx < actions.length) {
-      executeSimAction(actions[idx]);
-      idx++;
-    }
-  }, 2000);
-
-  STATE.simInterval = setInterval(() => {
-    if (!STATE.activeMode || STATE.paused) return;
-    if (idx < actions.length) {
-      executeSimAction(actions[idx]);
-      idx++;
-    } else {
-      // Loop back with variations
-      idx = 0;
-    }
-    updateStats();
-  }, 5000 + Math.random() * 4000);
-}
-
-function buildSimActions(policy) {
-  if (policy.mode === 'safe') {
-    return [
-      { type: 'check', msg: 'Monitoring QQQx volatility... Daily move: 1.2%. Within threshold.', src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'check', msg: 'Checking drawdown... Current: -1.8%. Safe.', src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'check', msg: 'Monitoring QQQx volatility... Daily move: 3.4%. Within threshold.', src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'alert', msg: `Volatility spike detected! Daily move: ${policy.volTrigger + 1.2}%. Exceeds ${policy.volTrigger}% trigger.`, src: 'WATCHER', color: 'yellow-500' },
-      { type: 'action', msg: `De-leveraging position: 2.0× → ${policy.deleverageTarget}×. Reason: volatility threshold breached.`, src: 'EXECUTOR', color: 'secondary', pnl: -45, lev: policy.deleverageTarget },
-      { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0x8f2a...c41d', src: 'SYSTEM', color: 'primary' },
-      { type: 'confirm', msg: `Position de-leveraged to ${policy.deleverageTarget}×. Saved an estimated $312 in potential losses.`, src: 'AGENT', color: 'secondary' },
-      { type: 'check', msg: 'Volatility subsiding... Daily move: 2.1%. Below trigger.', src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'check', msg: 'Volatility normalized for 24h. Eligible for re-entry.', src: 'WATCHER', color: 'on-surface-variant' },
-      ...(policy.autoReentry ? [
-        { type: 'action', msg: `Re-entering position: ${policy.deleverageTarget}× → 2.0×. Reason: volatility normalized.`, src: 'EXECUTOR', color: 'secondary', pnl: 0, lev: 2.0 },
-        { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0xa3b1...7e2f', src: 'SYSTEM', color: 'primary' },
-        { type: 'confirm', msg: 'Position restored to 2.0× leverage. Safe Mode continues monitoring.', src: 'AGENT', color: 'secondary' },
-      ] : []),
-    ];
-  } else if (policy.mode === 'target') {
-    const lo = (policy.targetLev - policy.band).toFixed(2);
-    const hi = (policy.targetLev + policy.band).toFixed(2);
-    return [
-      { type: 'check', msg: `Leverage check: current 2.0×. Within band [${lo}× – ${hi}×]. No action.`, src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'check', msg: `Leverage check: current 1.92×. Within band. No action.`, src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'alert', msg: `Leverage drift detected: ${(policy.targetLev - policy.band - 0.15).toFixed(2)}×. Below ${lo}× floor.`, src: 'WATCHER', color: 'yellow-500' },
-      { type: 'action', msg: `Rebalancing: ${(policy.targetLev - policy.band - 0.15).toFixed(2)}× → ${policy.targetLev}×. Adding leveraged collateral.`, src: 'EXECUTOR', color: 'secondary', pnl: -12, lev: policy.targetLev },
-      { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0x1d4e...9a3c', src: 'SYSTEM', color: 'primary' },
-      { type: 'confirm', msg: `Rebalanced to ${policy.targetLev}× target. Position size adjusted by ${(Math.random() * policy.maxRebalSize).toFixed(1)}%.`, src: 'AGENT', color: 'secondary' },
-      { type: 'check', msg: `Leverage check: current ${policy.targetLev}×. On target. No action.`, src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'alert', msg: `Leverage drift detected: ${(policy.targetLev + policy.band + 0.1).toFixed(2)}×. Above ${hi}× ceiling.`, src: 'WATCHER', color: 'yellow-500' },
-      { type: 'action', msg: `Rebalancing: ${(policy.targetLev + policy.band + 0.1).toFixed(2)}× → ${policy.targetLev}×. Reducing excess leverage.`, src: 'EXECUTOR', color: 'secondary', pnl: 28, lev: policy.targetLev },
-      { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0x5c7b...2d1a', src: 'SYSTEM', color: 'primary' },
-      { type: 'confirm', msg: `Rebalanced to ${policy.targetLev}× target. Excess leverage trimmed.`, src: 'AGENT', color: 'secondary' },
-    ];
-  } else {
-    return [
-      { type: 'check', msg: `Next DCA buy scheduled. Waiting for ${policy.interval} interval...`, src: 'SCHEDULER', color: 'on-surface-variant' },
-      { type: 'action', msg: `DCA buy triggered: $${policy.buyAmount} USDC → QQQx at ${policy.leverage}× leverage.`, src: 'EXECUTOR', color: 'secondary', pnl: 0, lev: policy.leverage },
-      { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0x7e9f...3b4a', src: 'SYSTEM', color: 'primary' },
-      { type: 'confirm', msg: `Bought $${policy.buyAmount} QQQx at ${policy.leverage}× ($${(policy.buyAmount * policy.leverage).toLocaleString()} effective exposure). Avg entry: $487.23.`, src: 'AGENT', color: 'secondary' },
-      { type: 'check', msg: 'Monitoring position profit for take-profit trigger...', src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'check', msg: 'Current unrealized gain: +8.2%. Below profit-take threshold.', src: 'WATCHER', color: 'on-surface-variant' },
-      { type: 'check', msg: `Next DCA buy scheduled. Waiting for ${policy.interval} interval...`, src: 'SCHEDULER', color: 'on-surface-variant' },
-      { type: 'action', msg: `DCA buy triggered: $${policy.buyAmount} USDC → QQQx at ${policy.leverage}× leverage.`, src: 'EXECUTOR', color: 'secondary', pnl: 0, lev: policy.leverage },
-      { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0xb2c8...6e5d', src: 'SYSTEM', color: 'primary' },
-      { type: 'confirm', msg: `Bought $${policy.buyAmount} QQQx at ${policy.leverage}×. Total accumulated: $${(policy.buyAmount * 3).toLocaleString()}.`, src: 'AGENT', color: 'secondary' },
-      ...(policy.profitTake ? [
-        { type: 'alert', msg: `Unrealized gain: +${policy.profitThreshold + 2.3}%. Exceeds ${policy.profitThreshold}% profit-take threshold!`, src: 'WATCHER', color: 'yellow-500' },
-        { type: 'action', msg: `Taking profit: selling 50% of position. Locking in +${policy.profitThreshold + 2.3}% gains.`, src: 'EXECUTOR', color: 'secondary', pnl: 847 },
-        { type: 'tx', msg: 'Transaction submitted to Euler V2. Hash: 0xd4a1...8f7c', src: 'SYSTEM', color: 'primary' },
-        { type: 'confirm', msg: 'Profit taken. $847 USDC returned to vault. Remaining position continues accumulating.', src: 'AGENT', color: 'secondary' },
-      ] : []),
-    ];
-  }
-}
-
-function executeSimAction(action) {
-  if (action.pnl !== undefined) {
-    STATE.pnl += action.pnl;
-    STATE.actions++;
-  }
-  if (action.lev !== undefined) {
-    STATE.currentLeverage = action.lev;
-    document.getElementById('currentLevDisplay').textContent = `${action.lev}×`;
-  }
-
-  const colorMap = {
-    'primary': 'text-primary',
-    'secondary': 'text-secondary',
-    'yellow-500': 'text-yellow-500',
-    'error': 'text-error',
-    'on-surface-variant': 'text-on-surface-variant opacity-60',
-  };
-
-  logAction(action.src, action.msg, action.color);
-}
 
 // ──────────────────────────────────────────────────
 // EXECUTION LOG
@@ -824,21 +755,15 @@ function clearLog() {
 // ──────────────────────────────────────────────────
 
 function pausePolicy() {
-  STATE.paused = !STATE.paused;
-  document.getElementById('pauseLabel').textContent = STATE.paused ? 'Resume' : 'Pause';
-  document.getElementById('policyStatus').textContent = STATE.paused ? 'Paused' : 'Running';
-  document.getElementById('policyStatus').className = `font-mono text-[10px] font-bold uppercase ${STATE.paused ? 'text-yellow-500' : 'text-secondary'}`;
-
-  if (STATE.paused) {
-    logAction('USER', 'Agent paused by user.', 'yellow-500');
-  } else {
-    logAction('USER', 'Agent resumed by user.', 'secondary');
-  }
+  const paused = AgentExecutor.pause();
+  STATE.paused = paused;
+  document.getElementById('pauseLabel').textContent = paused ? 'Resume' : 'Pause';
+  document.getElementById('policyStatus').textContent = paused ? 'Paused' : 'Running';
+  document.getElementById('policyStatus').className = `font-mono text-[10px] font-bold uppercase ${paused ? 'text-yellow-500' : 'text-secondary'}`;
 }
 
 function deactivatePolicy() {
-  if (STATE.simInterval) clearInterval(STATE.simInterval);
-  STATE.simInterval = null;
+  AgentExecutor.stop();
 
   logAction('USER', `Policy deactivated: ${getModeLabel(STATE.activeMode)}`, 'error');
   if (typeof XToast !== 'undefined') XToast.show('AI Agent deactivated', 'warning');
@@ -858,8 +783,7 @@ function reconfigurePolicy() {
 }
 
 function emergencyStop() {
-  if (STATE.simInterval) clearInterval(STATE.simInterval);
-  STATE.simInterval = null;
+  AgentExecutor.stop();
 
   logAction('OVERRIDE', 'Emergency override activated. All agent actions halted immediately.', 'error');
   if (typeof XToast !== 'undefined') XToast.show('EMERGENCY STOP: All agent actions halted', 'error', 6000);
@@ -922,6 +846,8 @@ document.getElementById('masterLabel').className = 'font-mono text-[11px] font-b
 </script>
 
 <script type="module" src="wallet.js"></script>
+<script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
+<script type="module" src="openbb.js"></script>
 <script src="ux.js"></script>
 </body></html>

@@ -1,6 +1,6 @@
 {
   "project": "xLever",
-  "version": "0.1.0-hackathon",
+  "version": "0.2.0-hackathon",
   "description": "Leveraged Tokenized Asset Protocol — continuous -4x to +4x leverage on tokenized assets via Euler V2 EVK",
   "repository": "https://github.com/madschristensen99/xLever",
   "team": ["Mads", "Eric", "Maroua"],
@@ -8,83 +8,98 @@
   "components": {
     "frontend": {
       "status": "live",
-      "type": "static",
+      "type": "vite_spa",
       "entry": "frontend/index.html",
       "screens": 8,
-      "build_required": false,
-      "dependencies": ["TradingView Lightweight Charts v4.1.3 (CDN)", "Tailwind CSS (CDN)"]
+      "build_required": true,
+      "dev_command": "npm run dev",
+      "build_command": "npm run build",
+      "dependencies": ["viem", "@reown/appkit", "wagmi", "TradingView Lightweight Charts (CDN)", "Tailwind CSS (CDN)"]
+    },
+    "wallet": {
+      "status": "live",
+      "provider": "Reown AppKit",
+      "chains": ["Ethereum Mainnet", "Ink Sepolia (763373)", "Solana", "TON"],
+      "contract_chain": "Ink Sepolia (763373)",
+      "rpc": "https://rpc-gel-sepolia.inkonchain.com"
     },
     "data_server": {
       "status": "live",
       "type": "python_http",
       "entry": "server/server.py",
       "port": 8000,
+      "proxied_via": "Vite dev server (/api/*)",
       "endpoints": [
         {
           "path": "/api/yahoo/{symbol}",
           "method": "GET",
-          "description": "Yahoo Finance proxy — returns historical OHLCV data"
+          "description": "Market data proxy — returns historical OHLCV data"
         }
       ],
       "dependencies": ["Python 3"]
+    },
+    "smart_contracts": {
+      "status": "deployed",
+      "network": "Ink Sepolia (763373)",
+      "addresses": {
+        "evc": "0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c",
+        "qqqVault": "0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6",
+        "spyVault": "0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228",
+        "usdc": "0x6b57475467cd854d36Be7FB614caDa5207838943",
+        "wQQQx": "0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9",
+        "wSPYx": "0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e",
+        "pyth": "0x2880aB155794e7179c9eE2e38200202908C17B43",
+        "pythAdapter": "0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f"
+      },
+      "contracts": ["Vault", "VaultFactory", "PythOracleAdapter"]
+    },
+    "oracle": {
+      "status": "live",
+      "provider": "Pyth Network (Hermes pull-oracle)",
+      "feeds": ["QQQ/USD", "SPY/USD", "AAPL/USD", "NVDA/USD", "TSLA/USD", "ETH/USD"],
+      "adapter": "PythOracleAdapter on Ink Sepolia"
+    },
+    "intelligence": {
+      "status": "live",
+      "provider": "OpenBB Platform",
+      "capabilities": ["Market snapshots", "Options context", "Agent REST/MCP tooling"]
+    },
+    "risk_engine": {
+      "status": "live",
+      "type": "client_side_js",
+      "entry": "frontend/risk-engine.js",
+      "states": ["NORMAL", "WARNING", "RESTRICTED", "EMERGENCY"],
+      "features": ["Live oracle staleness check", "Auto-deleverage cascade", "Position health monitoring"]
+    },
+    "ai_agent": {
+      "status": "live",
+      "description": "Bounded policy-based executor with real transaction capabilities",
+      "modes": ["Safe (monitor-only)", "Target Exposure", "Accumulation"],
+      "integrations": ["OpenBB (market context)", "Pyth (execution gating)", "Vault contracts (tx execution)"]
     },
     "backtesting_engine": {
       "status": "live",
       "type": "client_side_js",
       "entry": "frontend/app.js",
-      "description": "LTAP fixed-entry leverage simulation with real market data",
-      "features": [
-        "Fixed-entry vs daily-reset leverage comparison",
-        "Real Yahoo Finance data (QQQ, SPY)",
-        "25-year historical backtesting",
-        "Click-to-invest from backtest results",
-        "localStorage caching (24h TTL)"
-      ]
-    },
-    "smart_contracts": {
-      "status": "designed_not_deployed",
-      "network": null,
-      "addresses": {},
-      "architecture_doc": "protocol.md",
-      "planned_contracts": [
-        "VaultFactory",
-        "Vault",
-        "PositionModule",
-        "FeeEngine",
-        "EulerHedgingModule",
-        "RiskModule",
-        "TWAPOracle",
-        "EVCBatchManager"
-      ],
-      "planned_network": "ethereum_testnet",
-      "planned_dependencies": ["Euler V2 EVK", "EVC", "Pyth Network"]
-    },
-    "ai_agent": {
-      "status": "partial",
-      "description": "UI operational, Perplexity API integrated, autonomous execution simulated",
-      "integrations": ["Perplexity API"]
+      "description": "LTAP fixed-entry leverage simulation with real market data"
     }
   },
 
   "verification": {
     "what_is_real": [
-      "7-screen frontend with Bloomberg Terminal UI",
-      "Backtesting engine with real Yahoo Finance data",
-      "TradingView charts with live QQQ/SPY data",
-      "Python data proxy server",
+      "8-screen frontend with Bloomberg Terminal UI (Vite-bundled)",
+      "Wallet connection via Reown AppKit on Ink Sepolia",
+      "Deployed contracts: Vault, VaultFactory, PythOracleAdapter",
+      "Live Pyth Hermes oracle integration (6 price feeds)",
+      "Deterministic risk sentinel engine with 4 states",
+      "Backtesting engine with real market data",
+      "OpenBB-powered market intelligence layer",
+      "Bounded agent executor with real tx capabilities",
       "80KB protocol architecture document"
     ],
     "what_is_simulated": [
-      "AI agent autonomous trading execution",
-      "Dashboard portfolio values and PnL",
-      "Vault deposit/withdraw transactions",
-      "Risk management alerts and triggers"
-    ],
-    "what_is_not_implemented": [
-      "Smart contract deployment",
-      "Web3 wallet connection",
-      "On-chain transactions",
-      "Pyth oracle integration"
+      "Dashboard portfolio values use demo data until positions are opened",
+      "Trading terminal order book is illustrative"
     ]
   },
 
@@ -98,12 +113,14 @@
   },
 
   "setup": {
-    "prerequisites": ["Python 3"],
+    "prerequisites": ["Node.js 18+", "Python 3"],
     "steps": [
-      "cd server && python3 server.py",
-      "Open frontend/index.html in browser"
+      "npm install",
+      "cd server && python3 server.py &",
+      "npm run dev"
     ],
-    "build_required": false,
-    "estimated_setup_time": "30 seconds"
+    "build_required": true,
+    "dev_url": "http://localhost:3000",
+    "estimated_setup_time": "60 seconds"
   }
 }

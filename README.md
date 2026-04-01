@@ -10,34 +10,40 @@ Continuous leverage from **-4x to +4x** on tokenized assets, built on **Euler V2
 
 **Time to verify: ~2 minutes**
 
-### 1. Run the frontend (30 seconds)
+### 1. Run the app (30 seconds)
 
 ```bash
-# Start the data proxy server
-cd server && python3 server.py &
+# Install dependencies (first time only)
+npm install
 
-# Open the landing page
-open frontend/index.html
-# Or: python3 -m http.server 8080 --directory frontend
+# Start the data server (background)
+cd server && python3 server.py &
+cd ..
+
+# Start the frontend dev server
+npm run dev
+# → opens http://localhost:3000
 ```
 
 ### 2. Demo path (90 seconds)
 
 | Step | Screen | What to verify |
 |------|--------|----------------|
-| 1 | [Landing page](frontend/index.html) | Protocol overview, feature cards |
-| 2 | [Dashboard](frontend/01-dashboard.html) | Portfolio PnL, asset allocation, protocol health metrics |
-| 3 | [Trading Terminal](frontend/02-trading-terminal.html) | Real chart data (QQQ/SPY), -4x to +4x leverage slider, order entry |
-| 4 | [Backtesting](frontend/06-analytics-backtesting.html) | **Key demo**: Run backtest with real Yahoo Finance data. Compare LTAP fixed-entry vs daily-reset leverage. Click any backtest result to "invest" |
-| 5 | [Vault Management](frontend/04-vault-management.html) | Senior/Junior tranche deposit UI, Euler V2 vault visualization |
-| 6 | [Risk Management](frontend/05-risk-management.html) | Correlation matrix, drawdown analysis, auto-deleverage triggers |
-| 7 | [AI Agent Ops](frontend/03-ai-agent-operations.html) | AI agent control panel, strategy configuration, Perplexity API integration |
-| 8 | [Operations Control](frontend/07-operations-control.html) | System health, transaction tracking, gas optimization |
+| 1 | Landing page | Protocol overview, connect wallet (4 chains supported) |
+| 2 | Dashboard | Portfolio PnL, asset allocation, Pyth oracle status |
+| 3 | Trading Terminal | Real chart data (QQQ/SPY), -4x to +4x leverage slider, order entry |
+| 4 | Backtesting | **Key demo**: Run backtest with real market data. Compare LTAP fixed-entry vs daily-reset leverage |
+| 5 | Vault Management | Senior/Junior tranche deposit UI, Euler V2 vault visualization |
+| 6 | Risk Management | Risk sentinel live state, auto-deleverage triggers, oracle health |
+| 7 | AI Agent Ops | Smart agent control panel, bounded policy execution |
+| 8 | Operations Control | System health, transaction tracking |
 
 ### 3. Key technical proof
 
 - **Backtesting engine** ([frontend/app.js](frontend/app.js)): 1,100+ lines implementing the full LTAP leverage simulation — fixed-entry vs daily-reset comparison using real market data
-- **Real data**: Yahoo Finance API via local proxy, 25 years of daily OHLCV for QQQ and SPY
+- **Pyth oracle integration** ([frontend/pyth.js](frontend/pyth.js)): Live Hermes client fetching price update data for on-chain pull-oracle transactions
+- **Contract adapter** ([frontend/contracts.js](frontend/contracts.js)): viem-based interface for deployed Vault + ERC-20 + Pyth adapter contracts on Ink Sepolia
+- **Risk engine** ([frontend/risk-engine.js](frontend/risk-engine.js)): Deterministic 4-state risk sentinel with auto-deleverage policy
 - **Protocol design**: 80KB architecture document covering vault mechanics, fee engine, circuit breakers, and Euler V2 integration ([protocol.md](protocol.md))
 
 ---
@@ -46,16 +52,16 @@ open frontend/index.html
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Frontend (7 screens) | **Live** | Fully functional UI with Bloomberg Terminal aesthetic |
-| Backtesting engine | **Live** | Real Yahoo Finance data, LTAP fixed-entry leverage simulation, click-to-invest |
+| Frontend (8 screens) | **Live** | Vite-bundled, Bloomberg Terminal aesthetic |
+| Wallet connection | **Live** | Reown AppKit — Ethereum, Ink Sepolia, Solana, TON |
+| Smart contracts | **Deployed** | Vault, VaultFactory, PythOracleAdapter on Ink Sepolia |
+| Pyth oracle | **Live** | Hermes price feeds for QQQ, SPY, AAPL, NVDA, TSLA |
+| Risk engine | **Live** | Deterministic 4-state sentinel with live oracle/position inputs |
+| Backtesting engine | **Live** | Real market data, LTAP fixed-entry leverage simulation |
 | Trading charts | **Live** | TradingView Lightweight Charts with real QQQ/SPY data |
-| Data server | **Live** | Python proxy serving Yahoo Finance API with 24h localStorage cache |
-| Protocol architecture | **Designed** | Complete in [protocol.md](protocol.md) — vault hierarchy, fee engine, risk model, oracle integration |
-| Smart contracts | **Designed, not deployed** | Euler V2 EVK architecture fully specified, Solidity not yet written |
-| Euler V2 integration | **Designed** | EVC batch manager, atomic looping, sub-accounts — architecture complete |
-| AI agent trading | **Simulated** | UI operational, Perplexity API integrated for market intelligence, autonomous execution simulated |
-| Wallet connection | **Not implemented** | No Web3 wallet integration yet |
-| On-chain transactions | **Not implemented** | No testnet/mainnet deployment |
+| Data server | **Live** | Python proxy serving market data with caching |
+| OpenBB intelligence | **Live** | Market snapshots, options context, agent tooling |
+| AI agent trading | **Bounded** | Policy-based executor with real tx capabilities |
 
 ---
 
@@ -66,16 +72,16 @@ User Layer
   Senior Users (-4x to +4x leverage)  ←→  Junior LPs (first-loss buffer)
          │                                        │
          ▼                                        ▼
-Core Protocol (Vault)
+Core Protocol (Vault on Ink Sepolia)
   Position Manager  │  Exposure Aggregator  │  Fee Engine
          │
          ▼
-Hedging Engine
-  Euler V2 Vault Interface  │  EVC Batch Manager  │  Rebalance Logic
+Oracle + Intelligence
+  Pyth (on-chain execution oracle)  │  OpenBB (off-chain analytics/agent context)
          │
          ▼
 External
-  Pyth Oracle (15-min TWAP)  │  Euler V2 Markets  │  xStocks (xQQQ)
+  Euler V2 Markets  │  xStocks (wQQQx, wSPYx)
 ```
 
 **How it works:**
@@ -93,12 +99,13 @@ External
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Vanilla HTML/JS/CSS, TradingView Charts, Tailwind CSS |
-| Data | Yahoo Finance API (real), localStorage caching |
-| Server | Python HTTP server (data proxy) |
-| Contracts (planned) | Solidity, Euler V2 EVK + EVC |
-| Oracle (planned) | Pyth Network (15-min TWAP) |
-| AI Agent | Perplexity API for market intelligence |
+| Frontend | Vite + Vanilla JS/CSS, TradingView Charts, Tailwind CSS |
+| Wallet | Reown AppKit (Ethereum, Ink Sepolia, Solana, TON) |
+| Contracts | Solidity, Euler V2 EVK + EVC, deployed on Ink Sepolia |
+| Oracle | Pyth Network (Hermes pull-oracle) |
+| Intelligence | OpenBB Platform (market data, options, agent context) |
+| Data | Market data proxy with caching |
+| Risk | Deterministic 4-state sentinel engine |
 
 ---
 
@@ -110,33 +117,64 @@ xLever/
 │   ├── index.html              # Landing page
 │   ├── 01-dashboard.html       # Portfolio command center
 │   ├── 02-trading-terminal.html # Trading + charting
-│   ├── 03-ai-agent-operations.html # AI agent control
+│   ├── 03-ai-agent-operations.html # Smart agent control
 │   ├── 04-vault-management.html # Euler V2 vault UI
-│   ├── 05-risk-management.html # Risk analysis
+│   ├── 05-risk-management.html # Risk sentinel
 │   ├── 06-analytics-backtesting.html # Backtesting engine
 │   ├── 07-operations-control.html # System operations
-│   ├── app.js                  # Core LTAP simulation engine
-│   └── styles.css              # Bloomberg Terminal theme
+│   ├── wallet.js               # Reown AppKit (4-chain wallet)
+│   ├── contracts.js            # viem contract adapter
+│   ├── pyth.js                 # Pyth Hermes client
+│   ├── risk-engine.js          # Risk sentinel engine
+│   ├── openbb.js               # OpenBB intelligence service
+│   ├── app.js                  # LTAP backtesting engine
+│   └── ux.js                   # UX layer (toasts, modals)
+├── contracts/
+│   └── src/xLever/             # Solidity contracts
 ├── server/
-│   └── server.py               # Yahoo Finance data proxy
+│   ├── server.py               # Data proxy server
+│   └── api/                    # API routes
 ├── protocol.md                 # Full protocol architecture (80KB)
-├── hackPlan.md                 # Team plan & workstreams
 └── README.md                   # You are here
 ```
 
 ---
 
-## Deployment Manifest
+## Deployed Contracts (Ink Sepolia)
 
-See [deployment.json](deployment.json) for the machine-readable deployment manifest.
+| Contract | Address |
+|----------|---------|
+| EVC | `0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c` |
+| QQQ Vault | `0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6` |
+| SPY Vault | `0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228` |
+| USDC | `0x6b57475467cd854d36Be7FB614caDa5207838943` |
+| wQQQx | `0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9` |
+| wSPYx | `0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e` |
+| Pyth | `0x2880aB155794e7179c9eE2e38200202908C17B43` |
+| PythAdapter | `0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f` |
 
-| Item | Value |
-|------|-------|
-| Network | Not yet deployed (Ethereum testnet planned) |
-| Frontend | Static files, no build step required |
-| Data server | `localhost:8000` (Python) |
-| Contracts | Architecture complete, deployment pending |
-| Repository | [github.com/madschristensen99/xLever](https://github.com/madschristensen99/xLever) |
+---
+
+## Run Locally
+
+```bash
+# Prerequisites: Node.js 18+, Python 3
+
+# 1. Install dependencies
+npm install
+
+# 2. Start data server
+cd server && python3 server.py &
+cd ..
+
+# 3. Start dev server
+npm run dev
+# → http://localhost:3000
+
+# 4. Build for production
+npm run build
+# → output in dist/
+```
 
 ---
 
@@ -157,24 +195,6 @@ All AI-generated code has been reviewed and integrated by team members. The prot
 - **Mads** — Euler V2 EVK integration & smart contract deployment
 - **Eric** — AI agent architecture & trading logic
 - **Maroua** — AI agent, demo video, UI/UX
-
----
-
-## Run Locally
-
-```bash
-# 1. Start data server
-cd server
-python3 server.py
-# Server runs on http://localhost:8000
-
-# 2. Open frontend
-# Option A: Open frontend/index.html directly in browser
-# Option B: Serve with any static server
-python3 -m http.server 8080 --directory frontend
-```
-
-No build step. No npm install. No dependencies beyond Python 3.
 
 ---
 
