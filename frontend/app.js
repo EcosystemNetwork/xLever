@@ -195,14 +195,17 @@ let dataLoading = true;
 let currentTicker = 'QQQ';
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
 let entryDateIndex = 0;
-const MIN_LEV = -4.0, MAX_LEV = 4.0;
+let isDegenMode = false;
+let MIN_LEV = -4.0, MAX_LEV = 4.0;
+const NORMAL_MIN = -4.0, NORMAL_MAX = 4.0;
+const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0;
 
 async function fetchRealData(symbol, years) {
   try {
     const endDate = Math.floor(Date.now() / 1000);
     const startDate = endDate - (years * 365 * 24 * 60 * 60);
     
-    const API_BASE_URL = 'http://localhost:8000';
+    const API_BASE_URL = 'https://api.wrapsynth.com';
     const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
     
     const resp = await fetch(url);
@@ -986,9 +989,10 @@ function updateAll() {
       markers.push({
         time: levResult.liqTime,
         position: 'belowBar',
-        color: '#ff5252',
-        shape: 'arrowDown',
-        text: 'LIQUIDATED'
+        color: '#ff0000',
+        shape: 'circle',
+        text: '💀 LIQUIDATED 💀',
+        size: 3
       });
     }
 
@@ -1031,30 +1035,38 @@ function updateAll() {
   const overlayPriceEl = document.getElementById('overlayPrice');
   if (levResult.liquidated) {
     overlayPriceEl.textContent = '$0.00';
-    overlayPriceEl.style.color = '#ff5252';
+    overlayPriceEl.style.color = '#ff0000';
+    overlayPriceEl.style.fontWeight = '900';
+    overlayPriceEl.style.textShadow = '0 0 10px #ff0000';
+    
     let liqBadge = document.getElementById('liqBadge');
     if (!liqBadge) {
       liqBadge = document.createElement('div');
       liqBadge.id = 'liqBadge';
       liqBadge.style.cssText = `
         display:inline-block;
-        background:#ff525233;
-        border:1px solid #ff5252;
-        color:#ff5252;
+        background:#ff0000;
+        border:2px solid #ff0000;
+        color:#000;
         font-family:'JetBrains Mono',monospace;
-        font-size:11px;
-        padding:2px 8px;
-        border-radius:4px;
-        margin-top:4px;
-        letter-spacing:0.5px;
+        font-size:13px;
+        font-weight:900;
+        padding:6px 12px;
+        border-radius:6px;
+        margin-top:8px;
+        letter-spacing:1px;
+        box-shadow: 0 0 20px #ff0000;
+        animation: liquidation-pulse 1s ease-in-out infinite;
       `;
       overlayPriceEl.parentNode.insertBefore(liqBadge, overlayPriceEl.nextSibling);
     }
-    liqBadge.textContent = `LIQUIDATED ${levResult.liqTime}`;
+    liqBadge.textContent = `💀 LIQUIDATED ${levResult.liqTime}`;
     liqBadge.style.display = 'inline-block';
   } else {
     overlayPriceEl.textContent = '$' + finalVal.toFixed(2);
     overlayPriceEl.style.color = '';
+    overlayPriceEl.style.fontWeight = '';
+    overlayPriceEl.style.textShadow = '';
     const liqBadge = document.getElementById('liqBadge');
     if (liqBadge) liqBadge.style.display = 'none';
   }
@@ -1218,8 +1230,26 @@ function updateAll() {
   document.getElementById('bufferReq').textContent = `Buffer: ${(requiredBuffer * 100).toFixed(0)}% junior ratio required`;
   
   if (levResult.stats) {
-    document.getElementById('statDelevEvents').textContent = levResult.stats.totalDeleverageEvents;
-    document.getElementById('statReducedDays').textContent = levResult.stats.timeAtReducedLeverage;
+    const delevEl = document.getElementById('statDelevEvents');
+    delevEl.textContent = levResult.stats.totalDeleverageEvents;
+    if (levResult.liquidated) {
+      delevEl.style.color = '#ff0000';
+      delevEl.style.fontWeight = '900';
+    } else {
+      delevEl.style.color = '';
+      delevEl.style.fontWeight = '';
+    }
+    
+    const reducedEl = document.getElementById('statReducedDays');
+    reducedEl.textContent = levResult.stats.timeAtReducedLeverage;
+    if (levResult.liquidated) {
+      reducedEl.textContent = '💀 LIQUIDATED';
+      reducedEl.style.color = '#ff0000';
+      reducedEl.style.fontWeight = '900';
+    } else {
+      reducedEl.style.color = '';
+      reducedEl.style.fontWeight = '';
+    }
   } else {
     document.getElementById('statDelevEvents').textContent = '0';
     document.getElementById('statReducedDays').textContent = '0';
@@ -1238,7 +1268,11 @@ const mobileSliderThumb = document.getElementById('mobileSliderThumb');
 const mobileSliderFill = document.getElementById('mobileSliderFill');
 
 function snapLeverage(raw) {
-  return Math.round(raw * 4) / 4;
+  if (isDegenMode) {
+    return Math.round(raw);
+  } else {
+    return Math.round(raw * 4) / 4;
+  }
 }
 
 function setSliderPos(lev) {
@@ -1277,64 +1311,66 @@ function setSliderPos(lev) {
   document.getElementById('mobileLevDisplay').textContent = (lev < 0 ? '-' : '') + displayLev + '×';
 }
 
-function levFromEvent(e) {
-  const rect = sliderTrack.getBoundingClientRect();
-  const x = (e.clientX || e.touches[0].clientX) - rect.left;
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-  return snapLeverage(raw);
+let isDragging = false;
+let currentSlider = null;
+
+function handleSliderStart(slider, clientX) {
+  isDragging = true;
+  currentSlider = slider;
+  updateLeverageFromPosition(slider, clientX);
 }
 
-let activeSlider = null;
-
-function setupSlider(track, isDesktop = true) {
-  function levFromSliderEvent(e) {
-    const rect = track.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)) - rect.left;
-    const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-    return snapLeverage(raw);
-  }
-
-  track.addEventListener('mousedown', e => {
-    activeSlider = track;
-    currentLeverage = levFromSliderEvent(e);
-    setSliderPos(currentLeverage);
-    updateAll();
-  });
-
-  track.addEventListener('touchstart', e => {
-    activeSlider = track;
-    currentLeverage = levFromSliderEvent(e);
-    setSliderPos(currentLeverage);
-    updateAll();
-  });
-}
-
-setupSlider(sliderTrack, true);
-setupSlider(mobileSliderTrack, false);
-
-document.addEventListener('mousemove', e => {
-  if (!activeSlider) return;
-  const rect = activeSlider.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
+function updateLeverageFromPosition(slider, clientX) {
+  const rect = slider.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, x / rect.width));
+  const raw = MIN_LEV + pct * (MAX_LEV - MIN_LEV);
   currentLeverage = snapLeverage(raw);
   setSliderPos(currentLeverage);
   updateAll();
-}, { passive: false });
+}
 
-document.addEventListener('touchmove', e => {
-  if (!activeSlider) return;
+function handleSliderMove(e) {
+  if (!isDragging || !currentSlider) return;
   e.preventDefault();
-  const rect = activeSlider.getBoundingClientRect();
-  const x = e.touches[0].clientX - rect.left;
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-  currentLeverage = snapLeverage(raw);
-  setSliderPos(currentLeverage);
-  updateAll();
+  const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+  updateLeverageFromPosition(currentSlider, clientX);
+}
+
+function handleSliderEnd() {
+  isDragging = false;
+  currentSlider = null;
+}
+
+// Desktop slider
+sliderTrack.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  handleSliderStart(sliderTrack, e.clientX);
+});
+
+// Mobile slider
+mobileSliderTrack.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  handleSliderStart(mobileSliderTrack, e.clientX);
+});
+
+sliderTrack.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  handleSliderStart(sliderTrack, e.touches[0].clientX);
 }, { passive: false });
 
-document.addEventListener('mouseup', () => activeSlider = null);
-document.addEventListener('touchend', () => activeSlider = null);
+mobileSliderTrack.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  handleSliderStart(mobileSliderTrack, e.touches[0].clientX);
+}, { passive: false });
+
+// Global move handlers
+document.addEventListener('mousemove', handleSliderMove);
+document.addEventListener('touchmove', handleSliderMove, { passive: false });
+
+// Global end handlers
+document.addEventListener('mouseup', handleSliderEnd);
+document.addEventListener('touchend', handleSliderEnd);
 
 // Chart click handler for backtesting entry point selection
 chart.subscribeClick((param) => {
@@ -1373,6 +1409,92 @@ document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener(
 document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); }));
 document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); }));
 document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); }));
+
+document.getElementById('degenModeBtn').addEventListener('click', () => {
+  isDegenMode = !isDegenMode;
+  document.body.classList.toggle('degen-mode', isDegenMode);
+  
+  const btn = document.getElementById('degenModeBtn');
+  
+  if (isDegenMode) {
+    MIN_LEV = DEGEN_MIN;
+    MAX_LEV = DEGEN_MAX;
+    currentLeverage = Math.max(DEGEN_MIN, Math.min(DEGEN_MAX, currentLeverage * 10));
+    updateDegenModeUI();
+    btn.textContent = 'NORMAL MODE';
+    btn.classList.add('normal-mode-active');
+    console.log('🚀 DEGEN MODE ACTIVATED - 100x LEVERAGE UNLOCKED');
+  } else {
+    MIN_LEV = NORMAL_MIN;
+    MAX_LEV = NORMAL_MAX;
+    currentLeverage = Math.max(NORMAL_MIN, Math.min(NORMAL_MAX, currentLeverage / 10));
+    updateNormalModeUI();
+    btn.textContent = '🚀 DEGEN MODE';
+    btn.classList.remove('normal-mode-active');
+    console.log('✓ Normal mode restored');
+  }
+  
+  setSliderPos(currentLeverage);
+  updateAll();
+});
+
+function updateDegenModeUI() {
+  const sliderLabels = document.querySelectorAll('.slider-labels');
+  sliderLabels.forEach(label => {
+    label.innerHTML = '<span>-100×</span><span>-50×</span><span>0</span><span>+50×</span><span>+100×</span>';
+  });
+  
+  const notchContainer = document.querySelectorAll('.slider-notches');
+  notchContainer.forEach(container => {
+    container.innerHTML = `
+      <button class="notch-btn" data-lev="-100">-100×</button>
+      <button class="notch-btn" data-lev="-50">-50×</button>
+      <button class="notch-btn" data-lev="-25">-25×</button>
+      <button class="notch-btn" data-lev="-10">-10×</button>
+      <button class="notch-btn" data-lev="0">0×</button>
+      <button class="notch-btn" data-lev="10">+10×</button>
+      <button class="notch-btn" data-lev="25">+25×</button>
+      <button class="notch-btn" data-lev="50">+50×</button>
+      <button class="notch-btn" data-lev="100">+100×</button>
+    `;
+    container.querySelectorAll('.notch-btn').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentLeverage = parseFloat(b.dataset.lev);
+        setSliderPos(currentLeverage);
+        updateAll();
+        console.log('Button clicked:', currentLeverage);
+      });
+    });
+  });
+}
+
+function updateNormalModeUI() {
+  const sliderLabels = document.querySelectorAll('.slider-labels');
+  sliderLabels.forEach(label => {
+    label.innerHTML = '<span>-4×</span><span>-2×</span><span>0</span><span>+2×</span><span>+4×</span>';
+  });
+  
+  const notchContainer = document.querySelectorAll('.slider-notches');
+  notchContainer.forEach(container => {
+    container.innerHTML = `
+      <button class="notch-btn" data-lev="-4.0">-4×</button>
+      <button class="notch-btn" data-lev="-2.0">-2×</button>
+      <button class="notch-btn" data-lev="-1.0">-1×</button>
+      <button class="notch-btn" data-lev="0">0×</button>
+      <button class="notch-btn" data-lev="1.0">+1×</button>
+      <button class="notch-btn" data-lev="2.0">+2×</button>
+      <button class="notch-btn" data-lev="4.0">+4×</button>
+    `;
+    container.querySelectorAll('.notch-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        currentLeverage = parseFloat(b.dataset.lev);
+        setSliderPos(currentLeverage);
+        updateAll();
+      });
+    });
+  });
+}
 
 new ResizeObserver(() => { 
   const r = chartEl.getBoundingClientRect(); 
