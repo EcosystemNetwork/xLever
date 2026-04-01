@@ -46,8 +46,8 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 ## Deployed Contracts (Ink Sepolia)
 
 ### xLever Protocol Vaults
-- **wSPYx Vault**: [`0x93c0323D7133E2e9D57133a629a35Df17797d890`](https://explorer-sepolia.inkonchain.com/address/0x93c0323D7133E2e9D57133a629a35Df17797d890)
-- **wQQQx Vault**: [`0x0C2c35ed457a4532794602a588eB0C086Ebd67DB`](https://explorer-sepolia.inkonchain.com/address/0x0C2c35ed457a4532794602a588eB0C086Ebd67DB)
+- **wSPYx Vault**: [`0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d`](https://explorer-sepolia.inkonchain.com/address/0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d)
+- **wQQQx Vault**: [`0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955`](https://explorer-sepolia.inkonchain.com/address/0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955)
 
 **Features:**
 - ✅ Open/close leveraged positions

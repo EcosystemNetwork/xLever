@@ -13,10 +13,10 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
-// Vault contract addresses (deployed on Ink Sepolia testnet)
+// Vault contract addresses (DEPLOYED - Fixed Vault with initialized TWAP)
 const VAULT_ADDRESSES = {
-  wSPYx: '0x93c0323D7133E2e9D57133a629a35Df17797d890',
-  wQQQx: '0x0C2c35ed457a4532794602a588eB0C086Ebd67DB'
+  wSPYx: '0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d',
+  wQQQx: '0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955'
 };
 
 // Minimal ERC-20 ABI for balanceOf
