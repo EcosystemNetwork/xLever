@@ -27,6 +27,10 @@ const XNav = (() => {
   }
 
   function init(activePageId) {
+    // Apply mode class to body immediately so CSS visibility rules work on all pages
+    const mode = getMode();
+    document.body.classList.add(`mode-${mode}`);
+
     renderNav(activePageId);
     renderMobileDrawer(activePageId);
 
@@ -85,13 +89,15 @@ const XNav = (() => {
   }
 
   function renderMobileDrawer(activeId) {
+    const mode = getMode();
+    const visiblePages = pagesForMode(mode);
     const drawer = document.createElement('div');
     drawer.id = 'mobileNav';
     drawer.className = 'md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden';
     drawer.style.transition = 'all 0.25s ease';
     drawer.innerHTML = `
-      <div class="flex flex-col p-3 gap-1">
-        ${PAGES.map(p => mobileLink(p, p.id === activeId)).join('\n        ')}
+      <div class="flex flex-col p-3 gap-1" id="mobileNavLinks">
+        ${visiblePages.map(p => mobileLink(p, p.id === activeId)).join('\n        ')}
         <div class="flex items-center gap-2 mt-2 px-4 py-2">
           <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
           <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span>
@@ -146,6 +152,50 @@ const XNav = (() => {
         }
       });
     }
+  }
+
+  function wireUpModeToggle(activeId) {
+    document.querySelectorAll('.nav-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const newMode = btn.dataset.mode;
+        localStorage.setItem('xlever-mode', newMode);
+
+        // Update button styles
+        document.querySelectorAll('.nav-mode-btn').forEach(b => {
+          b.classList.remove('active');
+          if (b.dataset.mode === 'trade') {
+            b.style.background = 'transparent'; b.style.color = '#555970';
+          } else {
+            b.style.background = 'transparent'; b.style.color = '#555970';
+          }
+        });
+        btn.classList.add('active');
+        if (newMode === 'trade') {
+          btn.style.background = '#00e676'; btn.style.color = '#0a0b0e';
+        } else {
+          btn.style.background = '#7c4dff'; btn.style.color = '#fff';
+        }
+
+        // Update nav links
+        const visiblePages = pagesForMode(newMode);
+        const navLinks = document.getElementById('navLinks');
+        if (navLinks) {
+          navLinks.innerHTML = visiblePages.map(p => navLink(p, p.id === activeId)).join('\n');
+        }
+        const mobileNavLinks = document.getElementById('mobileNavLinks');
+        if (mobileNavLinks) {
+          const networkBadge = `<div class="flex items-center gap-2 mt-2 px-4 py-2"><div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div><span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span></div>`;
+          mobileNavLinks.innerHTML = visiblePages.map(p => mobileLink(p, p.id === activeId)).join('\n') + networkBadge;
+        }
+
+        // Notify mode-switch.js on the landing page (if present)
+        if (window.XMode) window.XMode.set(newMode);
+
+        // Apply mode class to body for pages that don't have mode-switch.js
+        document.body.classList.remove('mode-trade', 'mode-research');
+        document.body.classList.add(`mode-${newMode}`);
+      });
+    });
   }
 
   function wireUpMobileMenu() {
