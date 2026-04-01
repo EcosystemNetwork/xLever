@@ -5,7 +5,7 @@ import {DataTypes} from "./libraries/DataTypes.sol";
 import {IVault} from "./interfaces/IVault.sol";
 import {TWAPOracle} from "./modules/TWAPOracle.sol";
 import {PositionModule} from "./modules/PositionModule.sol";
-import {FeeEngine} from "./experimental/modules/FeeEngine.sol";
+import {FeeEngine} from "./modules/FeeEngine.sol";
 import {JuniorTranche} from "./modules/JuniorTranche.sol";
 import {RiskModule} from "./modules/RiskModule.sol";
 import {IPythOracleAdapter} from "./interfaces/IPythOracleAdapter.sol";
@@ -17,7 +17,7 @@ interface IERC20 {
 }
 
 /// @title Vault
-/// @notice Main vault contract for xLever protocol with real Pyth oracle execution
+/// @notice Main vault contract for xLever protocol with real risk, junior, and agent subsystems
 contract Vault is IVault {
     IERC20 public immutable usdc;
     address public immutable asset;
@@ -36,7 +36,21 @@ contract Vault is IVault {
     address public admin;
     address public treasury;
 
+    // Bounded agent address — can only reduce leverage or close positions (Safe Mode)
+    address public agentOperator;
+
     mapping(address => DataTypes.SlowWithdrawal) public slowWithdrawals;
+
+    // ═══════════════════════════════════════════════════════════════
+    // EVENTS — risk state changes, leverage cap changes, auto-deleverage, agent actions
+    // ═══════════════════════════════════════════════════════════════
+
+    event RiskStateChanged(uint8 indexed oldState, uint8 indexed newState, uint256 healthScore, uint256 juniorRatioBps);
+    event LeverageCapChanged(uint32 oldCapBps, uint32 newCapBps, uint256 juniorRatioBps);
+    event AutoDeleverageExecuted(address indexed user, int32 oldLeverage, int32 newLeverage, uint256 healthScore);
+    event AgentAction(address indexed agent, address indexed user, string action, int32 targetLeverage, string reason);
+    event JuniorStateChanged(uint256 juniorTotalAssets, uint256 seniorDeposits, uint256 juniorRatioBps, uint32 newMaxLeverageBps);
+    event RiskCheckPerformed(uint256 healthScore, uint8 protocolState, bool circuitBreakerTripped);
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "Only admin");
@@ -44,8 +58,22 @@ contract Vault is IVault {
     }
 
     modifier whenActive() {
-        require(poolState.protocolState == 0, "Protocol paused");
+        require(poolState.protocolState == 0 || poolState.protocolState == 1, "Protocol paused or emergency");
         _;
+    }
+
+    modifier onlyAgentOrAdmin() {
+        require(msg.sender == agentOperator || msg.sender == admin, "Only agent or admin");
+        _;
+    }
+
+    // Reentrancy guard
+    uint256 private _locked;
+    modifier nonReentrant() {
+        require(_locked == 0, "Reentrancy");
+        _locked = 1;
+        _;
+        _locked = 0;
     }
 
     /// @notice Require oracle is fresh and circuit breaker is not tripped
@@ -167,6 +195,9 @@ contract Vault is IVault {
         // Distribute entry fee
         _distributeFees(entryFee);
 
+        // Post-trade risk check — derives state from real pool/oracle/position data
+        _checkAndUpdateRisk();
+
         emit Deposit(msg.sender, amount, leverageBps, true);
 
         return amount - entryFee;
@@ -218,6 +249,9 @@ contract Vault is IVault {
         // Distribute exit fee
         _distributeFees(exitFee);
 
+        // Post-trade risk check
+        _checkAndUpdateRisk();
+
         // Transfer USDC to user
         require(usdc.transfer(msg.sender, received), "Transfer failed");
 
@@ -267,11 +301,14 @@ contract Vault is IVault {
             poolState.netExposure -= int256(newNotional);
         }
 
+        // Post-adjustment risk check
+        _checkAndUpdateRisk();
+
         emit LeverageAdjusted(msg.sender, oldPos.leverageBps, newLeverageBps);
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // JUNIOR TRANCHE
+    // JUNIOR TRANCHE — first-loss capital that backs leverage limits
     // ═══════════════════════════════════════════════════════════════
 
     /// @notice Deposit into junior tranche
@@ -298,6 +335,93 @@ contract Vault is IVault {
 
         // Update max leverage based on new junior ratio
         _updateMaxLeverage();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // AGENT — bounded Safe Mode execution (reduce-only)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// @notice Agent reduces leverage on a user's position (Safe Mode: reduce-only)
+    function agentDeleverage(
+        address user,
+        int32 newLeverageBps,
+        string calldata reason
+    ) external nonReentrant onlyAgentOrAdmin {
+        DataTypes.Position memory pos = positionModule.getPosition(user);
+        require(pos.isActive, "No position");
+
+        // Agent can ONLY reduce leverage (absolute value), never increase
+        require(_absInt32(newLeverageBps) < _absInt32(pos.leverageBps), "Agent can only reduce leverage");
+        // Agent cannot flip direction
+        require(
+            (pos.leverageBps >= 0 && newLeverageBps >= 0) || (pos.leverageBps <= 0 && newLeverageBps <= 0),
+            "Agent cannot flip direction"
+        );
+
+        int32 oldLeverage = pos.leverageBps;
+
+        // Apply deleverage — bypasses cooldown locks since this is a safety action
+        positionModule.applyDeleverage(user, newLeverageBps);
+
+        // Update pool exposures
+        uint256 oldNotional = uint256(pos.depositAmount) * uint256(_absInt32(oldLeverage)) / 10000;
+        uint256 newNotional = uint256(pos.depositAmount) * uint256(_absInt32(newLeverageBps)) / 10000;
+
+        if (oldLeverage > 0) {
+            poolState.grossLongExposure -= uint128(oldNotional);
+            poolState.netExposure -= int256(oldNotional);
+        } else if (oldLeverage < 0) {
+            poolState.grossShortExposure -= uint128(oldNotional);
+            poolState.netExposure += int256(oldNotional);
+        }
+
+        if (newLeverageBps > 0) {
+            poolState.grossLongExposure += uint128(newNotional);
+            poolState.netExposure += int256(newNotional);
+        } else if (newLeverageBps < 0) {
+            poolState.grossShortExposure += uint128(newNotional);
+            poolState.netExposure -= int256(newNotional);
+        }
+
+        emit AgentAction(msg.sender, user, "deleverage", newLeverageBps, reason);
+        emit AutoDeleverageExecuted(user, oldLeverage, newLeverageBps, _getHealthScore());
+
+        _checkAndUpdateRisk();
+    }
+
+    /// @notice Agent closes a user's position entirely (Safe Mode: emergency close)
+    function agentClose(
+        address user,
+        string calldata reason
+    ) external nonReentrant onlyAgentOrAdmin {
+        DataTypes.Position memory pos = positionModule.getPosition(user);
+        require(pos.isActive, "No position");
+
+        (uint256 finalValue, ) = positionModule.closePosition(user);
+
+        poolState.totalSeniorDeposits -= uint128(pos.depositAmount);
+        uint256 notional = uint256(pos.depositAmount) * uint256(_absInt32(pos.leverageBps)) / 10000;
+
+        if (pos.leverageBps > 0) {
+            poolState.grossLongExposure -= uint128(notional);
+            poolState.netExposure -= int256(notional);
+        } else if (pos.leverageBps < 0) {
+            poolState.grossShortExposure -= uint128(notional);
+            poolState.netExposure += int256(notional);
+        }
+
+        if (finalValue > 0) {
+            usdc.transfer(user, finalValue);
+        }
+
+        emit AgentAction(msg.sender, user, "close", 0, reason);
+
+        _checkAndUpdateRisk();
+    }
+
+    /// @notice Set agent operator address
+    function setAgentOperator(address _agent) external onlyAdmin {
+        agentOperator = _agent;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -361,6 +485,34 @@ contract Vault is IVault {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // RISK STATE — derived from real pool/oracle/position data
+    // ═══════════════════════════════════════════════════════════════
+
+    /// @notice Get health score derived from real pool state
+    function getHealthScore() external view returns (uint256) {
+        return _getHealthScore();
+    }
+
+    /// @notice Get risk state summary for frontend/agent consumption
+    function getRiskState() external view returns (
+        uint8 protocolState,
+        uint256 healthScore,
+        uint256 juniorRatioBps,
+        uint32 currentMaxLeverageBps,
+        bool oracleStale,
+        bool circuitBroken
+    ) {
+        return (
+            poolState.protocolState,
+            _getHealthScore(),
+            juniorTranche.getJuniorRatio(poolState.totalSeniorDeposits),
+            poolState.currentMaxLeverageBps,
+            oracle.isStale(),
+            oracle.isCircuitBroken()
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // ADMIN FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -403,10 +555,86 @@ contract Vault is IVault {
         }
     }
 
-    /// @notice Update max leverage based on junior ratio
+    /// @notice Update max leverage based on real junior ratio from on-chain state
     function _updateMaxLeverage() internal {
         uint256 juniorRatio = juniorTranche.getJuniorRatio(poolState.totalSeniorDeposits);
-        poolState.currentMaxLeverageBps = uint32(riskModule.calculateMaxLeverage(juniorRatio));
+        uint32 oldCap = poolState.currentMaxLeverageBps;
+        uint32 newCap = uint32(riskModule.calculateMaxLeverage(juniorRatio));
+        poolState.currentMaxLeverageBps = newCap;
+
+        if (newCap != oldCap) {
+            emit LeverageCapChanged(oldCap, newCap, juniorRatio);
+        }
+
+        emit JuniorStateChanged(
+            juniorTranche.getTotalValue(),
+            poolState.totalSeniorDeposits,
+            juniorRatio,
+            newCap
+        );
+    }
+
+    /// @notice Check and update risk state from real on-chain inputs
+    function _checkAndUpdateRisk() internal {
+        uint256 healthScore = _getHealthScore();
+        uint256 juniorRatioBps = juniorTranche.getJuniorRatio(poolState.totalSeniorDeposits);
+
+        uint8 oldState = poolState.protocolState;
+        uint8 newState = riskModule.checkHealth(healthScore, juniorRatioBps);
+
+        // Check circuit breaker from real pool state
+        uint256 juniorValue = juniorTranche.getTotalValue();
+        uint256 volatility = 0;
+        if (!oracle.isStale()) {
+            volatility = oracle.getDivergence() * 10; // Scale divergence as vol proxy
+        }
+
+        (bool shouldPause, ) = riskModule.checkCircuitBreaker(
+            poolState.grossLongExposure + poolState.grossShortExposure,
+            juniorValue,
+            volatility
+        );
+
+        if (shouldPause && newState < 2) {
+            newState = 2; // Escalate to paused
+        }
+
+        emit RiskCheckPerformed(healthScore, newState, shouldPause);
+
+        if (newState != oldState) {
+            poolState.protocolState = newState;
+            emit RiskStateChanged(oldState, newState, healthScore, juniorRatioBps);
+            emit ProtocolStateChanged(oldState, newState);
+        }
+
+        // If emergency, calculate auto-deleverage cap
+        if (newState == 3) {
+            (int32 newMaxLev, bool shouldDeleverage) = riskModule.calculateAutoDeleverage(
+                healthScore,
+                int32(poolState.currentMaxLeverageBps)
+            );
+            if (shouldDeleverage) {
+                uint32 oldCap = poolState.currentMaxLeverageBps;
+                poolState.currentMaxLeverageBps = uint32(newMaxLev);
+                emit LeverageCapChanged(oldCap, uint32(newMaxLev), juniorRatioBps);
+            }
+        }
+    }
+
+    /// @notice Derive health score from real pool state
+    function _getHealthScore() internal view returns (uint256) {
+        uint256 totalExposure = uint256(poolState.grossLongExposure) + uint256(poolState.grossShortExposure);
+        if (totalExposure == 0) return 20000; // No exposure = perfectly healthy
+
+        uint256 juniorValue = juniorTranche.getTotalValue();
+        uint256 totalBacking = juniorValue + uint256(poolState.totalSeniorDeposits);
+
+        // Health score in basis points: 10000 = 1.00x, 15000 = 1.50x, 20000 = 2.00x
+        return totalBacking * 10000 / totalExposure;
+    }
+
+    function resetCircuitBreaker() external onlyAdmin {
+        riskModule.resetCircuitBreaker();
     }
 
     function _absInt256(int256 x) internal pure returns (uint256) {

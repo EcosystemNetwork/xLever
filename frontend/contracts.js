@@ -182,7 +182,7 @@ export const ERC20_ABI = [
 export const VAULT_ABI = [
   // Write functions (Pyth pull-oracle: all accept priceUpdateData + msg.value for fee)
   { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'positionValue', type: 'uint256' }], stateMutability: 'payable' },
-  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'payable' },
+  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'minReceived', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'payable' },
   { type: 'function', name: 'adjustLeverage', inputs: [{ name: 'newLeverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
   { type: 'function', name: 'depositJunior', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'shares', type: 'uint256' }], stateMutability: 'nonpayable' },
   { type: 'function', name: 'withdrawJunior', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ name: 'amount', type: 'uint256' }], stateMutability: 'nonpayable' },
@@ -459,17 +459,19 @@ export async function openPosition(amountUsdc, leverage) {
   return waitForTx(hash)
 }
 
-export async function closePosition(amountUsdc) {
+export async function closePosition(amountUsdc, slippageBps = 50) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
   const amount = parseUnits(amountUsdc, 6)
+  // minReceived = amount * (1 - slippage%), default 0.5% slippage tolerance
+  const minReceived = amount - (amount * BigInt(slippageBps) / 10000n)
   const { updateData, fee } = await fetchPythUpdate()
 
   const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'withdraw',
-    args: [amount, updateData], value: fee, account, chain: getActiveChainConfig().chain,
+    args: [amount, minReceived, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }

@@ -240,6 +240,10 @@
     </div>
   </div>
   <div class="header-right">
+    <div class="mode-toggle" id="modeToggle">
+      <button class="mode-btn active" data-mode="live" id="liveModeBtn">Live</button>
+      <button class="mode-btn" data-mode="research" id="researchModeBtn">Research</button>
+    </div>
     <button id="howItWorksBtn" class="how-it-works-btn">📚 How It Works</button>
     <button id="degenModeBtn" class="degen-mode-btn">🚀 DEGEN MODE</button>
     <button id="connectWalletBtn" class="connect-wallet-btn">Connect Wallet</button>
@@ -291,7 +295,19 @@
       </div>
       <div id="tv-chart"></div>
     </div>
-    <div class="chart-bottom">
+    <!-- Live Mode: real-time protocol stats from contract reads -->
+    <div class="chart-bottom live-only" id="liveStatsBar" style="display:none;">
+      <div class="stat-item"><span class="stat-label">Oracle Price</span><span class="stat-value" id="liveOraclePrice">—</span></div>
+      <div class="stat-item"><span class="stat-label">Oracle Status</span><span class="stat-value" id="liveOracleStatus">—</span></div>
+      <div class="stat-item"><span class="stat-label">Funding Rate</span><span class="stat-value" id="liveFundingRate">—</span></div>
+      <div class="stat-item"><span class="stat-label">Max Leverage</span><span class="stat-value" id="liveMaxLeverage">—</span></div>
+      <div class="stat-item"><span class="stat-label">Protocol State</span><span class="stat-value" id="liveProtocolState">—</span></div>
+      <div class="stat-item"><span class="stat-label">Net Exposure</span><span class="stat-value" id="liveNetExposure">—</span></div>
+      <div class="stat-item"><span class="stat-label">Pool TVL</span><span class="stat-value" id="livePoolTVL">—</span></div>
+      <div class="stat-item"><span class="stat-label">Data Source</span><span class="stat-value" id="liveDataSource" style="font-size:10px;">contract</span></div>
+    </div>
+    <!-- Research Mode: simulated backtest stats -->
+    <div class="chart-bottom research-only" id="researchStatsBar">
       <div class="stat-item"><span class="stat-label">Max Drawdown</span><span class="stat-value negative" id="statMDD">-0.0%</span></div>
       <div class="stat-item"><span class="stat-label">Sharpe Ratio</span><span class="stat-value" id="statSharpe">0.00</span></div>
       <div class="stat-item"><span class="stat-label">Volatility</span><span class="stat-value" id="statVol">0.0%</span></div>
@@ -380,8 +396,20 @@
         <div class="row"><span class="row-label">Oracle</span><span class="row-value">15-min TWAP (Pyth)</span></div>
       </div>
     </div>
-    <div class="panel-section">
-      <div class="panel-title">Buffer Tranche (Junior)</div>
+    <!-- Live mode: real pool data from contract reads -->
+    <div class="panel-section live-only" id="liveBufferPanel" style="display:none;">
+      <div class="panel-title">Buffer Tranche (Junior) <span class="source-badge">LIVE</span></div>
+      <div class="strategy-card">
+        <div class="row"><span class="row-label">Pool Composition</span><span class="row-value" id="liveJuniorRatio">—</span></div>
+        <div class="row"><span class="row-label">Junior TVL</span><span class="row-value" id="liveJuniorTVL">—</span></div>
+        <div class="row"><span class="row-label">Insurance Fund</span><span class="row-value" id="liveInsuranceFund">—</span></div>
+        <div class="row"><span class="row-label">Junior Share Price</span><span class="row-value" id="liveJuniorSharePrice">—</span></div>
+        <div class="row"><span class="row-label">Buffer Health</span><span class="row-value" id="liveBufferHealth">—</span></div>
+      </div>
+    </div>
+    <!-- Research mode: simulated pool estimates -->
+    <div class="panel-section research-only" id="researchBufferPanel">
+      <div class="panel-title">Buffer Tranche (Junior) <span class="source-badge sim">SIMULATED</span></div>
       <div class="strategy-card">
         <div class="row"><span class="row-label">Pool Composition</span><span class="row-value" id="juniorRatio">65% Senior / 35% Junior</span></div>
         <div class="row"><span class="row-label">Junior APY (est)</span><span class="row-value positive" id="juniorAPY">0.0%</span></div>
@@ -389,8 +417,8 @@
         <div class="row"><span class="row-label">Buffer Health</span><span class="row-value" id="bufferHealth">—</span></div>
       </div>
     </div>
-    <div class="panel-section">
-      <div class="panel-title">Performance Comparison</div>
+    <div class="panel-section research-only" id="researchComparisonPanel">
+      <div class="panel-title">Performance Comparison <span class="source-badge sim">SIMULATED</span></div>
       <div class="comparison-grid">
         <div class="comp-badge"><div class="comp-ticker" id="compBaseTicker">QQQ 1×</div><div class="comp-return positive" id="compQQQ">+0.0%</div><div class="comp-label">Base Underlying</div></div>
         <div class="comp-badge active-comp"><div class="comp-ticker" id="compLevTicker">QQQ 2.0× (Protocol)</div><div class="comp-return" id="compLev">+0.0%</div><div class="comp-label">Full Simulation</div></div>
@@ -404,17 +432,32 @@
       <div class="risk-label"><span>Conservative</span><span id="riskText">Moderate</span><span>Aggressive</span></div>
       <div class="buffer-req" id="bufferReq">Buffer: 20% junior ratio required</div>
     </div>
-    <div class="panel-section">
-      <div class="panel-title">Data Source</div>
+    <!-- Live mode: data source note -->
+    <div class="panel-section live-only" id="liveDataSourcePanel" style="display:none;">
+      <div class="panel-title">Data Source <span class="source-badge">LIVE</span></div>
       <div class="api-notice">
-        Backtesting uses real <span id="dataSourceTicker">QQQ</span> data from Yahoo Finance. 
-        The simulation models: auto-deleverage cascade (5 levels based on 
-        underlying asset drawdown from peak), re-leverage on recovery 
-        (1.0× steps, 5-day cooldown), execution slippage on leverage 
+        All values are read from <strong>on-chain contract state</strong> (Ink Sepolia)
+        and <strong>Pyth Network oracle feeds</strong>. Pool composition, insurance fund,
+        junior APY, funding rates, and oracle health are sourced directly from
+        deployed vault contracts — not browser-computed.
+        <br><br>
+        <span id="liveRpcInfo" style="font-size:11px;color:rgba(255,255,255,0.3);">RPC: —</span>
+        <br>
+        <span id="liveCacheInfo" style="font-size:11px;color:rgba(255,255,255,0.3);">Cache age: —</span>
+      </div>
+    </div>
+    <!-- Research mode: data source note -->
+    <div class="panel-section research-only" id="researchDataSourcePanel">
+      <div class="panel-title">Data Source <span class="source-badge sim">SIMULATED</span></div>
+      <div class="api-notice">
+        Backtesting uses real <span id="dataSourceTicker">QQQ</span> data from Yahoo Finance.
+        The simulation models: auto-deleverage cascade (5 levels based on
+        underlying asset drawdown from peak), re-leverage on recovery
+        (1.0× steps, 5-day cooldown), execution slippage on leverage
         changes, and circuit breaker fee premiums on high-volatility days.
         <br><br>
-        Not modeled: junior tranche loss absorption, intraday price action 
-        (uses daily OHLC only), actual lending protocol health factors, 
+        Not modeled: junior tranche loss absorption, intraday price action
+        (uses daily OHLC only), actual lending protocol health factors,
         TWAP vs spot pricing lag, multi-protocol routing, or gas costs.
         Actual protocol performance will differ.
       </div>
@@ -700,6 +743,7 @@
 <script type="module" src="wallet.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="toast.js"></script>
+<script src="live-state.js"></script>
 <script src="app.js"></script>
 <script src="vault-functions.js"></script>
 <script src="position-manager.js"></script>
