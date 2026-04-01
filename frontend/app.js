@@ -613,9 +613,9 @@ function initWalletListeners() {
   // Check if already connected (e.g. page reload with active session) — Reown persists sessions in localStorage
   // so the user shouldn't have to reconnect after every page refresh
   try {
-    const isConnected = typeof modal.getIsConnected === 'function'
-      ? modal.getIsConnected()             // Reown v3 API method name
-      : modal.getIsConnectedState?.();     // Fallback for older Reown versions that use a different method name
+    const isConnected = typeof modal.getIsConnectedState === 'function'
+      ? modal.getIsConnectedState()        // Reown AppKit v1.8+ API
+      : modal.getIsConnected?.();          // Fallback for older Reown versions
     if (isConnected) {
       connectedAddress = typeof modal.getAddress === 'function'
         ? modal.getAddress()               // Standard Reown v3 getter

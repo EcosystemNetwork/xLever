@@ -442,9 +442,9 @@ const XWallet = (() => {
       // Subscribe to Reown AppKit events to show user-friendly toast notifications
       // Track whether wallet was already connected on page load to avoid
       // showing the toast for automatic session restoration
-      let wasConnectedOnInit = typeof modal.getIsConnected === 'function'
-        ? modal.getIsConnected()
-        : modal.getIsConnectedState?.() ?? false;
+      let wasConnectedOnInit = typeof modal.getIsConnectedState === 'function'
+        ? modal.getIsConnectedState()
+        : modal.getIsConnected?.() ?? false;
       let lastConnectShown = 0;
       modal.subscribeEvents((event) => {
         // Notify user on successful wallet connection (debounce to avoid repeated toasts)
@@ -475,9 +475,9 @@ const XWallet = (() => {
     const modal = window.xLeverWallet;
     // Return false if AppKit hasn't loaded yet to prevent premature trade attempts
     if (!modal) return false;
-    return typeof modal.getIsConnected === 'function'
-      ? modal.getIsConnected()
-      : modal.getIsConnectedState?.() ?? false;
+    return typeof modal.getIsConnectedState === 'function'
+      ? modal.getIsConnectedState()
+      : modal.getIsConnected?.() ?? false;
   }
 
   // Returns the connected wallet address, used to query on-chain position data
@@ -955,7 +955,10 @@ const XAuthGate = (() => {
 
   function _isConnected() {
     var w = window.xLeverWallet;
-    return w && typeof w.getIsConnected === 'function' && w.getIsConnected();
+    if (!w) return false;
+    if (typeof w.getIsConnectedState === 'function') return w.getIsConnectedState();
+    if (typeof w.getIsConnected === 'function') return w.getIsConnected();
+    return false;
   }
 
   function _applyState() {

@@ -426,7 +426,7 @@ async function loadUserData() {
   if (!wallet) return;
   var addr;
   try {
-    var isConnected = typeof wallet.getIsConnected === 'function' ? wallet.getIsConnected() : wallet.getIsConnectedState?.();
+    var isConnected = typeof wallet.getIsConnectedState === 'function' ? wallet.getIsConnectedState() : wallet.getIsConnected?.();
     if (!isConnected) return;
     addr = wallet.getAddress();
   } catch(e) { return; }
