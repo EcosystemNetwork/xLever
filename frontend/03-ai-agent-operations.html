@@ -2,7 +2,7 @@
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>xLever | Smart Agent</title>
+<title>xLever | Autonomous Trading</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -103,7 +103,7 @@ tailwind.config = {
 <body class="bg-surface font-body text-on-surface antialiased">
 
 <script src="nav.js"></script>
-<script>XNav.init('agents');</script>
+<script>XNav.init('auto');</script>
 
 <main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
 
@@ -128,9 +128,9 @@ tailwind.config = {
 <!-- Page Header -->
 <header class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
   <div>
-    <h1 class="text-2xl font-display font-bold text-on-surface">Smart Agent</h1>
+<h1 class="text-2xl font-display font-bold text-on-surface">Autonomous Trading</h1>
     <p class="text-on-surface-variant font-mono text-sm mt-1 tracking-wider">
-      Programmable portfolio manager for your xLever positions
+      Set your strategy and let AI manage your positions automatically
     </p>
   </div>
   <div class="flex items-center gap-4">
@@ -443,19 +443,19 @@ tailwind.config = {
     <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl">
       <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/20 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-tertiary text-base">hub</span>
-          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">News Swarm</span>
+          <span class="material-symbols-outlined text-tertiary text-base">psychology</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">AI Analysis</span>
         </div>
-        <div class="flex items-center gap-4">
-          <!-- News Swarm Status -->
+        <div class="flex items-center gap-3">
+          <!-- AI Engine Status -->
+          <div class="flex items-center gap-2 bg-surface-container-highest/50 px-2 py-1 rounded">
+            <span class="w-2 h-2 rounded-full" id="pythonAgentDot" style="background:#948ea1"></span>
+            <span class="font-mono text-[10px] uppercase" id="pythonAgentLabel">Connecting...</span>
+          </div>
+          <!-- News Analysis Status -->
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full" id="swarmStatusDot" style="background:#948ea1"></span>
             <span class="font-mono text-[10px] uppercase" id="swarmStatusLabel">Idle</span>
-          </div>
-          <!-- Python Agent Status -->
-          <div class="flex items-center gap-2 pl-3 border-l border-outline-variant/30">
-            <span class="w-2 h-2 rounded-full" id="pythonAgentDot" style="background:#948ea1"></span>
-            <span class="font-mono text-[10px] uppercase" id="pythonAgentLabel">AI Agent: Offline</span>
           </div>
         </div>
       </div>
@@ -490,9 +490,9 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- Analyst Weights -->
+        <!-- Analysis Priorities -->
         <div class="bg-surface-container-highest/30 rounded-lg p-3">
-          <h4 class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider mb-2">Analyst Weights</h4>
+          <h4 class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider mb-2">Analysis Priorities</h4>
           <div class="space-y-2">
             <div class="flex items-center gap-3">
               <span class="font-mono text-[10px] text-on-surface w-20">Sentiment</span>
@@ -528,9 +528,9 @@ tailwind.config = {
         <div class="flex gap-3">
           <button class="flex-1 py-2 rounded-lg bg-tertiary-container text-on-tertiary-container text-sm font-bold uppercase transition-colors flex items-center justify-center gap-2 hover:opacity-90" onclick="toggleSwarm()" id="swarmToggleBtn">
             <span class="material-symbols-outlined text-base">play_arrow</span>
-            <span id="swarmToggleLabel">Start Swarm</span>
+            <span id="swarmToggleLabel">Start Analysis</span>
           </button>
-          <button class="py-2 px-4 rounded-lg bg-surface-container-highest hover:bg-surface-bright text-sm font-bold uppercase transition-colors" onclick="testInjectNews()" title="Inject test news">
+          <button class="py-2 px-4 rounded-lg bg-surface-container-highest hover:bg-surface-bright text-sm font-bold uppercase transition-colors" onclick="testInjectNews()" title="Test with sample market data">
             <span class="material-symbols-outlined text-base">science</span>
           </button>
         </div>
@@ -541,13 +541,13 @@ tailwind.config = {
     <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 shadow-2xl flex flex-col" style="min-height: 300px;">
       <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-tertiary text-sm">ssid_chart</span>
-          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Signal Feed</span>
+          <span class="material-symbols-outlined text-tertiary text-sm">notifications_active</span>
+          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Live Decisions</span>
         </div>
         <span class="font-mono text-[9px] text-on-surface-variant" id="signalCount">0 signals</span>
       </div>
       <div class="p-3 font-mono text-[11px] leading-relaxed flex-1 terminal-scroll overflow-y-auto space-y-1" id="signalFeed">
-        <p class="text-on-surface-variant opacity-60">[--:--:--] Waiting for news swarm...</p>
+        <p class="text-on-surface-variant opacity-60">[--:--:--] Ready for autonomous trading...</p>
       </div>
     </div>
 
@@ -1077,10 +1077,10 @@ function toggleSwarm() {
 
 function startSwarm() {
   swarmRunning = true;
-  document.getElementById('swarmToggleLabel').textContent = 'Stop Swarm';
+  document.getElementById('swarmToggleLabel').textContent = 'Stop Analysis';
   document.getElementById('swarmToggleBtn').querySelector('.material-symbols-outlined').textContent = 'stop';
   document.getElementById('swarmStatusDot').style.background = '#05e777';
-  document.getElementById('swarmStatusLabel').textContent = 'Active';
+  document.getElementById('swarmStatusLabel').textContent = 'Running';
   document.getElementById('swarmStatusLabel').className = 'font-mono text-[10px] uppercase text-secondary';
 
   window.AgentCoordinator.start({
@@ -1097,10 +1097,10 @@ function startSwarm() {
 
 function stopSwarm() {
   swarmRunning = false;
-  document.getElementById('swarmToggleLabel').textContent = 'Start Swarm';
+  document.getElementById('swarmToggleLabel').textContent = 'Start Analysis';
   document.getElementById('swarmToggleBtn').querySelector('.material-symbols-outlined').textContent = 'play_arrow';
   document.getElementById('swarmStatusDot').style.background = '#948ea1';
-  document.getElementById('swarmStatusLabel').textContent = 'Idle';
+  document.getElementById('swarmStatusLabel').textContent = 'Paused';
   document.getElementById('swarmStatusLabel').className = 'font-mono text-[10px] uppercase text-on-surface-variant';
 
   window.AgentCoordinator.stop();
@@ -1218,19 +1218,19 @@ function initPythonAgentBridge() {
   // Subscribe to connection events
   AgentBridge.subscribe('connected', () => {
     pythonAgentConnected = true;
-    logAction('BRIDGE', '✓ Connected to Python AI Trading Agent', 'secondary');
+    logAction('AI', '✓ AI engine connected and ready', 'secondary');
     document.getElementById('pythonAgentDot').style.background = '#05e777';
-    document.getElementById('pythonAgentLabel').textContent = 'AI Agent: Online';
+    document.getElementById('pythonAgentLabel').textContent = 'AI Ready';
     document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-secondary';
     updatePythonAgentStatus();
   });
 
   AgentBridge.subscribe('disconnected', () => {
     pythonAgentConnected = false;
-    logAction('BRIDGE', 'Disconnected from Python agent', 'yellow-500');
-    document.getElementById('pythonAgentDot').style.background = '#948ea1';
-    document.getElementById('pythonAgentLabel').textContent = 'AI Agent: Offline';
-    document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-on-surface-variant';
+    logAction('AI', 'AI engine disconnected - running in manual mode', 'yellow-500');
+    document.getElementById('pythonAgentDot').style.background = '#f59e0b';
+    document.getElementById('pythonAgentLabel').textContent = 'Manual Mode';
+    document.getElementById('pythonAgentLabel').className = 'font-mono text-[10px] uppercase text-yellow-500';
   });
 
   // Subscribe to trading decisions from Python agent
@@ -1275,7 +1275,7 @@ function initPythonAgentBridge() {
     logAction('AI-AGENT', `Error: ${data.message}`, 'error');
   });
 
-  logAction('BRIDGE', 'Python Agent Bridge initialized - waiting for connection...', 'on-surface-variant');
+  logAction('AI', 'Connecting to AI trading engine...', 'on-surface-variant');
 }
 
 function updatePythonAgentStatus(status) {
