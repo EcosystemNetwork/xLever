@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
 import { getPoolState, getPublicClient, getPosition, getPositionValue, getMaxLeverage, VAULT_REGISTRY } from './contracts.js';
 
 function $(id) { return document.getElementById(id); }
-function fmt(n) { return n >= 1e6 ? '$' + (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n/1e3).toFixed(1) + 'K' : '$' + n.toFixed(2); }
+function fmt(n) { if (isNaN(n) || n == null) return '$0.00'; return n >= 1e6 ? '$' + (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n/1e3).toFixed(1) + 'K' : '$' + n.toFixed(2); }
 
 async function loadProtocolHealth() {
   try {
@@ -433,11 +433,50 @@ async function loadUserData() {
   if (!addr) return;
 
   try {
-    var posValue = await getPositionValue(addr);
-    var val = Number(posValue || 0n) / 1e6;
+    var result = await getPositionValue(addr);
+    // getPositionValue returns [value, pnl] or { value, pnl }
+    var rawVal = Array.isArray(result) ? result[0] : (result && result.value != null ? result.value : 0n);
+    var rawPnl = Array.isArray(result) ? result[1] : (result && result.pnl != null ? result.pnl : 0n);
+    var val = Number(rawVal) / 1e6;
+    var pnl = Number(rawPnl) / 1e6;
+    if (isNaN(val)) val = 0;
+    if (isNaN(pnl)) pnl = 0;
     $('kpiPortfolioValue').textContent = fmt(val);
-    if (val > 0) $('kpiPositions').textContent = '1';
+    if (val > 0) {
+      $('kpiPositions').textContent = '1';
+      // 24h PnL from contract
+      $('kpiPnl').textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+      $('kpiPnl').className = 'font-mono text-2xl font-semibold ' + (pnl >= 0 ? 'text-tertiary' : 'text-error');
+      var pnlPct = val > 0 ? (pnl / (val - pnl)) * 100 : 0;
+      if (!isFinite(pnlPct)) pnlPct = 0;
+      $('kpiPnlPct').textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+      $('kpiPnlPct').className = 'text-[10px] font-mono mb-1.5 ' + (pnlPct >= 0 ? 'text-tertiary' : 'text-error');
+    }
   } catch(e) { console.warn('Dashboard: position value failed', e); }
+
+  // Total ROI: compare current value to initial deposit from getPosition
+  try {
+    var pos = await getPosition(addr);
+    if (pos && pos.isActive) {
+      var deposit = Number(pos.depositAmount || 0n) / 1e6;
+      if (deposit > 0) {
+        var roi = ((val - deposit) / deposit) * 100;
+        if (!isFinite(roi)) roi = 0;
+        $('kpiROI').textContent = (roi >= 0 ? '+' : '') + roi.toFixed(2) + '%';
+        $('kpiROI').className = 'font-mono text-2xl font-semibold ' + (roi >= 0 ? 'text-tertiary' : 'text-error');
+      }
+    }
+  } catch(e) { console.warn('Dashboard: ROI calc failed', e); }
+}
+
+function loadAgentCount() {
+  var count = 0;
+  // AgentExecutor: the main trading agent
+  if (window.AgentExecutor && window.AgentExecutor.isRunning) count++;
+  // AgentCoordinator: the news-to-trade pipeline
+  if (window.AgentCoordinator && window.AgentCoordinator.isRunning) count++;
+  $('kpiAgents').textContent = count.toString();
+  if (count > 0) $('kpiAgents').className = 'font-mono text-2xl font-semibold text-primary';
 }
 
 // ─── Auth gate: use shared XAuthGate from ux.js ───
@@ -445,7 +484,9 @@ XAuthGate.init({
   mode: 'block',
   onConnect: function() {
     Promise.allSettled([loadProtocolHealth(), loadMaxLeverage(), loadBlockAndGas(), loadUserData()])
-      .then(() => console.log('Dashboard data loaded'));
+      .then(() => { loadAgentCount(); console.log('Dashboard data loaded'); });
+    // Re-check agent count periodically since agents can start/stop anytime
+    setInterval(loadAgentCount, 5000);
   }
 });
 

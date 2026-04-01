@@ -268,3 +268,45 @@ class DailyActivity(BaseModel):
 class HourlyActivity(BaseModel):
     hour: int
     sessions: int
+
+
+class SystemHealth(BaseModel):
+    api: str
+    database: str
+    rpc: str
+    uptime: str
+    uptime_seconds: float
+    db_latency_ms: float | None = None
+    total_connections: int | None = None
+
+class ErrorLogEntry(BaseModel):
+    timestamp: str
+    source: str
+    message: str
+    details: str | None = None
+
+class UserFullDetail(BaseModel):
+    id: int
+    wallet_address: str
+    created_at: datetime
+    last_seen: datetime
+    preferences: dict[str, Any]
+    total_sessions: int
+    total_positions: int
+    open_positions: int
+    total_agent_runs: int
+    active_agents: int
+    total_alerts: int
+    total_pnl: float
+    model_config = {"from_attributes": True}
+
+class PositionOverview(BaseModel):
+    total_positions: int
+    open_positions: int
+    total_volume: float
+    total_pnl: float
+    total_fees: float
+    avg_leverage: float
+    long_count: int
+    short_count: int
+    assets: dict[str, int]

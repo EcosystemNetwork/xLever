@@ -1,22 +1,47 @@
 """
-Admin analytics routes — platform-wide stats, user activity, session tracking.
+Admin analytics routes — platform-wide stats, user activity, session tracking,
+system health, error logs, and debugging endpoints.
 """
-from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import select, func, case, cast, Date
+import time
+import logging
+from collections import deque
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import select, func, cast, Date, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import admin_api_key
-from ..database import get_db
+from ..database import get_db, engine
 from ..models import (
-    User, Position, AgentRun, Alert, UserSession,
+    User, Position, AgentRun, AgentAction, Alert, UserSession,
     PositionStatus, AgentStatus,
 )
 from ..schemas import (
     PlatformStats, UserDetail, SessionCreate, SessionOut,
-    DailyActivity, HourlyActivity,
+    DailyActivity, HourlyActivity, SystemHealth, ErrorLogEntry,
+    UserFullDetail, PositionOverview,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(admin_api_key)])
+
+# ─── Server Uptime Tracking ───────────────────────────────────
+_server_start_time = time.monotonic()
+
+# ─── In-memory Error Log ──────────────────────────────────────
+_error_log: deque[dict] = deque(maxlen=500)
+
+logger = logging.getLogger("xlever.admin")
+
+
+def record_error(source: str, message: str, details: str | None = None):
+    """Record an error to the in-memory error log (called from middleware/handlers)."""
+    _error_log.appendleft({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        "message": message,
+        "details": details,
+    })
 
 
 # ─── Platform Overview ──────────────────────────────────────────
@@ -205,7 +230,6 @@ async def disconnect_session(session_id: int, db: AsyncSession = Depends(get_db)
     )
     session = result.scalar_one_or_none()
     if not session:
-        from fastapi import HTTPException
         raise HTTPException(404, "Session not found")
 
     session.disconnected_at = func.now()
@@ -218,3 +242,169 @@ async def disconnect_session(session_id: int, db: AsyncSession = Depends(get_db)
     await db.commit()
     await db.refresh(session)
     return session
+
+
+# ─── System Health ─────────────────────────────────────────────
+
+@router.get("/health", response_model=SystemHealth)
+async def system_health(db: AsyncSession = Depends(get_db)):
+    """Comprehensive system health check — DB, RPC, uptime."""
+    uptime_secs = time.monotonic() - _server_start_time
+    hours = int(uptime_secs // 3600)
+    minutes = int((uptime_secs % 3600) // 60)
+    uptime_str = f"{hours}h {minutes}m" if hours else f"{minutes}m"
+
+    # Database connectivity + latency
+    db_status = "disconnected"
+    db_latency = None
+    try:
+        t0 = time.monotonic()
+        await db.execute(text("SELECT 1"))
+        db_latency = round((time.monotonic() - t0) * 1000, 1)
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {e}"
+        record_error("health", "Database check failed", str(e))
+
+    # RPC connectivity (non-blocking check via config)
+    rpc_status = "configured"
+    try:
+        from ..config import get_settings
+        s = get_settings()
+        rpc_status = "connected" if s.RPC_URL else "not configured"
+    except Exception:
+        rpc_status = "error"
+
+    return SystemHealth(
+        api="ok",
+        database=db_status,
+        rpc=rpc_status,
+        uptime=uptime_str,
+        uptime_seconds=round(uptime_secs, 1),
+        db_latency_ms=db_latency,
+    )
+
+
+# ─── Error Logs ────────────────────────────────────────────────
+
+@router.get("/errors", response_model=list[ErrorLogEntry])
+async def get_error_logs(
+    limit: int = Query(50, ge=1, le=500),
+    source: str | None = Query(None),
+):
+    """Retrieve recent error log entries from in-memory buffer."""
+    logs = list(_error_log)
+    if source:
+        logs = [l for l in logs if l["source"] == source]
+    return logs[:limit]
+
+
+@router.delete("/errors")
+async def clear_error_logs():
+    """Clear the in-memory error log."""
+    count = len(_error_log)
+    _error_log.clear()
+    return {"cleared": count}
+
+
+# ─── User Detail ───────────────────────────────────────────────
+
+@router.get("/users/{user_id}", response_model=UserFullDetail)
+async def get_user_detail(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Full detail view for a single user — all activity counts and PnL."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    sess_count = (await db.execute(
+        select(func.count(UserSession.id)).where(UserSession.user_id == user.id)
+    )).scalar() or 0
+    total_pos = (await db.execute(
+        select(func.count(Position.id)).where(Position.user_id == user.id)
+    )).scalar() or 0
+    open_pos = (await db.execute(
+        select(func.count(Position.id)).where(
+            Position.user_id == user.id, Position.status == PositionStatus.OPEN
+        )
+    )).scalar() or 0
+    agent_count = (await db.execute(
+        select(func.count(AgentRun.id)).where(AgentRun.user_id == user.id)
+    )).scalar() or 0
+    active_agents = (await db.execute(
+        select(func.count(AgentRun.id)).where(
+            AgentRun.user_id == user.id, AgentRun.status == AgentStatus.RUNNING
+        )
+    )).scalar() or 0
+    alert_count = (await db.execute(
+        select(func.count(Alert.id)).where(Alert.user_id == user.id)
+    )).scalar() or 0
+    total_pnl = (await db.execute(
+        select(func.coalesce(func.sum(Position.realized_pnl), 0)).where(
+            Position.user_id == user.id
+        )
+    )).scalar() or 0
+
+    return UserFullDetail(
+        id=user.id,
+        wallet_address=user.wallet_address,
+        created_at=user.created_at,
+        last_seen=user.last_seen,
+        preferences=user.preferences or {},
+        total_sessions=sess_count,
+        total_positions=total_pos,
+        open_positions=open_pos,
+        total_agent_runs=agent_count,
+        active_agents=active_agents,
+        total_alerts=alert_count,
+        total_pnl=float(total_pnl),
+    )
+
+
+# ─── Position Overview ────────────────────────────────────────
+
+@router.get("/positions/overview", response_model=PositionOverview)
+async def position_overview(db: AsyncSession = Depends(get_db)):
+    """Platform-wide position analytics — volume, PnL, leverage distribution."""
+    total = (await db.execute(select(func.count(Position.id)))).scalar() or 0
+    open_count = (await db.execute(
+        select(func.count(Position.id)).where(Position.status == PositionStatus.OPEN)
+    )).scalar() or 0
+
+    volume = (await db.execute(
+        select(func.coalesce(func.sum(Position.deposit_amount), 0))
+    )).scalar() or 0
+    pnl = (await db.execute(
+        select(func.coalesce(func.sum(Position.realized_pnl), 0))
+    )).scalar() or 0
+    fees = (await db.execute(
+        select(func.coalesce(func.sum(Position.fees_paid), 0))
+    )).scalar() or 0
+    avg_lev = (await db.execute(
+        select(func.coalesce(func.avg(Position.leverage_bps), 0))
+    )).scalar() or 0
+
+    long_count = (await db.execute(
+        select(func.count(Position.id)).where(Position.side == "long")
+    )).scalar() or 0
+    short_count = (await db.execute(
+        select(func.count(Position.id)).where(Position.side == "short")
+    )).scalar() or 0
+
+    # Asset distribution
+    asset_rows = (await db.execute(
+        select(Position.asset, func.count(Position.id)).group_by(Position.asset)
+    )).all()
+    assets = {row[0]: row[1] for row in asset_rows}
+
+    return PositionOverview(
+        total_positions=total,
+        open_positions=open_count,
+        total_volume=float(volume),
+        total_pnl=float(pnl),
+        total_fees=float(fees),
+        avg_leverage=round(float(avg_lev) / 10000, 2) if avg_lev else 0,
+        long_count=long_count,
+        short_count=short_count,
+        assets=assets,
+    )
