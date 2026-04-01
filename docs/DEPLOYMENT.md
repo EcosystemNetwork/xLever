@@ -158,25 +158,55 @@ After deployment, update `.env` with the new contract addresses.
 
 ## Supported Chains
 
-| Chain | Chain ID | Status | Purpose |
-|-------|----------|--------|---------|
-| Ink Sepolia | 763373 | **Primary** | Testnet deployment, all contracts live |
-| Ethereum | 1 | Reference | Euler V2 core contracts, xStocks ERC-20 |
-| Solana | -- | Future | xStocks expansion |
-| TON | -- | Future | xStocks expansion |
+| Chain | Chain ID | Protocol | Status | Purpose |
+|-------|----------|----------|--------|---------|
+| Ink Sepolia | 763373 | Euler V2 | **Primary** | Testnet deployment, all contracts live |
+| Ethereum | 1 | Euler V2 | Ready to deploy | Mainnet deployment via `DeployMainnet.s.sol` |
+| Solana | solana:mainnet | Kamino Finance | Adapter live | Lending via Kamino Lending program |
+| TON | ton:mainnet | EVAA Protocol | Adapter live | Lending via EVAA master contract |
 
 ### RPC Endpoints
 
 | Chain | URL |
 |-------|-----|
 | Ink Sepolia | `https://rpc-gel-sepolia.inkonchain.com` |
-| Ethereum | Standard mainnet RPC |
+| Ethereum | `https://eth.llamarpc.com` |
+| Solana | `https://api.mainnet-beta.solana.com` |
+| TON | `https://toncenter.com/api/v2/jsonRPC` |
 
-### Block Explorer
+### Block Explorers
 
 | Chain | URL |
 |-------|-----|
 | Ink Sepolia | `https://explorer-sepolia.inkonchain.com` |
+| Ethereum | `https://etherscan.io` |
+| Solana | `https://solscan.io` |
+| TON | `https://tonscan.org` |
+
+### Ethereum Mainnet Deployment
+
+```bash
+cd contracts
+
+# Deploy all 33 vaults to Ethereum mainnet
+forge script script/DeployMainnet.s.sol \
+  --rpc-url $ETH_MAINNET_RPC \
+  --broadcast \
+  --verify
+
+# After deployment, update:
+# 1. frontend/lending-adapters.js EULER_ADDRESSES[ethereum]
+# 2. frontend/contracts.js VAULT_REGISTRY (if needed)
+```
+
+### Lending Protocol Addresses
+
+| Protocol | Chain | Key Addresses |
+|----------|-------|---------------|
+| Euler V2 EVC | Ink Sepolia | `0x0C9a3dd6b8F28529d72d7f9cE918D493519EE383` |
+| Euler V2 EVC | Ethereum | `0x0C9a3dd6b8F28529d72d7f9cE918D493519EE383` |
+| Kamino Lending | Solana | `KLend2g3cP87ber41GJ3WVkTMWVMeM6moVsoDPGVDNR6` |
+| EVAA Master | TON | `EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr` |
 
 ---
 

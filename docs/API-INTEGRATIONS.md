@@ -188,6 +188,7 @@ const context = await getDashboardContext()  // Aggregated market snapshot
 | `/api/prices` | `routes/prices.py` | Price cache and aggregation |
 | `/api/alerts` | `routes/alerts.py` | Risk alert management |
 | `/api/openbb` | `routes/openbb.py` | Market intelligence proxy |
+| `/api/lending` | `routes/lending.py` | Multi-chain lending markets, positions, rates (Euler V2 + Kamino + EVAA) |
 
 ### Authentication
 
