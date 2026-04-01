@@ -136,7 +136,12 @@ async function fetchPosition(asset) {
   }
 }
 
-// Quick deposit function for UI buttons
+/**
+ * Quick deposit handler for the UI deposit button.
+ * Reads amount from DOM, validates, calls depositToVault, and shows result toast.
+ * Disables the button during the transaction and re-enables on completion.
+ * @returns {Promise<void>}
+ */
 async function quickDeposit() {
   const depositAmount = document.getElementById('depositAmount')?.value;
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
@@ -167,7 +172,12 @@ async function quickDeposit() {
   }
 }
 
-// Quick withdraw function for UI buttons
+/**
+ * Quick withdraw handler for the UI withdraw button.
+ * Reads amount from DOM, validates, calls withdrawFromVault, and shows result toast.
+ * Disables the button during the transaction and re-enables on completion.
+ * @returns {Promise<void>}
+ */
 async function quickWithdraw() {
   const withdrawAmount = document.getElementById('withdrawAmount')?.value;
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';

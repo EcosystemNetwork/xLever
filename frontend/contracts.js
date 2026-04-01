@@ -460,6 +460,11 @@ export async function getPoolState() {
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPoolState' })
 }
 
+/**
+ * Read the current time-weighted average price (TWAP) and spread from the vault.
+ *
+ * @returns {Promise<{twap: bigint, spreadBps: number}>} TWAP in 8-decimal fixed-point, spread in basis points
+ */
 export async function getTWAP() {
   if (!ADDRESSES.vault) return { twap: 0n, spreadBps: 0 }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getCurrentTWAP' })
