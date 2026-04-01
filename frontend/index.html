@@ -6,6 +6,8 @@
 <title>xLever — Leveraged Tokenized Assets</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="modal-styles.css">
+<link rel="stylesheet" href="junior-styles.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <script type="module">
   import { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits } from 'https://esm.sh/viem@2.7.15';
@@ -14,6 +16,115 @@
 </script>
 </head>
 <body>
+
+<!-- How It Works Page -->
+<div id="howItWorksPage" class="how-it-works-page" style="display: none;">
+  <div class="how-it-works-container">
+    <button class="back-to-chart-btn" id="backToChart">← Back to Chart</button>
+    <h1>How xLever Works</h1>
+    <p class="page-subtitle">Leveraged exposure to tokenized assets, explained simply</p>
+    
+    <div class="edu-section">
+      <h2>🎯 What Is This?</h2>
+      <p>xLever lets you get <strong>leveraged exposure</strong> to stocks like QQQ and SPY — but on-chain, without liquidation risk, and with no daily rebalancing.</p>
+      <div class="example-box">
+        <strong>Example:</strong> You deposit $1,000 with 2× leverage on QQQ. If QQQ goes up 10%, you make $200 (20% return). If it drops 10%, you lose $200.
+      </div>
+    </div>
+
+    <div class="edu-section">
+      <h2>⚡ How Leverage Works</h2>
+      <p>Your position value is calculated from your <strong>entry price</strong>, not daily resets like TQQQ:</p>
+      <div class="formula-box">
+        Value = Deposit × (1 + Leverage × Price Change %)
+      </div>
+      <div class="comparison-grid">
+        <div class="comparison-card">
+          <h3>xLever (Fixed Entry)</h3>
+          <p>✅ No volatility decay</p>
+          <p>✅ Simple mental model</p>
+          <p>✅ Better in trends</p>
+        </div>
+        <div class="comparison-card">
+          <h3>TQQQ (Daily Reset)</h3>
+          <p>❌ Volatility decay</p>
+          <p>❌ Complex compounding</p>
+          <p>❌ Loses in chop</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="edu-section">
+      <h2>🛡️ No Liquidation?</h2>
+      <p>Traditional leverage liquidates you. xLever uses a <strong>two-tranche system</strong>:</p>
+      <ul>
+        <li><strong>Senior (You):</strong> Get leveraged exposure, protected by junior capital</li>
+        <li><strong>Junior (LPs):</strong> Provide first-loss buffer, earn fees from your activity</li>
+      </ul>
+      <p>Instead of liquidating individuals, the protocol <strong>auto-deleverages everyone</strong> when risk gets too high. Your max loss is your deposit — no debt, no margin calls.</p>
+    </div>
+
+    <div class="edu-section">
+      <h2>📊 Auto-Deleverage Cascade</h2>
+      <p>If the underlying asset drops significantly from its peak, the protocol automatically reduces everyone's leverage to protect the pool:</p>
+      <div class="cascade-grid">
+        <div class="cascade-level">-10% drop → 75% leverage</div>
+        <div class="cascade-level">-15% drop → 50% leverage</div>
+        <div class="cascade-level">-20% drop → 1.5× max</div>
+        <div class="cascade-level">-25% drop → 1.0× only</div>
+        <div class="cascade-level">-30% drop → Position closed</div>
+      </div>
+      <p class="note">This protects junior LPs and prevents total wipeouts. When markets recover, leverage gradually restores.</p>
+    </div>
+
+    <div class="edu-section">
+      <h2>🚀 Degen Mode (100× Leverage)</h2>
+      <p>Normal mode: ±4× leverage (safe, tested)<br>
+      Degen mode: ±100× leverage (extremely risky, for education/entertainment)</p>
+      <div class="warning-box">
+        ⚠️ <strong>Warning:</strong> At 10× leverage, a 10% drop = 100% loss. At 100×, a 1% drop wipes you out. The auto-deleverage cascade kicks in fast, and you'll likely get liquidated in any volatile market. Use degen mode to understand risk, not to actually trade.
+      </div>
+    </div>
+
+    <div class="edu-section">
+      <h2>💰 Fees</h2>
+      <p>The protocol charges continuous fees based on your leverage:</p>
+      <ul>
+        <li>1× leverage: ~2% annual fee</li>
+        <li>2× leverage: ~4% annual fee</li>
+        <li>4× leverage: ~8% annual fee</li>
+      </ul>
+      <p>Fees go to junior LPs as compensation for taking first-loss risk. During circuit breakers (big moves), fees temporarily double.</p>
+    </div>
+
+    <div class="edu-section">
+      <h2>🔬 Try It Yourself</h2>
+      <p>Use the main interface to:</p>
+      <ol>
+        <li>Select QQQ or SPY</li>
+        <li>Choose your leverage with the slider</li>
+        <li>Pick a time period (1M, 3M, 6M, 1Y, etc.)</li>
+        <li>See how your position would have performed</li>
+        <li>Compare to daily-reset leverage (like TQQQ)</li>
+      </ol>
+      <p>Toggle <strong>🚀 DEGEN MODE</strong> to experiment with extreme leverage and see liquidations happen in real-time on the chart.</p>
+    </div>
+
+    <div class="edu-section">
+      <h2>🏗️ Built On</h2>
+      <p><strong>Euler V2 EVK:</strong> Modular vault architecture with atomic looping via the Ethereum Vault Connector (EVC). This enables gas-efficient leverage construction without flash loans.</p>
+      <p><strong>Pyth Oracles:</strong> 15-minute TWAP pricing with dynamic spread based on spot-TWAP divergence.</p>
+    </div>
+
+    <div class="cta-section">
+      <p>Ready to explore? Go back to the chart and start experimenting with the simulator!</p>
+      <button class="page-cta" id="backToChartCTA">Start Exploring →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main App Container -->
+<div id="mainApp" class="main-app">
 <div class="header">
   <div class="header-left">
     <div class="logo">x<span>Lever</span></div>
@@ -22,8 +133,13 @@
       <button class="ticker-select-btn" data-ticker="SPY">SPY</button>
     </div>
     <div class="ticker-badge"><div class="ticker-dot"></div><span id="dynamicTicker">QQQ × 2.0</span></div>
+    <div class="tranche-selector">
+      <button class="tranche-btn active" id="seniorBtn" data-tranche="senior">Senior (Trader)</button>
+      <button class="tranche-btn" id="juniorBtn" data-tranche="junior">Junior (LP)</button>
+    </div>
   </div>
   <div class="header-right">
+    <button id="howItWorksBtn" class="how-it-works-btn">📚 How It Works</button>
     <button id="degenModeBtn" class="degen-mode-btn">🚀 DEGEN MODE</button>
     <button id="connectWalletBtn" class="connect-wallet-btn">Connect Wallet</button>
     <div id="walletInfo" class="wallet-info" style="display: none;">
@@ -40,7 +156,8 @@
     <span>Powered by Euler V2 EVK</span>
   </div>
 </div>
-<div class="main-layout">
+<!-- Senior Trader View -->
+<div id="seniorView" class="main-layout">
   <div class="chart-area">
     <div class="chart-toolbar">
       <div class="toolbar-left">
@@ -185,6 +302,235 @@
     <button class="notch-btn" data-lev="4.0">+4×</button>
   </div>
 </div>
+
+<!-- Junior LP View -->
+<div id="juniorView" class="main-layout" style="display: none;">
+  <div class="junior-hero">
+    <h1 class="junior-title">Junior Liquidity Provider</h1>
+    <p class="junior-subtitle">Earn fees by providing first-loss capital to protect senior traders</p>
+    <div class="junior-stats-grid">
+      <div class="junior-stat-card">
+        <div class="junior-stat-label">Current APY</div>
+        <div class="junior-stat-value positive" id="juniorAPYDisplay">12.5%</div>
+      </div>
+      <div class="junior-stat-card">
+        <div class="junior-stat-label">Total Junior TVL</div>
+        <div class="junior-stat-value" id="juniorTVL">$2.5M</div>
+      </div>
+      <div class="junior-stat-card">
+        <div class="junior-stat-label">Pool Utilization</div>
+        <div class="junior-stat-value" id="poolUtilization">65%</div>
+      </div>
+      <div class="junior-stat-card">
+        <div class="junior-stat-label">Your Position</div>
+        <div class="junior-stat-value" id="yourJuniorPosition">$0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="junior-content">
+    <div class="junior-left">
+      <div class="panel-section">
+        <div class="panel-title">Deposit / Withdraw</div>
+        <div class="junior-action-card">
+          <div class="action-tabs">
+            <button class="action-tab active" id="depositTab">Deposit</button>
+            <button class="action-tab" id="withdrawTab">Withdraw</button>
+          </div>
+          <div class="action-content" id="depositContent">
+            <div class="input-group">
+              <label>Amount (USDC)</label>
+              <input type="number" class="amount-input" id="depositAmount" placeholder="0.00">
+              <button class="max-btn">MAX</button>
+            </div>
+            <div class="action-info">
+              <div class="info-row">
+                <span>Your USDC Balance:</span>
+                <span id="usdcBalanceJunior">0.00</span>
+              </div>
+              <div class="info-row">
+                <span>Share of Pool:</span>
+                <span id="shareOfPool">0.00%</span>
+              </div>
+              <div class="info-row">
+                <span>Estimated APY:</span>
+                <span class="positive" id="estimatedAPY">12.5%</span>
+              </div>
+            </div>
+            <button class="primary-action-btn" id="depositBtn">Deposit USDC</button>
+          </div>
+          <div class="action-content" id="withdrawContent" style="display: none;">
+            <div class="input-group">
+              <label>Amount (USDC)</label>
+              <input type="number" class="amount-input" id="withdrawAmount" placeholder="0.00">
+              <button class="max-btn">MAX</button>
+            </div>
+            <div class="action-info">
+              <div class="info-row">
+                <span>Your Junior Position:</span>
+                <span id="juniorPositionWithdraw">0.00</span>
+              </div>
+              <div class="info-row">
+                <span>Accrued Fees:</span>
+                <span class="positive" id="accruedFees">0.00</span>
+              </div>
+              <div class="info-row">
+                <span>Withdrawal Fee:</span>
+                <span id="withdrawalFee">0.5%</span>
+              </div>
+            </div>
+            <button class="primary-action-btn" id="withdrawBtn">Withdraw USDC</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Risk & Rewards</div>
+        <div class="risk-reward-grid">
+          <div class="risk-card">
+            <div class="risk-icon">💰</div>
+            <h3>Fee Revenue</h3>
+            <p>Earn fees from all senior trader activity. Higher leverage = higher fees.</p>
+            <div class="risk-metric positive">+12.5% APY</div>
+          </div>
+          <div class="risk-card warning">
+            <div class="risk-icon">⚠️</div>
+            <h3>First-Loss Risk</h3>
+            <p>You absorb losses before senior traders. Can be fully wiped in extreme events.</p>
+            <div class="risk-metric negative">Max Loss: 100%</div>
+          </div>
+          <div class="risk-card">
+            <div class="risk-icon">🛡️</div>
+            <h3>Auto-Deleverage</h3>
+            <p>Protocol reduces risk automatically during drawdowns to protect the pool.</p>
+            <div class="risk-metric">5 Protection Levels</div>
+          </div>
+          <div class="risk-card">
+            <div class="risk-icon">🔄</div>
+            <h3>Liquidity</h3>
+            <p>Withdraw anytime (0.5% fee). Secondary market for instant exits at discount.</p>
+            <div class="risk-metric">24/7 Access</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="junior-right">
+      <div class="panel-section">
+        <div class="panel-title">Pool Composition</div>
+        <div class="pool-visual">
+          <div class="pool-bar">
+            <div class="pool-segment senior" style="width: 65%">
+              <span>Senior: 65%</span>
+            </div>
+            <div class="pool-segment junior" style="width: 35%">
+              <span>Junior: 35%</span>
+            </div>
+          </div>
+          <div class="pool-stats">
+            <div class="pool-stat">
+              <span class="pool-stat-label">Senior TVL:</span>
+              <span class="pool-stat-value">$4.7M</span>
+            </div>
+            <div class="pool-stat">
+              <span class="pool-stat-label">Junior TVL:</span>
+              <span class="pool-stat-value">$2.5M</span>
+            </div>
+            <div class="pool-stat">
+              <span class="pool-stat-label">Total TVL:</span>
+              <span class="pool-stat-value">$7.2M</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Pool Health</div>
+        <div class="health-metrics">
+          <div class="health-item">
+            <div class="health-label">Buffer Ratio</div>
+            <div class="health-value positive">35%</div>
+            <div class="health-bar">
+              <div class="health-fill" style="width: 70%; background: var(--green)"></div>
+            </div>
+            <div class="health-note">Healthy (Target: 30-40%)</div>
+          </div>
+          <div class="health-item">
+            <div class="health-label">Net Exposure</div>
+            <div class="health-value">+$1.2M Long</div>
+            <div class="health-note">Balanced directional risk</div>
+          </div>
+          <div class="health-item">
+            <div class="health-label">Avg Leverage</div>
+            <div class="health-value">2.3×</div>
+            <div class="health-note">Moderate risk profile</div>
+          </div>
+          <div class="health-item">
+            <div class="health-label">Insurance Fund</div>
+            <div class="health-value">$250K</div>
+            <div class="health-note">3.5% of TVL backstop</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Fee Breakdown</div>
+        <div class="fee-breakdown">
+          <div class="fee-item">
+            <span>Senior Trading Fees</span>
+            <span class="positive">+$125K/mo</span>
+          </div>
+          <div class="fee-item">
+            <span>Circuit Breaker Premiums</span>
+            <span class="positive">+$18K/mo</span>
+          </div>
+          <div class="fee-item">
+            <span>Total Fee Revenue</span>
+            <span class="positive">+$143K/mo</span>
+          </div>
+          <div class="fee-divider"></div>
+          <div class="fee-item">
+            <span>To Junior LPs (70%)</span>
+            <span class="positive">+$100K/mo</span>
+          </div>
+          <div class="fee-item">
+            <span>To Insurance (20%)</span>
+            <span>+$29K/mo</span>
+          </div>
+          <div class="fee-item">
+            <span>To Protocol (10%)</span>
+            <span>+$14K/mo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Historical Performance</div>
+        <div class="historical-stats">
+          <div class="hist-stat">
+            <div class="hist-label">30-Day APY</div>
+            <div class="hist-value positive">+14.2%</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-label">90-Day APY</div>
+            <div class="hist-value positive">+11.8%</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-label">Max Drawdown</div>
+            <div class="hist-value negative">-8.5%</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-label">Loss Events</div>
+            <div class="hist-value">2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<!-- End Main App -->
 
 <script src="app.js"></script>
 </body>

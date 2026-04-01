@@ -1410,6 +1410,62 @@ document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click',
 document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); }));
 document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); }));
 
+// Tranche Selector (Senior/Junior)
+document.getElementById('seniorBtn').addEventListener('click', () => {
+  document.getElementById('seniorView').style.display = 'grid';
+  document.getElementById('juniorView').style.display = 'none';
+  document.getElementById('seniorBtn').classList.add('active');
+  document.getElementById('juniorBtn').classList.remove('active');
+});
+
+document.getElementById('juniorBtn').addEventListener('click', () => {
+  document.getElementById('seniorView').style.display = 'none';
+  document.getElementById('juniorView').style.display = 'block';
+  document.getElementById('seniorBtn').classList.remove('active');
+  document.getElementById('juniorBtn').classList.add('active');
+});
+
+// Junior LP Tab Switching
+const depositTab = document.getElementById('depositTab');
+const withdrawTab = document.getElementById('withdrawTab');
+const depositContent = document.getElementById('depositContent');
+const withdrawContent = document.getElementById('withdrawContent');
+
+if (depositTab && withdrawTab) {
+  depositTab.addEventListener('click', () => {
+    depositTab.classList.add('active');
+    withdrawTab.classList.remove('active');
+    depositContent.style.display = 'block';
+    withdrawContent.style.display = 'none';
+  });
+
+  withdrawTab.addEventListener('click', () => {
+    withdrawTab.classList.add('active');
+    depositTab.classList.remove('active');
+    withdrawContent.style.display = 'block';
+    depositContent.style.display = 'none';
+  });
+}
+
+// How It Works Page Navigation
+document.getElementById('howItWorksBtn').addEventListener('click', () => {
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('howItWorksPage').style.display = 'block';
+  window.scrollTo(0, 0);
+});
+
+document.getElementById('backToChart').addEventListener('click', () => {
+  document.getElementById('howItWorksPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  window.scrollTo(0, 0);
+});
+
+document.getElementById('backToChartCTA').addEventListener('click', () => {
+  document.getElementById('howItWorksPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  window.scrollTo(0, 0);
+});
+
 document.getElementById('degenModeBtn').addEventListener('click', () => {
   isDegenMode = !isDegenMode;
   document.body.classList.toggle('degen-mode', isDegenMode);
