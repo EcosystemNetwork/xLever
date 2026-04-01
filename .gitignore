@@ -6,3 +6,62 @@ dist/
 .env.*
 .vercel
 .gitnexus
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+.coverage
+*.lcov
+lcov.info
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Foundry specific
+cache_hardhat/
+artifacts/
+
+# Don't ignore example files
+!.env.example
+!contracts/.env.example
+
+# Temporary documentation
+READY_TO_USE.md
+DEPLOYMENT_STEPS.md
+DEPLOY_NOW.md
+DEPLOYED.md

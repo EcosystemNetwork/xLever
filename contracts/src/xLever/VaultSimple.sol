@@ -49,8 +49,8 @@ contract VaultSimple {
         asset = _asset;
         // Store admin for access control
         admin = _admin;
-        // Set default max leverage to 4x (40000 bps) — matches full Vault's default
-        poolState.currentMaxLeverageBps = 40000;
+        // Set default max leverage to 3.5x (35000 bps) — matches deployed vault configuration
+        poolState.currentMaxLeverageBps = 35000;
         // Set protocol to active state (0) so trading can begin immediately
         poolState.protocolState = 0;
     }
@@ -60,8 +60,8 @@ contract VaultSimple {
     function deposit(uint256 amount, int32 leverageBps) external returns (uint256) {
         // Reject zero deposits to prevent empty positions
         require(amount > 0, "Zero deposit");
-        // Enforce leverage bounds: -4x to +4x matching the full Vault's limits
-        require(leverageBps >= -40000 && leverageBps <= 40000, "Invalid leverage");
+        // Enforce leverage bounds: -3.5x to +3.5x matching the deployed vault configuration
+        require(leverageBps >= -35000 && leverageBps <= 35000, "Invalid leverage");
 
         // Pull USDC from the user — must have prior approval
         require(usdc.transferFrom(msg.sender, address(this), amount), "Transfer failed");
@@ -95,26 +95,28 @@ contract VaultSimple {
         DataTypes.Position storage pos = positions[msg.sender];
         // Ensure user has an active position to withdraw from
         require(pos.isActive, "No position");
+        // If amount is 0, withdraw all — convenience for full position closure
+        uint256 withdrawAmount = amount == 0 ? pos.depositAmount : amount;
         // Prevent withdrawing more than deposited — no PnL in simplified version
-        require(amount <= pos.depositAmount, "Insufficient balance");
+        require(withdrawAmount <= pos.depositAmount, "Insufficient balance");
 
         // Reduce deposit by withdrawal amount — supports partial withdrawals
-        pos.depositAmount -= uint128(amount);
+        pos.depositAmount -= uint128(withdrawAmount);
         // If fully withdrawn, mark position as inactive to free the slot
         if (pos.depositAmount == 0) {
             pos.isActive = false;
         }
 
         // Reduce tracked senior deposits to keep pool-level accounting accurate
-        poolState.totalSeniorDeposits -= uint128(amount);
+        poolState.totalSeniorDeposits -= uint128(withdrawAmount);
 
         // Transfer USDC back to the user
-        require(usdc.transfer(msg.sender, amount), "Transfer failed");
+        require(usdc.transfer(msg.sender, withdrawAmount), "Transfer failed");
 
         // Emit withdrawal event for off-chain tracking
-        emit Withdraw(msg.sender, amount);
+        emit Withdraw(msg.sender, withdrawAmount);
         // Return amount withdrawn (same as requested since no fees)
-        return amount;
+        return withdrawAmount;
     }
 
     /// @notice Get position

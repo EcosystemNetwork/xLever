@@ -743,3 +743,46 @@ body.degen-mode * {
   /* Cap right panel height so users can still see the chart above */
   .right-panel { max-height: 400px; }
 }
+
+/* ═══════════════════════════════════════════════════
+   MODE TOGGLE (Trade / Research)
+   ═══════════════════════════════════════════════════ */
+
+.mode-toggle {
+  display: flex; gap: 2px; background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px; margin-right: 8px;
+}
+.mode-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  transition: all 0.2s; color: var(--text-muted); background: transparent;
+}
+.mode-btn:hover { color: var(--text-secondary); }
+.mode-btn.active[data-mode="trade"] {
+  background: var(--green); color: #0a0b0e; box-shadow: 0 0 12px var(--green-glow);
+}
+.mode-btn.active[data-mode="research"] {
+  background: var(--accent); color: #fff; box-shadow: 0 0 12px var(--accent-dim);
+}
+
+/* Mode banner — persistent strip below the header */
+.mode-banner {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500;
+}
+.mode-banner-trade {
+  background: rgba(0, 230, 118, 0.08); color: var(--green);
+  border-bottom: 1px solid rgba(0, 230, 118, 0.15);
+}
+.mode-banner-research {
+  background: rgba(124, 77, 255, 0.08); color: var(--accent);
+  border-bottom: 1px solid rgba(124, 77, 255, 0.15);
+}
+
+/* Mode-based visibility — elements with data-mode are hidden when the other mode is active */
+body.mode-trade [data-mode="research"] { display: none !important; }
+body.mode-research [data-mode="trade"] { display: none !important; }
+/* Mode toggle itself is always visible regardless of mode */
+.mode-toggle[data-mode] { display: flex !important; }
+.mode-banner { display: flex !important; }

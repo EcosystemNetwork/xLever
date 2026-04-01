@@ -242,6 +242,31 @@ Every line of code in the codebase is commented explaining **why** it exists —
 | Pyth | `0x2880aB155794e7179c9eE2e38200202908C17B43` |
 | PythAdapter | `0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f` |
 
+### xLever Protocol - LIVE & FULLY FUNCTIONAL
+- **wSPYx Vault**: [`0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd`](https://explorer-sepolia.inkonchain.com/address/0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd)
+- **wQQQx Vault**: [`0xd76378af8494eafa6251d13dcbcaa4f39e70b90b`](https://explorer-sepolia.inkonchain.com/address/0xd76378af8494eafa6251d13dcbcaa4f39e70b90b)
+
+**Status: FULLY FUNCTIONAL WITH JUNIOR TRANCHE** - Full vault contracts with junior liquidity provider support deployed and integrated!
+
+**Features:**
+- Open positions with USDC deposit and leverage selection (-4x to +4x)
+- Close positions and withdraw USDC
+- Asset selection (SPY/QQQ)
+- Real-time position tracking
+- Balance updates
+- **Junior tranche deposits and withdrawals**
+- **First-loss capital pool for LPs**
+- **Fee distribution to junior LPs**
+- Fully integrated frontend UI with chart visualization
+
+**How to Use:**
+1. Connect MetaMask wallet to Ink Sepolia network
+2. Get testnet USDC from faucet
+3. Select asset (SPY or QQQ) and leverage
+4. Enter USDC amount and open position
+5. View your active positions
+6. Close positions to withdraw USDC + P&L
+
 ---
 
 ## Run Locally
@@ -302,6 +327,48 @@ This project uses AI tools transparently:
 - **Perplexity API**: Real-time market intelligence for the AI agent component
 
 All AI-generated code has been reviewed and integrated by team members. The protocol architecture, leverage math, and risk model were designed collaboratively with AI assistance.
+
+---
+
+### Using the Live App
+
+1. **Setup Wallet**
+   - Install MetaMask
+   - Add Ink Sepolia network (Chain ID: 763373)
+   - RPC: `https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc`
+
+2. **Get Testnet Tokens**
+   - Get testnet ETH for gas
+   - Get testnet USDC: `0x6b57475467cd854d36Be7FB614caDa5207838943`
+
+3. **Run Frontend**
+   ```bash
+   cd frontend
+   python3 -m http.server 8080
+   # Open http://localhost:8080 in browser
+   ```
+
+4. **Open a Position**
+   - Connect wallet
+   - Select asset (SPY or QQQ)
+   - Choose leverage with slider
+   - Enter USDC amount
+   - Click "Open Position"
+   - Approve transactions in MetaMask
+
+### Development
+
+1. **Deploy New Contracts**
+   ```bash
+   cd contracts
+   forge script script/DeploySimple.s.sol:DeploySimple --rpc-url <RPC> --broadcast --private-key <KEY>
+   ```
+
+2. **Run Tests**
+   ```bash
+   cd contracts
+   forge test
+   ```
 
 ---
 

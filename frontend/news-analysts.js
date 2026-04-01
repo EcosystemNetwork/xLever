@@ -328,21 +328,30 @@ const NewsAnalysts = (() => {
   // PARALLEL EXECUTION
   // ═══════════════════════════════════════════════════════════════
 
-  // Run all three analysts in parallel on a single news item
+  // Run all analysts in parallel on a single news item
+  // Includes LLM analyst (Perplexity AI) when API key is configured
   async function analyzeAll(newsItem) {
     const startTime = performance.now()
 
-    const [sentiment, technical, macro] = await Promise.all([
+    // Core heuristic analysts always run
+    const promises = [
       Promise.resolve(analyzeSentiment(newsItem)),
       analyzeTechnical(newsItem),
       analyzeMacro(newsItem),
-    ])
+    ]
 
+    // LLM analyst runs in parallel when available (graceful degradation if not)
+    const llm = window.LLMAnalyst
+    if (llm && llm.isAvailable()) {
+      promises.push(llm.analyze(newsItem))
+    }
+
+    const results = await Promise.all(promises)
     const elapsed = performance.now() - startTime
 
     return {
       newsItem,
-      signals: [sentiment, technical, macro],
+      signals: results,
       analysisTime: elapsed,
       timestamp: Date.now(),
     }

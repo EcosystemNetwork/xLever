@@ -20,10 +20,12 @@ const SignalAggregator = (() => {
   // ═══════════════════════════════════════════════════════════════
 
   // Default analyst weights — can be overridden at runtime
+  // When LLM analyst is active, weights are rebalanced automatically
   let _weights = {
-    sentiment:  0.30,   // News sentiment carries moderate weight
-    technical:  0.40,   // Technical/price action carries the most (market has spoken)
-    macro:      0.30,   // Macro context provides strategic backdrop
+    sentiment:  0.25,   // News sentiment carries moderate weight
+    technical:  0.30,   // Technical/price action carries the most (market has spoken)
+    macro:      0.20,   // Macro context provides strategic backdrop
+    llm:        0.25,   // Perplexity AI-driven analysis (ignored when unavailable)
   }
 
   // Conviction thresholds — determines when to act vs hold

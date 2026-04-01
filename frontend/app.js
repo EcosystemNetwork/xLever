@@ -19,10 +19,127 @@ const TOKEN_ADDRESSES = window.xLeverContracts
   ? { USDC: window.xLeverContracts.ADDRESSES.usdc, wQQQx: window.xLeverContracts.ADDRESSES.wQQQx, wSPYx: window.xLeverContracts.ADDRESSES.wSPYx }
   : { USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943', wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e' };
 
-// Minimal ERC-20 ABI for balance display — balanceOf and decimals only
+// Vault contract addresses (DEPLOYED - Full Vault with Junior Tranche)
+const VAULT_ADDRESSES = {
+  wSPYx: '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd',
+  wQQQx: '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b'
+};
+
+// Minimal ERC-20 ABI for balance display — balanceOf, decimals, and approve
 const ERC20_ABI = [
   { name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: 'balance', type: 'uint256' }] },
-  { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint8' }] }
+  { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint8' }] },
+  { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }
+];
+
+// Vault ABI for deposits, withdrawals, and junior tranche operations
+const VAULT_ABI = [
+  {
+    name: 'deposit',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'leverageBps', type: 'int32' }
+    ],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'withdraw',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [{ name: 'received', type: 'uint256' }]
+  },
+  {
+    name: 'depositJunior',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [{ name: 'shares', type: 'uint256' }]
+  },
+  {
+    name: 'withdrawJunior',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'shares', type: 'uint256' }],
+    outputs: [{ name: 'amount', type: 'uint256' }]
+  },
+  {
+    name: 'getPosition',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'depositAmount', type: 'uint128' },
+        { name: 'leverageBps', type: 'int32' },
+        { name: 'entryTWAP', type: 'uint128' },
+        { name: 'lastFeeTimestamp', type: 'uint64' },
+        { name: 'settledFees', type: 'uint128' },
+        { name: 'leverageLockExpiry', type: 'uint32' },
+        { name: 'isActive', type: 'bool' }
+      ]
+    }]
+  },
+  {
+    name: 'getJuniorValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'totalValue', type: 'uint256' },
+      { name: 'sharePrice', type: 'uint256' }
+    ]
+  },
+  {
+    name: 'juniorTranche',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }]
+  }
+];
+
+// Junior Tranche ABI
+const JUNIOR_TRANCHE_ABI = [
+  {
+    name: 'getShares',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'getUserValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'getSharePrice',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'price', type: 'uint256' }]
+  },
+  {
+    name: 'getTotalValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'value', type: 'uint256' }]
+  },
+  {
+    name: 'totalShares',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  }
 ];
 
 async function fetchBalances() {
@@ -46,6 +163,12 @@ async function fetchBalances() {
     });
     document.getElementById('usdcBalance').textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2); // USDC has 6 decimals, show 2 for dollar precision
 
+    // Update junior view USDC balance
+    const usdcBalanceJunior = document.getElementById('usdcBalanceJunior');
+    if (usdcBalanceJunior) {
+      usdcBalanceJunior.textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2);
+    }
+
     // wQQQx balance — shows user's leveraged QQQ exposure token holdings from the LTAP vault
     const wqqqxBalance = await publicClient.readContract({
       address: TOKEN_ADDRESSES.wQQQx,
@@ -67,6 +190,369 @@ async function fetchBalances() {
   } catch (error) {
     console.error('Failed to fetch balances:', error); // Non-fatal: UI still works, user just sees stale balances
   }
+}
+
+async function fetchJuniorPosition(vaultAddress) {
+  if (!connectedAddress || !publicClient) return null;
+
+  try {
+    const { formatUnits } = window.viem;
+    
+    // Try to get junior tranche address - will fail if vault doesn't support it
+    const juniorTrancheAddress = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    }).catch(() => null);
+
+    if (!juniorTrancheAddress) {
+      console.log('Vault does not support junior tranche:', vaultAddress);
+      return null;
+    }
+
+    // Get user's shares
+    const shares = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getShares',
+      args: [connectedAddress]
+    });
+
+    // Get user's value
+    const userValue = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getUserValue',
+      args: [connectedAddress]
+    });
+
+    // Get share price
+    const sharePrice = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getSharePrice'
+    });
+
+    // Get total value
+    const totalValue = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getTotalValue'
+    });
+
+    return {
+      shares: parseFloat(formatUnits(shares, 6)),
+      userValue: parseFloat(formatUnits(userValue, 6)),
+      sharePrice: parseFloat(formatUnits(sharePrice, 6)),
+      totalValue: parseFloat(formatUnits(totalValue, 6))
+    };
+  } catch (error) {
+    console.log('Junior tranche not available for vault:', vaultAddress);
+    return null;
+  }
+}
+
+async function updateJuniorUI() {
+  if (!connectedAddress || !publicClient) return;
+
+  try {
+    // Fetch positions for both vaults
+    const wqqqxPosition = await fetchJuniorPosition(VAULT_ADDRESSES.wQQQx);
+    const wspyxPosition = await fetchJuniorPosition(VAULT_ADDRESSES.wSPYx);
+
+    // Check if junior tranche is available
+    if (!wqqqxPosition && !wspyxPosition) {
+      // No junior tranche support - show message
+      document.getElementById('yourJuniorPosition').textContent = 'Not Available';
+      document.getElementById('juniorTVL').textContent = 'Not Available';
+      document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
+      document.getElementById('poolUtilization').textContent = 'N/A';
+      console.log('⚠️ Junior tranche not available on deployed vaults');
+      return;
+    }
+
+    // Calculate total position value
+    const totalPosition = (wqqqxPosition?.userValue || 0) + (wspyxPosition?.userValue || 0);
+    const totalTVL = (wqqqxPosition?.totalValue || 0) + (wspyxPosition?.totalValue || 0);
+
+    // Update UI elements
+    document.getElementById('yourJuniorPosition').textContent = `$${totalPosition.toFixed(2)}`;
+    document.getElementById('juniorTVL').textContent = `$${totalTVL.toFixed(2)}`;
+    document.getElementById('juniorPositionWithdraw').textContent = `$${totalPosition.toFixed(2)}`;
+
+    // Calculate pool utilization - get actual senior deposits
+    let utilization = 0;
+    try {
+      const poolState = await publicClient.readContract({
+        address: VAULT_ADDRESSES.wQQQx,
+        abi: VAULT_ABI,
+        functionName: 'getPoolState'
+      });
+      const seniorDeposits = parseFloat(poolState.totalSeniorDeposits || 0) / 1e6;
+      const totalPool = totalTVL + seniorDeposits;
+      utilization = totalPool > 0 ? Math.round((seniorDeposits / totalPool) * 100) : 0;
+    } catch (e) {
+      utilization = 0;
+    }
+    document.getElementById('poolUtilization').textContent = `${utilization}%`;
+
+    console.log('✓ Junior UI updated');
+  } catch (error) {
+    console.error('Failed to update junior UI:', error);
+  }
+}
+
+async function depositJunior() {
+  if (!walletClient || !connectedAddress) {
+    alert('Please connect your wallet first');
+    return;
+  }
+
+  const depositAmount = document.getElementById('depositAmount').value;
+  if (!depositAmount || parseFloat(depositAmount) <= 0) {
+    alert('Please enter a valid deposit amount');
+    return;
+  }
+
+  try {
+    const { parseUnits } = window.viem;
+    const amount = parseUnits(depositAmount, 6);
+
+    // Use wQQQx vault by default (can be made dynamic)
+    const vaultAddress = VAULT_ADDRESSES.wQQQx;
+
+    // Check if vault supports junior tranche
+    const juniorTrancheAddress = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    }).catch(() => null);
+
+    if (!juniorTrancheAddress) {
+      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.\n\nSee DeployFullVault.s.sol script.');
+      return;
+    }
+
+    // First approve USDC
+    console.log('Approving USDC...');
+    const approveTx = await walletClient.writeContract({
+      address: TOKEN_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: 'approve',
+      args: [vaultAddress, amount],
+      account: connectedAddress
+    });
+
+    console.log('Waiting for approval confirmation...');
+    await publicClient.waitForTransactionReceipt({ hash: approveTx });
+
+    // Then deposit
+    console.log('Depositing to junior tranche...');
+    const depositTx = await walletClient.writeContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'depositJunior',
+      args: [amount],
+      account: connectedAddress
+    });
+
+    console.log('Waiting for deposit confirmation...');
+    await publicClient.waitForTransactionReceipt({ hash: depositTx });
+
+    alert('✓ Junior deposit successful!');
+    
+    // Refresh balances and UI
+    await fetchBalances();
+    await updateJuniorUI();
+    
+    // Clear input
+    document.getElementById('depositAmount').value = '';
+  } catch (error) {
+    console.error('Junior deposit failed:', error);
+    alert('Deposit failed: ' + (error.message || 'Unknown error'));
+  }
+}
+
+async function withdrawJunior() {
+  if (!walletClient || !connectedAddress) {
+    alert('Please connect your wallet first');
+    return;
+  }
+
+  const withdrawAmount = document.getElementById('withdrawAmount').value;
+  if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+    alert('Please enter a valid withdrawal amount');
+    return;
+  }
+
+  try {
+    const { parseUnits } = window.viem;
+    const vaultAddress = VAULT_ADDRESSES.wQQQx;
+
+    // Check if vault supports junior tranche
+    const juniorTrancheCheck = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    }).catch(() => null);
+
+    if (!juniorTrancheCheck) {
+      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.');
+      return;
+    }
+
+    // Get junior tranche address
+    const juniorTrancheAddress = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    });
+
+    // Get share price to calculate shares needed
+    const sharePrice = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getSharePrice'
+    });
+
+    // Calculate shares to withdraw (amount * 1e6 / sharePrice)
+    const amountInUsdc = parseUnits(withdrawAmount, 6);
+    const shares = (amountInUsdc * BigInt(1e6)) / sharePrice;
+
+    console.log('Withdrawing from junior tranche...');
+    const withdrawTx = await walletClient.writeContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'withdrawJunior',
+      args: [shares],
+      account: connectedAddress
+    });
+
+    console.log('Waiting for withdrawal confirmation...');
+    await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
+
+    alert('✓ Junior withdrawal successful!');
+    
+    // Refresh balances and UI
+    await fetchBalances();
+    await updateJuniorUI();
+    
+    // Clear input
+    document.getElementById('withdrawAmount').value = '';
+  } catch (error) {
+    console.error('Junior withdrawal failed:', error);
+    alert('Withdrawal failed: ' + (error.message || 'Unknown error'));
+  }
+}
+
+async function switchToInkSepolia() {
+  try {
+    // First try to switch
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0xBA6ED' }],
+    });
+    console.log('✓ Switched to Ink Sepolia');
+    return true;
+  } catch (switchError) {
+    // If network not added (error 4902), add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0xBA6ED',
+            chainName: 'Ink Sepolia',
+            nativeCurrency: {
+              name: 'ETH',
+              symbol: 'ETH',
+              decimals: 18
+            },
+            rpcUrls: ['https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc'],
+            blockExplorerUrls: ['https://explorer-sepolia.inkonchain.com']
+          }]
+        });
+        console.log('✓ Added and switched to Ink Sepolia');
+        return true;
+      } catch (addError) {
+        console.error('Failed to add network:', addError);
+        return false;
+      }
+    } else if (switchError.code === 4001) {
+      console.log('User rejected network switch');
+      return false;
+    } else {
+      console.error('Network switch error:', switchError);
+      return false;
+    }
+  }
+}
+
+async function connectWallet() {
+  try {
+    if (!window.ethereum) {
+      showToast('Please install MetaMask or another Web3 wallet to connect.', 'warning', 5000);
+      return;
+    }
+
+    const accounts = await window.ethereum.request({ 
+      method: 'eth_requestAccounts' 
+    });
+    
+    if (accounts.length === 0) {
+      throw new Error('No accounts found');
+    }
+
+    // Check current network
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const currentChainId = parseInt(chainId, 16);
+    
+    // Only switch if not already on Ink Sepolia
+    if (currentChainId !== 763373) {
+      console.log(`Current network: ${currentChainId}, switching to Ink Sepolia (763373)...`);
+      const switched = await switchToInkSepolia();
+      
+      if (!switched) {
+        showToast('Please switch to Ink Sepolia network in MetaMask.\n\nChain ID: 763373', 'warning', 6000);
+        return;
+      }
+    } else {
+      console.log('✓ Already on Ink Sepolia');
+    }
+
+    const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
+    
+    walletClient = createWalletClient({
+      chain: inkSepolia,
+      transport: custom(window.ethereum)
+    });
+
+    publicClient = createPublicClient({
+      chain: inkSepolia,
+      transport: http('https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc')
+    });
+
+    connectedAddress = accounts[0];
+    
+    updateWalletUI();
+    await fetchBalances();
+    await updateJuniorUI();
+    
+    localStorage.setItem('walletConnected', 'true');
+    console.log('✓ Wallet connected:', connectedAddress);
+    
+  } catch (error) {
+    console.error('Failed to connect wallet:', error);
+    showToast('Failed to connect wallet. Please try again.', 'error');
+  }
+}
+
+function disconnectWallet() {
+  walletClient = null;
+  connectedAddress = null;
+  localStorage.removeItem('walletConnected');
+  updateWalletUI();
+  console.log('✓ Wallet disconnected');
 }
 
 function updateWalletUI() {
@@ -205,9 +691,9 @@ let dataLoading = true; // Loading flag prevents premature chart rendering befor
 let currentTicker = 'QQQ'; // Default to QQQ because it's the primary LTAP product (Nasdaq-100 leveraged exposure)
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area'; // Defaults: 2x long, 1-year view, area chart — the most common user starting point
 let entryDateIndex = 0; // Index into the filtered data array where the backtest starts — 0 means "from period start", click-to-set changes this
-let isDegenMode = false; // Degen mode flag — toggles between normal (±4x) and degen (±100x) leverage ranges
-let MIN_LEV = -4.0, MAX_LEV = 4.0; // Leverage bounds — mutable to support degen mode switching
-const NORMAL_MIN = -4.0, NORMAL_MAX = 4.0; // Normal mode leverage limits — matches LTAP protocol's maximum supported leverage on Euler V2 EVK
+let isDegenMode = false; // Degen mode flag — toggles between normal (±3.5x) and degen (±100x) leverage ranges
+let MIN_LEV = -3.5, MAX_LEV = 3.5; // Leverage bounds — mutable to support degen mode switching
+const NORMAL_MIN = -3.5, NORMAL_MAX = 3.5; // Normal mode leverage limits — matches deployed vault's maximum supported leverage
 const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0; // Degen mode leverage limits — for education/entertainment only
 
 async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenBB provides institutional-grade OHLCV data via our local proxy server
@@ -316,6 +802,7 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
     dataLoading = false; // Even synthetic data counts as "loaded"
     entryDateIndex = 0; // Reset entry point for consistency
     updateAll(); // Render with synthetic data — user sees a working chart rather than a blank screen
+    showToast('Error loading live data. Using generated data as fallback.', 'warning', 6000);
   }
 }
 
@@ -1183,6 +1670,12 @@ function updateAll() { // Master render function — called on every user intera
   document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`; // Comparison grid base ticker label
   document.getElementById('dataSourceTicker').textContent = currentTicker; // Data source indicator showing which ticker's data is being displayed
   
+  // Update position entry leverage display
+  const currentLevDisplay = document.getElementById('currentLevDisplay');
+  if (currentLevDisplay) {
+    currentLevDisplay.textContent = `${signedDisplay}×`;
+  }
+
   const tickerNames = { // Human-readable names for all supported tickers — shown in the underlying name display so users know what they're backtesting
     'QQQ': 'QQQ (Nasdaq-100)', 'SPY': 'SPY (S&P 500)', // Primary LTAP products — index ETFs with deep liquidity
     'AAPL': 'AAPL (Apple)', 'NVDA': 'NVDA (NVIDIA)', 'TSLA': 'TSLA (Tesla)', // Mega-cap tech stocks — popular single-stock leverage candidates
@@ -1243,14 +1736,14 @@ function updateAll() { // Master render function — called on every user intera
   if (absLev > 3.0) requiredBuffer = 0.30; // 30% for >3x — high leverage needs substantial protection
   if (absLev > 3.5) requiredBuffer = 0.33; // 33% for >3.5x — near-maximum leverage requires the largest buffer
 
-  let dynamicMax = 4.0; // Dynamic maximum leverage cap — reduces when junior tranche is too thin relative to senior
-  if (juniorRatio < 0.40) dynamicMax = 3.0; // Cap at 3x if junior ratio drops below 40% — insufficient first-loss capital for 4x exposure
+  let dynamicMax = 3.5; // Dynamic maximum leverage cap — reduces when junior tranche is too thin relative to senior
+  if (juniorRatio < 0.40) dynamicMax = 3.0; // Cap at 3x if junior ratio drops below 40% — insufficient first-loss capital for 3.5x exposure
   if (juniorRatio < 0.30) dynamicMax = 2.0; // Cap at 2x for <30% — conservative limit when buffer is thin
   if (juniorRatio < 0.20) dynamicMax = 1.5; // Cap at 1.5x for <20% — near-minimum buffer, only allow minimal leverage
 
   const bufferHealthy = juniorRatio >= requiredBuffer; // Check if the current junior ratio meets the minimum for the selected leverage
   const bufferEl = document.getElementById('bufferHealth'); // Buffer health indicator element in the risk panel
-  
+
   if (absLev > dynamicMax) { // Leverage exceeds the dynamic cap based on current junior ratio — warn the user
     bufferEl.textContent = '⚠ Exceeds Dynamic Cap (' + dynamicMax.toFixed(1) + '×)'; // Show the actual cap so user knows what's allowed
     bufferEl.className = 'row-value negative'; // Red warning — this leverage level wouldn't be permitted on-chain
@@ -1264,7 +1757,7 @@ function updateAll() { // Master render function — called on every user intera
 
   document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage)); // Highlight the quick-select leverage button that matches the current slider value
 
-  const riskPct = Math.min(100, (absMag / 4.0) * 100); // Risk meter fill: 0x = 0%, 4x = 100% — linear mapping of leverage to risk bar width
+  const riskPct = Math.min(100, (absMag / 3.5) * 100); // Risk meter fill: 0x = 0%, 3.5x = 100% — linear mapping of leverage to risk bar width
   const rf = document.getElementById('riskFill'); // The colored fill element inside the risk meter bar
   rf.style.width = riskPct + '%'; // Set the fill width proportional to leverage magnitude
 
@@ -1480,11 +1973,16 @@ if (seniorBtn && juniorBtn) {
     juniorBtn.classList.remove('active');
   });
 
-  juniorBtn.addEventListener('click', () => {
+  juniorBtn.addEventListener('click', async () => {
     document.getElementById('seniorView').style.display = 'none';
     document.getElementById('juniorView').style.display = 'block';
     seniorBtn.classList.remove('active');
     juniorBtn.classList.add('active');
+
+    // Refresh junior UI data
+    if (connectedAddress && publicClient) {
+      await updateJuniorUI();
+    }
   });
 }
 
@@ -1508,6 +2006,18 @@ if (depositTab && withdrawTab) {
     withdrawContent.style.display = 'block';
     depositContent.style.display = 'none';
   });
+}
+
+// Junior LP Deposit/Withdraw Buttons
+const depositBtn = document.getElementById('depositBtn');
+const withdrawBtn = document.getElementById('withdrawBtn');
+
+if (depositBtn) {
+  depositBtn.addEventListener('click', depositJunior);
+}
+
+if (withdrawBtn) {
+  withdrawBtn.addEventListener('click', withdrawJunior);
 }
 
 // How It Works Page Navigation
@@ -1603,13 +2113,13 @@ function updateNormalModeUI() { // Restore slider labels and notch buttons to no
   const notchContainer = document.querySelectorAll('.slider-notches');
   notchContainer.forEach(container => {
     container.innerHTML = `
-      <button class="notch-btn" data-lev="-4.0">-4×</button>
+      <button class="notch-btn" data-lev="-3.5">-3.5×</button>
       <button class="notch-btn" data-lev="-2.0">-2×</button>
       <button class="notch-btn" data-lev="-1.0">-1×</button>
       <button class="notch-btn" data-lev="0">0×</button>
       <button class="notch-btn" data-lev="1.0">+1×</button>
       <button class="notch-btn" data-lev="2.0">+2×</button>
-      <button class="notch-btn" data-lev="4.0">+4×</button>
+      <button class="notch-btn" data-lev="3.5">+3.5×</button>
     `;
     container.querySelectorAll('.notch-btn').forEach(b => {
       b.addEventListener('click', () => {

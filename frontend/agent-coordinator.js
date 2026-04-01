@@ -159,6 +159,11 @@ const AgentCoordinator = (() => {
       // Notify external listeners
       _onDecision(recommendation, auditEntry)
 
+      // Broadcast via WebSocket for external consumers
+      if (window.WSBroadcast) {
+        window.WSBroadcast.emitDecision(recommendation, auditEntry)
+      }
+
       return recommendation
 
     } catch (e) {
@@ -399,6 +404,13 @@ const AgentCoordinator = (() => {
 
     // Reset per-minute execution counter every 60s
     _minuteResetTimer = setInterval(() => { _executionsThisMinute = 0 }, 60000)
+
+    // Log LLM analyst availability
+    if (window.LLMAnalyst?.isAvailable()) {
+      _log('COORDINATOR', 'LLM analyst (Perplexity AI) active — 4-analyst pipeline.', 'secondary')
+    } else {
+      _log('COORDINATOR', 'LLM analyst not configured — running 3-analyst heuristic pipeline.', 'on-surface-variant')
+    }
 
     _log('COORDINATOR', `Agent coordinator started. Batch: ${_batchSize}, Interval: ${_processIntervalMs / 1000}s, Max exec/min: ${MAX_EXECUTIONS_PER_MINUTE}.`, 'primary')
   }
