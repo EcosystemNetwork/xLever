@@ -1245,75 +1245,68 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script src="risk-engine.js"></script>
+<script src="risk-live.js"></script>
 <script>
-// Risk banner: try live Pyth data first, fall back to safe defaults
-(async function(){
+// Risk banner: live Pyth oracle polling via RiskLive (updates every 15s)
+(function(){
   var SC = { NORMAL:'#00e676', WARNING:'#ffd740', RESTRICTED:'#ff9100', EMERGENCY:'#ff5252' };
-  var inputs = { oracleAgeSec:0, oracleDivergence:0, drawdown:0, healthFactor:2.0, volatility:0.20, utilization:0.45 };
 
-  try {
-    var pyth = window.xLeverPyth;
-    if (pyth) {
-      var data = await pyth.getAllPrices();
-      var qqq = data.prices.find(function(p){ return p.symbol === 'QQQ/USD'; });
-      var spy = data.prices.find(function(p){ return p.symbol === 'SPY/USD'; });
-      if (qqq) {
-        inputs.oracleAgeSec = pyth.oracleAge(qqq.publishTime);
-        if (qqq.price > 0) inputs.volatility = Math.min((qqq.conf / qqq.price) * 50, 1.5);
-      }
-      if (qqq && spy) {
-        var ratio = qqq.price / spy.price;
-        inputs.oracleDivergence = Math.abs(ratio - 0.45) / 0.45;
-      }
-    }
-  } catch(e) {
-    console.warn('Risk banner: Pyth fetch failed, using defaults', e);
-  }
+  function updateBanner(ev) {
+    var c = SC[ev.state];
+    document.getElementById('riskBannerInner').style.background = c+'10';
+    document.getElementById('riskBannerInner').style.borderColor = c+'40';
+    document.getElementById('bannerIcon').textContent = ev.meta.icon;
+    document.getElementById('bannerIcon').style.color = c;
+    document.getElementById('bannerState').textContent = ev.state;
+    document.getElementById('bannerState').style.color = c;
+    document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal — Pyth oracle live';
+    document.getElementById('bannerLevCap').textContent = 'Max Leverage: '+ev.leverageCap+'x';
 
-  try {
-    var contracts = window.xLeverContracts;
-    if (contracts && contracts.ADDRESSES.vault) {
-      var pool = await contracts.getPoolState();
-      if (pool) {
-        var fmt = contracts.formatPoolState(pool);
-        inputs.utilization = fmt.juniorRatio > 0 ? (1 - fmt.juniorRatio) : inputs.utilization;
-        inputs.healthFactor = fmt.state === 'Active' ? 2.0 : fmt.state === 'Stressed' ? 1.3 : fmt.state === 'Paused' ? 1.1 : 0.9;
+    if (ev.state === 'RESTRICTED' || ev.state === 'EMERGENCY') {
+      var openBtn = document.getElementById('open-position-btn');
+      if (openBtn) {
+        openBtn.disabled = true;
+        openBtn.style.opacity = '0.4';
+        openBtn.style.pointerEvents = 'none';
+        openBtn.title = ev.state + ': new positions blocked — ' + (ev.reasons[0]?.reason || '');
       }
-    }
-  } catch(e) {
-    console.warn('Risk banner: pool state fetch failed', e);
-  }
-
-  var ev = RiskEngine.evaluate(inputs);
-  var c = SC[ev.state];
-  document.getElementById('riskBannerInner').style.background = c+'10';
-  document.getElementById('riskBannerInner').style.borderColor = c+'40';
-  document.getElementById('bannerIcon').textContent = ev.meta.icon;
-  document.getElementById('bannerIcon').style.color = c;
-  document.getElementById('bannerState').textContent = ev.state;
-  document.getElementById('bannerState').style.color = c;
-  document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal — Pyth oracle live';
-  document.getElementById('bannerLevCap').textContent = 'Max Leverage: '+ev.leverageCap+'x';
-
-  if (ev.state === 'RESTRICTED' || ev.state === 'EMERGENCY') {
-    var openBtn = document.getElementById('open-position-btn');
-    if (openBtn) {
-      openBtn.disabled = true;
-      openBtn.style.opacity = '0.4';
-      openBtn.style.pointerEvents = 'none';
-      openBtn.title = ev.state + ': new positions blocked — ' + (ev.reasons[0]?.reason || '');
-    }
-    document.querySelectorAll('button').forEach(function(btn) {
-      if (btn.textContent.trim() === 'Adjust') {
-        btn.disabled = true;
-        btn.style.opacity = '0.4';
-        btn.title = ev.state + ': adjustments blocked';
+      document.querySelectorAll('button').forEach(function(btn) {
+        if (btn.textContent.trim() === 'Adjust') {
+          btn.disabled = true;
+          btn.style.opacity = '0.4';
+          btn.title = ev.state + ': adjustments blocked';
+        }
+      });
+      if (window.XLeverage && ev.leverageCap < 4) {
+        window.XLeverage._riskCap = ev.leverageCap;
       }
-    });
-    if (window.XLeverage && ev.leverageCap < 4) {
-      window.XLeverage._riskCap = ev.leverageCap;
+    } else {
+      var openBtn = document.getElementById('open-position-btn');
+      if (openBtn) {
+        openBtn.disabled = false;
+        openBtn.style.opacity = '';
+        openBtn.style.pointerEvents = '';
+        openBtn.title = '';
+      }
+      document.querySelectorAll('button').forEach(function(btn) {
+        if (btn.textContent.trim() === 'Adjust') {
+          btn.disabled = false;
+          btn.style.opacity = '';
+          btn.title = '';
+        }
+      });
+      if (window.XLeverage) window.XLeverage._riskCap = 4.0;
     }
   }
+
+  setTimeout(function() {
+    if (window.RiskLive) {
+      window.RiskLive.subscribe(function(state) {
+        if (state) updateBanner(state);
+      });
+      window.RiskLive.start(15000);
+    }
+  }, 1500);
 })();
 </script>
 </body></html>
