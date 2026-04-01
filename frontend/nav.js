@@ -105,12 +105,6 @@ const XNav = (() => {
           <a href="index.html" class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter no-underline">
             <span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span>
           </a>
-          <div class="mode-toggle" style="display:flex;gap:2px;background:#0a0b0e;border:1px solid #252833;border-radius:8px;padding:2px;">
-            <button class="nav-mode-btn${mode === 'trade' ? ' active' : ''}" data-mode="trade"
-              style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;${mode === 'trade' ? 'background:#00e676;color:#0a0b0e;' : 'background:transparent;color:#555970;'}">Trade</button>
-            <button class="nav-mode-btn${mode === 'research' ? ' active' : ''}" data-mode="research"
-              style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;${mode === 'research' ? 'background:#7c4dff;color:#fff;' : 'background:transparent;color:#555970;'}">Research</button>
-          </div>
           <div class="hidden md:flex gap-1 items-center" id="navLinks">
             ${visiblePages.map(p => navLink(p, p.id === activeId)).join('\n            ')}
           </div>
