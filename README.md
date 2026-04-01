@@ -45,30 +45,33 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅ (FIXED - Initialized TWAP)
+### xLever Protocol Vaults
 - **wSPYx Vault**: [`0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d`](https://explorer-sepolia.inkonchain.com/address/0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d)
 - **wQQQx Vault**: [`0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955`](https://explorer-sepolia.inkonchain.com/address/0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955)
 
-**Status:** ✅ **FULLY FUNCTIONAL WITH JUNIOR TRANCHE** - Full vault contracts with junior liquidity provider support deployed and integrated!
-
 **Features:**
-- ✅ Open positions with USDC deposit and leverage selection (-4x to +4x)
-- ✅ Close positions and withdraw USDC
-- ✅ Asset selection (SPY/QQQ)
+- ✅ Open/close leveraged positions
+- ✅ Junior tranche deposits and withdrawals
+- ✅ Fee distribution to junior LPs
 - ✅ Real-time position tracking
-- ✅ Balance updates
-- ✅ **Junior tranche deposits and withdrawals**
-- ✅ **First-loss capital pool for LPs**
-- ✅ **Fee distribution to junior LPs**
-- ✅ Fully integrated frontend UI with chart visualization
+- ✅ Fully integrated frontend UI
 
-**How to Use:**
-1. Connect MetaMask wallet to Ink Sepolia network
-2. Get testnet USDC from faucet
-3. Select asset (SPY or QQQ) and leverage
-4. Enter USDC amount and open position
-5. View your active positions
-6. Close positions to withdraw USDC + P&L
+### Looping Implementation 🔁
+
+**Status:** ✅ **Recursive looping implemented and tested** - See `VaultWithLooping.sol`
+
+**Implementation:**
+- 🔁 True deposit→borrow→deposit→borrow loops (up to 10 iterations)
+- ✅ Comprehensive test suite - 17/17 tests passing including 1001 fuzz tests
+- ✅ Achieves true 2x-4x leverage through Euler V2 vaults
+- ✅ Automatic loop unwinding on withdrawal
+- ✅ Health factor maintenance (>120%)
+- ✅ LoopExecuted events for transparency
+
+**Testing:**
+```bash
+cd contracts && forge test --match-contract VaultWithLoopingTest -vv
+```
 
 ### Tokens
 - **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)

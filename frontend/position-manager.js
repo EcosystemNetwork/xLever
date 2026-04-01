@@ -158,12 +158,7 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
       }
       
       btn.textContent = 'Approval pending...';
-      if (approveTx) {
-        try { await publicClient.waitForTransactionReceipt({ hash: approveTx }); }
-        catch { await new Promise(resolve => setTimeout(resolve, 5000)); }
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+      await new Promise(resolve => setTimeout(resolve, 5000));
     } else {
       console.log('✓ USDC already approved, skipping...');
     }
