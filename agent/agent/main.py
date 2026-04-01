@@ -356,7 +356,12 @@ class TradingAgent:
             )
 
     async def execute_health_action(self, action: HealthAction) -> None:
-        """Execute health score remediation action.
+        """Execute health score remediation action via bounded on-chain calls.
+
+        Uses agentDeleverage/agentClose contract methods which enforce:
+        - Agent can only REDUCE leverage, never increase
+        - Agent cannot flip position direction
+        - All actions are logged on-chain via AgentAction events
 
         Args:
             action: Health action to execute
@@ -369,11 +374,88 @@ class TradingAgent:
             action=action.value,
         )
 
-        # TODO: Implement specific health actions
-        # - REDUCE_25_PERCENT: Reduce position by 25%
-        # - REDUCE_50_PERCENT: Reduce position by 50%
-        # - REDUCE_TO_1_5X: Reduce leverage to 1.5x
-        # - EMERGENCY_EXIT: Close all positions
+        if not self._current_position or not self._current_position.is_active:
+            logger.warning("No active position to apply health action to")
+            return
+
+        if self.paper_mode:
+            logger.info(f"[PAPER MODE] Would execute health action: {action.value}")
+            await self.alert_manager.info(
+                title="Paper Health Action",
+                message=f"Simulated {action.value}",
+                action=action.value,
+            )
+            return
+
+        try:
+            current_leverage_bps = self._current_position.leverage_bps
+            abs_leverage = abs(current_leverage_bps)
+            sign = 1 if current_leverage_bps >= 0 else -1
+
+            from agent.contracts.addresses import CONTRACTS
+
+            if action == HealthAction.EMERGENCY_EXIT:
+                # Full position close via agentClose
+                reason = "Health score critical — emergency exit"
+                tx_hash = await self.tx_builder.web3.call_contract(
+                    contract_address=CONTRACTS["wQQQx_HEDGING"],
+                    function_name="agentClose",
+                    args=[self._current_position.user_address, reason],
+                )
+                logger.info(f"agentClose TX: {tx_hash}")
+                self._current_position = None
+
+            elif action == HealthAction.REDUCE_TO_1_5X:
+                target_bps = sign * 15000
+                if abs_leverage > 15000:
+                    reason = "Health score low — reducing to 1.5x"
+                    tx_hash = await self.tx_builder.web3.call_contract(
+                        contract_address=CONTRACTS["wQQQx_HEDGING"],
+                        function_name="agentDeleverage",
+                        args=[self._current_position.user_address, target_bps, reason],
+                    )
+                    logger.info(f"agentDeleverage to 1.5x TX: {tx_hash}")
+
+            elif action == HealthAction.REDUCE_50_PERCENT:
+                target_bps = sign * (abs_leverage // 2)
+                if target_bps != current_leverage_bps:
+                    reason = "Health score declining — reducing leverage by 50%"
+                    tx_hash = await self.tx_builder.web3.call_contract(
+                        contract_address=CONTRACTS["wQQQx_HEDGING"],
+                        function_name="agentDeleverage",
+                        args=[self._current_position.user_address, target_bps, reason],
+                    )
+                    logger.info(f"agentDeleverage 50% TX: {tx_hash}")
+
+            elif action == HealthAction.REDUCE_25_PERCENT:
+                target_bps = sign * (abs_leverage * 3 // 4)
+                if target_bps != current_leverage_bps:
+                    reason = "Health score warning — reducing leverage by 25%"
+                    tx_hash = await self.tx_builder.web3.call_contract(
+                        contract_address=CONTRACTS["wQQQx_HEDGING"],
+                        function_name="agentDeleverage",
+                        args=[self._current_position.user_address, target_bps, reason],
+                    )
+                    logger.info(f"agentDeleverage 25% TX: {tx_hash}")
+
+            self.total_trades += 1
+
+            if self.ws_manager:
+                from agent.websocket.server import EventType, Severity
+                await self.ws_manager.broadcast(
+                    event_type=EventType.POSITION_CLOSED if action == HealthAction.EMERGENCY_EXIT else EventType.DECISION_MADE,
+                    data={"action": action.value, "reason": reason},
+                    message=f"Health action executed: {action.value}",
+                    severity=Severity.CRITICAL,
+                )
+
+        except Exception as e:
+            logger.error(f"Health action execution failed: {e}")
+            await self.alert_manager.critical(
+                title="Health Action Failed",
+                message=f"Failed to execute {action.value}: {str(e)}",
+                action=action.value,
+            )
 
     async def handle_error(self, error: Exception) -> None:
         """Handle errors in the main loop.

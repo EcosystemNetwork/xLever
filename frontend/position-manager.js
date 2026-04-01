@@ -339,22 +339,9 @@ window.closePosition = async function(asset, vaultAddress) {
       }
     }));
 
-    // Simulate first to catch revert before sending
-    try {
-      await publicClient.simulateContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: 'withdraw',
-        args: [position.depositAmount],
-        account: connectedAddress
-      });
-    } catch (simError) {
-      unsubs.forEach(fn => fn());
-      if (pendingToast) XToast.dismiss(pendingToast);
-      const errorMsg = simError.message || simError.toString();
-      showToast(`Cannot withdraw: ${errorMsg.substring(0, 100)}`, 'error', 8000);
-      return;
-    }
+    // Simulation skipped — canonical Vault requires Pyth priceUpdateData + msg.value
+    // which can't be reliably simulated client-side. contracts.closePosition handles
+    // Pyth update, slippage (minReceived=0), and error classification.
 
     // Use formatUnits to get the USDC string for contracts.closePosition
     const { formatUnits } = window.viem;

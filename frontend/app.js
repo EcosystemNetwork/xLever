@@ -32,24 +32,40 @@ const ERC20_ABI = [
   { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }
 ];
 
-// Vault ABI for deposits, withdrawals, and junior tranche operations
+// Vault ABI — canonical Vault with Pyth oracle integration, fees, junior tranche
 const VAULT_ABI = [
+  // Write functions (Pyth pull-oracle: deposit/withdraw/adjust accept priceUpdateData + msg.value)
   {
     name: 'deposit',
     type: 'function',
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
     inputs: [
       { name: 'amount', type: 'uint256' },
-      { name: 'leverageBps', type: 'int32' }
+      { name: 'leverageBps', type: 'int32' },
+      { name: 'priceUpdateData', type: 'bytes[]' }
     ],
-    outputs: [{ name: '', type: 'uint256' }]
+    outputs: [{ name: 'positionValue', type: 'uint256' }]
   },
   {
     name: 'withdraw',
     type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'amount', type: 'uint256' }],
+    stateMutability: 'payable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'minReceived', type: 'uint256' },
+      { name: 'priceUpdateData', type: 'bytes[]' }
+    ],
     outputs: [{ name: 'received', type: 'uint256' }]
+  },
+  {
+    name: 'adjustLeverage',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      { name: 'newLeverageBps', type: 'int32' },
+      { name: 'priceUpdateData', type: 'bytes[]' }
+    ],
+    outputs: []
   },
   {
     name: 'depositJunior',
@@ -65,6 +81,14 @@ const VAULT_ABI = [
     inputs: [{ name: 'shares', type: 'uint256' }],
     outputs: [{ name: 'amount', type: 'uint256' }]
   },
+  {
+    name: 'updateOracle',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }],
+    outputs: []
+  },
+  // Read functions
   {
     name: 'getPosition',
     type: 'function',
@@ -85,6 +109,69 @@ const VAULT_ABI = [
     }]
   },
   {
+    name: 'getPositionValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [
+      { name: 'value', type: 'uint256' },
+      { name: 'pnl', type: 'int256' }
+    ]
+  },
+  {
+    name: 'getPoolState',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'totalSeniorDeposits', type: 'uint128' },
+        { name: 'totalJuniorDeposits', type: 'uint128' },
+        { name: 'insuranceFund', type: 'uint128' },
+        { name: 'netExposure', type: 'int256' },
+        { name: 'grossLongExposure', type: 'uint128' },
+        { name: 'grossShortExposure', type: 'uint128' },
+        { name: 'lastRebalanceTime', type: 'uint64' },
+        { name: 'currentMaxLeverageBps', type: 'uint32' },
+        { name: 'fundingRateBps', type: 'int64' },
+        { name: 'protocolState', type: 'uint8' }
+      ]
+    }]
+  },
+  {
+    name: 'getCurrentTWAP',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'twap', type: 'uint128' },
+      { name: 'spreadBps', type: 'uint16' }
+    ]
+  },
+  {
+    name: 'getOracleState',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'executionPrice', type: 'uint128' },
+        { name: 'displayPrice', type: 'uint128' },
+        { name: 'riskPrice', type: 'uint128' },
+        { name: 'divergenceBps', type: 'uint256' },
+        { name: 'spreadBps', type: 'uint16' },
+        { name: 'isFresh', type: 'bool' },
+        { name: 'isCircuitBroken', type: 'bool' },
+        { name: 'lastUpdateTime', type: 'uint64' },
+        { name: 'updateCount', type: 'uint8' }
+      ]
+    }]
+  },
+  {
     name: 'getJuniorValue',
     type: 'function',
     stateMutability: 'view',
@@ -92,6 +179,41 @@ const VAULT_ABI = [
     outputs: [
       { name: 'totalValue', type: 'uint256' },
       { name: 'sharePrice', type: 'uint256' }
+    ]
+  },
+  {
+    name: 'getMaxLeverage',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'maxLeverageBps', type: 'int32' }]
+  },
+  {
+    name: 'getFundingRate',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'rateBps', type: 'int256' }]
+  },
+  {
+    name: 'getCarryRate',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'annualBps', type: 'uint256' }]
+  },
+  {
+    name: 'getRiskState',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'protocolState', type: 'uint8' },
+      { name: 'healthScore', type: 'uint256' },
+      { name: 'juniorRatioBps', type: 'uint256' },
+      { name: 'currentMaxLeverageBps', type: 'uint32' },
+      { name: 'oracleStale', type: 'bool' },
+      { name: 'circuitBroken', type: 'bool' }
     ]
   },
   {
@@ -2174,3 +2296,145 @@ new ResizeObserver(() => { // Watch the chart container for size changes — tri
   const r = chartEl.getBoundingClientRect(); // Get the current pixel dimensions of the chart container
   chart.applyOptions({ width: r.width, height: r.height }); // Tell TradingView to resize its canvas to match — without this, the chart would clip or leave gaps on resize
 }).observe(chartEl); // Observe the chart element specifically — more reliable than window.onresize because it catches all sources of size change
+
+// ═══════════════════════════════════════════════════
+// LIVE / RESEARCH MODE MANAGEMENT
+// Splits the UI into two states:
+//   - LIVE: all economics from contract reads + oracle feeds
+//   - RESEARCH: simulation/backtest engine (existing behavior)
+// ═══════════════════════════════════════════════════
+
+let currentMode = 'live'; // Default to live mode — show real protocol state
+
+function setMode(mode) {
+  currentMode = mode;
+
+  // Update toggle buttons
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+
+  // Show/hide mode-specific panels
+  document.querySelectorAll('.live-only').forEach(el => {
+    el.style.display = mode === 'live' ? '' : 'none';
+  });
+  document.querySelectorAll('.research-only').forEach(el => {
+    el.style.display = mode === 'research' ? '' : 'none';
+  });
+
+  // In live mode, hide the timeframe/chart-type toolbar (no backtest)
+  const toolbar = document.querySelector('.chart-toolbar');
+  if (toolbar) {
+    toolbar.style.display = mode === 'live' ? 'none' : '';
+  }
+
+  if (mode === 'live') {
+    // Start polling live state if not already running
+    if (window.liveState) {
+      window.liveState.startLivePolling(onLiveStateUpdate);
+    }
+  } else {
+    // Stop live polling, run backtest simulation
+    if (window.liveState) {
+      window.liveState.stopLivePolling();
+    }
+    updateAll(); // re-render research/simulation view
+  }
+}
+
+/**
+ * Render live protocol state into the UI.
+ * All values come from contract reads + Pyth oracle — no browser math.
+ */
+function onLiveStateUpdate(state) {
+  if (currentMode !== 'live') return;
+
+  const econ = window.liveState.getLiveEconomics(currentTicker);
+  if (!econ) return;
+
+  // ── Live stats bar (below chart) ──
+  const fmtUSD = (v) => v != null ? '$' + v.toLocaleString(undefined, {maximumFractionDigits: 0}) : '—';
+  const fmtBps = (v) => v != null ? (v / 100).toFixed(2) + '%' : '—';
+
+  const oraclePrice = econ.pythPrice || econ.displayPrice;
+  document.getElementById('liveOraclePrice').textContent = oraclePrice != null
+    ? '$' + Number(oraclePrice).toFixed(2)
+    : '—';
+
+  const oracleStatusEl = document.getElementById('liveOracleStatus');
+  if (econ.oracleCircuitBroken) {
+    oracleStatusEl.textContent = 'CIRCUIT BROKEN';
+    oracleStatusEl.className = 'stat-value negative';
+  } else if (econ.oracleFresh === false) {
+    oracleStatusEl.textContent = 'STALE';
+    oracleStatusEl.className = 'stat-value negative';
+  } else if (econ.oracleFresh === true) {
+    oracleStatusEl.textContent = 'FRESH';
+    oracleStatusEl.className = 'stat-value positive';
+  } else {
+    oracleStatusEl.textContent = '—';
+    oracleStatusEl.className = 'stat-value';
+  }
+
+  document.getElementById('liveFundingRate').textContent = fmtBps(econ.fundingRateBps);
+  document.getElementById('liveMaxLeverage').textContent = econ.maxLeverage != null
+    ? econ.maxLeverage.toFixed(1) + '×'
+    : '—';
+
+  const protoStateEl = document.getElementById('liveProtocolState');
+  protoStateEl.textContent = econ.protocolStateLabel;
+  if (econ.protocolStateLabel === 'NORMAL') {
+    protoStateEl.className = 'stat-value positive';
+  } else if (econ.protocolStateLabel === 'EMERGENCY') {
+    protoStateEl.className = 'stat-value negative';
+  } else {
+    protoStateEl.className = 'stat-value';
+    protoStateEl.style.color = '#ffd740';
+  }
+
+  document.getElementById('liveNetExposure').textContent = fmtUSD(econ.netExposure);
+  document.getElementById('livePoolTVL').textContent = fmtUSD(econ.totalPool);
+  document.getElementById('liveDataSource').textContent = econ.source || 'contract';
+
+  // ── Live Buffer Tranche panel ──
+  document.getElementById('liveJuniorRatio').textContent =
+    `${(econ.seniorRatio * 100).toFixed(0)}% Senior / ${(econ.juniorRatio * 100).toFixed(0)}% Junior`;
+  document.getElementById('liveJuniorTVL').textContent = fmtUSD(econ.juniorTotalValue);
+  document.getElementById('liveInsuranceFund').textContent = fmtUSD(econ.insuranceFund);
+  document.getElementById('liveJuniorSharePrice').textContent =
+    econ.juniorSharePrice != null ? '$' + econ.juniorSharePrice.toFixed(4) : '—';
+
+  // Buffer health based on live junior ratio from contract
+  const liveBufferEl = document.getElementById('liveBufferHealth');
+  const absMag = Math.abs(currentLeverage);
+  let requiredBuffer = 0.20;
+  if (absMag > 1.5) requiredBuffer = 0.22;
+  if (absMag > 2.0) requiredBuffer = 0.25;
+  if (absMag > 2.5) requiredBuffer = 0.28;
+  if (absMag > 3.0) requiredBuffer = 0.30;
+  if (absMag > 3.5) requiredBuffer = 0.33;
+
+  if (econ.juniorRatio >= requiredBuffer) {
+    liveBufferEl.textContent = 'Healthy';
+    liveBufferEl.className = 'row-value positive';
+  } else if (econ.totalPool === 0) {
+    liveBufferEl.textContent = 'No deposits';
+    liveBufferEl.className = 'row-value';
+  } else {
+    liveBufferEl.textContent = 'Undercapitalized';
+    liveBufferEl.className = 'row-value negative';
+  }
+
+  // ── Live data source info ──
+  const rpcInfo = document.getElementById('liveRpcInfo');
+  const cacheInfo = document.getElementById('liveCacheInfo');
+  if (rpcInfo && state.rpc) rpcInfo.textContent = 'RPC: ' + state.rpc;
+  if (cacheInfo && state.cacheAge != null) cacheInfo.textContent = 'Cache age: ' + state.cacheAge.toFixed(0) + 's';
+}
+
+// ── Mode toggle event listeners ──
+document.getElementById('liveModeBtn').addEventListener('click', () => setMode('live'));
+document.getElementById('researchModeBtn').addEventListener('click', () => setMode('research'));
+
+// Initialize in live mode on load
+setMode('live');

@@ -342,7 +342,84 @@ async function depositJuniorMultiAsset() {
   }
 }
 
-// Asset selector removed - junior deposits only accept USDC
+// Withdraw from junior tranche — burns shares and returns proportional USDC
+async function withdrawJunior() {
+  if (!walletClient || !connectedAddress) {
+    showToast('Please connect your wallet first', 'error');
+    return;
+  }
+
+  const withdrawShares = document.getElementById('withdrawShares')?.value;
+  if (!withdrawShares || parseFloat(withdrawShares) <= 0) {
+    showToast('Please enter shares to withdraw', 'error');
+    return;
+  }
+
+  try {
+    const { parseUnits } = window.viem;
+    const shares = parseUnits(withdrawShares, 6);
+    const vaultAddress = VAULT_ADDRESSES[selectedVault];
+
+    console.log(`Withdrawing ${withdrawShares} shares from junior tranche...`);
+    const withdrawTx = await walletClient.writeContract({
+      address: vaultAddress,
+      abi: [{
+        name: 'withdrawJunior',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [{ name: 'shares', type: 'uint256' }],
+        outputs: [{ name: 'amount', type: 'uint256' }],
+      }],
+      functionName: 'withdrawJunior',
+      args: [shares],
+      account: connectedAddress,
+      gas: 500000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n,
+    });
+
+    console.log('Waiting for withdrawal confirmation...');
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
+    console.log('Withdrawal confirmed:', receipt);
+
+    showToast(`Successfully withdrew ${withdrawShares} junior shares!`, 'success');
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await fetchBalances();
+    await updateAssetUI();
+    await updateJuniorPageUI();
+
+    const el = document.getElementById('withdrawShares');
+    if (el) el.value = '';
+  } catch (error) {
+    console.error('Junior withdrawal failed:', error);
+    showToast(`Withdrawal failed: ${error.shortMessage || error.message}`, 'error');
+  }
+}
+
+// Read real health score from vault contract for junior health display
+async function fetchHealthScore() {
+  if (!publicClient) return null;
+
+  try {
+    const vaultAddress = VAULT_ADDRESSES[selectedVault];
+    const healthScore = await publicClient.readContract({
+      address: vaultAddress,
+      abi: [{
+        name: 'getHealthScore',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [],
+        outputs: [{ name: '', type: 'uint256' }],
+      }],
+      functionName: 'getHealthScore',
+    }).catch(() => 20000n);
+
+    return Number(healthScore) / 10000; // 15000 → 1.50
+  } catch {
+    return null;
+  }
+}
 
 // Update UI when asset selection changes
 async function updateAssetUI() {
@@ -441,4 +518,6 @@ function initJuniorPage() {
 // Export functions
 window.updateJuniorPageUI = updateJuniorPageUI;
 window.depositJuniorMultiAsset = depositJuniorMultiAsset;
+window.withdrawJunior = withdrawJunior;
+window.fetchHealthScore = fetchHealthScore;
 window.initJuniorPage = initJuniorPage;

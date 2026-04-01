@@ -19,8 +19,8 @@
 const JudgeMode = (() => {
   const STORAGE_KEY = 'xlever-judge-mode';
 
-  // Only these pages appear in judge mode — the linear demo flow
-  const JUDGE_PAGES = ['dashboard', 'trading', 'vaults'];
+  // All pages visible for now — can be narrowed later for final demo
+  const JUDGE_PAGES = ['dashboard', 'trading', 'vaults', 'risk', 'lending', 'analytics', 'agents', 'operations', 'admin'];
 
   function isActive() {
     // URL param takes priority

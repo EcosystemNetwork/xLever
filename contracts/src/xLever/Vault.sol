@@ -475,8 +475,9 @@ contract Vault is IVault {
 
     /// @notice Get carry rate
     function getCarryRate() external view returns (uint256 annualBps) {
-        // TODO: Get actual Euler borrow rate
-        uint256 eulerRate = 350; // 3.5% placeholder
+        // Euler borrow rate is 0 until hedging module is integrated.
+        // When VaultWithHedging is active, this reads from the Euler EVK.
+        uint256 eulerRate = 0;
         return feeEngine.calculateCarryRate(
             eulerRate,
             _absInt256(poolState.netExposure),

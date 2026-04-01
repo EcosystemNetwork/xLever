@@ -2,17 +2,18 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Script.sol";
-import {VaultSimple} from "../src/xLever/VaultSimple.sol";
+import {VaultFactory} from "../src/xLever/VaultFactory.sol";
 
 /// @title DeployAllVaults
-/// @notice Deploys VaultSimple instances for all 33 xLever assets
-/// @dev Run: forge script script/DeployAllVaults.s.sol --rpc-url $INK_SEPOLIA_RPC --broadcast
+/// @notice Deploys VaultFactory + creates canonical Vault instances for all 33 xLever assets
+/// @dev Replaces the former VaultSimple batch deployment.
+///      Run: forge script script/DeployAllVaults.s.sol --rpc-url $INK_SEPOLIA_RPC --broadcast
 contract DeployAllVaults is Script {
 
     struct AssetConfig {
         string symbol;
-        address token;    // xStock token address (deploy placeholder if needed)
-        bytes32 feedId;   // Pyth price feed ID
+        address token;
+        bytes32 feedId;
     }
 
     function run() external {
@@ -22,86 +23,108 @@ contract DeployAllVaults is Script {
             deployerPrivateKey = vm.parseUint(string.concat("0x", pkStr));
         }
         address deployer = vm.addr(deployerPrivateKey);
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943;
 
-        // Existing xStock tokens
+        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943;
+        address pythAdapter = 0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f;
+
+        // Existing xStock token addresses
         address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9;
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e;
 
-        console.log("=== Deploying All 33 xLever Vaults ===");
+        // Pyth feed IDs for core assets
+        bytes32 feedQQQ = 0x9695e2b96ea7b3859da9ed25b7a46a920a776e2fdae19a7bcfdf2b219230452d;
+        bytes32 feedSPY = 0x19e09bb805456ada3979a7d1cbb4b6d63babc3a0f8e8a9509f68afa5c4c11cd5;
+        bytes32 feedAAPL = 0x49f6b65cb1de6b10eaf75e7c03ca029c306d0357e91b5311b175084a5ad55688;
+        bytes32 feedNVDA = 0xb1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593;
+        bytes32 feedTSLA = 0x16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1;
+        bytes32 feedETH  = 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace;
+
+        console.log("=== Deploying All xLever Canonical Vaults via VaultFactory ===");
         console.log("Deployer:", deployer);
+        console.log("PythAdapter:", pythAdapter);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // ── Already deployed (skip but log) ──
-        console.log("\n-- Existing Vaults (skipping) --");
-        console.log("QQQ  Vault: 0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6");
-        console.log("SPY  Vault: 0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228");
+        // Deploy VaultFactory
+        VaultFactory factory = new VaultFactory(usdc, deployer, deployer, pythAdapter);
+        console.log("\nVaultFactory:", address(factory));
 
-        // ── Deploy remaining 31 vaults ──
-        // Each asset needs an xStock token. For assets without deployed tokens,
-        // we deploy a minimal placeholder so the vault has an asset address.
-        // Replace these with real wrapped xStock tokens when available.
+        // Deploy core vaults with real Pyth feeds
+        console.log("\n-- Core Vaults (real Pyth feeds) --");
+        address qqqVault = factory.createVault(wQQQx, feedQQQ);
+        console.log("QQQ  Vault:", qqqVault);
 
-        console.log("\n-- Deploying New Vaults --");
+        address spyVault = factory.createVault(wSPYx, feedSPY);
+        console.log("SPY  Vault:", spyVault);
 
-        // Index ETFs (4 remaining)
-        _deployVault(usdc, deployer, "VUG");
-        _deployVault(usdc, deployer, "VGK");
-        _deployVault(usdc, deployer, "VXUS");
-        _deployVault(usdc, deployer, "SGOV");
+        // Deploy remaining vaults using deployer as placeholder token address.
+        // Each asset needs its own ERC-20 xStock token deployed first in production.
+        // The feedId uses a placeholder (feedETH) for assets without dedicated Pyth feeds yet.
+        // Replace with real feed IDs when Pyth publishes them.
+        console.log("\n-- Additional Vaults (placeholder tokens, update feed IDs before production) --");
 
-        // Sector ETFs (4)
-        _deployVault(usdc, deployer, "SMH");
-        _deployVault(usdc, deployer, "XLE");
-        _deployVault(usdc, deployer, "XOP");
-        _deployVault(usdc, deployer, "ITA");
+        // Index ETFs
+        _createVault(factory, deployer, "VUG",  feedETH);
+        _createVault(factory, deployer, "VGK",  feedETH);
+        _createVault(factory, deployer, "VXUS", feedETH);
+        _createVault(factory, deployer, "SGOV", feedETH);
 
-        // Mega-cap Tech (8)
-        _deployVault(usdc, deployer, "AAPL");
-        _deployVault(usdc, deployer, "NVDA");
-        _deployVault(usdc, deployer, "TSLA");
-        _deployVault(usdc, deployer, "DELL");
-        _deployVault(usdc, deployer, "SMCI");
-        _deployVault(usdc, deployer, "ANET");
-        _deployVault(usdc, deployer, "VRT");
-        _deployVault(usdc, deployer, "SNDK");
+        // Sector ETFs
+        _createVault(factory, deployer, "SMH",  feedETH);
+        _createVault(factory, deployer, "XLE",  feedETH);
+        _createVault(factory, deployer, "XOP",  feedETH);
+        _createVault(factory, deployer, "ITA",  feedETH);
 
-        // Semiconductors (4)
-        _deployVault(usdc, deployer, "KLAC");
-        _deployVault(usdc, deployer, "LRCX");
-        _deployVault(usdc, deployer, "AMAT");
-        _deployVault(usdc, deployer, "TER");
+        // Mega-cap Tech
+        _createVault(factory, deployer, "AAPL", feedAAPL);
+        _createVault(factory, deployer, "NVDA", feedNVDA);
+        _createVault(factory, deployer, "TSLA", feedTSLA);
+        _createVault(factory, deployer, "DELL", feedETH);
+        _createVault(factory, deployer, "SMCI", feedETH);
+        _createVault(factory, deployer, "ANET", feedETH);
+        _createVault(factory, deployer, "VRT",  feedETH);
+        _createVault(factory, deployer, "SNDK", feedETH);
 
-        // Energy & Infrastructure (6)
-        _deployVault(usdc, deployer, "CEG");
-        _deployVault(usdc, deployer, "GEV");
-        _deployVault(usdc, deployer, "SMR");
-        _deployVault(usdc, deployer, "ETN");
-        _deployVault(usdc, deployer, "PWR");
-        _deployVault(usdc, deployer, "APLD");
+        // Semiconductors
+        _createVault(factory, deployer, "KLAC", feedETH);
+        _createVault(factory, deployer, "LRCX", feedETH);
+        _createVault(factory, deployer, "AMAT", feedETH);
+        _createVault(factory, deployer, "TER",  feedETH);
 
-        // Commodities (3)
-        _deployVault(usdc, deployer, "SLV");
-        _deployVault(usdc, deployer, "PPLT");
-        _deployVault(usdc, deployer, "PALL");
+        // Energy & Infrastructure
+        _createVault(factory, deployer, "CEG",  feedETH);
+        _createVault(factory, deployer, "GEV",  feedETH);
+        _createVault(factory, deployer, "SMR",  feedETH);
+        _createVault(factory, deployer, "ETN",  feedETH);
+        _createVault(factory, deployer, "PWR",  feedETH);
+        _createVault(factory, deployer, "APLD", feedETH);
 
-        // Crypto-adjacent (2)
-        _deployVault(usdc, deployer, "STRK");
-        _deployVault(usdc, deployer, "BTGO");
+        // Commodities
+        _createVault(factory, deployer, "SLV",  feedETH);
+        _createVault(factory, deployer, "PPLT", feedETH);
+        _createVault(factory, deployer, "PALL", feedETH);
+
+        // Crypto-adjacent
+        _createVault(factory, deployer, "STRK", feedETH);
+        _createVault(factory, deployer, "BTGO", feedETH);
 
         vm.stopBroadcast();
 
-        console.log("\n=== All 33 Vaults Deployed ===");
-        console.log("Copy the vault addresses above into frontend/contracts.js VAULT_REGISTRY");
+        console.log("\n=== All 33 Canonical Vaults Deployed ===");
+        console.log("VaultFactory:", address(factory));
+        console.log("Total vaults:", factory.vaultCount());
+        console.log("\nCopy vault addresses into frontend/contracts.js VAULT_REGISTRY");
     }
 
-    function _deployVault(address usdc, address deployer, string memory symbol) internal {
-        // Deploy a VaultSimple using deployer as placeholder xStock token address.
-        // In production, each asset needs its own ERC-20 xStock token deployed first.
-        // The vault uses the asset address for identification, not for token transfers
-        // (all deposits/withdrawals are in USDC).
-        VaultSimple vault = new VaultSimple(usdc, deployer, deployer);
-        console.log(string.concat(symbol, " Vault: "), address(vault));
+    function _createVault(
+        VaultFactory factory,
+        address deployer,
+        string memory symbol,
+        bytes32 feedId_
+    ) internal {
+        // Uses deployer as placeholder xStock token address.
+        // Replace with real ERC-20 xStock tokens when available.
+        address vault = factory.createVault(deployer, feedId_);
+        console.log(string.concat(symbol, " Vault: "), vault);
     }
 }

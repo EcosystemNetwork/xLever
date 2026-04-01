@@ -447,6 +447,94 @@ const RiskEngine = (() => {
   };
 
   // ═══════════════════════════════════════════════════════════
+  // REAL CONTRACT STATE READER
+  // ═══════════════════════════════════════════════════════════
+
+  // Map contract protocol state (0-3) to RiskEngine state names
+  const PROTOCOL_STATE_MAP = {
+    0: STATES.NORMAL,
+    1: STATES.WARNING,
+    2: STATES.RESTRICTED,
+    3: STATES.EMERGENCY,
+  };
+
+  /**
+   * Read real risk state from the vault contract's getRiskState() and
+   * convert it into the same format as evaluate() output.
+   *
+   * Falls back to evaluate() with approximated inputs if contract read fails.
+   *
+   * @returns {Promise<Object>} Same shape as evaluate() output
+   */
+  async function fromContract() {
+    try {
+      const contracts = window.xLeverContracts;
+      if (!contracts || !contracts.ADDRESSES.vault) {
+        throw new Error('Contracts not initialized');
+      }
+
+      // Read real risk state from vault — backed by on-chain pool/oracle/position data
+      const riskState = await contracts.publicClient.readContract({
+        address: contracts.ADDRESSES.vault,
+        abi: [{
+          name: 'getRiskState',
+          type: 'function',
+          stateMutability: 'view',
+          inputs: [],
+          outputs: [
+            { name: 'protocolState', type: 'uint8' },
+            { name: 'healthScore', type: 'uint256' },
+            { name: 'juniorRatioBps', type: 'uint256' },
+            { name: 'currentMaxLeverageBps', type: 'uint32' },
+            { name: 'oracleStale', type: 'bool' },
+            { name: 'circuitBroken', type: 'bool' },
+          ],
+        }],
+        functionName: 'getRiskState',
+      });
+
+      const [protocolState, healthScore, juniorRatioBps, maxLevBps, oracleStale, circuitBroken] = riskState;
+
+      // Convert on-chain values to evaluate()-compatible inputs
+      const healthFactor = Number(healthScore) / 10000; // 15000 → 1.50
+      const state = PROTOCOL_STATE_MAP[Number(protocolState)] || STATES.NORMAL;
+      const meta = STATE_META[state];
+
+      const reasons = [];
+      if (oracleStale) reasons.push({ state: STATES.RESTRICTED, reason: 'Oracle stale (on-chain)' });
+      if (circuitBroken) reasons.push({ state: STATES.RESTRICTED, reason: 'Circuit breaker tripped (on-chain)' });
+      if (healthFactor <= POLICY.healthEmergency) reasons.push({ state: STATES.EMERGENCY, reason: `Health factor: ${healthFactor.toFixed(2)} (on-chain)` });
+      else if (healthFactor <= POLICY.healthRestrict) reasons.push({ state: STATES.RESTRICTED, reason: `Health factor: ${healthFactor.toFixed(2)} (on-chain)` });
+      else if (healthFactor <= POLICY.healthWarn) reasons.push({ state: STATES.WARNING, reason: `Health factor: ${healthFactor.toFixed(2)} (on-chain)` });
+
+      const juniorRatio = Number(juniorRatioBps) / 100;
+      if (juniorRatio < 20) reasons.push({ state: STATES.RESTRICTED, reason: `Junior ratio: ${juniorRatio.toFixed(1)}% (below 20%)` });
+      else if (juniorRatio < 30) reasons.push({ state: STATES.WARNING, reason: `Junior ratio: ${juniorRatio.toFixed(1)}% (below 30%)` });
+
+      if (reasons.length === 0) reasons.push({ state: STATES.NORMAL, reason: 'All on-chain metrics healthy' });
+
+      return {
+        state,
+        reasons,
+        leverageCap:      Number(maxLevBps) / 10000, // 40000 → 4.0
+        deleverageLevel:  0,
+        deleverageAction: 'none',
+        deleverageLabel:  'No Action',
+        meta,
+        source:           'contract', // Flag that this came from real on-chain state
+        healthFactor,
+        juniorRatioBps:   Number(juniorRatioBps),
+        oracleStale,
+        circuitBroken,
+      };
+    } catch (e) {
+      // Fall back to local evaluation with whatever data is available
+      console.warn('RiskEngine.fromContract() failed, falling back to local evaluate:', e.message);
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════
 
@@ -461,6 +549,7 @@ const RiskEngine = (() => {
     deleverageRecommendation,  // Translates a risk evaluation into a concrete leverage adjustment
     checkOracle,               // Standalone oracle health check for use outside the full evaluate flow
     runScenario,               // Runs a sequence of ticks through the engine for simulation/demo purposes
+    fromContract,              // Read real risk state from on-chain getRiskState() — preferred over evaluate()
   });
 
 })(); // Immediately invoke the factory to create the singleton RiskEngine

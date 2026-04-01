@@ -1,37 +1,61 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0; // use Solidity 0.8+ to get built-in overflow checks needed for financial math
+pragma solidity ^0.8.0;
 
-import "forge-std/Script.sol"; // inherit Foundry Script base so we can use vm cheatcodes and console.log for deployment
-import {VaultSimple} from "../src/xLever/VaultSimple.sol"; // import the simplified vault contract that stays under Ink Sepolia's contract size limit
+import "forge-std/Script.sol";
+import {Vault} from "../src/xLever/Vault.sol";
 
-contract DeployXLever is Script { // Foundry script contract that deploys the core xLever simplified vaults
-    function run() external { // entry point called by `forge script`; external visibility is required by Foundry
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); // load deployer key from .env so it never appears in source
-        address deployer = vm.addr(deployerPrivateKey); // derive the deployer address from the private key for logging and ownership assignment
+/// @title DeployXLever
+/// @notice Deploys the canonical xLever Vault (with modules, fees, oracle, risk)
+/// @dev Replaces the former VaultSimple deployment path.
+///      Run: forge script script/DeployXLever.s.sol --rpc-url $INK_SEPOLIA_RPC --broadcast
+contract DeployXLever is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC stablecoin on Ink Sepolia -- the quote/collateral asset for all vaults
-        address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e; // wrapped SP500 tokenized equity on Ink Sepolia -- leveraged trading target
-        address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9; // wrapped Nasdaq tokenized equity on Ink Sepolia -- second leveraged trading target
+        // Token addresses on Ink Sepolia
+        address usdc  = 0x6b57475467cd854d36Be7FB614caDa5207838943;
+        address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e;
+        address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9;
 
-        console.log("=== Deploying xLever Protocol ==="); // header log to visually separate this deployment in forge output
-        console.log("Deployer:", deployer); // confirm which address is deploying so operator can verify correct wallet
-        console.log("USDC:", usdc); // log USDC address for cross-referencing with block explorer
-        console.log("wSPYx:", wSPYx); // log wSPYx address for cross-referencing with block explorer
-        console.log("wQQQx:", wQQQx); // log wQQQx address for cross-referencing with block explorer
+        // Shared Pyth infrastructure on Ink Sepolia
+        address pythAdapter = 0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f;
 
-        vm.startBroadcast(deployerPrivateKey); // begin broadcasting transactions signed by deployer to the live network
+        // Pyth feed IDs for SPY and QQQ
+        bytes32 feedSPY = 0x19e09bb805456ada3979a7d1cbb4b6d63babc3a0f8e8a9509f68afa5c4c11cd5;
+        bytes32 feedQQQ = 0x9695e2b96ea7b3859da9ed25b7a46a920a776e2fdae19a7bcfdf2b219230452d;
 
-        VaultSimple spyVault = new VaultSimple(usdc, wSPYx, deployer); // deploy SPY vault: USDC is deposit token, wSPYx is the leveraged asset, deployer is admin
-        console.log("\nwSPYx Vault:", address(spyVault)); // log deployed address so operator can save it to .env
+        console.log("=== Deploying xLever Canonical Vaults ===");
+        console.log("Deployer:", deployer);
+        console.log("USDC:", usdc);
+        console.log("PythAdapter:", pythAdapter);
 
-        VaultSimple qqqVault = new VaultSimple(usdc, wQQQx, deployer); // deploy QQQ vault: same pattern but for Nasdaq exposure
-        console.log("wQQQx Vault:", address(qqqVault)); // log deployed address for the QQQ vault
+        vm.startBroadcast(deployerPrivateKey);
 
-        vm.stopBroadcast(); // stop broadcasting -- all deployment transactions are now submitted
+        // Deploy canonical SPY vault with all modules
+        Vault spyVault = new Vault(usdc, wSPYx, deployer, deployer, pythAdapter, feedSPY);
+        console.log("\nwSPYx Vault:", address(spyVault));
+        console.log("  Oracle:", address(spyVault.oracle()));
+        console.log("  FeeEngine:", address(spyVault.feeEngine()));
+        console.log("  JuniorTranche:", address(spyVault.juniorTranche()));
+        console.log("  RiskModule:", address(spyVault.riskModule()));
 
-        console.log("\n=== Deployment Complete ==="); // visual separator indicating deployment finished successfully
-        console.log("\nAdd to .env:"); // remind operator to persist addresses for downstream scripts
-        console.log("WSPY_VAULT_ADDRESS=", address(spyVault)); // provide copy-paste-ready env var for the SPY vault
-        console.log("WQQQ_VAULT_ADDRESS=", address(qqqVault)); // provide copy-paste-ready env var for the QQQ vault
+        // Deploy canonical QQQ vault with all modules
+        Vault qqqVault = new Vault(usdc, wQQQx, deployer, deployer, pythAdapter, feedQQQ);
+        console.log("\nwQQQx Vault:", address(qqqVault));
+        console.log("  Oracle:", address(qqqVault.oracle()));
+        console.log("  FeeEngine:", address(qqqVault.feeEngine()));
+        console.log("  JuniorTranche:", address(qqqVault.juniorTranche()));
+        console.log("  RiskModule:", address(qqqVault.riskModule()));
+
+        vm.stopBroadcast();
+
+        console.log("\n=== Deployment Complete ===");
+        console.log("\nAdd to .env:");
+        console.log("WSPY_VAULT_ADDRESS=", address(spyVault));
+        console.log("WQQQ_VAULT_ADDRESS=", address(qqqVault));
+        console.log("\nUpdate frontend VAULT_REGISTRY in contracts.js:");
+        console.log("SPY: '", address(spyVault), "',");
+        console.log("QQQ: '", address(qqqVault), "'");
     }
 }
