@@ -91,6 +91,7 @@ const XNav = (() => {
           </a>
           <div class="hidden sm:flex items-center gap-6">
             <a href="#features" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium transition-colors no-underline">Features</a>
+            <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium transition-colors no-underline">Docs</a>
             <a href="https://github.com/madschristensen99/xLever" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium transition-colors no-underline">GitHub</a>
           </div>
         </div>
@@ -148,6 +149,7 @@ const XNav = (() => {
       drawer.innerHTML = `
         <div class="flex flex-col p-3 gap-1">
           <a href="#features" class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">Features</a>
+          <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank" class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">Docs</a>
           <a href="https://github.com/madschristensen99/xLever" target="_blank" class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">GitHub</a>
           <a href="#" id="mobileLaunchAppBtn" class="text-[#7c4dff] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">Launch App →</a>
         </div>

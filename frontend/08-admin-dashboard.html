@@ -92,6 +92,21 @@
 <script src="nav.js"></script>
 <script>XNav.init('admin');</script>
 
+<!-- Auth Overlay -->
+<div id="authOverlay" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center hidden">
+  <div class="bg-surface-container-low border border-outline-variant/20 rounded-lg p-6 max-w-sm w-full mx-4">
+    <h2 class="text-sm font-semibold text-on-surface mb-1">Admin Authentication</h2>
+    <p class="text-[10px] text-on-surface-variant mb-4">Enter your admin API key to access the dashboard</p>
+    <input id="adminKeyInput" type="password" placeholder="Admin API key"
+      onkeydown="handleKeySubmit(event)"
+      class="w-full bg-[#12141a] border border-[#252833] rounded px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-primary font-mono" />
+    <button onclick="setAdminKey(document.getElementById('adminKeyInput').value.trim())"
+      class="mt-3 w-full py-2 bg-primary-container text-on-primary-container text-xs font-semibold rounded hover:opacity-90 transition-opacity">
+      Authenticate
+    </button>
+  </div>
+</div>
+
 <main class="pt-28 px-6 max-w-[1600px] mx-auto space-y-6">
 
 <!-- Page Header -->
@@ -268,6 +283,81 @@
 <script>
 const API = '/api/admin';
 
+// ─── Admin API Key Management ──────────────────────────────────
+let _adminKey = localStorage.getItem('xlever_admin_key') || '';
+
+function getAdminHeaders() {
+  return { 'X-Admin-Key': _adminKey, 'Content-Type': 'application/json' };
+}
+
+async function adminFetch(url, opts = {}) {
+  opts.headers = { ...getAdminHeaders(), ...(opts.headers || {}) };
+  const res = await fetch(url, opts);
+  if (res.status === 403) {
+    logDebug('ERROR', `Auth failed for ${url} — check admin key`);
+    showAuthPrompt();
+    throw new Error('Invalid admin key');
+  }
+  if (res.status === 503) {
+    logDebug('ERROR', 'ADMIN_API_KEY not configured on server');
+    throw new Error('Admin key not configured on server');
+  }
+  if (!res.ok) {
+    logDebug('ERROR', `${url} returned HTTP ${res.status}`);
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res;
+}
+
+function setAdminKey(key) {
+  _adminKey = key;
+  localStorage.setItem('xlever_admin_key', key);
+  document.getElementById('authOverlay').classList.add('hidden');
+  logDebug('INFO', 'Admin key updated');
+  refreshAll();
+}
+
+function showAuthPrompt() {
+  document.getElementById('authOverlay').classList.remove('hidden');
+  document.getElementById('adminKeyInput').focus();
+}
+
+function handleKeySubmit(e) {
+  if (e.key === 'Enter') setAdminKey(e.target.value.trim());
+}
+
+// ─── Debug Console ─────────────────────────────────────────────
+const _debugLogs = [];
+const MAX_DEBUG_LOGS = 200;
+
+function logDebug(level, msg, data = null) {
+  const entry = {
+    ts: new Date().toISOString().slice(11, 23),
+    level,
+    msg,
+    data,
+  };
+  _debugLogs.unshift(entry);
+  if (_debugLogs.length > MAX_DEBUG_LOGS) _debugLogs.pop();
+  renderDebugConsole();
+}
+
+function renderDebugConsole() {
+  const el = document.getElementById('debugOutput');
+  if (!el) return;
+  const filter = document.getElementById('debugFilter')?.value || 'ALL';
+  const filtered = filter === 'ALL' ? _debugLogs : _debugLogs.filter(l => l.level === filter);
+  el.innerHTML = filtered.slice(0, 50).map(l => {
+    const color = l.level === 'ERROR' ? 'text-error' : l.level === 'WARN' ? 'text-[#ffd740]' : l.level === 'INFO' ? 'text-tertiary' : 'text-on-surface-variant';
+    return `<div class="flex gap-2 py-0.5 border-b border-outline-variant/5"><span class="text-on-surface-variant/50 flex-shrink-0">${l.ts}</span><span class="${color} font-bold flex-shrink-0 w-12">${l.level}</span><span class="text-on-surface-variant break-all">${l.msg}${l.data ? ' <span class="text-on-surface-variant/40">' + JSON.stringify(l.data) + '</span>' : ''}</span></div>`;
+  }).join('') || '<div class="text-on-surface-variant/40 py-2">No logs yet</div>';
+}
+
+function clearDebugLogs() {
+  _debugLogs.length = 0;
+  renderDebugConsole();
+}
+
 function fmt(n) {
   if (n === null || n === undefined) return '--';
   return n.toLocaleString();
@@ -305,7 +395,7 @@ function fmtDuration(seconds) {
 // ─── Load Platform Stats ────────────────────────────────────────
 async function loadStats() {
   try {
-    const res = await fetch(API + '/stats');
+    const res = await adminFetch(API + '/stats');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const s = await res.json();
     document.getElementById('statTotalUsers').textContent = fmt(s.total_users);
@@ -324,7 +414,7 @@ async function loadStats() {
 // ─── Daily Activity Chart ───────────────────────────────────────
 async function loadDailyChart() {
   try {
-    const res = await fetch(API + '/activity/daily?days=30');
+    const res = await adminFetch(API + '/activity/daily?days=30');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const container = document.getElementById('dailyChart');
@@ -362,7 +452,7 @@ async function loadDailyChart() {
 // ─── Hourly Distribution Chart ──────────────────────────────────
 async function loadHourlyChart() {
   try {
-    const res = await fetch(API + '/activity/hourly');
+    const res = await adminFetch(API + '/activity/hourly');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const container = document.getElementById('hourlyChart');
@@ -393,7 +483,7 @@ async function loadHourlyChart() {
 async function loadUsers() {
   try {
     const sort = document.getElementById('userSort').value;
-    const res = await fetch(API + '/users?limit=50&sort=' + sort);
+    const res = await adminFetch(API + '/users?limit=50&sort=' + sort);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const users = await res.json();
     const tbody = document.getElementById('usersTableBody');
@@ -430,7 +520,7 @@ async function loadUsers() {
 // ─── Recent Sessions ────────────────────────────────────────────
 async function loadSessions() {
   try {
-    const res = await fetch(API + '/sessions?limit=20');
+    const res = await adminFetch(API + '/sessions?limit=20');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const sessions = await res.json();
     const container = document.getElementById('sessionsList');

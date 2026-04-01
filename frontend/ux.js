@@ -440,19 +440,18 @@ const XWallet = (() => {
       if (!modal) return setTimeout(checkModal, 200);
 
       // Subscribe to Reown AppKit events to show user-friendly toast notifications
-      // Track whether wallet was already connected on page load to avoid
-      // showing the toast for automatic session restoration
-      let wasConnectedOnInit = typeof modal.getIsConnectedState === 'function'
-        ? modal.getIsConnectedState()
-        : modal.getIsConnected?.() ?? false;
+      // Grace period suppresses the toast for session restoration on page load.
+      // We can't rely on getIsConnectedState() alone because Reown may not have
+      // finished restoring the session when checkModal first finds the modal,
+      // causing the guard to miss the restoration CONNECT_SUCCESS event.
+      const initTime = Date.now();
+      const RESTORE_GRACE_MS = 3000; // 3s covers slow session restores
       let lastConnectShown = 0;
       modal.subscribeEvents((event) => {
-        // Notify user on successful wallet connection (debounce to avoid repeated toasts)
+        // Notify user on successful wallet connection (skip session restores, debounce repeats)
         if (event?.data?.event === 'CONNECT_SUCCESS') {
-          if (wasConnectedOnInit) {
-            wasConnectedOnInit = false;
-            return;
-          }
+          // Suppress toasts during the grace period — these are session restores, not user actions
+          if (Date.now() - initTime < RESTORE_GRACE_MS) return;
           const now = Date.now();
           if (now - lastConnectShown > 5000) {
             lastConnectShown = now;

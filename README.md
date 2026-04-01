@@ -1,160 +1,288 @@
-# xLever - Leveraged Tokenized Asset Protocol
+# xLever — Leveraged Tokenized Asset Protocol
 
-Continuous leverage from -4× to +4× on tokenized assets without liquidation risk, powered by Euler Vault Kit.
+Continuous leverage from **-4x to +4x** on 33 tokenized assets without liquidation risk, powered by Euler V2 EVK.
+
+**Live at [xlever.markets](https://xlever.markets)**
+
+---
+
+## What is xLever?
+
+xLever enables fixed-entry leverage on tokenized assets (wQQQx, wSPYx, and 31 more) through a two-tranche system built on Euler V2. Unlike daily-rebalanced ETFs (TQQQ, SPXL), leverage is locked at entry — no volatility decay, no daily reset.
+
+**For Traders (Senior Tranche):** Deposit USDC, pick leverage (-4x to +4x), and your PnL = Deposit x Leverage x Price Change. Max loss = your deposit. No liquidation, no debt.
+
+**For LPs (Junior Tranche):** Deposit USDC as first-loss capital protecting traders. Earn 70% of protocol fees. Higher risk, higher yield.
+
+**Why no liquidation?** Risk is socialized through the junior tranche instead of liquidating individuals. The protocol auto-deleverages the entire pool as health degrades.
+
+---
+
+## Quick Start
+
+```bash
+# Prerequisites: Node.js 18+, Python 3.10+
+
+# 1. Install dependencies
+npm install
+
+# 2. Copy environment config
+cp .env.example .env   # then fill in your keys
+
+# 3. Start data server (Yahoo Finance proxy)
+cd server && python3 server.py &
+cd ..
+
+# 4. Start dev server
+npm run dev
+# → http://localhost:3000
+```
+
+**Optional — FastAPI backend (positions, auth, lending):**
+```bash
+cd server && pip install -r requirements.txt
+uvicorn api.main:app --port 8080
+```
+
+---
+
+## Architecture
+
+```
+User Layer
+  Senior Users (-4x to +4x)     Junior LPs (first-loss buffer)
+         |                               |
+         v                               v
+Protocol Layer (33 VaultSimple contracts on Ink Sepolia)
+  Position Manager  |  Fee Engine  |  Exposure Aggregator
+         |
+         v
+Oracle + Intelligence
+  Pyth (on-chain TWAP)  |  OpenBB (off-chain analytics)  |  Tavily (AI intel)
+         |
+         v
+External Protocols
+  Euler V2 (EVM)  |  Kamino (Solana)  |  EVAA (TON)  |  xStocks (wQQQx, wSPYx)
+```
+
+---
+
+## Frontend (9 Screens)
+
+| Screen | File | Description |
+|--------|------|-------------|
+| Landing | `index.html` | Protocol overview, wallet connect, 1Y comparison chart |
+| Dashboard | `01-dashboard.html` | Portfolio PnL, asset allocation, health metrics |
+| Trading Terminal | `02-trading-terminal.html` | TradingView charts, leverage slider, order entry |
+| AI Agent | `03-ai-agent-operations.html` | Agent control panel, 3 policy modes, execution log |
+| Vault Management | `04-vault-management.html` | Senior/Junior tranche deposits, Euler V2 health |
+| Risk Management | `05-risk-management.html` | 4-state sentinel, circuit breakers, auto-deleverage |
+| Analytics | `06-analytics-backtesting.html` | LTAP vs daily-reset backtesting with real data |
+| Operations | `07-operations-control.html` | Transaction history, protocol state, governance |
+| Admin | `08-admin-dashboard.html` | Platform stats, activity charts, user management |
+| Lending | `09-lending-borrowing.html` | Cross-chain lending markets (Euler/Kamino/EVAA) |
+
+---
+
+## Multi-Chain Deployments
+
+### Ink Sepolia (Primary) — 33 vaults live
+
+| Contract | Address |
+|----------|---------|
+| EVC | `0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c` |
+| USDC | `0x6b57475467cd854d36Be7FB614caDa5207838943` |
+| wQQQx | `0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9` |
+| wSPYx | `0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e` |
+| Pyth Oracle | `0x2880aB155794e7179c9eE2e38200202908C17B43` |
+| PythOracleAdapter | `0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f` |
+| QQQ Vault | `0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6` |
+| SPY Vault | `0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228` |
+
+**33 supported assets:** QQQ, SPY, VUG, VGK, VXUS, SGOV, SMH, XLE, XOP, ITA, AAPL, NVDA, TSLA, DELL, SMCI, ANET, VRT, SNDK, KLAC, LRCX, AMAT, TER, CEG, GEV, SMR, ETN, PWR, APLD, SLV, PPLT, PALL, STRK, BTGO
+
+Full vault address list in `deployment.json` and `frontend/contracts.js`.
+
+### Ethereum Sepolia — 33 vaults mirrored
+
+Full mirror deployment. Frontend supports chain switching via `switchChain(11155111)`.
+
+### Solana (Devnet) — Ready to deploy
+
+Anchor program at `solana/`. Mirrors EVM vault logic with Pyth oracle integration.
+
+```bash
+cd solana && anchor build && anchor deploy --provider.cluster devnet
+```
+
+### TON (Testnet) — Ready to deploy
+
+Tact contracts at `ton/`. All 33 Pyth feed IDs configured.
+
+```bash
+cd ton && npm install && npx tact --config tact.config.json
+npx ts-node scripts/deployFactory.ts && npx ts-node scripts/deployAllVaults.ts
+```
+
+---
+
+## Smart Contracts
+
+**Deployed:** `VaultSimple.sol` — lightweight vault with deposit, withdraw, adjust leverage, Pyth oracle pricing.
+
+**Experimental (designed, not deployed):** Modular `Vault.sol` with PositionModule, FeeEngine, EulerHedgingModule, RiskModule, TWAPOracle, JuniorTranche, PythOracleAdapter. Exceeds deployment size limits — planned for mainnet via proxy patterns.
+
+See [docs/LIVE-VS-PLANNED.md](docs/LIVE-VS-PLANNED.md) for details.
+
+### Testing
+
+```bash
+cd contracts && forge test
+# Looping tests specifically:
+forge test --match-contract VaultWithLoopingTest -vv
+```
+
+---
+
+## AI Agent System
+
+### Frontend Agent (`frontend/agent-executor.js`)
+Bounded policy executor running client-side with 3 modes:
+- **Safe** — Stop-loss monitoring, risk alerts
+- **Target Exposure** — Maintain leverage band automatically
+- **Accumulate** — DCA into positions on schedule
+
+### Backend Agent (`agent/`)
+Autonomous Python agent with:
+- 8 safety guardrails (max leverage, health guard, daily loss limit, etc.)
+- 4 HITL modes (autonomous, approval_required, approval_above_threshold, notifications_only)
+- Tavily market intelligence integration
+- Backtesting framework with Sharpe ratio, drawdown analysis
+- WebSocket real-time event broadcasting
+- REST API at `/api/autonomous/*`
+
+### News Intelligence Pipeline
+- `news-ingest.js` — SSE streaming, priority classification
+- `news-analysts.js` — Multi-analyst sentiment scoring
+- `news-verifier.js` — Source credibility verification
+- `signal-aggregator.js` — Weighted signal generation for agent decisions
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Vite 8 + Vanilla JS, TradingView Lightweight Charts v4.1.3 |
+| Styling | Tailwind CSS 4.2.2, Bloomberg Terminal aesthetic |
+| Wallet | Reown AppKit v1.8.19 (4 chains) |
+| Blockchain | viem v2.47.6, wagmi v3.6.0, @solana/web3.js, @ton/ton |
+| Contracts | Solidity ^0.8.0, Foundry, Euler V2 EVK + EVC |
+| Lending | Euler V2 (EVM), Kamino Finance (Solana), EVAA Protocol (TON) |
+| Oracle | Pyth Network (Hermes pull-oracle, 30+ feeds) |
+| Intelligence | OpenBB Platform, Tavily AI |
+| Backend | Python FastAPI, PostgreSQL, Redis |
+| Auth | SIWE (Sign-In with Ethereum) |
+
+---
+
+## Server API
+
+**Data Proxy** (`server/server.py` — port 8000): Yahoo Finance CORS proxy with caching.
+
+**FastAPI Backend** (`server/api/main.py` — port 8080):
+
+| Endpoint Group | Description |
+|----------------|-------------|
+| `POST /api/auth/siwe` | Wallet-based authentication |
+| `GET /api/positions/{wallet}` | Position history & tracking |
+| `GET /api/lending/markets` | Multi-chain lending market data |
+| `GET /api/lending/positions/{wallet}` | Cross-chain positions |
+| `GET/POST /api/agents/{wallet}/runs` | Agent execution history |
+| `GET /api/openbb/quote/{symbol}` | Real-time quotes via OpenBB |
+| `GET /api/news/trending` | Trending news & sentiment |
+| `GET /api/alerts` | Risk alert management |
+
+---
 
 ## Project Structure
 
 ```
-xLeverContracts/
-├── contracts/          # Euler Vault Kit smart contracts
-│   ├── src/           # Core EVK contracts
-│   ├── script/        # Deployment scripts
-│   ├── test/          # Tests
-│   ├── DEPLOYMENT.md  # Detailed deployment guide
-│   └── QUICKSTART.md  # Quick start guide
-├── frontend/          # Web interface
-├── server/            # Backend server
-├── protocol.md        # Protocol specification
-├── hackPlan.md        # Development plan
-└── .env.example       # Environment template
+xLever/
+├── frontend/              # Vite SPA (10 HTML screens, 30+ JS modules)
+├── contracts/             # Solidity — VaultSimple (deployed), experimental modules
+├── server/                # Python data proxy + FastAPI backend
+├── agent/                 # Autonomous Python AI agent
+├── solana/                # Anchor program (Solana port)
+├── ton/                   # Tact contracts (TON port)
+├── docs/                  # Full documentation suite
+│   ├── PROTOCOL.md        # Core protocol mechanics
+│   ├── SMART-CONTRACTS.md # Contract reference & addresses
+│   ├── FRONTEND.md        # UI architecture & screens
+│   ├── RISK-ENGINE.md     # Risk sentinel & auto-deleverage
+│   ├── API-INTEGRATIONS.md# Oracle, data, backend APIs
+│   ├── MULTI-CHAIN-LENDING.md # Cross-chain lending adapters
+│   ├── DEPLOYMENT.md      # Build & deployment guide
+│   └── LIVE-VS-PLANNED.md # What's deployed vs designed
+├── protocol.md            # 80KB architecture document
+├── deployment.json        # Machine-readable deployment manifest
+├── vite.config.js         # Vite build configuration
+└── docker-compose.yml     # Container orchestration
 ```
 
-## Quick Start
+---
 
-See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instructions.
+## What is Real vs Simulated
 
-## Documentation
+| Component | Status | Details |
+|-----------|--------|---------|
+| Smart contracts | **Real** | 33 VaultSimple vaults deployed on Ink Sepolia + Ethereum Sepolia |
+| Pyth oracle prices | **Real** | Live Hermes price feeds for 30+ assets |
+| Backtesting data | **Real** | Historical OHLCV from Yahoo Finance |
+| OpenBB market data | **Real** | Live quotes, options chains |
+| Wallet connection | **Real** | Reown AppKit with on-chain transactions |
+| Trading terminal charts | **Real** | TradingView with live data |
+| Risk sentinel | **Simulated** | Client-side FSM with demo scenarios |
+| AI agent execution | **Simulated** | Dry-run default, real tx opt-in |
+| Junior tranche | **Simulated** | Designed but not in VaultSimple |
+| Auto-deleverage | **Simulated** | In experimental contracts, not deployed |
+| Solana/TON vaults | **Ready** | Programs written, not yet deployed |
 
-- **[Protocol Specification](protocol.md)** - Complete protocol design
-- **[Deployment Guide](contracts/DEPLOYMENT.md)** - Step-by-step deployment
-- **[Hackathon Plan](hackPlan.md)** - Team assignments and milestones
+---
 
-## Key Features
+## AI Usage Disclosure
 
-- **Continuous Leverage**: -4× to +4× range on tokenized assets
-- **No Liquidations**: Risk socialized through Junior tranche
-- **Euler V2 Integration**: Modular vault architecture with EVC
-- **AI Agent Trading**: Automated position management
-- **Pyth Oracles**: 15-minute TWAP pricing
+This project was built with AI assistance:
+- **Claude Code** — Code generation, architecture design, documentation
+- **Stitch MCP** — UI/UX design system and screen generation
+- **Perplexity API** — Market research and intelligence integration
 
-## Network
+All AI-generated code was reviewed and integrated by the team.
 
-- **Testnet**: Ink Sepolia
-- **Chain ID**: 763373
-- **RPC**: https://rpc-gel-sepolia.inkonchain.com
-
-## Deployed Contracts (Ink Sepolia)
-
-### xLever Protocol Vaults
-- **wSPYx Vault**: [`0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d`](https://explorer-sepolia.inkonchain.com/address/0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d)
-- **wQQQx Vault**: [`0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955`](https://explorer-sepolia.inkonchain.com/address/0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955)
-
-**Features:**
-- ✅ Open/close leveraged positions
-- ✅ Junior tranche deposits and withdrawals
-- ✅ Fee distribution to junior LPs
-- ✅ Real-time position tracking
-- ✅ Fully integrated frontend UI
-
-### Looping Implementation 🔁
-
-**Status:** ✅ **Recursive looping implemented and tested** - See `VaultWithLooping.sol`
-
-**Implementation:**
-- 🔁 True deposit→borrow→deposit→borrow loops (up to 10 iterations)
-- ✅ Comprehensive test suite - 17/17 tests passing including 1001 fuzz tests
-- ✅ Achieves true 2x-4x leverage through Euler V2 vaults
-- ✅ Automatic loop unwinding on withdrawal
-- ✅ Health factor maintenance (>120%)
-- ✅ LoopExecuted events for transparency
-
-**Testing:**
-```bash
-cd contracts && forge test --match-contract VaultWithLoopingTest -vv
-```
-
-### Tokens
-- **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)
-- **wSPYx (Wrapped SP500)**: [`0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e`](https://explorer-sepolia.inkonchain.com/address/0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e)
-- **wQQQx (Wrapped Nasdaq)**: [`0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9`](https://explorer-sepolia.inkonchain.com/address/0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9)
-
-### Euler Vaults (75% Borrow LTV / 87% Liquidation LTV)
-- **USDC EVault**: [`0x92E92FDcAc9dfED71721468Efcb6952Ec898aC53`](https://explorer-sepolia.inkonchain.com/address/0x92E92FDcAc9dfED71721468Efcb6952Ec898aC53)
-- **wSPYx EVault**: [`0x6d064558d58645439A64cE1e88989Dfba88AA052`](https://explorer-sepolia.inkonchain.com/address/0x6d064558d58645439A64cE1e88989Dfba88AA052)
-- **wQQQx EVault**: [`0x3AeFf4ad3ee66885de6cE1a485425bd8C987FCe9`](https://explorer-sepolia.inkonchain.com/address/0x3AeFf4ad3ee66885de6cE1a485425bd8C987FCe9)
-
-**LTV Configuration:**
-- Borrow LTV: 75% (max 3x safe leverage, 4x theoretical)
-- Liquidation LTV: 87% (12% volatility buffer before liquidation)
-- Collateral pairs: USDC ↔ wSPYx, USDC ↔ wQQQx
-
-### Euler Vault Kit Infrastructure
-- **EVC**: [`0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c`](https://explorer-sepolia.inkonchain.com/address/0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c)
-- **ProtocolConfig**: [`0x15bb9ba8236de055090a262f45a7e213f6040320`](https://explorer-sepolia.inkonchain.com/address/0x15bb9ba8236de055090a262f45a7e213f6040320)
-- **SequenceRegistry**: [`0xb694120ecdc69fbbee3ae21831d7b76ab8a9169b`](https://explorer-sepolia.inkonchain.com/address/0xb694120ecdc69fbbee3ae21831d7b76ab8a9169b)
-
-### EVault System
-- **EVault Implementation**: [`0xd821a7d919e007b6b39925f672f1219db4865fba`](https://explorer-sepolia.inkonchain.com/address/0xd821a7d919e007b6b39925f672f1219db4865fba)
-- **GenericFactory**: [`0xba1240b966e20e16ca32bbfc189528787794f2a9`](https://explorer-sepolia.inkonchain.com/address/0xba1240b966e20e16ca32bbfc189528787794f2a9)
-- **IRM Linear Kink**: [`0xe91a4b01632a7d281fb3eb0e83ad9d5f0305d48f`](https://explorer-sepolia.inkonchain.com/address/0xe91a4b01632a7d281fb3eb0e83ad9d5f0305d48f)
-
-### EVault Modules
-- **Initialize**: [`0x6abaeb70c9ba9ea497ff5e20d08bd20ca1e02139`](https://explorer-sepolia.inkonchain.com/address/0x6abaeb70c9ba9ea497ff5e20d08bd20ca1e02139)
-- **Token**: [`0xb6251797386a8c5a2a4a8783f430ef2ed5c63bef`](https://explorer-sepolia.inkonchain.com/address/0xb6251797386a8c5a2a4a8783f430ef2ed5c63bef)
-- **Vault**: [`0xce92e887d225d06c21a16d845d88e980d536fa2b`](https://explorer-sepolia.inkonchain.com/address/0xce92e887d225d06c21a16d845d88e980d536fa2b)
-- **Borrowing**: [`0xd6ee29f9ae035adb0f2741228ed55f0fc6dbb6c2`](https://explorer-sepolia.inkonchain.com/address/0xd6ee29f9ae035adb0f2741228ed55f0fc6dbb6c2)
-- **Liquidation**: [`0xd1f77f73ca47a726875d884cc45eff289f6176e3`](https://explorer-sepolia.inkonchain.com/address/0xd1f77f73ca47a726875d884cc45eff289f6176e3)
-- **RiskManager**: [`0x8e3ef1e28262e351eb066374df1bed36cc704dda`](https://explorer-sepolia.inkonchain.com/address/0x8e3ef1e28262e351eb066374df1bed36cc704dda)
-- **BalanceForwarder**: [`0x4a7c22878c8c25354dd926bd89722a3aadafcb66`](https://explorer-sepolia.inkonchain.com/address/0x4a7c22878c8c25354dd926bd89722a3aadafcb66)
-- **Governance**: [`0x75b85bbc8779b9cde77cc9dd0335c27410455a53`](https://explorer-sepolia.inkonchain.com/address/0x75b85bbc8779b9cde77cc9dd0335c27410455a53)
-
-## Getting Started
-
-### Using the Live App
-
-1. **Setup Wallet**
-   - Install MetaMask
-   - Add Ink Sepolia network (Chain ID: 763373)
-   - RPC: `https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc`
-
-2. **Get Testnet Tokens**
-   - Get testnet ETH for gas
-   - Get testnet USDC: `0x6b57475467cd854d36Be7FB614caDa5207838943`
-
-3. **Run Frontend**
-   ```bash
-   cd frontend
-   python3 -m http.server 8080
-   # Open http://localhost:8080 in browser
-   ```
-
-4. **Open a Position**
-   - Connect wallet
-   - Select asset (SPY or QQQ)
-   - Choose leverage with slider
-   - Enter USDC amount
-   - Click "Open Position"
-   - Approve transactions in MetaMask
-
-### Development
-
-1. **Deploy New Contracts**
-   ```bash
-   cd contracts
-   forge script script/DeploySimple.s.sol:DeploySimple --rpc-url <RPC> --broadcast --private-key <KEY>
-   ```
-
-2. **Run Tests**
-   ```bash
-   cd contracts
-   forge test
-   ```
+---
 
 ## Team
 
-- **Mads**: Euler Vault Kit integration & deployment
-- **Eric & Maroua**: AI agent for automated trading
+- **Mads** — Euler V2 EVK integration & smart contract deployment
+- **Eric** — AI agent architecture, backend, frontend
+- **Maroua** — AI agent, demo video, UI/UX
+
+---
+
+## Documentation
+
+Full docs at [docs/](docs/):
+- [Protocol Mechanics](docs/PROTOCOL.md) — Core design, fee model, exposure netting
+- [Smart Contracts](docs/SMART-CONTRACTS.md) — ABIs, addresses, data structures
+- [Frontend Guide](docs/FRONTEND.md) — Screens, components, wallet flow
+- [Risk Engine](docs/RISK-ENGINE.md) — Sentinel FSM, circuit breakers
+- [API Integrations](docs/API-INTEGRATIONS.md) — Pyth, OpenBB, Yahoo, FastAPI
+- [Multi-Chain Lending](docs/MULTI-CHAIN-LENDING.md) — Euler, Kamino, EVAA adapters
+- [Deployment Guide](docs/DEPLOYMENT.md) — Environment, build, deploy
+- [Live vs Planned](docs/LIVE-VS-PLANNED.md) — What's deployed vs designed
+
+---
 
 ## License
 
-See individual component licenses.
+MIT

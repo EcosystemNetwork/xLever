@@ -63,7 +63,7 @@ export default defineConfig({
     proxy: {
       // Any request starting with /api is forwarded to the FastAPI server
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8000',
         // changeOrigin rewrites the Host header so FastAPI sees localhost:8000, not localhost:3000
         changeOrigin: true,
       }
