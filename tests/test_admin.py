@@ -73,7 +73,11 @@ app.dependency_overrides[get_db] = _override_get_db
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
-    """Create all tables before each test, drop after."""
+    """Create all tables before each test, drop after. Reset rate limiter."""
+    # Reset rate limiter so tests don't hit 429
+    from server.api.main import _rate_bucket
+    _rate_bucket._hits.clear()
+
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield

@@ -126,13 +126,16 @@ async def daily_activity(
     db: AsyncSession = Depends(get_db),
 ):
     """Login counts and new user registrations per day."""
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
     # Sessions per day
     sessions_q = await db.execute(
         select(
             cast(UserSession.connected_at, Date).label("day"),
             func.count(UserSession.id).label("cnt"),
         )
-        .where(UserSession.connected_at >= func.now() - func.cast(f"{days} days", type_=None))
+        .where(UserSession.connected_at >= cutoff)
         .group_by("day")
         .order_by("day")
     )
@@ -144,7 +147,7 @@ async def daily_activity(
             cast(User.created_at, Date).label("day"),
             func.count(User.id).label("cnt"),
         )
-        .where(User.created_at >= func.now() - func.cast(f"{days} days", type_=None))
+        .where(User.created_at >= cutoff)
         .group_by("day")
         .order_by("day")
     )
