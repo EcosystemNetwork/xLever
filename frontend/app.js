@@ -519,149 +519,60 @@ async function withdrawJunior() {
   }
 }
 
-async function switchToInkSepolia() {
-  try {
-    // First try to switch
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0xBA6ED' }],
-    });
-    console.log('✓ Switched to Ink Sepolia');
-    return true;
-  } catch (switchError) {
-    // If network not added (error 4902), add it
-    if (switchError.code === 4902) {
-      try {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: '0xBA6ED',
-            chainName: 'Ink Sepolia',
-            nativeCurrency: {
-              name: 'ETH',
-              symbol: 'ETH',
-              decimals: 18
-            },
-            rpcUrls: ['https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc'],
-            blockExplorerUrls: ['https://explorer-sepolia.inkonchain.com']
-          }]
-        });
-        console.log('✓ Added and switched to Ink Sepolia');
-        return true;
-      } catch (addError) {
-        console.error('Failed to add network:', addError);
-        return false;
-      }
-    } else if (switchError.code === 4001) {
-      console.log('User rejected network switch');
-      return false;
-    } else {
-      console.error('Network switch error:', switchError);
-      return false;
+// Wallet connection using Reown AppKit
+function initWalletListeners() {
+  const modal = window.xLeverWallet;
+  if (!modal) return setTimeout(initWalletListeners, 200);
+
+  modal.subscribeEvents(async (event) => {
+    if (event?.data?.event === 'CONNECT_SUCCESS') {
+      connectedAddress = modal.getAddress();
+      const { createPublicClient, http, inkSepolia } = window.viem;
+      publicClient = createPublicClient({
+        chain: inkSepolia,
+        transport: http(inkSepolia.rpcUrls.default.http[0])
+      });
+      updateWalletUI();
+      await fetchBalances();
+      await updateJuniorUI();
+      await loadUserPositions();
     }
+    if (event?.data?.event === 'DISCONNECT_SUCCESS') {
+      connectedAddress = null;
+      publicClient = null;
+      updateWalletUI();
+    }
+  });
+
+  try {
+    if (typeof modal.getIsConnected === 'function' && modal.getIsConnected()) {
+      connectedAddress = typeof modal.getAddress === 'function'
+        ? modal.getAddress()
+        : modal.getAddress?.();
+      const { createPublicClient, http, inkSepolia } = window.viem;
+      publicClient = createPublicClient({
+        chain: inkSepolia,
+        transport: http(inkSepolia.rpcUrls.default.http[0])
+      });
+      updateWalletUI();
+      fetchBalances();
+    }
+  } catch (e) {
+    console.warn('Wallet reconnect check skipped:', e.message);
   }
 }
-
-async function connectWallet() {
-  try {
-    if (!window.ethereum) {
-      showToast('Please install MetaMask or another Web3 wallet to connect.', 'warning', 5000);
-      return;
-    }
-
-    const accounts = await window.ethereum.request({ 
-      method: 'eth_requestAccounts' 
-    });
-    
-    if (accounts.length === 0) {
-      throw new Error('No accounts found');
-    }
-
-    // Check current network
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    const currentChainId = parseInt(chainId, 16);
-    
-    // Only switch if not already on Ink Sepolia
-    if (currentChainId !== 763373) {
-      console.log(`Current network: ${currentChainId}, switching to Ink Sepolia (763373)...`);
-      const switched = await switchToInkSepolia();
-      
-      if (!switched) {
-        showToast('Please switch to Ink Sepolia network in MetaMask.\n\nChain ID: 763373', 'warning', 6000);
-        return;
-      }
-    } else {
-      console.log('✓ Already on Ink Sepolia');
-    }
-
-    const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
-    
-    walletClient = createWalletClient({
-      chain: inkSepolia,
-      transport: custom(window.ethereum)
-    });
-
-    publicClient = createPublicClient({
-      chain: inkSepolia,
-      transport: http('https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc')
-    });
-
-    connectedAddress = accounts[0];
-    
-    updateWalletUI();
-    await fetchBalances();
-    await updateJuniorUI();
-    await loadUserPositions();
-    
-    localStorage.setItem('walletConnected', 'true');
-    console.log('✓ Wallet connected:', connectedAddress);
-    
-  } catch (error) {
-    console.error('Failed to connect wallet:', error);
-    showToast('Failed to connect wallet. Please try again.', 'error');
-  }
-}
-
-function disconnectWallet() {
-  walletClient = null;
-  connectedAddress = null;
-  localStorage.removeItem('walletConnected');
-  updateWalletUI();
-  console.log('✓ Wallet disconnected');
-}
+initWalletListeners();
 
 function updateWalletUI() {
-  const connectBtn = document.getElementById('connectWalletBtn');
   const walletInfo = document.getElementById('walletInfo');
   const walletAddress = document.getElementById('walletAddress');
   
-  if (connectedAddress) {
-    connectBtn.style.display = 'none';
+  if (connectedAddress && walletInfo && walletAddress) {
     walletInfo.style.display = 'flex';
     walletAddress.textContent = `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`;
-  } else {
-    connectBtn.style.display = 'block';
+  } else if (walletInfo) {
     walletInfo.style.display = 'none';
   }
-}
-
-// Listen for account changes
-if (window.ethereum) {
-  window.ethereum.on('accountsChanged', async (accounts) => {
-    if (accounts.length === 0) {
-      disconnectWallet();
-    } else {
-      connectedAddress = accounts[0];
-      updateWalletUI();
-      await fetchBalances();
-      await loadUserPositions();
-      console.log('✓ Account changed:', connectedAddress);
-    }
-  });
-
-  window.ethereum.on('chainChanged', () => {
-    window.location.reload();
-  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1910,9 +1821,7 @@ chartEl.addEventListener('dblclick', () => {
   }
 });
 
-// Wallet connection event listeners
-document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
-document.getElementById('disconnectBtn').addEventListener('click', disconnectWallet);
+// Wallet connection is handled by Reown AppKit modal (wallet.js)
 
 document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { 
   if (b.dataset.ticker === currentTicker) return;
