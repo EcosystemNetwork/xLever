@@ -96,11 +96,14 @@
 </div>
 
 <script>
-  // Landing page navigation — Launch App goes to the real dashboard
-  document.getElementById('launchAppBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    window.location.href = '01-dashboard.html';
-  });
+  // Landing page navigation — Launch App goes to the dashboard
+  const launchBtn = document.getElementById('launchAppBtn');
+  if (launchBtn) {
+    launchBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.location.href = '01-dashboard.html';
+    });
+  }
   document.getElementById('learnMoreBtn').addEventListener('click', (e) => {
     e.preventDefault();
     document.getElementById('landingPage').style.display = 'none';
