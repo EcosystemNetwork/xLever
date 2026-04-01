@@ -13,10 +13,10 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
-// Vault contract addresses (DEPLOYED - Fixed Vault with initialized TWAP)
+// Vault contract addresses (DEPLOYED - Looping Vaults with ACTUAL recursive looping!)
 const VAULT_ADDRESSES = {
-  wSPYx: '0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d',
-  wQQQx: '0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955'
+  wSPYx: '0x93c0323D7133E2e9D57133a629a35Df17797d890',
+  wQQQx: '0x0C2c35ed457a4532794602a588eB0C086Ebd67DB'
 };
 
 // Minimal ERC-20 ABI for balanceOf
@@ -157,6 +157,54 @@ const VAULT_ABI = [
     outputs: [
       { name: 'twap', type: 'uint128' },
       { name: 'spreadBps', type: 'uint16' }
+    ]
+  },
+  {
+    name: 'LoopExecuted',
+    type: 'event',
+    inputs: [
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'iteration', type: 'uint256', indexed: false },
+      { name: 'deposited', type: 'uint256', indexed: false },
+      { name: 'borrowed', type: 'uint256', indexed: false }
+    ]
+  },
+  {
+    name: 'PositionOpened',
+    type: 'event',
+    inputs: [
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'totalCollateral', type: 'uint256', indexed: false },
+      { name: 'totalDebt', type: 'uint256', indexed: false },
+      { name: 'leverage', type: 'int32', indexed: false }
+    ]
+  },
+  {
+    name: 'getEulerPosition',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'collateralVault', type: 'address' },
+        { name: 'debtVault', type: 'address' },
+        { name: 'collateralShares', type: 'uint128' },
+        { name: 'debtAmount', type: 'uint128' },
+        { name: 'isActive', type: 'bool' }
+      ]
+    }]
+  },
+  {
+    name: 'getPositionHealth',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [
+      { name: 'collateral', type: 'uint256' },
+      { name: 'debt', type: 'uint256' },
+      { name: 'healthFactor', type: 'uint256' }
     ]
   }
 ];

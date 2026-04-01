@@ -45,22 +45,25 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅ (FIXED - Initialized TWAP)
-- **wSPYx Vault**: [`0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d`](https://explorer-sepolia.inkonchain.com/address/0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d)
-- **wQQQx Vault**: [`0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955`](https://explorer-sepolia.inkonchain.com/address/0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955)
+### xLever Protocol - LIVE WITH ACTUAL LOOPING! 🔁✅
+- **wSPYx Looping Vault**: [`0x93c0323D7133E2e9D57133a629a35Df17797d890`](https://explorer-sepolia.inkonchain.com/address/0x93c0323D7133E2e9D57133a629a35Df17797d890)
+- **wQQQx Looping Vault**: [`0x0C2c35ed457a4532794602a588eB0C086Ebd67DB`](https://explorer-sepolia.inkonchain.com/address/0x0C2c35ed457a4532794602a588eB0C086Ebd67DB)
 
-**Status:** ✅ **FULLY FUNCTIONAL WITH JUNIOR TRANCHE** - Full vault contracts with junior liquidity provider support deployed and integrated!
+**Status:** 🔁 **ACTUAL RECURSIVE LOOPING IMPLEMENTED** - True leverage through deposit→borrow→deposit→borrow loops!
 
 **Features:**
+- 🔁 **ACTUAL RECURSIVE LOOPING** - Deposit→Borrow→Deposit→Borrow up to 10 iterations
+- ✅ True 3x-4x leverage through Euler V2 vaults (not just accounting!)
 - ✅ Open positions with USDC deposit and leverage selection (-4x to +4x)
-- ✅ Close positions and withdraw USDC
+- ✅ Close positions and withdraw USDC (automatic loop unwinding)
 - ✅ Asset selection (SPY/QQQ)
-- ✅ Real-time position tracking
+- ✅ Real-time position tracking with Euler position health
 - ✅ Balance updates
 - ✅ **Junior tranche deposits and withdrawals**
 - ✅ **First-loss capital pool for LPs**
 - ✅ **Fee distribution to junior LPs**
 - ✅ Fully integrated frontend UI with chart visualization
+- 🔍 **Transparent loop execution** - LoopExecuted events for each iteration
 
 **How to Use:**
 1. Connect MetaMask wallet to Ink Sepolia network
