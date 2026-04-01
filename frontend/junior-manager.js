@@ -10,7 +10,7 @@ let selectedVault = 'wQQQx'; // Default vault for junior deposits
 
 // Fetch comprehensive junior tranche data
 async function fetchJuniorData() {
-  if (!publicClient) return null;
+  if (!publicClient || !connectedAddress) return null;
 
   try {
     const vaultAddress = VAULT_ADDRESSES[selectedVault];
@@ -23,11 +23,25 @@ async function fetchJuniorData() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
+      console.log('⚠️ Junior tranche not available');
       return null;
     }
 
-    // Fetch pool data (doesn't require wallet)
-    const poolDataPromises = [
+    // Fetch all data in parallel
+    const [
+      poolState,
+      juniorValue,
+      userShares,
+      totalSharesValue,
+      fundingRate,
+      maxLeverage,
+      twapData
+    ] = await Promise.all([
+      publicClient.readContract({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName: 'getPoolState'
+      }),
       publicClient.readContract({
         address: vaultAddress,
         abi: VAULT_ABI,
@@ -35,13 +49,14 @@ async function fetchJuniorData() {
       }),
       publicClient.readContract({
         address: juniorTrancheAddress,
-        abi: ERC20_ABI,
-        functionName: 'totalSupply'
+        abi: JUNIOR_TRANCHE_ABI,
+        functionName: 'getShares',
+        args: [connectedAddress]
       }),
       publicClient.readContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: 'getPoolState'
+        address: juniorTrancheAddress,
+        abi: JUNIOR_TRANCHE_ABI,
+        functionName: 'totalShares'
       }),
       publicClient.readContract({
         address: vaultAddress,
@@ -58,29 +73,14 @@ async function fetchJuniorData() {
         abi: VAULT_ABI,
         functionName: 'getCurrentTWAP'
       }).catch(() => [0n, 0n])
-    ];
-
-    // Add user-specific data if wallet is connected
-    if (connectedAddress) {
-      poolDataPromises.push(
-        publicClient.readContract({
-          address: juniorTrancheAddress,
-          abi: ERC20_ABI,
-          functionName: 'balanceOf',
-          args: [connectedAddress]
-        })
-      );
-    }
-
-    const results = await Promise.all(poolDataPromises);
-    const [juniorValue, totalSharesValue, poolState, fundingRate, maxLeverage, twapData, userShares] = results;
+    ]);
 
     const { formatUnits } = window.viem;
 
     // Calculate metrics
     const totalJuniorTVL = Number(formatUnits(juniorValue[0], 6));
     const sharePrice = Number(formatUnits(juniorValue[1], 6));
-    const userSharesNum = userShares ? Number(formatUnits(userShares, 6)) : 0; // Shares are in 6 decimals (USDC-based)
+    const userSharesNum = Number(formatUnits(userShares, 6)); // Shares are in 6 decimals (USDC-based)
     const totalSharesNum = Number(formatUnits(totalSharesValue, 6));
     const userPosition = userSharesNum * sharePrice;
     const totalSeniorTVL = Number(formatUnits(poolState.totalSeniorDeposits, 6));
