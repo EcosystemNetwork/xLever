@@ -1,11 +1,8 @@
 /**
- * xLever Test Data Seeder
- * ────────────────────────
- * Sends real transactions on Ink Sepolia to populate vaults with
- * senior deposits, junior LP deposits, and withdrawals.
- *
- * Handles Pyth oracle initialization (5+ price updates required)
- * before deposits can succeed.
+ * xLever Test Data Seeder — Phase 2 (Deposits)
+ * ──────────────────────────────────────────────
+ * QQQ oracle is already initialized (130+ updates pushed).
+ * Now do the actual deposits/withdrawals to create on-chain activity.
  *
  * Usage: node scripts/seed-test-data.js
  */
@@ -34,13 +31,9 @@ const inkSepolia = {
 
 const USDC = '0x6b57475467cd854d36Be7FB614caDa5207838943'
 const PYTH_ADAPTER = '0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f'
-
-// Vault address → Pyth feed ID mapping
-// Focus on QQQ first (already has 6/75 oracle updates) then others if ETH allows
-const VAULT_FEEDS = {
-  QQQ:  { vault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6', feed: '0x9695e2b96ea7b3859da9ed25b7a46a920a776e2fdae19a7bcfdf2b219230452d' },
-  SPY:  { vault: '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228', feed: '0x19e09bb805456ada3979a7d1cbb4b6d63babc3a0f8e8a9509f68afa5c4c11cd5' },
-}
+const QQQ_VAULT = '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6'
+const SPY_VAULT = '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228'
+const QQQ_FEED = '0x9695e2b96ea7b3859da9ed25b7a46a920a776e2fdae19a7bcfdf2b219230452d'
 
 // ── ABIs ──
 
@@ -53,7 +46,6 @@ const VAULT_ABI = [
   { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'payable' },
   { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'minReceived', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'payable' },
   { type: 'function', name: 'depositJunior', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'shares', type: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'withdrawJunior', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ name: 'amount', type: 'uint256' }], stateMutability: 'nonpayable' },
   { type: 'function', name: 'updateOracle', inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
   { type: 'function', name: 'getPosition', inputs: [{ name: 'user', type: 'address' }], outputs: [{ name: '', type: 'tuple', components: [
     { name: 'depositAmount', type: 'uint128' }, { name: 'leverageBps', type: 'int32' },
@@ -74,15 +66,21 @@ const PYTH_ADAPTER_ABI = [
   { type: 'function', name: 'getUpdateFee', inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'fee', type: 'uint256' }], stateMutability: 'view' },
 ]
 
-// ── Pyth Hermes ──
+const ORACLE_ABI = [
+  { type: 'function', name: 'getTWAP', inputs: [], outputs: [{ name: 'twap', type: 'uint128' }], stateMutability: 'view' },
+  { type: 'function', name: 'getSpotPrice', inputs: [], outputs: [{ name: 'spot', type: 'uint128' }], stateMutability: 'view' },
+  { type: 'function', name: 'getDivergence', inputs: [], outputs: [{ name: 'divergenceBps', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'hasSufficientUpdates', inputs: [], outputs: [{ type: 'bool' }], stateMutability: 'view' },
+  { type: 'function', name: 'isStale', inputs: [], outputs: [{ type: 'bool' }], stateMutability: 'view' },
+]
 
-const HERMES_BASE = 'https://hermes.pyth.network'
+// ── Pyth Hermes ──
 
 async function fetchPythUpdate(feedId) {
   const params = new URLSearchParams()
   params.append('ids[]', feedId.replace(/^0x/, ''))
   params.set('encoding', 'hex')
-  const resp = await fetch(`${HERMES_BASE}/v2/updates/price/latest?${params}`)
+  const resp = await fetch(`https://hermes.pyth.network/v2/updates/price/latest?${params}`)
   if (!resp.ok) throw new Error(`Hermes error: ${resp.status}`)
   const data = await resp.json()
   return data.binary.data.map(hex => '0x' + hex)
@@ -94,9 +92,9 @@ async function getPythFee(publicClient, updateData) {
       address: PYTH_ADAPTER, abi: PYTH_ADAPTER_ABI,
       functionName: 'getUpdateFee', args: [updateData],
     })
-    return fee + (fee / 10n) // 10% buffer
+    return fee + (fee / 10n)
   } catch {
-    return parseUnits('0.001', 18) // safe default
+    return parseUnits('0.001', 18)
   }
 }
 
@@ -105,122 +103,22 @@ async function getPythFee(publicClient, updateData) {
 function log(msg) { console.log(`  ${msg}`) }
 function header(msg) { console.log(`\n${'─'.repeat(50)}\n${msg}\n${'─'.repeat(50)}`) }
 
-async function initializeOracle(walletClient, publicClient, vault, feedId, label) {
-  // TWAP buffer has 75 slots — need to fill all of them so TWAP ≈ spot price
-  // (otherwise divergence = huge because empty slots = 0)
-  const BUFFER_SIZE = 75
-  log(`Initializing oracle for ${label} (${BUFFER_SIZE} updates to fill TWAP buffer)...`)
-
-  let successCount = 0
-  for (let i = 0; i < BUFFER_SIZE; i++) {
-    try {
-      const updateData = await fetchPythUpdate(feedId)
-      const fee = await getPythFee(publicClient, updateData)
-      const hash = await walletClient.writeContract({
-        address: vault, abi: VAULT_ABI, functionName: 'updateOracle',
-        args: [updateData], value: fee, chain: inkSepolia,
-      })
-      await publicClient.waitForTransactionReceipt({ hash })
-      successCount++
-      if (successCount % 10 === 0 || i === BUFFER_SIZE - 1) {
-        log(`  Oracle updates: ${successCount}/${BUFFER_SIZE}`)
-      }
-    } catch (e) {
-      log(`  Oracle update ${i + 1} ✗: ${e.shortMessage || e.message}`)
-      // If "Not authorized", this vault's oracle doesn't accept our address — bail
-      if (e.message?.includes('Not authorized') || e.shortMessage?.includes('Not authorized')) {
-        log(`  Skipping ${label} — not authorized as oracle updater`)
-        return false
-      }
-    }
-  }
-  log(`  Oracle initialized: ${successCount}/${BUFFER_SIZE} updates`)
-  return successCount >= 5
-}
-
-async function seniorDeposit(walletClient, publicClient, vault, feedId, amount, leverageBps, label) {
-  try {
-    // Approve
-    const approveHash = await walletClient.writeContract({
-      address: USDC, abi: ERC20_ABI, functionName: 'approve',
-      args: [vault, amount], chain: inkSepolia,
-    })
-    await publicClient.waitForTransactionReceipt({ hash: approveHash })
-
-    // Fetch fresh Pyth data
-    const updateData = await fetchPythUpdate(feedId)
-    const fee = await getPythFee(publicClient, updateData)
-
-    // Deposit
-    const hash = await walletClient.writeContract({
-      address: vault, abi: VAULT_ABI, functionName: 'deposit',
-      args: [amount, leverageBps, updateData], value: fee, chain: inkSepolia,
-    })
-    const receipt = await publicClient.waitForTransactionReceipt({ hash })
-    log(`✓ ${label}: ${formatUnits(amount, 6)} USDC @ ${leverageBps / 10000}x (tx: ${hash.slice(0, 10)}...)`)
-    return receipt
-  } catch (e) {
-    log(`✗ ${label}: ${e.shortMessage || e.message}`)
-    return null
-  }
-}
-
-async function juniorDeposit(walletClient, publicClient, vault, amount, label) {
-  try {
-    const approveHash = await walletClient.writeContract({
-      address: USDC, abi: ERC20_ABI, functionName: 'approve',
-      args: [vault, amount], chain: inkSepolia,
-    })
-    await publicClient.waitForTransactionReceipt({ hash: approveHash })
-
-    const hash = await walletClient.writeContract({
-      address: vault, abi: VAULT_ABI, functionName: 'depositJunior',
-      args: [amount], chain: inkSepolia,
-    })
-    const receipt = await publicClient.waitForTransactionReceipt({ hash })
-    log(`✓ ${label} junior: ${formatUnits(amount, 6)} USDC (tx: ${hash.slice(0, 10)}...)`)
-    return receipt
-  } catch (e) {
-    log(`✗ ${label} junior: ${e.shortMessage || e.message}`)
-    return null
-  }
-}
-
-async function doWithdraw(walletClient, publicClient, vault, feedId, amount, label) {
-  try {
-    const updateData = await fetchPythUpdate(feedId)
-    const fee = await getPythFee(publicClient, updateData)
-
-    const hash = await walletClient.writeContract({
-      address: vault, abi: VAULT_ABI, functionName: 'withdraw',
-      args: [amount, 0n, updateData], value: fee, chain: inkSepolia,
-    })
-    const receipt = await publicClient.waitForTransactionReceipt({ hash })
-    log(`✓ ${label} withdraw: ${formatUnits(amount, 6)} USDC (tx: ${hash.slice(0, 10)}...)`)
-    return receipt
-  } catch (e) {
-    log(`✗ ${label} withdraw: ${e.shortMessage || e.message}`)
-    return null
-  }
-}
+const delay = (ms) => new Promise(r => setTimeout(r, ms))
 
 // ── Main ──
 
 async function main() {
   console.log('═══════════════════════════════════════════════════')
-  console.log('  xLever Test Data Seeder — Ink Sepolia')
+  console.log('  xLever Test Data Seeder — Phase 2')
   console.log('═══════════════════════════════════════════════════')
-
-  if (!process.env.PRIVATE_KEY) {
-    console.error('ERROR: PRIVATE_KEY not set in .env')
-    process.exit(1)
-  }
 
   const account = privateKeyToAccount(process.env.PRIVATE_KEY)
   const publicClient = createPublicClient({ chain: inkSepolia, transport: http() })
   const walletClient = createWalletClient({ account, chain: inkSepolia, transport: http() })
 
+  // Check balances
   const ethBalance = await publicClient.getBalance({ address: account.address })
+  await delay(500)
   const usdcBalance = await publicClient.readContract({
     address: USDC, abi: ERC20_ABI, functionName: 'balanceOf', args: [account.address],
   })
@@ -229,75 +127,166 @@ async function main() {
   log(`ETH: ${formatUnits(ethBalance, 18)}`)
   log(`USDC: ${formatUnits(usdcBalance, 6)}`)
 
-  if (ethBalance === 0n) {
-    console.error('No ETH for gas — exiting')
-    process.exit(1)
+  // ─── Check QQQ oracle state ───
+  header('Oracle Status')
+  await delay(500)
+
+  const oracleAddr = '0x661B44636a24697480346C82C0aA8B899cADD0AA' // from earlier query
+  try {
+    const twap = await publicClient.readContract({ address: oracleAddr, abi: ORACLE_ABI, functionName: 'getTWAP' })
+    await delay(300)
+    const spot = await publicClient.readContract({ address: oracleAddr, abi: ORACLE_ABI, functionName: 'getSpotPrice' })
+    await delay(300)
+    const div = await publicClient.readContract({ address: oracleAddr, abi: ORACLE_ABI, functionName: 'getDivergence' })
+    log(`QQQ Oracle — TWAP: ${twap} Spot: ${spot} Divergence: ${div} bps`)
+
+    if (div > 300n) {
+      log(`Divergence too high (${div} > 300 bps). Need more oracle updates.`)
+      log('Pushing additional oracle updates to fill TWAP buffer...')
+
+      // Fill remaining buffer slots
+      const needed = div > 1000n ? 75 : 20
+      for (let i = 0; i < needed; i++) {
+        try {
+          const updateData = await fetchPythUpdate(QQQ_FEED)
+          await delay(300)
+          const fee = await getPythFee(publicClient, updateData)
+          await delay(300)
+          const hash = await walletClient.writeContract({
+            address: QQQ_VAULT, abi: VAULT_ABI, functionName: 'updateOracle',
+            args: [updateData], value: fee, chain: inkSepolia,
+          })
+          await publicClient.waitForTransactionReceipt({ hash })
+          if ((i + 1) % 10 === 0) log(`  Oracle updates: ${i + 1}/${needed}`)
+          await delay(500) // Rate limit protection
+        } catch (e) {
+          log(`  Update ${i + 1} failed: ${e.shortMessage || e.message}`)
+          await delay(2000)
+        }
+      }
+
+      // Re-check divergence
+      await delay(1000)
+      const newDiv = await publicClient.readContract({ address: oracleAddr, abi: ORACLE_ABI, functionName: 'getDivergence' })
+      log(`New divergence: ${newDiv} bps`)
+      if (newDiv > 300n) {
+        log('Still too high — deposits will fail. Try running again later.')
+        process.exit(1)
+      }
+    }
+  } catch (e) {
+    log(`Oracle check failed: ${e.shortMessage || e.message}`)
+    log('Continuing anyway — deposits will reveal if oracle is ready')
   }
 
-  const usdcAvailable = Number(formatUnits(usdcBalance, 6))
-  log(`Available USDC: ${usdcAvailable}`)
+  // ─── QQQ Pool State ───
+  header('Current Pool State')
+  await delay(500)
+  try {
+    const pool = await publicClient.readContract({ address: QQQ_VAULT, abi: VAULT_ABI, functionName: 'getPoolState' })
+    log(`QQQ — Senior: ${formatUnits(pool.totalSeniorDeposits, 6)} Junior: ${formatUnits(pool.totalJuniorDeposits, 6)} MaxLev: ${Number(pool.currentMaxLeverageBps) / 10000}x`)
+  } catch (e) {
+    log(`Pool state error: ${e.shortMessage || e.message}`)
+  }
 
   let success = 0, failed = 0
   const track = (r) => r ? success++ : failed++
 
-  // ─── Step 1: Initialize oracles for all vaults ───
-  header('Step 1: Initialize Oracles (5+ updates each)')
+  const usdcAvail = Number(formatUnits(usdcBalance, 6))
 
-  for (const [sym, { vault, feed }] of Object.entries(VAULT_FEEDS)) {
-    await initializeOracle(walletClient, publicClient, vault, feed, sym)
-  }
+  // ─── Junior LP deposit (if not already done) ───
+  header('Junior LP Deposit')
+  await delay(1000)
 
-  // ─── Step 2: Junior LP deposits first (needed as buffer for senior) ───
-  header('Step 2: Junior LP Deposits')
+  const juniorAmt = Math.floor(usdcAvail * 0.20)
+  if (juniorAmt >= 1) {
+    try {
+      const amt = parseUnits(String(juniorAmt), 6)
+      const approveHash = await walletClient.writeContract({
+        address: USDC, abi: ERC20_ABI, functionName: 'approve',
+        args: [QQQ_VAULT, amt], chain: inkSepolia,
+      })
+      await publicClient.waitForTransactionReceipt({ hash: approveHash })
+      await delay(500)
 
-  // Use ~40% of USDC for junior deposits across 2-3 vaults
-  const juniorAmountPer = Math.floor(usdcAvailable * 0.12) // ~12% each
-  if (juniorAmountPer >= 1) {
-    for (const [sym, { vault }] of Object.entries(VAULT_FEEDS)) {
-      track(await juniorDeposit(walletClient, publicClient, vault, parseUnits(String(juniorAmountPer), 6), sym))
+      const hash = await walletClient.writeContract({
+        address: QQQ_VAULT, abi: VAULT_ABI, functionName: 'depositJunior',
+        args: [amt], chain: inkSepolia,
+      })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+      log(`✓ QQQ junior: ${juniorAmt} USDC (tx: ${hash.slice(0, 10)}...)`)
+      track(receipt)
+    } catch (e) {
+      log(`✗ QQQ junior: ${e.shortMessage || e.message}`)
+      track(null)
     }
   }
 
-  // ─── Step 3: Senior deposits with various leverages ───
-  header('Step 3: Senior Deposits')
+  // ─── Senior Deposit: QQQ 2x long ───
+  header('Senior Deposit: QQQ 2x Long')
+  await delay(1000)
 
-  // Re-check USDC after junior deposits
-  const usdcAfterJunior = await publicClient.readContract({
+  // Recheck USDC
+  const usdcNow = await publicClient.readContract({
     address: USDC, abi: ERC20_ABI, functionName: 'balanceOf', args: [account.address],
   })
-  const remainingUsdc = Number(formatUnits(usdcAfterJunior, 6))
-  log(`Remaining USDC: ${remainingUsdc}`)
+  const usdcRemaining = Number(formatUnits(usdcNow, 6))
+  log(`USDC remaining: ${usdcRemaining}`)
 
-  const seniorTxs = [
-    { sym: 'QQQ',  lev: 20000,  label: 'QQQ 2x long',   pct: 0.35 },
-    { sym: 'QQQ',  lev: -15000, label: 'QQQ 1.5x short', pct: 0.15 },
-    { sym: 'SPY',  lev: 30000,  label: 'SPY 3x long',   pct: 0.30 },
-    { sym: 'SPY',  lev: -20000, label: 'SPY 2x short',  pct: 0.15 },
-  ]
+  const depositAmt = Math.floor(usdcRemaining * 0.5)
+  if (depositAmt >= 1) {
+    try {
+      const amt = parseUnits(String(depositAmt), 6)
 
-  for (const tx of seniorTxs) {
-    const amt = Math.floor(remainingUsdc * tx.pct)
-    if (amt < 1) { log(`Skipping ${tx.label} — insufficient USDC`); continue }
-    const { vault, feed } = VAULT_FEEDS[tx.sym]
-    track(await seniorDeposit(walletClient, publicClient, vault, feed, parseUnits(String(amt), 6), tx.lev, tx.label))
+      // Approve
+      const approveHash = await walletClient.writeContract({
+        address: USDC, abi: ERC20_ABI, functionName: 'approve',
+        args: [QQQ_VAULT, amt], chain: inkSepolia,
+      })
+      await publicClient.waitForTransactionReceipt({ hash: approveHash })
+      await delay(500)
+
+      // Fetch fresh Pyth data
+      const updateData = await fetchPythUpdate(QQQ_FEED)
+      await delay(300)
+      const fee = await getPythFee(publicClient, updateData)
+
+      // Deposit with 2x long
+      const hash = await walletClient.writeContract({
+        address: QQQ_VAULT, abi: VAULT_ABI, functionName: 'deposit',
+        args: [amt, 20000, updateData], value: fee, chain: inkSepolia,
+      })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+      log(`✓ QQQ 2x long: ${depositAmt} USDC (tx: ${hash.slice(0, 10)}...)`)
+      track(receipt)
+    } catch (e) {
+      log(`✗ QQQ 2x long: ${e.shortMessage || e.message}`)
+      track(null)
+    }
   }
 
-  // ─── Step 4: Partial withdrawal ───
-  header('Step 4: Partial Withdrawal')
+  // ─── Check position ───
+  header('Position Check')
+  await delay(1000)
+  try {
+    const pos = await publicClient.readContract({
+      address: QQQ_VAULT, abi: VAULT_ABI, functionName: 'getPosition', args: [account.address],
+    })
+    log(`Position: deposit=${formatUnits(pos.depositAmount, 6)} leverage=${Number(pos.leverageBps) / 10000}x active=${pos.isActive}`)
+  } catch (e) {
+    log(`Position error: ${e.shortMessage || e.message}`)
+  }
 
-  const { vault: qqqVault, feed: qqqFeed } = VAULT_FEEDS.QQQ
-  track(await doWithdraw(walletClient, publicClient, qqqVault, qqqFeed, parseUnits('1', 6), 'QQQ'))
-
-  // ─── Step 5: Final state ───
-  header('Final Pool States')
-
-  for (const [sym, { vault }] of Object.entries(VAULT_FEEDS)) {
-    try {
-      const pool = await publicClient.readContract({ address: vault, abi: VAULT_ABI, functionName: 'getPoolState' })
-      log(`${sym}: Senior=${formatUnits(pool.totalSeniorDeposits, 6)} Junior=${formatUnits(pool.totalJuniorDeposits, 6)} MaxLev=${Number(pool.currentMaxLeverageBps) / 10000}x`)
-    } catch {
-      log(`${sym}: could not read pool state`)
-    }
+  // ─── Final pool state ───
+  header('Final Pool State')
+  await delay(500)
+  try {
+    const pool = await publicClient.readContract({ address: QQQ_VAULT, abi: VAULT_ABI, functionName: 'getPoolState' })
+    log(`QQQ — Senior: ${formatUnits(pool.totalSeniorDeposits, 6)} Junior: ${formatUnits(pool.totalJuniorDeposits, 6)}`)
+    log(`  Net Exposure: ${formatUnits(pool.netExposure, 6)} Gross Long: ${formatUnits(pool.grossLongExposure, 6)}`)
+    log(`  Max Leverage: ${Number(pool.currentMaxLeverageBps) / 10000}x State: ${['Active', 'Stressed', 'Paused', 'Emergency'][pool.protocolState]}`)
+  } catch (e) {
+    log(`Pool state error: ${e.shortMessage || e.message}`)
   }
 
   console.log('\n═══════════════════════════════════════════════════')
@@ -305,4 +294,4 @@ async function main() {
   console.log('═══════════════════════════════════════════════════')
 }
 
-main().catch(e => { console.error(e); process.exit(1) })
+main().catch(e => { console.error(e.message || e); process.exit(1) })

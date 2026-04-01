@@ -685,23 +685,6 @@ function updateUI(inputs) {
   const rec = RiskEngine.deleverageRecommendation(3.0, ev);
   const color = STATE_COLORS[ev.state];
 
-  // Risk banner
-  const banner = document.getElementById('riskBanner');
-  const bannerInner = document.getElementById('riskBannerInner');
-  banner.style.display = 'block';
-  bannerInner.style.background = color + '10';
-  bannerInner.style.borderColor = color + '40';
-  document.getElementById('bannerIcon').textContent = ev.meta.icon;
-  document.getElementById('bannerIcon').style.color = color;
-  document.getElementById('bannerPulse').style.background = color;
-  document.getElementById('bannerState').textContent = ev.state;
-  document.getElementById('bannerState').style.color = color;
-  document.getElementById('bannerReason').textContent = ev.reasons.length > 0
-    ? ev.reasons[0].reason : 'All systems nominal';
-  document.getElementById('bannerLevCap').textContent = 'Max Leverage: ' + ev.leverageCap + 'x';
-  document.getElementById('bannerTime').textContent = new Date().toLocaleTimeString();
-  document.getElementById('mainContent').style.paddingTop = '6rem';
-
   // State cards
   document.querySelectorAll('.state-card').forEach(function(card) {
     var s = card.dataset.state;

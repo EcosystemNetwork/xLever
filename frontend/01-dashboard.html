@@ -508,15 +508,6 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch(e) { console.warn('Risk: pool state fetch failed', e); }
 
   var ev = RiskEngine.evaluate(inputs);
-  var c = SC[ev.state];
-  document.getElementById('riskBannerInner').style.background = c+'10';
-  document.getElementById('riskBannerInner').style.borderColor = c+'40';
-  document.getElementById('bannerIcon').textContent = ev.meta.icon;
-  document.getElementById('bannerIcon').style.color = c;
-  document.getElementById('bannerState').textContent = ev.state;
-  document.getElementById('bannerState').style.color = c;
-  document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal';
-  document.getElementById('bannerLevCap').textContent = 'Max Leverage: '+ev.leverageCap+'x';
 })();
 
 // ─── OpenBB: update position table prices with live quotes ───

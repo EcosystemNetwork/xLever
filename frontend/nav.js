@@ -19,7 +19,7 @@ const XNav = (() => {
   function init(activePageId) {
     renderNav(activePageId);
     renderMobileDrawer(activePageId);
-    renderRiskBanner();
+
     wireUpMobileMenu();
     wireUpNetworkSwitcher();
   }
@@ -83,27 +83,6 @@ const XNav = (() => {
     if (nav) nav.after(drawer);
   }
 
-  function renderRiskBanner() {
-    const banner = document.createElement('div');
-    banner.id = 'riskBanner';
-    banner.className = 'fixed top-14 left-0 right-0 z-40';
-    banner.style.transition = 'all 0.4s cubic-bezier(0.4,0,0.2,1)';
-    banner.innerHTML = `
-      <div class="flex items-center justify-between px-6 py-2 border-b" id="riskBannerInner" style="background:#00e67610;border-color:#00e67640">
-        <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-lg" id="bannerIcon" style="color:#00e676">verified_user</span>
-          <span class="font-['JetBrains_Mono'] text-xs font-bold uppercase tracking-widest" id="bannerState" style="color:#00e676">NORMAL</span>
-          <span class="text-xs opacity-80" id="bannerReason">All systems nominal</span>
-        </div>
-        <div class="flex items-center gap-4">
-          <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest opacity-70" id="bannerLevCap">Max Leverage: 4.0x</span>
-          <a href="05-risk-management.html" class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#7c4dff] hover:text-[#cdbdff]">Details &rarr;</a>
-        </div>
-      </div>
-    `;
-    const drawer = document.getElementById('mobileNav');
-    if (drawer) drawer.after(banner);
-  }
 
   // Chain display names keyed by caipNetworkId or chainId
   const CHAIN_NAMES = {
