@@ -158,7 +158,12 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
       }
       
       btn.textContent = 'Approval pending...';
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      if (approveTx) {
+        try { await publicClient.waitForTransactionReceipt({ hash: approveTx }); }
+        catch { await new Promise(resolve => setTimeout(resolve, 5000)); }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
     } else {
       console.log('✓ USDC already approved, skipping...');
     }
@@ -186,9 +191,14 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     }
     
     btn.textContent = 'Position opening...';
-    
+
     // Wait for deposit to be mined
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    if (depositTx) {
+      try { await publicClient.waitForTransactionReceipt({ hash: depositTx }); }
+      catch { await new Promise(resolve => setTimeout(resolve, 8000)); }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    }
 
     // Refresh data
     await fetchBalances();
@@ -359,12 +369,17 @@ window.closePosition = async function(asset, vaultAddress) {
     }
     
     // Wait for transaction to be mined
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    if (withdrawTx) {
+      try { await publicClient.waitForTransactionReceipt({ hash: withdrawTx }); }
+      catch { await new Promise(resolve => setTimeout(resolve, 8000)); }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    }
 
     // Refresh data
     await fetchBalances();
     await loadUserPositions();
-    
+
     showToast('Position closed successfully!', 'success');
   } catch (error) {
     console.error('Failed to close position:', error);

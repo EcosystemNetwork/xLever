@@ -326,7 +326,7 @@ const AgentExecutor = (() => {
     }
 
     // DCA buy on interval — map human-readable interval names to milliseconds
-    const intervalMs = { 'hourly': 3600000, 'daily': 86400000, 'weekly': 604800000 }
+    const intervalMs = { 'hourly': 3600000, 'daily': 86400000, 'weekly': 604800000, 'biweekly': 1209600000, 'monthly': 2592000000 }
     // Default to daily if the interval name is unrecognized
     const minWait = intervalMs[policy.interval] || 86400000
     // Current timestamp for interval comparison

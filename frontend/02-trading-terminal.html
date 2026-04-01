@@ -226,7 +226,7 @@
     <!-- Populated by JS from assets.js -->
   </div>
   <div class="px-3 py-2 border-t border-outline-variant/10 text-[9px] text-outline mono">
-    <span id="tickerCount">42</span> assets available
+    <span id="tickerCount">33</span> assets available
   </div>
 </div>
 </div>
@@ -496,7 +496,7 @@
 </div>
 <div class="pt-2 space-y-2">
 <button id="open-position-btn" class="w-full py-4 bg-tertiary text-on-tertiary font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-tertiary/10">
-                                Open Long Position
+                                Open Position
                             </button>
 </div>
 </div>
@@ -651,6 +651,14 @@
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  XAuthGate.init({
+    mode: 'disable',
+    actionSelectors: ['#open-position-btn', '#executeTrade', '[data-action="trade"]']
+  });
+});
+</script>
 <script src="chart-strategy-tools.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {

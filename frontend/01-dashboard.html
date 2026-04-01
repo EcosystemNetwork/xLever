@@ -375,7 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
-<script src="risk-engine.js"></script>
 <script type="module">
 // ─── Dashboard: wire all KPIs to real on-chain data ───
 import { getPoolState, getPublicClient, getPosition, getPositionValue, getMaxLeverage, VAULT_REGISTRY } from './contracts.js';
@@ -441,22 +440,25 @@ async function loadUserData() {
   } catch(e) { console.warn('Dashboard: position value failed', e); }
 }
 
-// Run all data loads
-Promise.allSettled([loadProtocolHealth(), loadMaxLeverage(), loadBlockAndGas(), loadUserData()])
-  .then(() => console.log('Dashboard data loaded'));
-
-// Retry user data after wallet connects (Reown may be slow)
-setTimeout(loadUserData, 3000);
-setTimeout(loadUserData, 6000);
+// ─── Auth gate: use shared XAuthGate from ux.js ───
+XAuthGate.init({
+  mode: 'block',
+  onConnect: function() {
+    Promise.allSettled([loadProtocolHealth(), loadMaxLeverage(), loadBlockAndGas(), loadUserData()])
+      .then(() => console.log('Dashboard data loaded'));
+  }
+});
 
 // ─── Risk banner: live oracle + contract data ───
-try {
-  if (window.xLeverPyth) {
-    var feed = window.xLeverPyth.PYTH_FEEDS['QQQ/USD'];
-    var p = await window.xLeverPyth.getPriceForFeed(feed);
-    var inputs = { oracleAgeSec: window.xLeverPyth.oracleAge(p.publishTime), oracleDivergence: 0, drawdown: 0, healthFactor: 2.0, volatility: 0.2, utilization: 0.3 };
-    if (typeof RiskEngine !== 'undefined') RiskEngine.evaluate(inputs);
-  }
-} catch(e) { console.warn('Risk: Pyth fetch failed', e); }
+(async function() {
+  try {
+    if (window.xLeverPyth) {
+      var feed = window.xLeverPyth.PYTH_FEEDS['QQQ/USD'];
+      var p = await window.xLeverPyth.getPriceForFeed(feed);
+      var inputs = { oracleAgeSec: window.xLeverPyth.oracleAge(p.publishTime), oracleDivergence: 0, drawdown: 0, healthFactor: 2.0, volatility: 0.2, utilization: 0.3 };
+      if (typeof RiskEngine !== 'undefined') RiskEngine.evaluate(inputs);
+    }
+  } catch(e) { console.warn('Risk: Pyth fetch failed', e); }
+})();
 </script>
 </body></html>

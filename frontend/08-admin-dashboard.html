@@ -481,5 +481,9 @@ setInterval(refreshAll, 30000);
 </style>
 
 <script type="module" src="wallet.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
 </body>
 </html>

@@ -400,11 +400,10 @@ const NewsVerifier = (() => {
     const checks = result.checks
 
     // Run all four checks in parallel
-    const [_p, _s, _c] = await Promise.all([
+    const [_p, _s, _c, _st] = await Promise.all([
       verifyPrice(newsItem, checks.price),
       verifySource(newsItem, checks.source),
       verifyCalendar(newsItem, checks.calendar),
-      // Staleness is synchronous
       Promise.resolve(verifyStaleness(newsItem, checks.staleness)),
     ])
 

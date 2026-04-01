@@ -309,7 +309,7 @@ const NewsAnalysts = (() => {
     const urgency = maxWeight > 0.8 ? 'immediate' : maxWeight > 0.5 ? 'short-term' : 'long-term'
 
     // Macro affects the whole portfolio, not just specific assets
-    const affectedAssets = newsItem.symbols.length > 0
+    const affectedAssets = (newsItem.symbols && newsItem.symbols.length > 0)
       ? newsItem.symbols
       : ['QQQ', 'SPY'] // Default to index-level impact
 

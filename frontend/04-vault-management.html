@@ -482,11 +482,11 @@
 </div>
 </div>
 </td>
-<td class="px-6 py-4 font-mono text-sm">$15,400,281</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">9.4%</td>
-<td class="px-6 py-4 font-mono text-sm">--</td>
-<td class="px-6 py-4 font-mono text-sm text-outline">$450K</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">+$1,202</td>
+<td id="pool-spy-tvl" class="px-6 py-4 font-mono text-sm">$0</td>
+<td id="pool-spy-apy" class="px-6 py-4 font-mono text-sm text-tertiary">0%</td>
+<td id="pool-spy-share" class="px-6 py-4 font-mono text-sm">--</td>
+<td id="pool-spy-volume" class="px-6 py-4 font-mono text-sm text-outline">$0</td>
+<td id="pool-spy-fees" class="px-6 py-4 font-mono text-sm text-tertiary">$0</td>
 </tr>
 <!-- Row 4 -->
 <tr class="hover:bg-surface-container-high transition-colors">
@@ -498,11 +498,11 @@
 </div>
 </div>
 </td>
-<td class="px-6 py-4 font-mono text-sm">$12,904,000</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">22.1%</td>
-<td class="px-6 py-4 font-mono text-sm">0.15%</td>
-<td class="px-6 py-4 font-mono text-sm text-outline">$3.1M</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">+$14,582</td>
+<td id="pool-tsla-tvl" class="px-6 py-4 font-mono text-sm">$0</td>
+<td id="pool-tsla-apy" class="px-6 py-4 font-mono text-sm text-tertiary">0%</td>
+<td id="pool-tsla-share" class="px-6 py-4 font-mono text-sm">0%</td>
+<td id="pool-tsla-volume" class="px-6 py-4 font-mono text-sm text-outline">$0</td>
+<td id="pool-tsla-fees" class="px-6 py-4 font-mono text-sm text-tertiary">$0</td>
 </tr>
 <!-- Row 5 -->
 <tr class="hover:bg-surface-container-high transition-colors">
@@ -515,11 +515,11 @@
 </div>
 </div>
 </td>
-<td class="px-6 py-4 font-mono text-sm">$8,291,550</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">31.2%</td>
-<td class="px-6 py-4 font-mono text-sm">--</td>
-<td class="px-6 py-4 font-mono text-sm text-outline">$120K</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">+$952</td>
+<td id="pool-aapl-tvl" class="px-6 py-4 font-mono text-sm">$0</td>
+<td id="pool-aapl-apy" class="px-6 py-4 font-mono text-sm text-tertiary">0%</td>
+<td id="pool-aapl-share" class="px-6 py-4 font-mono text-sm">--</td>
+<td id="pool-aapl-volume" class="px-6 py-4 font-mono text-sm text-outline">$0</td>
+<td id="pool-aapl-fees" class="px-6 py-4 font-mono text-sm text-tertiary">$0</td>
 </tr>
 <!-- Row 6 -->
 <tr class="hover:bg-surface-container-high transition-colors">
@@ -532,11 +532,11 @@
 </div>
 </div>
 </td>
-<td class="px-6 py-4 font-mono text-sm">$7,312,890</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">26.5%</td>
-<td class="px-6 py-4 font-mono text-sm">--</td>
-<td class="px-6 py-4 font-mono text-sm text-outline">$840K</td>
-<td class="px-6 py-4 font-mono text-sm text-tertiary">+$4,821</td>
+<td id="pool-coin-tvl" class="px-6 py-4 font-mono text-sm">$0</td>
+<td id="pool-coin-apy" class="px-6 py-4 font-mono text-sm text-tertiary">0%</td>
+<td id="pool-coin-share" class="px-6 py-4 font-mono text-sm">--</td>
+<td id="pool-coin-volume" class="px-6 py-4 font-mono text-sm text-outline">$0</td>
+<td id="pool-coin-fees" class="px-6 py-4 font-mono text-sm text-tertiary">$0</td>
 </tr>
 </tbody>
 </table>
@@ -551,8 +551,8 @@
 <span class="text-[#e3e2e6] font-bold">xLever Protocol v2.4.1</span>
 <div class="flex gap-4 text-[#938f99]">
 <span class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-tertiary"></div> Mainnet: Online</span>
-<span class="hover:text-[#e3e2e6] cursor-default transition-colors">Gas: 12 Gwei</span>
-<span class="hover:text-[#e3e2e6] cursor-default transition-colors">Block: 18420912</span>
+<span id="footer-gas" class="hover:text-[#e3e2e6] cursor-default transition-colors">Gas: -- Gwei</span>
+<span id="footer-block" class="hover:text-[#e3e2e6] cursor-default transition-colors">Block: --</span>
 </div>
 </div>
 <div class="flex items-center gap-4 text-[#938f99]">
@@ -564,6 +564,9 @@
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // Make Confirm Deposit button interactive
@@ -581,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
           btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;color:#00e676;font-variation-settings:\'FILL\' 1;">check_circle</span> Deposit Confirmed</span>';
           btn.style.background = '#00e676';
           btn.style.color = '#003918';
-          XToast.show('Vault deposit of 5,000 USDC confirmed', 'success');
+          XToast.show('Vault deposit confirmed', 'success');
           setTimeout(() => {
             btn.innerHTML = original;
             btn.style.background = '';
@@ -600,14 +603,103 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Deposit/Withdraw tab toggle
-  const tabBtns = document.querySelectorAll('button');
-  tabBtns.forEach(btn => {
-    if (btn.textContent.trim() === 'Withdraw') {
-      btn.addEventListener('click', () => {
-        XToast.show('Withdraw functionality — select vault and amount', 'info', 2500);
+  const depositTab = document.querySelector('button.border-b-2.border-primary');
+  const withdrawTab = depositTab?.nextElementSibling;
+  const depositPanel = document.querySelector('.p-6.space-y-6');
+
+  if (withdrawTab && depositPanel) {
+    withdrawTab.addEventListener('click', async () => {
+      // Switch tab styles
+      depositTab.classList.remove('bg-surface-container-high', 'border-b-2', 'border-primary', 'text-primary');
+      depositTab.classList.add('text-outline');
+      withdrawTab.classList.add('bg-surface-container-high', 'border-b-2', 'border-primary', 'text-primary');
+      withdrawTab.classList.remove('text-outline');
+
+      // Replace panel content with withdraw UI
+      depositPanel.innerHTML = `
+        <div>
+          <label class="text-[10px] text-outline uppercase tracking-widest mb-3 block">Withdraw From</label>
+          <div class="flex gap-2 mb-4">
+            <button class="withdraw-vault-btn flex-1 py-2 px-3 text-[10px] font-bold uppercase tracking-wider bg-surface-container-high border border-primary text-primary rounded" data-vault="senior">Senior (Position)</button>
+            <button class="withdraw-vault-btn flex-1 py-2 px-3 text-[10px] font-bold uppercase tracking-wider bg-surface-container-lowest border border-outline-variant/30 text-outline rounded" data-vault="junior">Junior (LP)</button>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <label class="text-[10px] text-outline uppercase tracking-widest block">Amount</label>
+            <span id="withdraw-balance" class="text-[10px] font-mono text-outline">Available: --</span>
+          </div>
+          <div class="relative">
+            <input id="withdraw-amount" class="w-full bg-surface-container-lowest border-0 border-b-2 border-outline-variant focus:border-tertiary focus:ring-0 text-xl font-mono p-3 pr-16 text-on-surface" type="text" placeholder="0.00"/>
+            <button id="withdraw-max-btn" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-primary uppercase tracking-wider hover:bg-primary/10 px-2 py-1">Max</button>
+          </div>
+        </div>
+        <div class="space-y-3 pt-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-outline">You Receive</span>
+            <span id="withdraw-receive" class="font-mono text-tertiary">0.00 USDC</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-outline">Withdrawal Fee</span>
+            <span class="font-mono">0%</span>
+          </div>
+        </div>
+        <button id="confirm-withdraw-btn" class="w-full bg-error/80 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white hover:bg-error active:scale-[0.98] transition-all">
+          Confirm Withdrawal
+        </button>
+      `;
+
+      // Wire up withdraw vault type toggle
+      let withdrawType = 'senior';
+      depositPanel.querySelectorAll('.withdraw-vault-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          depositPanel.querySelectorAll('.withdraw-vault-btn').forEach(b => {
+            b.classList.remove('border-primary', 'text-primary', 'bg-surface-container-high');
+            b.classList.add('border-outline-variant/30', 'text-outline', 'bg-surface-container-lowest');
+          });
+          btn.classList.add('border-primary', 'text-primary', 'bg-surface-container-high');
+          btn.classList.remove('border-outline-variant/30', 'text-outline', 'bg-surface-container-lowest');
+          withdrawType = btn.dataset.vault;
+        });
       });
-    }
-  });
+
+      // Wire up confirm withdraw
+      document.getElementById('confirm-withdraw-btn')?.addEventListener('click', async () => {
+        const amount = document.getElementById('withdraw-amount')?.value;
+        if (!amount || parseFloat(amount) <= 0) {
+          XToast.show('Enter a valid withdrawal amount', 'error');
+          return;
+        }
+        const contracts = window.xLeverContracts;
+        if (!contracts) {
+          XToast.show('Contracts not initialized', 'error');
+          return;
+        }
+        const btn = document.getElementById('confirm-withdraw-btn');
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Processing...';
+          if (withdrawType === 'junior') {
+            await contracts.withdrawJunior(amount);
+          } else {
+            await contracts.closePosition(amount);
+          }
+          XToast.show('Withdrawal confirmed!', 'success');
+          btn.textContent = 'Confirmed!';
+          setTimeout(() => { btn.textContent = 'Confirm Withdrawal'; btn.disabled = false; }, 3000);
+        } catch (err) {
+          XToast.show('Withdrawal failed: ' + (err.shortMessage || err.message), 'error');
+          btn.textContent = 'Confirm Withdrawal';
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Switch back to deposit tab
+    depositTab.addEventListener('click', () => {
+      location.reload(); // Simplest way to restore the deposit panel
+    });
+  }
 });
 </script>
 </body></html>

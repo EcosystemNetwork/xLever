@@ -306,10 +306,15 @@ async function getAccount() {
 // ═══════════════════════════════════════════════════════════════
 
 export async function getBalance(tokenAddress, userAddress) {
-  const pc = getPublicClient()
-  const balance = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [userAddress] })
-  const decimals = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' })
-  return { raw: balance, formatted: formatUnits(balance, decimals), decimals }
+  try {
+    const pc = getPublicClient()
+    const balance = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [userAddress] })
+    const decimals = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' })
+    return { raw: balance, formatted: formatUnits(balance, decimals), decimals }
+  } catch (err) {
+    console.error('getBalance failed:', err.message)
+    return { raw: 0n, formatted: '0', decimals: 18 }
+  }
 }
 
 export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
@@ -405,7 +410,14 @@ export async function getJuniorValue() {
  */
 async function fetchPythUpdate() {
   const feedId = getActiveFeedId()
-  const { updateData } = await getPriceForFeed(feedId)
+  let updateData
+  try {
+    const result = await getPriceForFeed(feedId)
+    updateData = result.updateData
+  } catch (err) {
+    console.error('Pyth price fetch failed:', err.message)
+    throw new Error('Failed to fetch oracle price update. Please try again.')
+  }
 
   let fee = parseUnits('0.001', 18) // safe default
   if (ADDRESSES.pythAdapter) {
@@ -498,7 +510,7 @@ export async function withdrawJunior(shares) {
   const account = await getAccount()
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
-  const amount = parseUnits(shares, 18)
+  const amount = parseUnits(shares, 6)
 
   const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'withdrawJunior',

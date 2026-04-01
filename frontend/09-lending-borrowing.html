@@ -731,6 +731,10 @@ tailwind.config = {
 <script type="module" src="wallet.js"></script>
 <script type="module" src="lending-adapters.js"></script>
 <script src="lending-agent.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // PAGE STATE

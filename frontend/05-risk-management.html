@@ -575,7 +575,9 @@
 <script type="module" src="openbb.js"></script>
 <script src="risk-live.js"></script>
 <script src="ux.js"></script>
-
+<script>
+document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
+</script>
 <script>
 const STATE_COLORS = { NORMAL: '#00e676', WARNING: '#ffd740', RESTRICTED: '#ff9100', EMERGENCY: '#ff5252' };
 

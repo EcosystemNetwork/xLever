@@ -262,11 +262,12 @@ const AgentCoordinator = (() => {
   }
 
   function mapToExecutorAction(rec) {
+    const headline = rec.newsItem?.headline || 'Unknown signal'
     switch (rec.action) {
       case 'strong_increase':
         return {
           type: 'adjust',
-          reason: `News signal: ${rec.newsItem.headline.slice(0, 60)}... (${rec.conviction} conviction, score ${rec.score.toFixed(2)})`,
+          reason: `News signal: ${headline.slice(0, 60)}... (${rec.conviction} conviction, score ${rec.score.toFixed(2)})`,
           targetLeverage: null, // AgentExecutor will determine based on current position
           severity: 'secondary',
           newsSignal: rec,
@@ -275,7 +276,7 @@ const AgentCoordinator = (() => {
       case 'increase':
         return {
           type: 'adjust',
-          reason: `Bullish news: ${rec.newsItem.headline.slice(0, 60)}... (${rec.conviction})`,
+          reason: `Bullish news: ${headline.slice(0, 60)}... (${rec.conviction})`,
           targetLeverage: null,
           severity: 'secondary',
           newsSignal: rec,
@@ -284,7 +285,7 @@ const AgentCoordinator = (() => {
       case 'decrease':
         return {
           type: 'deleverage',
-          reason: `Bearish news: ${rec.newsItem.headline.slice(0, 60)}... (${rec.conviction})`,
+          reason: `Bearish news: ${headline.slice(0, 60)}... (${rec.conviction})`,
           targetLeverage: null,
           severity: 'yellow-500',
           newsSignal: rec,
@@ -293,7 +294,7 @@ const AgentCoordinator = (() => {
       case 'strong_decrease':
         return {
           type: 'deleverage',
-          reason: `Strong bearish: ${rec.newsItem.headline.slice(0, 60)}... (${rec.conviction}, score ${rec.score.toFixed(2)})`,
+          reason: `Strong bearish: ${headline.slice(0, 60)}... (${rec.conviction}, score ${rec.score.toFixed(2)})`,
           targetLeverage: 1.0,
           severity: 'error',
           newsSignal: rec,
@@ -302,7 +303,7 @@ const AgentCoordinator = (() => {
       case 'emergency_close':
         return {
           type: 'close',
-          reason: `EMERGENCY close from news: ${rec.newsItem.headline.slice(0, 60)}... (critical)`,
+          reason: `EMERGENCY close from news: ${headline.slice(0, 60)}... (critical)`,
           severity: 'error',
           newsSignal: rec,
         }
