@@ -604,6 +604,9 @@ function initWalletListeners() {
         chain: inkSepolia,
         transport: http(inkSepolia.rpcUrls.default.http[0])
       });
+      // Close the Reown modal immediately so the spinner doesn't linger after connection
+      modal.close();
+
       updateWalletUI();
       await fetchBalances();
 
