@@ -414,7 +414,7 @@ const XModal = (() => {
   // Generates a short random hex string to simulate a transaction hash in demo mode
   function generateFakeHash() {
     // 8 random hex chars + ellipsis to mimic a truncated real hash
-    return Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('') + '...';
+    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
   }
 
   // Expose only confirmTrade and close; internal helpers stay private
@@ -442,7 +442,9 @@ const XWallet = (() => {
       // Subscribe to Reown AppKit events to show user-friendly toast notifications
       // Track whether wallet was already connected on page load to avoid
       // showing the toast for automatic session restoration
-      let wasConnectedOnInit = modal.getIsConnected();
+      let wasConnectedOnInit = typeof modal.getIsConnected === 'function'
+        ? modal.getIsConnected()
+        : modal.getIsConnectedState?.() ?? false;
       let lastConnectShown = 0;
       modal.subscribeEvents((event) => {
         // Notify user on successful wallet connection (debounce to avoid repeated toasts)
@@ -472,7 +474,10 @@ const XWallet = (() => {
     // Delegate to Reown AppKit's connection state
     const modal = window.xLeverWallet;
     // Return false if AppKit hasn't loaded yet to prevent premature trade attempts
-    return modal ? modal.getIsConnected() : false;
+    if (!modal) return false;
+    return typeof modal.getIsConnected === 'function'
+      ? modal.getIsConnected()
+      : modal.getIsConnectedState?.() ?? false;
   }
 
   // Returns the connected wallet address, used to query on-chain position data
@@ -868,6 +873,125 @@ const XSkeleton = (() => {
   `;
   // Append to <head> so the styles apply globally to all current and future elements
   document.head.appendChild(style);
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH GATE — blocks page content until wallet is connected
+// ═══════════════════════════════════════════════════════════════
+
+const XAuthGate = (() => {
+  let _mode = null;
+  let _mainEl = null;
+  let _gateEl = null;
+  let _onConnect = null;
+  let _disabledEls = [];
+
+  /**
+   * @param {Object} opts
+   * @param {string} opts.mode - 'block' hides content; 'disable' disables action buttons
+   * @param {string} opts.mainSelector - CSS selector for main content (default: 'main')
+   * @param {string[]} opts.actionSelectors - button selectors to disable in 'disable' mode
+   * @param {Function} opts.onConnect - callback when wallet connects
+   */
+  function init(opts = {}) {
+    _mode = opts.mode || 'block';
+    _mainEl = document.querySelector(opts.mainSelector || 'main');
+    _onConnect = opts.onConnect || null;
+
+    if (_mode === 'block') {
+      _initBlockMode();
+    } else if (_mode === 'disable') {
+      _initDisableMode(opts.actionSelectors || []);
+    }
+
+    _pollWallet();
+  }
+
+  function _initBlockMode() {
+    if (!_mainEl) return;
+    _mainEl.style.display = 'none';
+
+    _gateEl = document.createElement('div');
+    _gateEl.id = 'authGate';
+    _gateEl.className = 'pt-28 px-6 max-w-[1600px] mx-auto flex flex-col items-center justify-center';
+    _gateEl.style.minHeight = '70vh';
+    _gateEl.innerHTML = `
+      <div style="background:#1f1f23; padding:40px; border:1px solid rgba(73,68,85,0.15); border-radius:8px; text-align:center; max-width:420px; width:100%;">
+        <span class="material-symbols-outlined" style="font-size:48px; color:#cdbdff; margin-bottom:16px; display:block;">account_balance_wallet</span>
+        <h2 style="font-size:20px; font-weight:700; color:#e3e2e6; margin-bottom:8px; font-family:'Space Grotesk',sans-serif;">Connect Your Wallet</h2>
+        <p style="font-size:14px; color:#cac3d8; margin-bottom:24px; font-family:'DM Sans',sans-serif;">Connect a wallet to access this page.</p>
+        <appkit-button size="md"></appkit-button>
+      </div>
+    `;
+    _mainEl.parentNode.insertBefore(_gateEl, _mainEl);
+  }
+
+  function _initDisableMode(actionSelectors) {
+    if (!actionSelectors.length) return;
+    _disabledEls = [];
+    actionSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        _disabledEls.push({ el, origTitle: el.title || '' });
+      });
+    });
+    if (!_isConnected()) _setActionsDisabled(true);
+  }
+
+  function _setActionsDisabled(disabled) {
+    _disabledEls.forEach(({ el, origTitle }) => {
+      el.disabled = disabled;
+      if (disabled) {
+        el.title = 'Connect wallet to trade';
+        el.style.opacity = '0.4';
+        el.style.cursor = 'not-allowed';
+      } else {
+        el.title = origTitle;
+        el.style.opacity = '';
+        el.style.cursor = '';
+      }
+    });
+  }
+
+  function _isConnected() {
+    var w = window.xLeverWallet;
+    return w && typeof w.getIsConnected === 'function' && w.getIsConnected();
+  }
+
+  function _applyState() {
+    var connected = _isConnected();
+    if (_mode === 'block') {
+      if (_gateEl) _gateEl.style.display = connected ? 'none' : '';
+      if (_mainEl) _mainEl.style.display = connected ? '' : 'none';
+    } else if (_mode === 'disable') {
+      _setActionsDisabled(!connected);
+    }
+    if (connected && _onConnect) {
+      _onConnect();
+      _onConnect = null;
+    }
+  }
+
+  function _pollWallet() {
+    var check = () => {
+      var w = window.xLeverWallet;
+      if (!w) return setTimeout(check, 300);
+      _applyState();
+      if (typeof w.subscribeEvents === 'function') {
+        w.subscribeEvents((event) => {
+          var evt = event?.data?.event;
+          if (evt === 'CONNECT_SUCCESS' || evt === 'DISCONNECT_SUCCESS') {
+            _applyState();
+          }
+        });
+      }
+      setTimeout(() => _applyState(), 2000);
+      setTimeout(() => _applyState(), 5000);
+    };
+    check();
+  }
+
+  return { init };
 })();
 
 

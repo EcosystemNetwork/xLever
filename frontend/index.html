@@ -4,18 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>xLever — Leveraged Tokenized Assets</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 <link rel="stylesheet" href="modal-styles.css">
 <link rel="stylesheet" href="junior-styles.css">
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <script type="module">
   import { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits, parseUnits, defineChain, encodeFunctionData } from 'https://esm.sh/viem@2.7.15';
   import { mainnet } from 'https://esm.sh/viem@2.7.15/chains';
-
+  
   // Define Ink Sepolia chain
   const inkSepolia = defineChain({
     id: 763373,
@@ -38,175 +37,125 @@
       default: { name: 'Explorer', url: 'https://explorer-sepolia.inkonchain.com' },
     },
   });
-
+  
   window.viem = { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits, parseUnits, encodeFunctionData, mainnet, inkSepolia };
 </script>
-<style>
-  /* Landing-specific styles */
-  .landing { min-height: 100vh; display: flex; flex-direction: column; }
-
-  .hero {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; padding: 80px 24px 60px; position: relative; overflow: hidden;
-  }
-  .hero::before {
-    content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
-    width: 800px; height: 800px; border-radius: 50%;
-    background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .hero-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 20px;
-    padding: 6px 16px; margin-bottom: 32px; position: relative;
-  }
-  .hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
-  .hero-badge span {
-    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 1.5px;
-  }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-  .hero h1 {
-    font-family: 'DM Sans', sans-serif; font-size: clamp(40px, 6vw, 72px); font-weight: 700;
-    line-height: 1.1; margin-bottom: 24px; position: relative;
-    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .hero p {
-    font-size: clamp(16px, 2vw, 20px); color: var(--text-secondary); max-width: 600px;
-    line-height: 1.6; margin-bottom: 48px; position: relative;
-  }
-
-  .hero-actions { display: flex; gap: 16px; position: relative; flex-wrap: wrap; justify-content: center; }
-  .btn-primary {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--accent); color: #fff; border: none; border-radius: 8px;
-    padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600;
-    cursor: pointer; text-decoration: none; transition: all 0.2s;
-  }
-  .btn-primary:hover { background: #6a3de8; transform: translateY(-1px); box-shadow: 0 8px 32px var(--accent-dim); }
-  .btn-secondary {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 16px;
-    font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s;
-  }
-  .btn-secondary:hover { border-color: var(--border-active); background: var(--bg-card); }
-
-  .features {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px; padding: 60px 40px 80px; max-width: 1200px; margin: 0 auto; width: 100%;
-  }
-  .feature-card {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 32px; transition: border-color 0.2s;
-  }
-  .feature-card:hover { border-color: var(--border-active); }
-  .feature-icon {
-    width: 40px; height: 40px; border-radius: 10px; background: var(--accent-dim);
-    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
-    font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent);
-  }
-  .feature-card h3 {
-    font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 600;
-    margin-bottom: 8px; color: var(--text-primary);
-  }
-  .feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
-
-  .stats-strip {
-    display: flex; justify-content: center; gap: 48px; padding: 40px 24px;
-    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary); flex-wrap: wrap;
-  }
-  .stat-block { text-align: center; }
-  .stat-block .stat-num {
-    font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--accent);
-  }
-  .stat-block .stat-desc {
-    font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase;
-    letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;
-  }
-
-  .landing-footer {
-    display: flex; align-items: center; justify-content: space-between; padding: 24px 40px;
-    border-top: 1px solid var(--border); background: var(--bg-secondary);
-  }
-  .landing-footer span { font-size: 13px; color: var(--text-muted); }
-  .landing-footer .footer-links { display: flex; gap: 20px; }
-  .landing-footer .footer-links a { font-size: 13px; color: var(--text-secondary); text-decoration: none; }
-  .landing-footer .footer-links a:hover { color: var(--text-primary); }
-
-  /* Flashlight cursor effect */
-  .flashlight {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; z-index: 9999;
-    background: radial-gradient(
-      circle 280px at var(--mx, -500px) var(--my, -500px),
-      rgba(124, 77, 255, 0.08) 0%,
-      rgba(124, 77, 255, 0.03) 40%,
-      transparent 70%
-    );
-    transition: opacity 0.3s;
-    opacity: 1;
-  }
-
-  @media (max-width: 640px) {
-    .features { padding: 40px 20px 60px; }
-    .stats-strip { gap: 32px; padding: 32px 20px; }
-    .landing-footer { flex-direction: column; gap: 12px; text-align: center; padding: 20px; }
-  }
-</style>
 </head>
 <body>
-
-<!-- Unified nav (landing mode initially) -->
 <script src="nav.js"></script>
 <script>XNav.init(null);</script>
 
-<div class="flashlight" id="flashlight"></div>
+<!-- Landing Page -->
+<div class="landing" id="landingPage" style="padding-top:90px;">
+  <div class="hero">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      <span>Live on Testnet</span>
+    </div>
+    <h1>Leveraged Exposure.<br>No Liquidations.</h1>
+    <p>Get up to ±4× constant leverage on tokenized assets like QQQ and SPY — on-chain, without daily rebalancing or liquidation risk. Powered by Euler V2 EVK.</p>
+    <div class="hero-actions">
+      <a href="#" class="btn-primary" id="launchAppBtn">Launch App <span style="font-size:18px">→</span></a>
+      <a href="#" class="btn-secondary" id="learnMoreBtn">How It Works</a>
+    </div>
+  </div>
 
-<!-- How It Works Page (hidden by default, toggled by app.js) -->
+  <div class="stats-strip">
+    <div class="stat-block"><div class="stat-num">&plusmn;4&times;</div><div class="stat-desc">Max Leverage</div></div>
+    <div class="stat-block"><div class="stat-num">0</div><div class="stat-desc">Liquidations</div></div>
+    <div class="stat-block"><div class="stat-num">2</div><div class="stat-desc">Underlyings</div></div>
+    <div class="stat-block"><div class="stat-num">4</div><div class="stat-desc">Target Chains</div></div>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">×</div>
+      <h3>Constant Leverage</h3>
+      <p>Your leverage is fixed from entry — no daily resets, no volatility decay. Unlike TQQQ, you get exactly the multiple you chose.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⛑</div>
+      <h3>No Liquidation</h3>
+      <p>A two-tranche system absorbs losses. Auto-deleverage cascades protect everyone — your max loss is your deposit, never more.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>On-Chain & Permissionless</h3>
+      <p>Built on Euler V2 EVK with Pyth oracles. No middlemen, no KYC. Connect your wallet and trade.</p>
+    </div>
+  </div>
+
+  <div class="landing-footer">
+    <span>© 2025 xLever Protocol</span>
+    <div class="footer-links">
+      <a href="https://docs.xlever.markets" target="_blank" rel="noopener">Docs</a>
+      <a href="https://github.com/madschristensen99/xLever" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://discord.gg/xlever" target="_blank" rel="noopener">Discord</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Landing page navigation — Launch App goes to the real dashboard
+  document.getElementById('launchAppBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = '01-dashboard.html';
+  });
+  document.getElementById('learnMoreBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('howItWorksPage').style.display = 'block';
+    window.scrollTo(0, 0);
+  });
+
+  // Also wire up nav bar's Launch App buttons
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'navLaunchAppBtn' || e.target.id === 'mobileLaunchAppBtn' || e.target.closest('#navLaunchAppBtn')) {
+      e.preventDefault();
+      window.location.href = '01-dashboard.html';
+    }
+  });
+</script>
+
+<!-- How It Works Page -->
 <div id="howItWorksPage" class="how-it-works-page" style="display: none;">
   <div class="how-it-works-container">
     <button class="back-to-chart-btn" id="backToChart">← Back to Chart</button>
     <h1>How xLever Works</h1>
     <p class="page-subtitle">Leveraged exposure to tokenized assets, explained simply</p>
-
+    
     <div class="edu-section">
-      <h2>What Is This?</h2>
+      <h2>🎯 What Is This?</h2>
       <p>xLever lets you get <strong>leveraged exposure</strong> to stocks like QQQ and SPY — but on-chain, without liquidation risk, and with no daily rebalancing.</p>
       <div class="example-box">
-        <strong>Example:</strong> You deposit $1,000 with 2x leverage on QQQ. If QQQ goes up 10%, you make $200 (20% return). If it drops 10%, you lose $200.
+        <strong>Example:</strong> You deposit $1,000 with 2× leverage on QQQ. If QQQ goes up 10%, you make $200 (20% return). If it drops 10%, you lose $200.
       </div>
     </div>
 
     <div class="edu-section">
-      <h2>How Leverage Works</h2>
+      <h2>⚡ How Leverage Works</h2>
       <p>Your position value is calculated from your <strong>entry price</strong>, not daily resets like TQQQ:</p>
       <div class="formula-box">
-        Value = Deposit x (1 + Leverage x Price Change %)
+        Value = Deposit × (1 + Leverage × Price Change %)
       </div>
       <div class="comparison-grid">
         <div class="comparison-card">
           <h3>xLever (Fixed Entry)</h3>
-          <p>No volatility decay</p>
-          <p>Simple mental model</p>
-          <p>Better in trends</p>
+          <p>✅ No volatility decay</p>
+          <p>✅ Simple mental model</p>
+          <p>✅ Better in trends</p>
         </div>
         <div class="comparison-card">
           <h3>TQQQ (Daily Reset)</h3>
-          <p>Volatility decay</p>
-          <p>Complex compounding</p>
-          <p>Loses in chop</p>
+          <p>❌ Volatility decay</p>
+          <p>❌ Complex compounding</p>
+          <p>❌ Loses in chop</p>
         </div>
       </div>
     </div>
 
     <div class="edu-section">
-      <h2>No Liquidation?</h2>
+      <h2>🛡️ No Liquidation?</h2>
       <p>Traditional leverage liquidates you. xLever uses a <strong>two-tranche system</strong>:</p>
       <ul>
         <li><strong>Senior (You):</strong> Get leveraged exposure, protected by junior capital</li>
@@ -216,40 +165,40 @@
     </div>
 
     <div class="edu-section">
-      <h2>Auto-Deleverage Cascade</h2>
+      <h2>📊 Auto-Deleverage Cascade</h2>
       <p>If the underlying asset drops significantly from its peak, the protocol automatically reduces everyone's leverage to protect the pool:</p>
       <div class="cascade-grid">
         <div class="cascade-level">-10% drop → 75% leverage</div>
         <div class="cascade-level">-15% drop → 50% leverage</div>
-        <div class="cascade-level">-20% drop → 1.5x max</div>
-        <div class="cascade-level">-25% drop → 1.0x only</div>
+        <div class="cascade-level">-20% drop → 1.5× max</div>
+        <div class="cascade-level">-25% drop → 1.0× only</div>
         <div class="cascade-level">-30% drop → Position closed</div>
       </div>
       <p class="note">This protects junior LPs and prevents total wipeouts. When markets recover, leverage gradually restores.</p>
     </div>
 
     <div class="edu-section">
-      <h2>Degen Mode (100x Leverage)</h2>
-      <p>Normal mode: +/-3.5x leverage (safe, tested)<br>
-      Degen mode: +/-100x leverage (extremely risky, for education/entertainment)</p>
+      <h2>🚀 Degen Mode (100× Leverage)</h2>
+      <p>Normal mode: ±4× leverage (safe, tested)<br>
+      Degen mode: ±100× leverage (extremely risky, for education/entertainment)</p>
       <div class="warning-box">
-        <strong>Warning:</strong> At 10x leverage, a 10% drop = 100% loss. At 100x, a 1% drop wipes you out. The auto-deleverage cascade kicks in fast, and you'll likely get liquidated in any volatile market. Use degen mode to understand risk, not to actually trade.
+        ⚠️ <strong>Warning:</strong> At 10× leverage, a 10% drop = 100% loss. At 100×, a 1% drop wipes you out. The auto-deleverage cascade kicks in fast, and you'll likely get liquidated in any volatile market. Use degen mode to understand risk, not to actually trade.
       </div>
     </div>
 
     <div class="edu-section">
-      <h2>Fees</h2>
+      <h2>💰 Fees</h2>
       <p>The protocol charges continuous fees based on your leverage:</p>
       <ul>
-        <li>1x leverage: ~2% annual fee</li>
-        <li>2x leverage: ~4% annual fee</li>
-        <li>3.5x leverage: ~7% annual fee</li>
+        <li>1× leverage: ~2% annual fee</li>
+        <li>2× leverage: ~4% annual fee</li>
+        <li>4× leverage: ~8% annual fee</li>
       </ul>
       <p>Fees go to junior LPs as compensation for taking first-loss risk. During circuit breakers (big moves), fees temporarily double.</p>
     </div>
 
     <div class="edu-section">
-      <h2>Try It Yourself</h2>
+      <h2>🔬 Try It Yourself</h2>
       <p>Use the main interface to:</p>
       <ol>
         <li>Select QQQ or SPY</li>
@@ -258,10 +207,11 @@
         <li>See how your position would have performed</li>
         <li>Compare to daily-reset leverage (like TQQQ)</li>
       </ol>
+      <p>Toggle <strong>🚀 DEGEN MODE</strong> to experiment with extreme leverage and see liquidations happen in real-time on the chart.</p>
     </div>
 
     <div class="edu-section">
-      <h2>Built On</h2>
+      <h2>🏗️ Built On</h2>
       <p><strong>Euler V2 EVK:</strong> Modular vault architecture with atomic looping via the Ethereum Vault Connector (EVC). This enables gas-efficient leverage construction without flash loans.</p>
       <p><strong>Pyth Oracles:</strong> 15-minute TWAP pricing with dynamic spread based on spot-TWAP divergence.</p>
     </div>
@@ -273,108 +223,26 @@
   </div>
 </div>
 
-<!-- Landing Page -->
-<div class="landing" id="landingPage" style="display:none; padding-top:56px;">
-  <div class="hero">
-    <div class="hero-badge">
-      <div class="hero-badge-dot"></div>
-      <span>Live on Testnet</span>
-    </div>
-    <h1>Leveraged Exposure.<br>No Liquidations.</h1>
-    <p>Get up to +/-3.5x constant leverage on tokenized assets like QQQ and SPY — on-chain, without daily rebalancing or liquidation risk. Powered by Euler V2 EVK.</p>
-    <div class="hero-actions">
-      <a href="#" class="btn-primary" id="launchAppBtn">Launch App <span style="font-size:18px">→</span></a>
-      <a href="#" class="btn-secondary" id="learnMoreBtn">How It Works</a>
-    </div>
-  </div>
-
-  <div class="stats-strip">
-    <div class="stat-block"><div class="stat-num">&plusmn;3.5&times;</div><div class="stat-desc">Max Leverage</div></div>
-    <div class="stat-block"><div class="stat-num">0</div><div class="stat-desc">Liquidations</div></div>
-    <div class="stat-block"><div class="stat-num">2</div><div class="stat-desc">Underlyings</div></div>
-    <div class="stat-block"><div class="stat-num">4</div><div class="stat-desc">Target Chains</div></div>
-  </div>
-
-  <div class="features" id="features">
-    <div class="feature-card">
-      <div class="feature-icon">x</div>
-      <h3>Constant Leverage</h3>
-      <p>Your leverage is fixed from entry — no daily resets, no volatility decay. Unlike TQQQ, you get exactly the multiple you chose.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x26D1;</div>
-      <h3>No Liquidation</h3>
-      <p>A two-tranche system absorbs losses. Auto-deleverage cascades protect everyone — your max loss is your deposit, never more.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x26A1;</div>
-      <h3>On-Chain & Permissionless</h3>
-      <p>Built on Euler V2 EVK with Pyth oracles. No middlemen, no KYC. Connect your wallet and trade.</p>
-    </div>
-  </div>
-
-  <div class="landing-footer">
-    <span>&copy; 2025 xLever Protocol</span>
-    <div class="footer-links">
-      <a href="#">Docs</a>
-      <a href="#">GitHub</a>
-      <a href="#">Discord</a>
-    </div>
-  </div>
-</div>
-
-<script>
-  (() => {
-    const fl = document.getElementById('flashlight');
-    document.addEventListener('mousemove', e => {
-      fl.style.setProperty('--mx', e.clientX + 'px');
-      fl.style.setProperty('--my', e.clientY + 'px');
-    });
-    document.addEventListener('mouseleave', () => fl.style.opacity = '0');
-    document.addEventListener('mouseenter', () => fl.style.opacity = '1');
-  })();
-
-  // Landing page navigation — all launch buttons share the same handler
-  function showApp() {
-    document.getElementById('landingPage').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    // Transition unified nav from landing → app mode
-    XNav.enterApp();
-  }
-
-  // Wire up all possible launch buttons (hero, nav, mobile nav)
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('#launchAppBtn, #navLaunchAppBtn, #mobileLaunchAppBtn');
-    if (btn) { e.preventDefault(); showApp(); }
-  });
-
-  document.getElementById('learnMoreBtn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('landingPage').style.display = 'none';
-    document.getElementById('howItWorksPage').style.display = 'block';
-    window.scrollTo(0, 0);
-  });
-</script>
-
 <!-- Main App Container -->
-<div id="mainApp" class="main-app" style="padding-top: 56px;">
-<!-- App toolbar (below unified nav) — ticker, tranche, wallet -->
-<div class="toolbar">
-  <div class="toolbar-left">
+<div id="mainApp" class="main-app" style="display:none;">
+<div class="header">
+  <div class="header-left">
+    <div class="logo">x<span>Lever</span></div>
     <div class="ticker-selector">
       <button class="ticker-select-btn active" data-ticker="QQQ">QQQ</button>
       <button class="ticker-select-btn" data-ticker="SPY">SPY</button>
     </div>
-    <div class="ticker-badge"><div class="ticker-dot"></div><span id="dynamicTicker">QQQ x 2.0</span></div>
-    <div class="tranche-selector" data-mode="trade">
+    <div class="ticker-badge"><div class="ticker-dot"></div><span id="dynamicTicker">QQQ × 2.0</span></div>
+    <div class="tranche-selector">
       <button class="tranche-btn active" id="seniorBtn" data-tranche="senior">Senior (Trader)</button>
       <button class="tranche-btn" id="juniorBtn" data-tranche="junior">Junior (LP)</button>
     </div>
   </div>
-  <div class="toolbar-right">
-    <button id="howItWorksBtn" class="how-it-works-btn" data-mode="research">How It Works</button>
-    <button id="degenModeBtn" class="degen-mode-btn" data-mode="research">DEGEN MODE</button>
-    <div id="walletInfo" class="wallet-info" data-mode="trade" style="display: none;">
+  <div class="header-right">
+    <button id="howItWorksBtn" class="how-it-works-btn">📚 How It Works</button>
+    <button id="degenModeBtn" class="degen-mode-btn">🚀 DEGEN MODE</button>
+    <button id="connectWalletBtn" class="connect-wallet-btn">Connect Wallet</button>
+    <div id="walletInfo" class="wallet-info" style="display: none;">
       <div class="wallet-balances">
         <div class="balance-item"><span class="balance-label">ETH:</span><span class="balance-value" id="ethBalance">-</span></div>
         <div class="balance-item"><span class="balance-label">USDC:</span><span class="balance-value" id="usdcBalance">-</span></div>
@@ -384,16 +252,10 @@
       <div class="wallet-address" id="walletAddress"></div>
       <button id="disconnectBtn" class="disconnect-btn">Disconnect</button>
     </div>
-    <span class="protocol-tag">Powered by Euler V2 EVK</span>
+    <div class="protocol-tag">xLever Protocol</div>
+    <span>Powered by Euler V2 EVK</span>
   </div>
 </div>
-
-<!-- Mode Banner -->
-<div id="modeBanner" class="mode-banner mode-banner-trade">
-  <span class="mode-banner-icon" id="modeBannerIcon"></span>
-  <span id="modeBannerText">Live Trading — Connected to Ink Sepolia testnet. Real wallet actions.</span>
-</div>
-
 <!-- Senior Trader View -->
 <div id="seniorView" class="main-layout">
   <div class="chart-area">
@@ -417,18 +279,18 @@
     </div>
     <div class="chart-container">
       <div class="price-overlay">
-        <div class="leverage-label" id="overlayLabel">Leveraged QQQ — 2.0x</div>
+        <div class="leverage-label" id="overlayLabel">Leveraged QQQ — 2.0×</div>
         <div class="price-big" id="overlayPrice">$0.00</div>
         <div class="price-change" id="overlayChange">+0.00%</div>
         <div class="legend-row">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span id="legendLev">2.0x Leveraged</span></div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--text-muted)"></div><span id="legendBase">QQQ (1x)</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span id="legendLev">2.0× Leveraged</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--text-muted)"></div><span id="legendBase">QQQ (1×)</span></div>
           <div class="legend-item"><div class="legend-dot" style="background:#ffffff15"></div><span>Entry Deposit</span></div>
         </div>
       </div>
       <div id="tv-chart"></div>
     </div>
-    <div class="chart-bottom" data-mode="research">
+    <div class="chart-bottom">
       <div class="stat-item"><span class="stat-label">Max Drawdown</span><span class="stat-value negative" id="statMDD">-0.0%</span></div>
       <div class="stat-item"><span class="stat-label">Sharpe Ratio</span><span class="stat-value" id="statSharpe">0.00</span></div>
       <div class="stat-item"><span class="stat-label">Volatility</span><span class="stat-value" id="statVol">0.0%</span></div>
@@ -443,7 +305,7 @@
     <div class="panel-section">
       <div class="panel-title">Leverage Factor</div>
       <div class="leverage-display">
-        <div class="leverage-value" id="levDisplay">2.0x</div>
+        <div class="leverage-value" id="levDisplay">2.0×</div>
         <div class="leverage-suffix">Constant Leverage from Entry</div>
       </div>
       <div class="slider-container">
@@ -451,49 +313,51 @@
           <div class="slider-fill" id="sliderFill"></div>
           <div class="slider-thumb" id="sliderThumb"></div>
         </div>
-        <div class="slider-labels"><span>-3.5x</span><span>-2x</span><span>0</span><span>+2x</span><span>+3.5x</span></div>
+        <div class="slider-labels"><span>-3.5×</span><span>-2×</span><span>0</span><span>+2×</span><span>+3.5×</span></div>
       </div>
       <div class="slider-notches">
-        <button class="notch-btn" data-lev="-3.5">-3.5x</button>
-        <button class="notch-btn" data-lev="-2.0">-2x</button>
-        <button class="notch-btn" data-lev="-1.0">-1x</button>
-        <button class="notch-btn" data-lev="0">0x</button>
-        <button class="notch-btn" data-lev="1.0">+1x</button>
-        <button class="notch-btn active" data-lev="2.0">+2x</button>
-        <button class="notch-btn" data-lev="3.5">+3.5x</button>
+        <button class="notch-btn" data-lev="-3.5">-3.5×</button>
+        <button class="notch-btn" data-lev="-2.0">-2×</button>
+        <button class="notch-btn" data-lev="-1.0">-1×</button>
+        <button class="notch-btn" data-lev="0">0×</button>
+        <button class="notch-btn" data-lev="1.0">+1×</button>
+        <button class="notch-btn active" data-lev="2.0">+2×</button>
+        <button class="notch-btn" data-lev="3.5">+3.5×</button>
       </div>
+      
     </div>
-
-    <!-- Position Entry Section (Trade mode only) -->
-    <div class="panel-section" data-mode="trade">
+    
+    <!-- Position Entry Section -->
+    <div class="panel-section">
       <div class="panel-title">Open Position</div>
       <div style="background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); padding: 20px;">
         <div style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Asset Selection -->
           <div style="display: flex; gap: 8px; margin-bottom: 4px;">
-            <button class="asset-btn active" data-asset="wQQQx"
+            <button class="asset-btn active" data-asset="wQQQx" 
                     style="flex: 1; padding: 10px; background: rgba(102, 126, 234, 0.2); border: 1px solid rgba(102, 126, 234, 0.5); border-radius: 6px; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s;">
               QQQ
             </button>
-            <button class="asset-btn" data-asset="wSPYx"
+            <button class="asset-btn" data-asset="wSPYx" 
                     style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: rgba(255,255,255,0.6); font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s;">
               SPY
             </button>
           </div>
-          <input type="number" id="positionAmountInput" placeholder="Enter USDC Amount"
+          <input type="number" id="positionAmountInput" placeholder="Enter USDC Amount" 
                  style="width: 100%; padding: 14px 18px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 16px; font-family: 'JetBrains Mono', monospace; box-sizing: border-box;" />
-          <button id="openPositionBtn"
+          <button id="openPositionBtn" 
                   style="width: 100%; padding: 14px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: #fff; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
             Open Position
           </button>
           <div style="font-size: 12px; color: rgba(255,255,255,0.5); text-align: center;">
-            Current leverage: <span id="currentLevDisplay" style="font-weight: 600; color: rgba(255,255,255,0.8);">2.0x</span>
+            Current leverage: <span id="currentLevDisplay" style="font-weight: 600; color: rgba(255,255,255,0.8);">2.0×</span>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Your Positions Section (Trade mode only) -->
-    <div class="panel-section" data-mode="trade">
+    
+    <!-- Your Positions Section -->
+    <div class="panel-section">
       <div class="panel-title">Your Positions</div>
       <div id="positionsContainer" style="background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); padding: 16px;">
         <div id="noPositions" style="text-align: center; color: rgba(255,255,255,0.4); padding: 20px; font-size: 14px;">
@@ -502,7 +366,7 @@
         <div id="positionsList" style="display: none;"></div>
       </div>
     </div>
-
+    
     <div class="panel-section">
       <div class="panel-title">Strategy Details</div>
       <div class="strategy-card">
@@ -511,11 +375,11 @@
         <div class="row"><span class="row-label">Rebalance</span><span class="row-value">On User Adjust</span></div>
         <div class="row"><span class="row-label">Annual Fee</span><span class="row-value" id="annualFee">1.0% APR</span></div>
         <div class="row"><span class="row-label">Fee Split</span><span class="row-value">70% Buffer / 20% Insurance / 10% Protocol</span></div>
-        <div class="row"><span class="row-label">Max Leverage</span><span class="row-value">+/-3.5x (dynamic based on buffer ratio)</span></div>
+        <div class="row"><span class="row-label">Max Leverage</span><span class="row-value">±3.5× (dynamic based on buffer ratio)</span></div>
         <div class="row"><span class="row-label">Oracle</span><span class="row-value">15-min TWAP (Pyth)</span></div>
       </div>
     </div>
-    <div class="panel-section" data-mode="research">
+    <div class="panel-section">
       <div class="panel-title">Buffer Tranche (Junior)</div>
       <div class="strategy-card">
         <div class="row"><span class="row-label">Pool Composition</span><span class="row-value" id="juniorRatio">65% Senior / 35% Junior</span></div>
@@ -524,32 +388,32 @@
         <div class="row"><span class="row-label">Buffer Health</span><span class="row-value" id="bufferHealth">—</span></div>
       </div>
     </div>
-    <div class="panel-section" data-mode="research">
+    <div class="panel-section">
       <div class="panel-title">Performance Comparison</div>
       <div class="comparison-grid">
-        <div class="comp-badge"><div class="comp-ticker" id="compBaseTicker">QQQ 1x</div><div class="comp-return positive" id="compQQQ">+0.0%</div><div class="comp-label">Base Underlying</div></div>
-        <div class="comp-badge active-comp"><div class="comp-ticker" id="compLevTicker">QQQ 2.0x (Protocol)</div><div class="comp-return" id="compLev">+0.0%</div><div class="comp-label">Full Simulation</div></div>
-        <div class="comp-badge"><div class="comp-ticker" id="compDailyTicker">QQQ 2.0x (Daily Reset)</div><div class="comp-return" id="compDaily">+0.0%</div><div class="comp-label">TQQQ-Style Compounding</div></div>
-        <div class="comp-badge"><div class="comp-ticker" id="compNoFeeTicker">QQQ 2.0x (No Fees)</div><div class="comp-return" id="compNoFee">+0.0%</div><div class="comp-label">No Fees (Protocol)</div></div>
+        <div class="comp-badge"><div class="comp-ticker" id="compBaseTicker">QQQ 1×</div><div class="comp-return positive" id="compQQQ">+0.0%</div><div class="comp-label">Base Underlying</div></div>
+        <div class="comp-badge active-comp"><div class="comp-ticker" id="compLevTicker">QQQ 2.0× (Protocol)</div><div class="comp-return" id="compLev">+0.0%</div><div class="comp-label">Full Simulation</div></div>
+        <div class="comp-badge"><div class="comp-ticker" id="compDailyTicker">QQQ 2.0× (Daily Reset)</div><div class="comp-return" id="compDaily">+0.0%</div><div class="comp-label">TQQQ-Style Compounding</div></div>
+        <div class="comp-badge"><div class="comp-ticker" id="compNoFeeTicker">QQQ 2.0× (No Fees)</div><div class="comp-return" id="compNoFee">+0.0%</div><div class="comp-label">No Fees (Protocol)</div></div>
       </div>
     </div>
-    <div class="panel-section" data-mode="research">
+    <div class="panel-section">
       <div class="panel-title">Risk Assessment</div>
       <div class="risk-meter"><div class="risk-fill" id="riskFill"></div></div>
       <div class="risk-label"><span>Conservative</span><span id="riskText">Moderate</span><span>Aggressive</span></div>
       <div class="buffer-req" id="bufferReq">Buffer: 20% junior ratio required</div>
     </div>
-    <div class="panel-section" data-mode="research">
+    <div class="panel-section">
       <div class="panel-title">Data Source</div>
       <div class="api-notice">
-        Backtesting uses real <span id="dataSourceTicker">QQQ</span> data from Yahoo Finance.
-        The simulation models: auto-deleverage cascade (5 levels based on
-        underlying asset drawdown from peak), re-leverage on recovery
-        (1.0x steps, 5-day cooldown), execution slippage on leverage
+        Backtesting uses real <span id="dataSourceTicker">QQQ</span> data from Yahoo Finance. 
+        The simulation models: auto-deleverage cascade (5 levels based on 
+        underlying asset drawdown from peak), re-leverage on recovery 
+        (1.0× steps, 5-day cooldown), execution slippage on leverage 
         changes, and circuit breaker fee premiums on high-volatility days.
         <br><br>
-        Not modeled: junior tranche loss absorption, intraday price action
-        (uses daily OHLC only), actual lending protocol health factors,
+        Not modeled: junior tranche loss absorption, intraday price action 
+        (uses daily OHLC only), actual lending protocol health factors, 
         TWAP vs spot pricing lag, multi-protocol routing, or gas costs.
         Actual protocol performance will differ.
       </div>
@@ -560,7 +424,7 @@
 <!-- Mobile Leverage Control -->
 <div class="mobile-leverage-control">
   <div class="mobile-lev-display">
-    <div class="mobile-lev-value" id="mobileLevDisplay">2.0x</div>
+    <div class="mobile-lev-value" id="mobileLevDisplay">2.0×</div>
     <div class="mobile-lev-label">Leverage Factor</div>
   </div>
   <div class="slider-container">
@@ -568,36 +432,36 @@
       <div class="slider-fill" id="mobileSliderFill"></div>
       <div class="slider-thumb" id="mobileSliderThumb"></div>
     </div>
-    <div class="slider-labels"><span>-3.5x</span><span>-2x</span><span>0</span><span>+2x</span><span>+3.5x</span></div>
+    <div class="slider-labels"><span>-3.5×</span><span>-2×</span><span>0</span><span>+2×</span><span>+3.5×</span></div>
   </div>
   <div class="slider-notches">
-    <button class="notch-btn" data-lev="-3.5">-3.5x</button>
-    <button class="notch-btn" data-lev="-2.0">-2x</button>
-    <button class="notch-btn" data-lev="-1.0">-1x</button>
-    <button class="notch-btn" data-lev="0">0x</button>
-    <button class="notch-btn" data-lev="1.0">+1x</button>
-    <button class="notch-btn active" data-lev="2.0">+2x</button>
-    <button class="notch-btn" data-lev="3.5">+3.5x</button>
+    <button class="notch-btn" data-lev="-3.5">-3.5×</button>
+    <button class="notch-btn" data-lev="-2.0">-2×</button>
+    <button class="notch-btn" data-lev="-1.0">-1×</button>
+    <button class="notch-btn" data-lev="0">0×</button>
+    <button class="notch-btn" data-lev="1.0">+1×</button>
+    <button class="notch-btn active" data-lev="2.0">+2×</button>
+    <button class="notch-btn" data-lev="3.5">+3.5×</button>
   </div>
 </div>
 
-<!-- Junior LP View (Trade mode — real vault interactions) -->
-<div id="juniorView" class="main-layout" data-mode="trade" style="display: none;">
+<!-- Junior LP View -->
+<div id="juniorView" class="main-layout" style="display: none;">
   <div class="junior-hero">
     <h1 class="junior-title">Junior Liquidity Provider</h1>
     <p class="junior-subtitle">Earn fees by providing first-loss capital to protect senior traders</p>
     <div class="junior-stats-grid">
       <div class="junior-stat-card">
         <div class="junior-stat-label">Current APY</div>
-        <div class="junior-stat-value positive" id="juniorAPYDisplay">-</div>
+        <div class="junior-stat-value positive" id="juniorAPYDisplay">0%</div>
       </div>
       <div class="junior-stat-card">
         <div class="junior-stat-label">Total Junior TVL</div>
-        <div class="junior-stat-value" id="juniorTVL">-</div>
+        <div class="junior-stat-value" id="juniorTVL">$0</div>
       </div>
       <div class="junior-stat-card">
         <div class="junior-stat-label">Pool Utilization</div>
-        <div class="junior-stat-value" id="poolUtilization">-</div>
+        <div class="junior-stat-value" id="poolUtilization">0%</div>
       </div>
       <div class="junior-stat-card">
         <div class="junior-stat-label">Your Position</div>
@@ -632,7 +496,7 @@
               </div>
               <div class="info-row">
                 <span>Estimated APY:</span>
-                <span class="positive" id="estimatedAPY">-</span>
+                <span class="positive" id="estimatedAPY">0%</span>
               </div>
             </div>
             <button class="primary-action-btn" id="depositBtn">Deposit USDC</button>
@@ -675,7 +539,7 @@
             </div>
             <h3>Fee Revenue</h3>
             <p>Earn fees from all senior trader activity. Higher leverage = higher fees.</p>
-            <div class="risk-metric positive" id="feeRevenueAPY">-</div>
+            <div class="risk-metric positive">+12.5% APY</div>
           </div>
           <div class="risk-card warning">
             <div class="risk-icon">
@@ -720,25 +584,25 @@
         <div class="panel-title">Pool Composition</div>
         <div class="pool-visual">
           <div class="pool-bar">
-            <div class="pool-segment senior" id="poolBarSenior" style="width: 50%">
-              <span id="poolBarSeniorLabel">Senior: -</span>
+            <div class="pool-segment senior" style="width: 0%">
+              <span>Senior: 0%</span>
             </div>
-            <div class="pool-segment junior" id="poolBarJunior" style="width: 50%">
-              <span id="poolBarJuniorLabel">Junior: -</span>
+            <div class="pool-segment junior" style="width: 0%">
+              <span>Junior: 0%</span>
             </div>
           </div>
           <div class="pool-stats">
             <div class="pool-stat">
               <span class="pool-stat-label">Senior TVL:</span>
-              <span class="pool-stat-value" id="seniorTVLDisplay">-</span>
+              <span class="pool-stat-value">$0</span>
             </div>
             <div class="pool-stat">
               <span class="pool-stat-label">Junior TVL:</span>
-              <span class="pool-stat-value" id="juniorTVLDisplay">-</span>
+              <span class="pool-stat-value">$0</span>
             </div>
             <div class="pool-stat">
               <span class="pool-stat-label">Total TVL:</span>
-              <span class="pool-stat-value" id="totalTVLDisplay">-</span>
+              <span class="pool-stat-value">$0</span>
             </div>
           </div>
         </div>
@@ -749,25 +613,25 @@
         <div class="health-metrics">
           <div class="health-item">
             <div class="health-label">Buffer Ratio</div>
-            <div class="health-value" id="bufferRatioDisplay">-</div>
+            <div class="health-value">0%</div>
             <div class="health-bar">
-              <div class="health-fill" id="bufferRatioFill" style="width: 0%; background: var(--green)"></div>
+              <div class="health-fill" style="width: 0%; background: var(--green)"></div>
             </div>
             <div class="health-note">Target: 30-40%</div>
           </div>
           <div class="health-item">
             <div class="health-label">Net Exposure</div>
-            <div class="health-value" id="netExposureDisplay">-</div>
+            <div class="health-value">$0 Neutral</div>
             <div class="health-note">Directional risk</div>
           </div>
           <div class="health-item">
             <div class="health-label">Avg Leverage</div>
-            <div class="health-value" id="avgLeverageDisplay">-</div>
+            <div class="health-value">0×</div>
             <div class="health-note">Risk profile</div>
           </div>
           <div class="health-item">
             <div class="health-label">Insurance Fund</div>
-            <div class="health-value" id="insuranceFundDisplay">-</div>
+            <div class="health-value">$0</div>
             <div class="health-note">TVL backstop</div>
           </div>
         </div>
@@ -778,50 +642,50 @@
         <div class="fee-breakdown">
           <div class="fee-item">
             <span>Senior Trading Fees</span>
-            <span class="positive" id="feeRevenueSenior">-</span>
+            <span class="positive">$0/mo</span>
           </div>
           <div class="fee-item">
             <span>Circuit Breaker Premiums</span>
-            <span class="positive" id="feeRevenueCB">-</span>
+            <span class="positive">$0/mo</span>
           </div>
           <div class="fee-item">
             <span>Total Fee Revenue</span>
-            <span class="positive" id="feeTotalRevenue">-</span>
+            <span class="positive">$0/mo</span>
           </div>
           <div class="fee-divider"></div>
           <div class="fee-item">
             <span>To Junior LPs (70%)</span>
-            <span class="positive" id="feeToJunior">-</span>
+            <span class="positive">$0/mo</span>
           </div>
           <div class="fee-item">
             <span>To Insurance (20%)</span>
-            <span id="feeToInsurance">-</span>
+            <span>$0/mo</span>
           </div>
           <div class="fee-item">
             <span>To Protocol (10%)</span>
-            <span id="feeToProtocol">-</span>
+            <span>$0/mo</span>
           </div>
         </div>
       </div>
 
       <div class="panel-section">
-        <div class="panel-title">Historical Performance</div>
+        <div class="panel-title">Real-Time Metrics</div>
         <div class="historical-stats">
           <div class="hist-stat">
-            <div class="hist-label">30-Day APY</div>
-            <div class="hist-value" id="hist30dAPY">-</div>
+            <div class="hist-label">Share Price</div>
+            <div class="hist-value" id="juniorSharePrice">$1.00</div>
           </div>
           <div class="hist-stat">
-            <div class="hist-label">90-Day APY</div>
-            <div class="hist-value" id="hist90dAPY">-</div>
+            <div class="hist-label">Total Shares</div>
+            <div class="hist-value" id="juniorTotalShares">0</div>
           </div>
           <div class="hist-stat">
-            <div class="hist-label">Max Drawdown</div>
-            <div class="hist-value" id="histMaxDD">-</div>
+            <div class="hist-label">Your Shares</div>
+            <div class="hist-value" id="juniorUserShares">0</div>
           </div>
           <div class="hist-stat">
-            <div class="hist-label">Loss Events</div>
-            <div class="hist-value" id="histLossEvents">-</div>
+            <div class="hist-label">Max Leverage</div>
+            <div class="hist-value" id="juniorMaxLeverage">4.0×</div>
           </div>
         </div>
       </div>
@@ -832,10 +696,30 @@
 </div>
 <!-- End Main App -->
 
+<script type="module" src="wallet.js"></script>
+<script type="module" src="contracts.js"></script>
 <script src="toast.js"></script>
-<script src="mode-switch.js"></script>
 <script src="app.js"></script>
 <script src="vault-functions.js"></script>
 <script src="position-manager.js"></script>
+<script src="junior-manager.js"></script>
+<script>
+// Initialize junior page when switching to it
+document.addEventListener('DOMContentLoaded', () => {
+  const juniorBtn = document.getElementById('juniorBtn');
+  if (juniorBtn) {
+    juniorBtn.addEventListener('click', () => {
+      setTimeout(() => {
+        if (typeof initJuniorPage === 'function') {
+          initJuniorPage();
+        }
+        if (typeof updateJuniorPageUI === 'function') {
+          updateJuniorPageUI();
+        }
+      }, 100);
+    });
+  }
+});
+</script>
 </body>
 </html>

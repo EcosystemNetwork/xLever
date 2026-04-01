@@ -180,10 +180,10 @@
 <div class="bg-surface-container-highest p-3 rounded-sm space-y-2">
 <div class="flex justify-between text-[10px] text-outline">
 <span>Buying Power</span>
-<span class="mono text-on-surface">$245,021.00</span>
+<span class="mono text-on-surface" id="buyingPowerDisplay">$0.00</span>
 </div>
 <div class="w-full h-1 bg-surface-dim rounded-full overflow-hidden">
-<div class="h-full bg-primary-container w-[65%]"></div>
+<div class="h-full bg-primary-container w-[0%]" id="buyingPowerBar"></div>
 </div>
 </div>
 </div>
@@ -226,7 +226,7 @@
     <!-- Populated by JS from assets.js -->
   </div>
   <div class="px-3 py-2 border-t border-outline-variant/10 text-[9px] text-outline mono">
-    <span id="tickerCount">42</span> assets available
+    <span id="tickerCount">33</span> assets available
   </div>
 </div>
 </div>
@@ -426,7 +426,7 @@
 <div class="space-y-1.5">
 <div class="flex justify-between">
 <label class="text-[10px] uppercase font-bold text-outline tracking-wider">Size (USD)</label>
-<span class="text-[10px] text-outline mono">Bal: 245,021</span>
+<span class="text-[10px] text-outline mono" id="balanceLabel">Bal: 0</span>
 </div>
 <div class="relative group">
 <input class="w-full bg-surface-container-lowest border-none focus:ring-0 mono text-lg p-3 rounded-sm text-on-surface" type="text" value="10,000"/>
@@ -479,11 +479,11 @@
 </div>
 <div class="flex justify-between text-[10px]">
 <span class="text-outline">Annual Fee</span>
-<span class="mono text-on-surface" id="annual-fee-display">1.0% APR</span>
+<span class="mono text-on-surface" id="annual-fee-display">0% APR</span>
 </div>
 <div class="flex justify-between text-[10px]">
 <span class="text-outline">Fee Split</span>
-<span class="mono text-on-surface text-right">70% Buf / 20% Ins / 10% Prot</span>
+<span class="mono text-on-surface text-right" id="feeSplitDisplay">- / - / -</span>
 </div>
 <div class="flex justify-between text-[10px]">
 <span class="text-outline">Oracle</span>
@@ -496,7 +496,7 @@
 </div>
 <div class="pt-2 space-y-2">
 <button id="open-position-btn" class="w-full py-4 bg-tertiary text-on-tertiary font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-tertiary/10">
-                                Open Long Position
+                                Open Position
                             </button>
 </div>
 </div>
@@ -506,7 +506,7 @@
 <h3 class="text-[10px] font-bold text-outline uppercase tracking-wider border-b border-outline-variant/10 pb-1 mb-2">Tranche Health</h3>
 <div class="flex justify-between text-[10px]">
 <span class="text-outline">Pool Structure</span>
-<span class="mono text-on-surface">65% Senior / 35% Junior</span>
+<span class="mono text-on-surface" id="poolStructureDisplay">0% Senior / 0% Junior</span>
 </div>
 <div class="flex justify-between text-[10px]">
 <span class="text-outline">Junior APY</span>
@@ -518,40 +518,40 @@
 </div>
 <div class="flex justify-between text-[10px]">
 <span class="text-outline">Insurance Fund</span>
-<span class="mono text-on-surface">$4.2M</span>
+<span class="mono text-on-surface" id="insuranceFundDisplay">$0</span>
 </div>
 </div>
 <!-- Order Book Depth (Compact) -->
 <div class="flex-grow flex flex-col mx-4 etched-border bg-surface-container-lowest/30">
 <div class="p-2 flex justify-between items-center border-b border-outline-variant/5">
 <span class="text-[10px] uppercase font-bold text-outline tracking-wider">Order Book</span>
-<span class="text-[10px] text-outline mono">Spread: 0.02</span>
+<span class="text-[10px] text-outline mono" id="orderBookSpread">Spread: -</span>
 </div>
 <div class="flex flex-col h-32 overflow-hidden font-mono text-[9px]">
 <!-- Asks -->
 <div class="flex-grow flex flex-col-reverse justify-end">
 <div class="flex justify-between px-2 py-0.5">
-<span class="text-error">487.35</span>
-<span class="text-outline">1.452</span>
+<span class="text-error" id="askPrice1">-</span>
+<span class="text-outline" id="askSize1">-</span>
 </div>
 <div class="flex justify-between px-2 py-0.5">
-<span class="text-error">487.32</span>
-<span class="text-outline">4.109</span>
+<span class="text-error" id="askPrice2">-</span>
+<span class="text-outline" id="askSize2">-</span>
 </div>
 </div>
 <!-- Current Price -->
 <div class="bg-surface-container-highest/30 py-1 px-2 flex justify-center items-center border-y border-outline-variant/10">
-<span class="mono text-xs font-bold text-tertiary">487.23</span>
+<span class="mono text-xs font-bold text-tertiary" id="orderBookMidPrice">-</span>
 </div>
 <!-- Bids -->
 <div class="flex-grow flex flex-col justify-start">
 <div class="flex justify-between px-2 py-0.5">
-<span class="text-tertiary">487.21</span>
-<span class="text-outline">2.122</span>
+<span class="text-tertiary" id="bidPrice1">-</span>
+<span class="text-outline" id="bidSize1">-</span>
 </div>
 <div class="flex justify-between px-2 py-0.5">
-<span class="text-tertiary">487.18</span>
-<span class="text-outline">3.881</span>
+<span class="text-tertiary" id="bidPrice2">-</span>
+<span class="text-outline" id="bidSize2">-</span>
 </div>
 </div>
 </div>
@@ -599,9 +599,9 @@
 <td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
 <td class="px-4 py-2.5 text-on-surface">10,000.00 USDC</td>
 <td class="px-4 py-2.5 text-outline">+2.00x</td>
-<td class="px-4 py-2.5 text-outline">482.12</td>
-<td class="px-4 py-2.5 text-on-surface">487.23</td>
-<td class="px-4 py-2.5 text-tertiary font-bold">+$1,059.20 <span class="text-[9px] ml-1">(+10.59%)</span></td>
+<td class="px-4 py-2.5 text-outline">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
 <td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
 </tr>
 <tr class="hover:bg-surface-container transition-colors group border-t border-outline-variant/5">
@@ -609,9 +609,9 @@
 <td class="px-4 py-2.5"><span class="bg-error/10 text-error px-1.5 py-0.5 rounded-sm font-bold">SHORT</span></td>
 <td class="px-4 py-2.5 text-on-surface">5,450.00 USDC</td>
 <td class="px-4 py-2.5 text-outline">-4.00x</td>
-<td class="px-4 py-2.5 text-outline">165.20</td>
-<td class="px-4 py-2.5 text-on-surface">171.53</td>
-<td class="px-4 py-2.5 text-tertiary font-bold">+$244.12 <span class="text-[9px] ml-1">(+4.47%)</span></td>
+<td class="px-4 py-2.5 text-outline">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
 <td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
 </tr>
 <tr class="hover:bg-surface-container transition-colors group border-t border-outline-variant/5">
@@ -619,9 +619,9 @@
 <td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
 <td class="px-4 py-2.5 text-on-surface">8,000.00 USDC</td>
 <td class="px-4 py-2.5 text-outline">+2.00x</td>
-<td class="px-4 py-2.5 text-outline">642.10</td>
-<td class="px-4 py-2.5 text-on-surface">651.82</td>
-<td class="px-4 py-2.5 text-tertiary font-bold">+$152.80 <span class="text-[9px] ml-1">(+1.51%)</span></td>
+<td class="px-4 py-2.5 text-outline">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface">$0.00</td>
+<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
 <td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
 </tr>
 </tbody>
@@ -651,6 +651,14 @@
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  XAuthGate.init({
+    mode: 'disable',
+    actionSelectors: ['#open-position-btn', '#executeTrade', '[data-action="trade"]']
+  });
+});
+</script>
 <script src="chart-strategy-tools.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {

@@ -39,7 +39,8 @@ const RiskLive = (() => {
         const p = await pyth.getPriceForFeed(feed)
         const age = pyth.oracleAge(p.publishTime)
         inputs.oracleAgeSec = age
-        inputs.oracleDivergence = p.conf && p.price ? p.conf / p.price : 0
+        // Use Pyth confidence interval as initial divergence estimate (will be overridden by on-chain divergence if available)
+        inputs.oracleDivergence = p.conf && p.price ? Math.min(p.conf / p.price, 0.5) : 0
         inputs.volatility = Math.min((p.conf / (p.price || 1)) * 50, 1.5)
 
         // Track peak price for drawdown
@@ -69,7 +70,8 @@ const RiskLive = (() => {
         const pool = await contracts.getPoolState()
         if (pool) {
           const fmt = contracts.formatPoolState(pool)
-          inputs.utilization = 1 - fmt.juniorRatio
+          // juniorRatio is 0-1 (decimal), convert to utilization (0-1 range)
+          inputs.utilization = Math.max(0, Math.min(1, 1 - fmt.juniorRatio))
           inputs.healthFactor = fmt.state === 'Active' ? 2.0
             : fmt.state === 'Stressed' ? 1.3
             : fmt.state === 'Paused' ? 1.1 : 0.9

@@ -50,43 +50,10 @@ export const CHAIN_CONFIGS = {
     vaults: null, // populated below from VAULT_REGISTRY (default)
   },
   // Ethereum Sepolia (11155111)
+  // Ethereum Sepolia (11155111) — no vaults deployed yet, populate after deployment
   11155111: {
     chain: ethSepolia,
-    vaults: {
-      QQQ:  '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
-      SPY:  '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
-      VUG:  '0x5a446C69c8C635ae473Ed859b1853Bd580F671B7',
-      VGK:  '0x5FA09F20C04533a8564F280A9127Cf63aDE08621',
-      VXUS: '0x445B9A6B774E42BeF772671D2eEA6529bc28bC26',
-      SGOV: '0x30A37d04aFa2648FA4427b13c7ca380490F46BaD',
-      SMH:  '0x6F5C1fB59C4887dD3938fAF19D46C21d1dFF8cF6',
-      XLE:  '0x73ad91867737622971D9f928AD65f2078EC3e184',
-      XOP:  '0xD4F23c93237D9594b13662D1Ce7B2078efe6B0ec',
-      ITA:  '0x7D2C5FA48954F601faF30ed4A1611150E7CA72b8',
-      AAPL: '0x31026d0de55Eb7523EeADeBB58fec60876235f09',
-      NVDA: '0xe212D68B4e18747b2bAb256090c1d09Ab9A5371a',
-      TSLA: '0x5b493Fc8B66A6827f7A1658BFcFA01693534326e',
-      DELL: '0xab455997817026cCf4791Bb565189Dd873ECE675',
-      SMCI: '0x28AFF61B3801eE173CAfaeCdD5Ff78D65B478b3E',
-      ANET: '0x63b25f2d081e02475F5B4F99f0966EA2e7a3C54a',
-      VRT:  '0x4D1785862e24C9fC719B0C2ff3749C67fD315562',
-      SNDK: '0xf8D8c163e8B36799e4C719384AE20DD7873A5DfE',
-      KLAC: '0xb4288Ba6B4C61b64cc2d5d3Da1466dE6Cd904398',
-      LRCX: '0x83B11A1A46182B933674607B10643Ac97D104247',
-      AMAT: '0x2d3b2B1F563b7552f2aB24250164C4a7379a4c33',
-      TER:  '0xCFd3631169Ba659744A55904774B03346795e1F1',
-      CEG:  '0x3Ac370b7617350f3C7eff089541dd7F0E886f7e5',
-      GEV:  '0x184D592eAf314c81877532CBda6Dc1fB8A74Ed68',
-      SMR:  '0xc235cC4efCf42E98385A9132dac093d1426a5ED2',
-      ETN:  '0xacF8600BCBfde39Fc5aF017E7d9009310bEC0D6B',
-      PWR:  '0xCd258E69A5Cc4A7E6D6Ea7219355CeB0a3153472',
-      APLD: '0x594332f239Fe809Ccf6B3Dd791Eb8252A3efA38c',
-      SLV:  '0x46ce7cd72763B784977349686AEA72B84d3F86B6',
-      PPLT: '0xEC9455F29A5a7A2a5F496bB7D4B428A1df3850dF',
-      PALL: '0x5fcAbBc1e9ab0bEca3d6cd9EF0257F2369230D12',
-      STRK: '0x0a66152096f37F83D41c56534022e746B159b052',
-      BTGO: '0x6FB4b73B1e980217010d20B7DA065b06EA7802B6',
-    },
+    vaults: {},
   },
 }
 
@@ -339,10 +306,15 @@ async function getAccount() {
 // ═══════════════════════════════════════════════════════════════
 
 export async function getBalance(tokenAddress, userAddress) {
-  const pc = getPublicClient()
-  const balance = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [userAddress] })
-  const decimals = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' })
-  return { raw: balance, formatted: formatUnits(balance, decimals), decimals }
+  try {
+    const pc = getPublicClient()
+    const balance = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [userAddress] })
+    const decimals = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' })
+    return { raw: balance, formatted: formatUnits(balance, decimals), decimals }
+  } catch (err) {
+    console.error('getBalance failed:', err.message)
+    return { raw: 0n, formatted: '0', decimals: 18 }
+  }
 }
 
 export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
@@ -353,11 +325,15 @@ export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
 // ERC-20 WRITES
 // ═══════════════════════════════════════════════════════════════
 
-export async function approveToken(tokenAddress, spenderAddress, amount) {
+export async function approveToken(tokenAddress, spenderAddress, _amount) {
   const account = await getAccount()
-  const hash = await getWalletClient().writeContract({
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
+  // Infinite approval avoids repeated approve popups on subsequent deposits
+  const maxUint256 = 2n ** 256n - 1n
+  const hash = await wc.writeContract({
     address: tokenAddress, abi: ERC20_ABI, functionName: 'approve',
-    args: [spenderAddress, amount], account, chain: inkSepolia,
+    args: [spenderAddress, maxUint256], account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -434,7 +410,14 @@ export async function getJuniorValue() {
  */
 async function fetchPythUpdate() {
   const feedId = getActiveFeedId()
-  const { updateData } = await getPriceForFeed(feedId)
+  let updateData
+  try {
+    const result = await getPriceForFeed(feedId)
+    updateData = result.updateData
+  } catch (err) {
+    console.error('Pyth price fetch failed:', err.message)
+    throw new Error('Failed to fetch oracle price update. Please try again.')
+  }
 
   let fee = parseUnits('0.001', 18) // safe default
   if (ADDRESSES.pythAdapter) {
@@ -454,6 +437,8 @@ export async function openPosition(amountUsdc, leverage) {
   if (!ADDRESSES.usdc) throw new Error('USDC address not set')
 
   const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
   const amount = parseUnits(amountUsdc, 6)
   const leverageBps = Math.round(leverage * 10000)
   const { updateData, fee } = await fetchPythUpdate()
@@ -463,9 +448,9 @@ export async function openPosition(amountUsdc, leverage) {
     await approveToken(ADDRESSES.usdc, ADDRESSES.vault, amount)
   }
 
-  const hash = await getWalletClient().writeContract({
+  const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'deposit',
-    args: [amount, leverageBps, updateData], value: fee, account, chain: inkSepolia,
+    args: [amount, leverageBps, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -473,12 +458,14 @@ export async function openPosition(amountUsdc, leverage) {
 export async function closePosition(amountUsdc) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
   const amount = parseUnits(amountUsdc, 6)
   const { updateData, fee } = await fetchPythUpdate()
 
-  const hash = await getWalletClient().writeContract({
+  const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'withdraw',
-    args: [amount, updateData], value: fee, account, chain: inkSepolia,
+    args: [amount, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -486,12 +473,14 @@ export async function closePosition(amountUsdc) {
 export async function adjustLeverage(newLeverage) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
   const leverageBps = Math.round(newLeverage * 10000)
   const { updateData, fee } = await fetchPythUpdate()
 
-  const hash = await getWalletClient().writeContract({
+  const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'adjustLeverage',
-    args: [leverageBps, updateData], value: fee, account, chain: inkSepolia,
+    args: [leverageBps, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -500,6 +489,8 @@ export async function depositJunior(amountUsdc) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   if (!ADDRESSES.usdc) throw new Error('USDC address not set')
   const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
   const amount = parseUnits(amountUsdc, 6)
 
   const allowance = await getAllowance(ADDRESSES.usdc, account, ADDRESSES.vault)
@@ -507,9 +498,9 @@ export async function depositJunior(amountUsdc) {
     await approveToken(ADDRESSES.usdc, ADDRESSES.vault, amount)
   }
 
-  const hash = await getWalletClient().writeContract({
+  const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'depositJunior',
-    args: [amount], account, chain: inkSepolia,
+    args: [amount], account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -517,11 +508,13 @@ export async function depositJunior(amountUsdc) {
 export async function withdrawJunior(shares) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
-  const amount = parseUnits(shares, 18)
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
+  const amount = parseUnits(shares, 6)
 
-  const hash = await getWalletClient().writeContract({
+  const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'withdrawJunior',
-    args: [amount], account, chain: inkSepolia,
+    args: [amount], account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }

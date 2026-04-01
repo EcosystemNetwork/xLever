@@ -37,10 +37,10 @@ const XMode = (() => {
       const icon = document.getElementById('modeBannerIcon');
       const text = document.getElementById('modeBannerText');
       if (mode === 'trade') {
-        if (icon) icon.textContent = '';
+        if (icon) icon.textContent = 'trending_up';
         if (text) text.textContent = 'Live Trading \u2014 Connected to Ink Sepolia testnet. Real wallet actions.';
       } else {
-        if (icon) icon.textContent = '';
+        if (icon) icon.textContent = 'science';
         if (text) text.textContent = 'Research Mode \u2014 Simulated backtests using Yahoo Finance data. No real funds.';
       }
     }

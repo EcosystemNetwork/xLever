@@ -126,32 +126,47 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     const amountParsed = parseUnits(amount.toString(), 6);
     const vaultAddress = VAULT_ADDRESSES[selectedAsset];
 
-    // Step 1: Approve USDC
-    console.log('Approving USDC...');
-    btn.textContent = 'Approving USDC...';
-    
-    let approveTx;
-    try {
-      approveTx = await walletClient.writeContract({
-        address: TOKEN_ADDRESSES.USDC,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [vaultAddress, amountParsed],
-        account: connectedAddress,
-        gas: 100000n,
-        maxFeePerGas: 2000000000n, // 2 gwei
-        maxPriorityFeePerGas: 1000000000n // 1 gwei
-      });
-      console.log('✓ Approval tx sent:', approveTx);
-    } catch (approveError) {
-      // Transaction was sent but RPC returned error - continue anyway
-      console.log('Approval sent (RPC error ignored):', approveError.message);
+    // Step 1: Check and approve USDC if needed
+    const currentAllowance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [connectedAddress, vaultAddress]
+    });
+
+    if (currentAllowance < amountParsed) {
+      console.log('Approving USDC (infinite approval)...');
+      btn.textContent = 'Approving USDC...';
+      
+      const MAX_UINT256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
+      
+      let approveTx;
+      try {
+        approveTx = await walletClient.writeContract({
+          address: TOKEN_ADDRESSES.USDC,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [vaultAddress, MAX_UINT256],
+          account: connectedAddress,
+          gas: 100000n,
+          maxFeePerGas: 2000000000n,
+          maxPriorityFeePerGas: 1000000000n
+        });
+        console.log('✓ Approval tx sent:', approveTx);
+      } catch (approveError) {
+        console.log('Approval sent (RPC error ignored):', approveError.message);
+      }
+      
+      btn.textContent = 'Approval pending...';
+      if (approveTx) {
+        try { await publicClient.waitForTransactionReceipt({ hash: approveTx }); }
+        catch { await new Promise(resolve => setTimeout(resolve, 5000)); }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    } else {
+      console.log('✓ USDC already approved, skipping...');
     }
-    
-    btn.textContent = 'Approval pending...';
-    
-    // Wait for approval to be mined
-    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Step 2: Deposit to vault
     console.log('Opening position...');
@@ -176,9 +191,14 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     }
     
     btn.textContent = 'Position opening...';
-    
+
     // Wait for deposit to be mined
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    if (depositTx) {
+      try { await publicClient.waitForTransactionReceipt({ hash: depositTx }); }
+      catch { await new Promise(resolve => setTimeout(resolve, 8000)); }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    }
 
     // Refresh data
     await fetchBalances();
@@ -349,12 +369,17 @@ window.closePosition = async function(asset, vaultAddress) {
     }
     
     // Wait for transaction to be mined
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    if (withdrawTx) {
+      try { await publicClient.waitForTransactionReceipt({ hash: withdrawTx }); }
+      catch { await new Promise(resolve => setTimeout(resolve, 8000)); }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    }
 
     // Refresh data
     await fetchBalances();
     await loadUserPositions();
-    
+
     showToast('Position closed successfully!', 'success');
   } catch (error) {
     console.error('Failed to close position:', error);

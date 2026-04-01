@@ -614,13 +614,11 @@ function initWalletListeners() {
       updateWalletUI(); // Show wallet panel immediately on page load if session persists
       fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
 
-      // Skip landing page — user already has an active wallet session, go straight to the app
-      const landing = document.getElementById('landingPage');
-      const navContainer = document.getElementById('xnavContainer');
-      const mainApp = document.getElementById('mainApp');
-      if (landing) landing.style.display = 'none';
-      if (navContainer) navContainer.style.display = 'block';
-      if (mainApp) mainApp.style.display = 'block';
+      // Skip landing page — user already has an active wallet session, go straight to dashboard
+      if (document.getElementById('landingPage')) {
+        window.location.href = '01-dashboard.html';
+        return;
+      }
     }
   } catch (e) {
     console.warn('Wallet reconnect check skipped:', e.message); // Non-fatal: user can manually reconnect via the AppKit button
@@ -1824,7 +1822,8 @@ function snapLeverage(raw) { // Snap leverage to clean increments — prevents a
   if (isDegenMode) {
     return Math.round(raw); // Degen mode: snap to whole numbers (10x, 25x, etc.) — 0.25 steps are meaningless at 100x
   } else {
-    return Math.round(raw * 4) / 4; // Normal mode: snap to 0.25 increments (1.0, 1.25, 1.5, 1.75, 2.0)
+// Snap to 0.1 increments for finer control
+    return Math.round(raw * 10) / 10;
   }
 }
 

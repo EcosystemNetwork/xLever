@@ -115,10 +115,10 @@ app.add_middleware(
     allow_origins=settings.CORS_ORIGINS,
     # Allow credentials so cookies/auth headers can be sent from the frontend
     allow_credentials=True,
-    # Wildcard methods because the API uses GET, POST, PATCH, DELETE across routes
-    allow_methods=["*"],
-    # Wildcard headers to accept Content-Type, Authorization, etc. without listing each
-    allow_headers=["*"],
+    # Explicit methods for security — only allow the HTTP verbs the API actually uses
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    # Explicit headers — only allow what the frontend actually sends
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Key", "X-Requested-With"],
 )
 
 # Security headers middleware — sets protective headers on every response
