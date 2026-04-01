@@ -73,9 +73,9 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
-    app.include_router(agent.router, prefix="/api", tags=["agent"])
-    app.include_router(positions.router, prefix="/api", tags=["positions"])
-    app.include_router(decisions.router, prefix="/api", tags=["decisions"])
+    app.include_router(agent.router, prefix="/api/agent", tags=["agent"])
+    app.include_router(positions.router, prefix="/api/positions", tags=["positions"])
+    app.include_router(decisions.router, prefix="/api/decisions", tags=["decisions"])
 
     # Health check endpoint
     @app.get("/", tags=["health"])
