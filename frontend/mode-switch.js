@@ -15,6 +15,10 @@ const XMode = (() => {
   }
 
   function set(mode) {
+    // Judge mode locks to trade — ignore mode switches
+    if (window.JudgeMode && window.JudgeMode.isActive()) {
+      mode = 'trade';
+    }
     if (!VALID_MODES.includes(mode)) return;
     localStorage.setItem(STORAGE_KEY, mode);
     apply(mode);

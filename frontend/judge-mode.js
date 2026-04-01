@@ -116,7 +116,9 @@ const JudgeMode = (() => {
 
       /* Hide degen mode toggle in judge mode */
       body.judge-mode #degenToggle,
+      body.judge-mode #degenModeBtn,
       body.judge-mode .degen-toggle,
+      body.judge-mode .degen-mode-btn,
       body.judge-mode [data-degen-toggle] {
         display: none !important;
       }

@@ -320,14 +320,18 @@ const XModal = (() => {
 
     if (isLive) {
       // ─── REAL TRANSACTION PATH ───
-      // Listen for the 'submitted' event from contracts.js to update UI as soon
-      // as the tx hash is known (before waiting for receipt).
-      const unsub = contracts.txEvents.on('submitted', ({ hash, explorerUrl: url }) => {
+      // Listen for lifecycle events from contracts.js to update UI through
+      // submitted → pending → confirmed/failed states.
+      const unsub = [];
+      unsub.push(contracts.txEvents.on('submitted', ({ hash, explorerUrl: url }) => {
         txHash = hash;
         explorerUrl = url;
         updateStatus('Transaction Submitted', 'Waiting for on-chain confirmation...');
         showExplorerLink(hash, url);
-      });
+      }));
+      unsub.push(contracts.txEvents.on('pending', ({ attempt, maxRetries }) => {
+        updateStatus('Confirming on Chain...', `Receipt polling attempt ${attempt + 1}/${maxRetries + 1}`);
+      }));
 
       try {
         updateStatus('Approving USDC...', 'Approve the spend in your wallet');
@@ -338,9 +342,9 @@ const XModal = (() => {
         // If the submitted event didn't fire (shouldn't happen), capture hash here
         txHash = result.hash;
         explorerUrl = explorerUrl || contracts.getExplorerUrl(txHash);
-        unsub(); // clean up listener
+        unsub.forEach(fn => fn()); // clean up listeners
       } catch (err) {
-        unsub();
+        unsub.forEach(fn => fn());
         // ─── CLASSIFIED ERROR STATE ───
         const classified = contracts.classifyTxError(err);
         // Build explorer link for the error UI if we got a hash before failure
@@ -970,6 +974,205 @@ if (typeof window !== 'undefined') {
 
 
 // ═══════════════════════════════════════════════════════════════
+// PRE-DEMO HEALTH CHECK PANEL
+// ═══════════════════════════════════════════════════════════════
+
+const XPreflight = (() => {
+  let panelEl = null;
+  let isRunning = false;
+
+  function init(containerSelector) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    panelEl = document.createElement('div');
+    panelEl.id = 'x-preflight-panel';
+    panelEl.style.cssText = `
+      background: #12141a; border: 1px solid #252833; border-radius: 8px;
+      padding: 16px 20px; margin-bottom: 16px; font-family: 'DM Sans', sans-serif;
+    `;
+    panelEl.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:#7c4dff;">preflight</span>
+          <span style="font-size:13px; font-weight:700; color:#e3e2e6; text-transform:uppercase; letter-spacing:1px;">Preflight Check</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="x-preflight-run" style="
+            padding:6px 14px; border-radius:4px; font-size:11px; font-weight:700;
+            background:#7c4dff; border:none; color:#fff; cursor:pointer;
+            text-transform:uppercase; letter-spacing:0.5px;
+          ">Run Check</button>
+          <button id="x-preflight-toggle" style="
+            padding:6px 8px; border-radius:4px; font-size:11px;
+            background:none; border:1px solid #252833; color:#8b8fa3; cursor:pointer;
+          ">
+            <span class="material-symbols-outlined" style="font-size:14px;">expand_more</span>
+          </button>
+        </div>
+      </div>
+      <div id="x-preflight-results" style="display:none;"></div>
+      <div id="x-preflight-summary" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#555970;">
+        Click "Run Check" to verify demo readiness
+      </div>
+    `;
+    container.prepend(panelEl);
+
+    panelEl.querySelector('#x-preflight-run').addEventListener('click', run);
+    panelEl.querySelector('#x-preflight-toggle').addEventListener('click', () => {
+      const results = panelEl.querySelector('#x-preflight-results');
+      const icon = panelEl.querySelector('#x-preflight-toggle .material-symbols-outlined');
+      if (results.style.display === 'none') {
+        results.style.display = 'block';
+        icon.textContent = 'expand_less';
+      } else {
+        results.style.display = 'none';
+        icon.textContent = 'expand_more';
+      }
+    });
+  }
+
+  async function run() {
+    if (isRunning) return;
+    isRunning = true;
+
+    const contracts = window.xLeverContracts;
+    if (!contracts || !contracts.runPreflight) {
+      XToast.show('Contracts module not loaded', 'error');
+      isRunning = false;
+      return;
+    }
+
+    const runBtn = panelEl.querySelector('#x-preflight-run');
+    const resultsEl = panelEl.querySelector('#x-preflight-results');
+    const summaryEl = panelEl.querySelector('#x-preflight-summary');
+
+    runBtn.textContent = 'Checking...';
+    runBtn.disabled = true;
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="color:#555970; font-size:11px;">Running checks...</div>';
+
+    try {
+      const checks = await contracts.runPreflight();
+      const allOk = checks.every(c => c.ok);
+      const passCount = checks.filter(c => c.ok).length;
+
+      resultsEl.innerHTML = checks.map(c => `
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #1a1c22;">
+          <span class="material-symbols-outlined" style="font-size:16px; color:${c.ok ? '#00e676' : '#ff5252'}; font-variation-settings:'FILL' 1;">
+            ${c.ok ? 'check_circle' : 'cancel'}
+          </span>
+          <span style="font-family:'DM Sans',sans-serif; font-size:12px; color:#e3e2e6; flex:1;">${escapeHTML(c.label)}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:${c.ok ? '#8b8fa3' : '#ff5252'};">${escapeHTML(c.detail)}</span>
+        </div>
+      `).join('');
+
+      summaryEl.innerHTML = allOk
+        ? '<span style="color:#00e676; font-weight:600;">All checks passed — ready for demo</span>'
+        : `<span style="color:#ffd740; font-weight:600;">${passCount}/${checks.length} checks passed</span>`;
+
+    } catch (err) {
+      resultsEl.innerHTML = `<div style="color:#ff5252; font-size:11px;">Preflight error: ${escapeHTML(err.message)}</div>`;
+      summaryEl.textContent = 'Preflight failed';
+    } finally {
+      runBtn.textContent = 'Run Check';
+      runBtn.disabled = false;
+      isRunning = false;
+    }
+  }
+
+  return { init, run };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// ONE-CLICK DEMO RESET / RELOAD
+// ═══════════════════════════════════════════════════════════════
+
+const XDemoReset = (() => {
+  function init(containerSelector) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'x-demo-reset';
+    btn.style.cssText = `
+      display:flex; align-items:center; gap:6px; padding:8px 16px;
+      border-radius:6px; font-family:'DM Sans',sans-serif; font-size:12px;
+      font-weight:700; cursor:pointer; transition:all 0.2s;
+      background:rgba(255,82,82,0.08); border:1px solid rgba(255,82,82,0.2);
+      color:#ff5252; text-transform:uppercase; letter-spacing:0.5px;
+      margin-bottom:12px; width:100%;
+    `;
+    btn.innerHTML = `
+      <span class="material-symbols-outlined" style="font-size:16px;">restart_alt</span>
+      Demo Reset
+    `;
+    btn.addEventListener('click', reset);
+    container.prepend(btn);
+  }
+
+  function reset() {
+    if (!confirm('Reset demo state? This will reload the page and clear session data.')) return;
+    // Clear any cached state
+    try {
+      sessionStorage.clear();
+    } catch {}
+    // Hard reload to reset all JS state
+    window.location.reload();
+  }
+
+  return { init, reset };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// TRANSACTION LIFECYCLE PANEL — shows tx states in the UI
+// ═══════════════════════════════════════════════════════════════
+
+const XTxTracker = (() => {
+  const STATE_STYLES = {
+    submitted: { icon: 'send', color: '#7c4dff', label: 'Submitted' },
+    pending:   { icon: 'hourglass_top', color: '#ffd740', label: 'Pending' },
+    confirmed: { icon: 'check_circle', color: '#00e676', label: 'Confirmed' },
+    failed:    { icon: 'cancel', color: '#ff5252', label: 'Failed' },
+    rejected:  { icon: 'block', color: '#ffd740', label: 'Rejected' },
+  };
+
+  function init() {
+    const contracts = window.xLeverContracts;
+    if (!contracts) return;
+
+    // Subscribe to all tx events and show inline toasts with explorer links
+    contracts.txEvents.on('submitted', ({ hash, explorerUrl }) => {
+      showTxToast('submitted', hash, explorerUrl);
+    });
+    contracts.txEvents.on('confirmed', ({ hash, explorerUrl }) => {
+      showTxToast('confirmed', hash, explorerUrl);
+    });
+    contracts.txEvents.on('failed', ({ hash, explorerUrl, error }) => {
+      showTxToast('failed', hash, explorerUrl, error);
+    });
+  }
+
+  function showTxToast(state, hash, explorerUrl, error) {
+    const s = STATE_STYLES[state];
+    const shortHash = hash ? `${hash.slice(0, 8)}...${hash.slice(-4)}` : '';
+    const link = (hash && explorerUrl) ? ` <a href="${explorerUrl}" target="_blank" rel="noopener" style="color:#7c4dff; text-decoration:underline;">View tx</a>` : '';
+
+    let msg = `${s.label}`;
+    if (shortHash) msg += `: ${shortHash}`;
+    if (error?.detail) msg += ` — ${error.detail}`;
+
+    const type = state === 'confirmed' ? 'success' : state === 'failed' ? 'error' : state === 'rejected' ? 'warning' : 'info';
+    XToast.show(msg, type, state === 'confirmed' || state === 'failed' ? 5000 : 3000);
+  }
+
+  return { init };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
 // AUTO-INIT
 // ═══════════════════════════════════════════════════════════════
 
@@ -981,4 +1184,9 @@ document.addEventListener('DOMContentLoaded', () => {
   XWallet.init();
   // Wire up the leverage slider, quick-select buttons, and drag handlers
   XLeverage.init();
+
+  // Init tx lifecycle tracker after a brief delay to ensure contracts.js is loaded
+  setTimeout(() => {
+    XTxTracker.init();
+  }, 500);
 });

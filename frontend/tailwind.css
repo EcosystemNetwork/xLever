@@ -1,2 +1,70 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
+
+/* ──────────────────────────────────────────────────────────
+   xLever Design System — Material Design 3 Dark Theme
+   Migrated from Tailwind v3 CDN config to v4 @theme syntax
+   so the Vite plugin can generate the correct utility classes.
+   ────────────────────────────────────────────────────────── */
+@theme {
+  /* Colors — Material Design 3 Dark palette */
+  --color-tertiary-container: #008441;
+  --color-surface-container-low: #1b1b1f;
+  --color-inverse-surface: #e3e2e6;
+  --color-on-secondary-fixed-variant: #004495;
+  --color-surface-container-highest: #343538;
+  --color-inverse-on-surface: #303034;
+  --color-primary-fixed: #e8deff;
+  --color-on-error-container: #ffdad6;
+  --color-secondary-container: #0066da;
+  --color-on-secondary: #002e6a;
+  --color-error-container: #93000a;
+  --color-surface-bright: #38393c;
+  --color-tertiary-fixed: #62ff96;
+  --color-background: #121316;
+  --color-secondary-fixed-dim: #adc6ff;
+  --color-surface-container: #1f1f23;
+  --color-on-surface-variant: #cac3d8;
+  --color-primary: #cdbdff;
+  --color-tertiary-fixed-dim: #00e475;
+  --color-error: #ffb4ab;
+  --color-on-surface: #e3e2e6;
+  --color-surface-container-high: #292a2d;
+  --color-surface-tint: #cdbdff;
+  --color-primary-container: #7c4dff;
+  --color-on-primary: #370096;
+  --color-on-secondary-fixed: #001a42;
+  --color-on-tertiary-fixed-variant: #005226;
+  --color-tertiary: #00e475;
+  --color-on-tertiary-fixed: #00210b;
+  --color-on-primary-container: #fcf6ff;
+  --color-outline: #948ea1;
+  --color-secondary: #adc6ff;
+  --color-inverse-primary: #6833ea;
+  --color-outline-variant: #494455;
+  --color-on-error: #690005;
+  --color-surface: #121316;
+  --color-surface-dim: #121316;
+  --color-on-primary-fixed-variant: #4f00d0;
+  --color-on-secondary-container: #e6ecff;
+  --color-secondary-fixed: #d8e2ff;
+  --color-surface-variant: #343538;
+  --color-on-tertiary-container: #e8ffe7;
+  --color-primary-fixed-dim: #cdbdff;
+  --color-on-tertiary: #003918;
+  --color-on-background: #e3e2e6;
+  --color-on-primary-fixed: #20005f;
+  --color-surface-container-lowest: #0d0e11;
+
+  /* Font families */
+  --font-headline: "DM Sans";
+  --font-body: "DM Sans";
+  --font-label: "DM Sans";
+  --font-mono: "JetBrains Mono";
+
+  /* Border radius */
+  --radius: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+}

@@ -173,6 +173,7 @@
 </div>
 </div>
 <!-- Nav + Risk Banner rendered by nav.js -->
+<script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('trading');</script>
 <div class="flex h-[calc(100vh-148px)] overflow-hidden" style="margin-top:36px">
@@ -793,6 +794,10 @@ document.addEventListener('DOMContentLoaded', () => {
     mode: 'disable',
     actionSelectors: ['#open-position-btn', '#executeTrade', '[data-action="trade"]']
   });
+  // Preflight health check panel — mounts above the order form in the right panel
+  XPreflight.init('#rightPanel .panel-content');
+  // Demo reset button — mounts at top of right panel
+  XDemoReset.init('#rightPanel .panel-content');
 });
 </script>
 <script src="chart-strategy-tools.js"></script>

@@ -1,20 +1,18 @@
-# xLever — Leveraged Tokenized Asset Protocol
+# xLever — Fixed-Entry Leverage on Tokenized Assets
 
-Continuous leverage from **-4x to +4x** on 33 tokenized assets without liquidation risk, powered by Euler V2 EVK.
+**-4x to +4x leverage** on 33 tokenized assets (equities, ETFs, commodities) via Euler V2 EVK on Ink Sepolia.
 
-**Live at [xlever.markets](https://xlever.markets)**
+**Live demo at [xlever.markets](https://xlever.markets)** | **[Submission Guide →](SUBMISSION.md)**
 
 ---
 
 ## What is xLever?
 
-xLever enables fixed-entry leverage on tokenized assets (wQQQx, wSPYx, and 31 more) through a two-tranche system built on Euler V2. Unlike daily-rebalanced ETFs (TQQQ, SPXL), leverage is locked at entry — no volatility decay, no daily reset.
+xLever enables fixed-entry leverage on tokenized assets (wQQQx, wSPYx, and 31 more) built on Euler V2. Unlike daily-rebalanced ETFs (TQQQ, SPXL), leverage is locked at entry — no volatility decay, no daily reset.
 
-**For Traders (Senior Tranche):** Deposit USDC, pick leverage (-4x to +4x), and your PnL = Deposit x Leverage x Price Change. Max loss = your deposit. No liquidation, no debt.
+**How it works today:** Deposit USDC into a VaultSimple contract, pick leverage (-4x to +4x), and your PnL = Deposit x Leverage x Price Change. Max loss = your deposit. Pyth oracle provides real-time pricing for 30+ assets.
 
-**For LPs (Junior Tranche):** Deposit USDC as first-loss capital protecting traders. Earn 70% of protocol fees. Higher risk, higher yield.
-
-**Why no liquidation?** Risk is socialized through the junior tranche instead of liquidating individuals. The protocol auto-deleverages the entire pool as health degrades.
+**What's next (designed, not yet deployed):** A modular Vault with junior tranche (first-loss LP capital), dynamic fees, Euler V2 hedging, and on-chain auto-deleverage. See [SUBMISSION.md](SUBMISSION.md) for the full live-vs-planned breakdown.
 
 ---
 

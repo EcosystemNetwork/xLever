@@ -733,6 +733,64 @@ export function formatPoolState(pool) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PRE-DEMO HEALTH CHECK (PREFLIGHT)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Runs a comprehensive preflight check for demo readiness.
+ * Returns an array of { key, label, ok, detail } items.
+ */
+export async function runPreflight() {
+  const checks = []
+
+  // 1. Wallet connected
+  let account = null
+  try {
+    account = await getAccount()
+    checks.push({ key: 'wallet', label: 'Wallet Connected', ok: true, detail: account.slice(0, 6) + '...' + account.slice(-4) })
+  } catch {
+    checks.push({ key: 'wallet', label: 'Wallet Connected', ok: false, detail: 'No wallet connected' })
+  }
+
+  // 2. Correct chain
+  try {
+    const chainId = await window.ethereum?.request({ method: 'eth_chainId' })
+    const current = parseInt(chainId, 16)
+    const expected = getActiveChainId()
+    checks.push({ key: 'chain', label: 'Correct Chain', ok: current === expected, detail: current === expected ? getActiveChainConfig().chain.name : `Expected ${expected}, got ${current}` })
+  } catch {
+    checks.push({ key: 'chain', label: 'Correct Chain', ok: false, detail: 'Cannot read chain ID' })
+  }
+
+  // 3. USDC balance
+  if (account) {
+    try {
+      const bal = await getBalance(ADDRESSES.usdc, account)
+      const hasBalance = parseFloat(bal.formatted) > 0
+      checks.push({ key: 'balance', label: 'USDC Balance', ok: hasBalance, detail: hasBalance ? `${parseFloat(bal.formatted).toFixed(2)} USDC` : '0 USDC' })
+    } catch {
+      checks.push({ key: 'balance', label: 'USDC Balance', ok: false, detail: 'Failed to read balance' })
+    }
+  } else {
+    checks.push({ key: 'balance', label: 'USDC Balance', ok: false, detail: 'Connect wallet first' })
+  }
+
+  // 4. Vault address loaded
+  const vaultAddr = ADDRESSES.vault
+  checks.push({ key: 'vault', label: 'Vault Address Loaded', ok: !!vaultAddr, detail: vaultAddr ? vaultAddr.slice(0, 10) + '...' : 'No vault set' })
+
+  // 5. RPC reachable
+  try {
+    const block = await getPublicClient().getBlockNumber()
+    checks.push({ key: 'rpc', label: 'RPC Reachable', ok: true, detail: `Block #${block.toLocaleString()}` })
+  } catch {
+    checks.push({ key: 'rpc', label: 'RPC Reachable', ok: false, detail: 'RPC request failed' })
+  }
+
+  return checks
+}
+
 // Expose globally for non-module scripts
 window.xLeverContracts = {
   ADDRESSES, setAddress, VAULT_REGISTRY, CHAIN_CONFIGS,
@@ -746,5 +804,6 @@ window.xLeverContracts = {
   getExplorerUrl, getAddressExplorerUrl,
   formatPosition, formatPoolState,
   getPublicClient, getWalletClient,
-  txEvents, classifyTxError,
+  txEvents, classifyTxError, TX_STATES,
+  runPreflight,
 }

@@ -1,106 +1,67 @@
 // ═══════════════════════════════════════════════════════════
-// VAULT INTERACTION FUNCTIONS
+// VAULT INTERACTION FUNCTIONS — receipt-driven via contracts.js
 // ═══════════════════════════════════════════════════════════
 
 // Deposit USDC into vault with leverage
+// Delegates to contracts.openPosition which handles:
+//   allowance check → approve (with waitForTx) → deposit → waitForTx
+//   All with retry, event emission, and structured errors.
 async function depositToVault(asset, amountUSDC, leverageBps) {
-  if (!walletClient || !connectedAddress) {
+  const contracts = window.xLeverContracts;
+  if (!contracts) throw new Error('Contract system not initialized');
+  if (!connectedAddress) {
     showToast('Please connect your wallet first', 'warning');
     return;
   }
 
-  try {
-    const vaultAddress = VAULT_ADDRESSES[asset];
-    if (!vaultAddress) {
-      throw new Error(`No vault found for ${asset}`);
-    }
+  const ticker = asset === 'wSPYx' ? 'SPY' : asset === 'wQQQx' ? 'QQQ' : asset;
+  contracts.setActiveAsset(ticker);
 
-    console.log(`Depositing ${amountUSDC} USDC to ${asset} vault with ${leverageBps/100}x leverage`);
+  const leverage = leverageBps / 10000;
+  console.log(`Depositing ${amountUSDC} USDC to ${asset} vault with ${leverage}x leverage`);
 
-    // Convert USDC amount to proper decimals (6 decimals)
-    const { parseUnits } = window.viem;
-    const amount = parseUnits(amountUSDC.toString(), 6);
+  // contracts.openPosition emits submitted/pending/confirmed/failed events
+  const { hash, receipt, explorerUrl } = await contracts.openPosition(
+    amountUSDC.toString(),
+    leverage
+  );
 
-    // Step 1: Approve USDC spending
-    console.log('Step 1: Approving USDC...');
-    const approveTx = await walletClient.writeContract({
-      address: TOKEN_ADDRESSES.USDC,
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [vaultAddress, amount],
-      account: connectedAddress
-    });
+  console.log('✓ Deposit confirmed:', hash);
 
-    console.log('Waiting for approval confirmation...');
-    await publicClient.waitForTransactionReceipt({ hash: approveTx });
-    console.log('✓ USDC approved');
+  // Refresh from confirmed chain state
+  await fetchBalances();
+  await fetchPosition(asset);
 
-    // Step 2: Deposit to vault
-    console.log('Step 2: Depositing to vault...');
-    const depositTx = await walletClient.writeContract({
-      address: vaultAddress,
-      abi: VAULT_ABI,
-      functionName: 'deposit',
-      args: [amount, leverageBps],
-      account: connectedAddress
-    });
-
-    console.log('Waiting for deposit confirmation...');
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: depositTx });
-    console.log('✓ Deposit successful!');
-
-    // Refresh balances
-    await fetchBalances();
-    await fetchPosition(asset);
-
-    return receipt;
-  } catch (error) {
-    console.error('Deposit failed:', error);
-    throw error;
-  }
+  return receipt;
 }
 
 // Withdraw from vault
+// Delegates to contracts.closePosition which handles:
+//   Pyth update → writeContract → waitForTx with retry
 async function withdrawFromVault(asset, amountUSDC) {
-  if (!walletClient || !connectedAddress) {
+  const contracts = window.xLeverContracts;
+  if (!contracts) throw new Error('Contract system not initialized');
+  if (!connectedAddress) {
     showToast('Please connect your wallet first', 'warning');
     return;
   }
 
-  try {
-    const vaultAddress = VAULT_ADDRESSES[asset];
-    if (!vaultAddress) {
-      throw new Error(`No vault found for ${asset}`);
-    }
+  const ticker = asset === 'wSPYx' ? 'SPY' : asset === 'wQQQx' ? 'QQQ' : asset;
+  contracts.setActiveAsset(ticker);
 
-    console.log(`Withdrawing ${amountUSDC} USDC from ${asset} vault`);
+  console.log(`Withdrawing ${amountUSDC} USDC from ${asset} vault`);
 
-    // Convert USDC amount to proper decimals (6 decimals)
-    const { parseUnits } = window.viem;
-    const amount = parseUnits(amountUSDC.toString(), 6);
+  const { hash, receipt, explorerUrl } = await contracts.closePosition(
+    amountUSDC.toString()
+  );
 
-    // Withdraw from vault
-    const withdrawTx = await walletClient.writeContract({
-      address: vaultAddress,
-      abi: VAULT_ABI,
-      functionName: 'withdraw',
-      args: [amount],
-      account: connectedAddress
-    });
+  console.log('✓ Withdrawal confirmed:', hash);
 
-    console.log('Waiting for withdrawal confirmation...');
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
-    console.log('✓ Withdrawal successful!');
+  // Refresh from confirmed chain state
+  await fetchBalances();
+  await fetchPosition(asset);
 
-    // Refresh balances
-    await fetchBalances();
-    await fetchPosition(asset);
-
-    return receipt;
-  } catch (error) {
-    console.error('Withdrawal failed:', error);
-    throw error;
-  }
+  return receipt;
 }
 
 // Fetch user's position in a vault
@@ -119,17 +80,12 @@ async function fetchPosition(asset) {
     });
 
     console.log(`Position in ${asset}:`, position);
-    
-    // Update UI with position info
+
     if (position.isActive) {
       const { formatUnits } = window.viem;
       const depositAmount = formatUnits(position.depositAmount, 6);
       const leverage = position.leverageBps / 100;
-      
       console.log(`Active position: ${depositAmount} USDC at ${leverage}x leverage`);
-      
-      // You can update UI elements here to show the position
-      // For example: document.getElementById('currentPosition').textContent = `${depositAmount} USDC @ ${leverage}x`;
     }
 
     return position;
@@ -143,14 +99,12 @@ async function fetchPosition(asset) {
 async function quickDeposit() {
   const depositAmount = document.getElementById('depositAmount')?.value;
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
-  
+
   if (!depositAmount || parseFloat(depositAmount) <= 0) {
     showToast('Please enter a valid deposit amount', 'warning');
     return;
   }
 
-  // Convert current leverage slider value to basis points
-  // currentLeverage is between -4 and +4, need to convert to basis points (-40000 to +40000)
   const leverageBps = Math.round(currentLeverage * 10000);
 
   try {
@@ -162,7 +116,10 @@ async function quickDeposit() {
     showToast('Deposit successful!', 'success');
     document.getElementById('depositAmount').value = '';
   } catch (error) {
-    showToast(`Deposit failed: ${error.message}`, 'error');
+    const contracts = window.xLeverContracts;
+    const classified = contracts?.classifyTxError?.(error) || { label: 'Error', detail: error.message };
+    const toastType = classified.type === 'wallet_rejected' ? 'warning' : 'error';
+    showToast(`${classified.label}: ${classified.detail}`, toastType);
   } finally {
     document.getElementById('depositBtn').disabled = false;
     document.getElementById('depositBtn').textContent = 'Deposit';
@@ -173,7 +130,7 @@ async function quickDeposit() {
 async function quickWithdraw() {
   const withdrawAmount = document.getElementById('withdrawAmount')?.value;
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
-  
+
   if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
     showToast('Please enter a valid withdrawal amount', 'warning');
     return;
@@ -188,7 +145,10 @@ async function quickWithdraw() {
     showToast('Withdrawal successful!', 'success');
     document.getElementById('withdrawAmount').value = '';
   } catch (error) {
-    showToast(`Withdrawal failed: ${error.message}`, 'error');
+    const contracts = window.xLeverContracts;
+    const classified = contracts?.classifyTxError?.(error) || { label: 'Error', detail: error.message };
+    const toastType = classified.type === 'wallet_rejected' ? 'warning' : 'error';
+    showToast(`${classified.label}: ${classified.detail}`, toastType);
   } finally {
     document.getElementById('withdrawBtn').disabled = false;
     document.getElementById('withdrawBtn').textContent = 'Withdraw';

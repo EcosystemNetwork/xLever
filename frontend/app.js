@@ -533,13 +533,14 @@ async function connectWallet() {
     });
 
     connectedAddress = accounts[0];
-    
+
     updateWalletUI();
     await fetchBalances();
     await updateJuniorUI();
-    
+
     localStorage.setItem('walletConnected', 'true');
     console.log('✓ Wallet connected:', connectedAddress);
+    window.dispatchEvent(new CustomEvent('appkit:connected'));
     
   } catch (error) {
     console.error('Failed to connect wallet:', error);
@@ -618,6 +619,8 @@ function initWalletListeners() {
         setTimeout(() => { connectHandled = false; }, 5000);
       }
 
+      window.dispatchEvent(new CustomEvent('appkit:connected'));
+
       // Redirect to dashboard after fresh wallet connection from the landing page
       if (document.getElementById('landingPage')) {
         window.location.href = '01-dashboard.html';
@@ -652,6 +655,7 @@ function initWalletListeners() {
       });
       updateWalletUI(); // Show wallet panel immediately on page load if session persists
       fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
+      window.dispatchEvent(new CustomEvent('appkit:connected'));
 
       // Skip landing page — user already has an active wallet session, go straight to dashboard
       if (document.getElementById('landingPage')) {

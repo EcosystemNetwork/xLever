@@ -24,6 +24,7 @@ const XNav = (() => {
 
   let _activePageId = null;
   let _isLanding = false;
+  let _isJudgeMode = false;
 
   function getMode() {
     return localStorage.getItem('xlever-mode') || 'trade';
@@ -40,6 +41,7 @@ const XNav = (() => {
   function init(activePageId) {
     _activePageId = activePageId;
     _isLanding = (activePageId === null);
+    _isJudgeMode = !!(window.JudgeMode && window.JudgeMode.isActive());
 
     const mode = getMode();
     document.body.classList.add(`mode-${mode}`);
@@ -66,10 +68,18 @@ const XNav = (() => {
   }
 
   function navLink(page, isActive) {
-    if (isActive) {
-      return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="${page.href}">${page.label}</a>`;
+    // In judge mode, add step numbers for the linear flow
+    let stepHtml = '';
+    if (_isJudgeMode && window.JudgeMode) {
+      const stepIdx = window.JudgeMode.JUDGE_PAGES.indexOf(page.id);
+      if (stepIdx !== -1) {
+        stepHtml = `<span class="judge-step${isActive ? ' active' : ''}">${stepIdx + 1}</span>`;
+      }
     }
-    return `<a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="${page.href}">${page.label}</a>`;
+    if (isActive) {
+      return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833] flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
+    }
+    return `<a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
   }
 
   function mobileLink(page, isActive) {
