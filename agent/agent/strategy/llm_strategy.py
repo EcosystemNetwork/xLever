@@ -135,28 +135,24 @@ class LLMStrategy:
         """
         logger.info(f"Generating trading decision for {market_state.asset}")
 
-        # Build prompt
-        prompt = self._build_prompt(
-            market_state=market_state,
-            current_position=current_position,
-            available_capital_usdc=available_capital_usdc,
-            max_leverage_bps=max_leverage_bps,
-        )
+        # Build a concise search query for Tavily (max 400 chars)
+        search_query = self._build_search_query(market_state, current_position)
 
         # Query LLM with retry logic
         for attempt in range(self.max_retries):
             try:
-                response = await self.tavily.query(
-                    prompt=prompt,
-                    system_prompt=self._get_system_prompt(),
-                    temperature=0.7,  # Some creativity but not too random
-                    max_tokens=800,
+                response = await self.tavily.search(
+                    query=search_query,
+                    include_answer=True,
+                    max_results=5,
                 )
 
-                # Parse response
-                decision = self._parse_response(
-                    content=response.content,
+                # Parse Tavily response into a trading decision
+                decision = self._parse_tavily_response(
+                    response=response,
                     asset=market_state.asset,
+                    available_capital_usdc=available_capital_usdc,
+                    max_leverage_bps=max_leverage_bps,
                 )
 
                 if decision.parse_success:
@@ -186,6 +182,36 @@ class LLMStrategy:
             asset=market_state.asset,
             reason="Unexpected error in decision generation",
         )
+
+    def _build_search_query(
+        self,
+        market_state: MarketState,
+        current_position: Optional[Position],
+    ) -> str:
+        """Build a concise search query for Tavily (max 400 chars).
+
+        Args:
+            market_state: Current market conditions
+            current_position: Active position if any
+
+        Returns:
+            Short search query string
+        """
+        ticker_map = {"wSPYx": "SPY", "wQQQx": "QQQ"}
+        ticker = ticker_map.get(market_state.asset, market_state.asset)
+
+        position_ctx = ""
+        if current_position and current_position.is_open:
+            position_ctx = f" Currently {current_position.direction.value} at {current_position.leverage_bps / 10000:.1f}x."
+
+        query = (
+            f"{ticker} stock market outlook today: price ${market_state.spot_price:.2f}, "
+            f"24h change {market_state.price_24h_change_pct:+.1f}%, "
+            f"volatility {market_state.volatility_24h_pct:.1f}%.{position_ctx} "
+            f"Should I buy, sell, or hold? Trading recommendation with confidence."
+        )
+
+        return query[:400]
 
     def _get_system_prompt(self) -> str:
         """Get system prompt for LLM.
@@ -377,6 +403,84 @@ Output ONLY valid JSON with your decision."""
                 reason=f"Parse error: {str(e)}",
                 raw_response=content,
             )
+
+    def _parse_tavily_response(
+        self,
+        response,
+        asset: str,
+        available_capital_usdc: float,
+        max_leverage_bps: int,
+    ) -> TradingDecision:
+        """Parse Tavily search response into a trading decision.
+
+        Uses keyword analysis on the AI-generated answer to determine
+        action, confidence, and sizing.
+
+        Args:
+            response: TavilyResponse from search
+            asset: Asset ticker
+            available_capital_usdc: Available capital
+            max_leverage_bps: Max allowed leverage
+
+        Returns:
+            Structured trading decision
+        """
+        content = response.content.lower()
+        answer = (response.answer or "").lower()
+        text = f"{answer} {content}"
+
+        # Sentiment scoring
+        bullish_words = ["buy", "bullish", "upgrade", "outperform", "rally", "gains", "upside", "strong", "positive", "accumulate"]
+        bearish_words = ["sell", "bearish", "downgrade", "underperform", "decline", "losses", "downside", "weak", "negative", "overvalued"]
+        hold_words = ["hold", "neutral", "mixed", "uncertain", "wait", "sideways", "range-bound"]
+
+        bull_score = sum(2 if w in answer else 1 for w in bullish_words if w in text)
+        bear_score = sum(2 if w in answer else 1 for w in bearish_words if w in text)
+        hold_score = sum(2 if w in answer else 1 for w in hold_words if w in text)
+
+        # Determine action and confidence
+        total = bull_score + bear_score + hold_score or 1
+
+        if bull_score > bear_score and bull_score > hold_score:
+            action = DecisionAction.OPEN_LONG
+            confidence = min(40 + int((bull_score / total) * 60), 95)
+            leverage_bps = min(20000, max_leverage_bps)  # Conservative 2x
+            size_usdc = available_capital_usdc * 0.15  # 15% of capital
+        elif bear_score > bull_score and bear_score > hold_score:
+            action = DecisionAction.OPEN_SHORT
+            confidence = min(40 + int((bear_score / total) * 60), 95)
+            leverage_bps = min(20000, max_leverage_bps)
+            size_usdc = available_capital_usdc * 0.15
+        else:
+            action = DecisionAction.HOLD
+            confidence = min(50 + int((hold_score / total) * 40), 85)
+            leverage_bps = None
+            size_usdc = None
+
+        # Scale leverage with confidence
+        if leverage_bps and confidence >= 75:
+            leverage_bps = min(30000, max_leverage_bps)  # 3x for high confidence
+        if size_usdc and confidence >= 80:
+            size_usdc = available_capital_usdc * 0.20  # 20% for high confidence
+
+        reasoning = response.answer or "Based on market search results"
+
+        logger.info(
+            f"Tavily analysis: bull={bull_score} bear={bear_score} hold={hold_score} "
+            f"-> {action.value} ({confidence}%)"
+        )
+
+        return TradingDecision(
+            action=action,
+            asset=asset,
+            leverage_bps=leverage_bps,
+            size_usdc=size_usdc,
+            confidence=confidence,
+            reasoning=reasoning[:500],
+            urgency=Urgency.MEDIUM if confidence >= 70 else Urgency.LOW,
+            raw_response=response.content[:1000],
+            parse_success=True,
+        )
 
     def _extract_json(self, content: str) -> Optional[Dict[str, Any]]:
         """Extract JSON from content, handling markdown wrappers.
