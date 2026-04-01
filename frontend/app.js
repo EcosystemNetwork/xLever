@@ -115,6 +115,49 @@ const VAULT_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'address' }]
+  },
+  {
+    name: 'getPoolState',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'totalSeniorDeposits', type: 'uint128' },
+        { name: 'totalJuniorDeposits', type: 'uint128' },
+        { name: 'grossLongExposure', type: 'uint128' },
+        { name: 'grossShortExposure', type: 'uint128' },
+        { name: 'netExposure', type: 'int256' },
+        { name: 'currentMaxLeverageBps', type: 'uint32' },
+        { name: 'protocolState', type: 'uint8' }
+      ]
+    }]
+  },
+  {
+    name: 'getMaxLeverage',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'maxLeverageBps', type: 'int32' }]
+  },
+  {
+    name: 'getFundingRate',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'rateBps', type: 'int256' }]
+  },
+  {
+    name: 'getCurrentTWAP',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'twap', type: 'uint128' },
+      { name: 'spreadBps', type: 'uint16' }
+    ]
   }
 ];
 
@@ -339,7 +382,9 @@ async function depositJunior() {
       functionName: 'approve',
       args: [vaultAddress, amount],
       account: connectedAddress,
-      gas: 100000n
+      gas: 100000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
     });
 
     console.log('Waiting for approval confirmation...');
@@ -353,7 +398,9 @@ async function depositJunior() {
       functionName: 'depositJunior',
       args: [amount],
       account: connectedAddress,
-      gas: 500000n
+      gas: 500000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
     });
 
     console.log('Waiting for deposit confirmation...');

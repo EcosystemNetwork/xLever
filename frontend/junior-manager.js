@@ -274,7 +274,9 @@ async function depositJuniorMultiAsset() {
       functionName: 'approve',
       args: [vaultAddress, amount],
       account: connectedAddress,
-      gas: 100000n
+      gas: 100000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
     });
 
     await publicClient.waitForTransactionReceipt({ hash: approveTx });
@@ -287,7 +289,9 @@ async function depositJuniorMultiAsset() {
       functionName: 'depositJunior',
       args: [amount],
       account: connectedAddress,
-      gas: 500000n
+      gas: 500000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
     });
 
     await publicClient.waitForTransactionReceipt({ hash: depositTx });
