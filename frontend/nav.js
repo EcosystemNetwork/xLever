@@ -17,7 +17,7 @@ const XNav = (() => {
     { id: 'risk',       label: 'Risk',        href: '05-risk-management.html',        mode: 'trade' },
     { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html',      mode: 'trade' },
     { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html',  mode: 'research' },
-    { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html',    mode: 'research' },
+    { id: 'auto',       label: 'Autonomous',  href: '03-ai-agent-operations.html',    mode: 'trade' },
     { id: 'operations', label: 'Operations',  href: '07-operations-control.html',     mode: null },
     { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html',        mode: null },
   ];
