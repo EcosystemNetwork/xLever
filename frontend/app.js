@@ -270,50 +270,33 @@ async function fetchJuniorPosition(vaultAddress) {
 async function updateJuniorUI() {
   if (!connectedAddress || !publicClient) return;
 
-  try {
-    // Fetch positions for both vaults
-    const wqqqxPosition = await fetchJuniorPosition(VAULT_ADDRESSES.wQQQx);
-    const wspyxPosition = await fetchJuniorPosition(VAULT_ADDRESSES.wSPYx);
-
-    // Check if junior tranche is available
-    if (!wqqqxPosition && !wspyxPosition) {
-      // No junior tranche support - show message
-      document.getElementById('yourJuniorPosition').textContent = 'Not Available';
-      document.getElementById('juniorTVL').textContent = 'Not Available';
-      document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
-      document.getElementById('poolUtilization').textContent = 'N/A';
-      console.log('⚠️ Junior tranche not available on deployed vaults');
-      return;
-    }
-
-    // Calculate total position value
-    const totalPosition = (wqqqxPosition?.userValue || 0) + (wspyxPosition?.userValue || 0);
-    const totalTVL = (wqqqxPosition?.totalValue || 0) + (wspyxPosition?.totalValue || 0);
-
-    // Update UI elements
-    document.getElementById('yourJuniorPosition').textContent = `$${totalPosition.toFixed(2)}`;
-    document.getElementById('juniorTVL').textContent = `$${totalTVL.toFixed(2)}`;
-    document.getElementById('juniorPositionWithdraw').textContent = `$${totalPosition.toFixed(2)}`;
-
-    // Calculate pool utilization - get actual senior deposits
-    let utilization = 0;
+  // Use the comprehensive junior page UI update if available
+  if (typeof updateJuniorPageUI === 'function') {
+    await updateJuniorPageUI();
+  } else {
+    // Fallback to basic update
     try {
-      const poolState = await publicClient.readContract({
+      const wqqqxPosition = await publicClient.readContract({
         address: VAULT_ADDRESSES.wQQQx,
         abi: VAULT_ABI,
-        functionName: 'getPoolState'
-      });
-      const seniorDeposits = parseFloat(poolState.totalSeniorDeposits || 0) / 1e6;
-      const totalPool = totalTVL + seniorDeposits;
-      utilization = totalPool > 0 ? Math.round((seniorDeposits / totalPool) * 100) : 0;
-    } catch (e) {
-      utilization = 0;
-    }
-    document.getElementById('poolUtilization').textContent = `${utilization}%`;
+        functionName: 'juniorTranche'
+      }).catch(() => null);
 
-    console.log('✓ Junior UI updated');
-  } catch (error) {
-    console.error('Failed to update junior UI:', error);
+      if (!wqqqxPosition) {
+        document.getElementById('yourJuniorPosition').textContent = 'Not Available';
+        document.getElementById('juniorTVL').textContent = 'Not Available';
+        document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
+        document.getElementById('poolUtilization').textContent = 'N/A';
+        return;
+      }
+
+      document.getElementById('yourJuniorPosition').textContent = '$0.00';
+      document.getElementById('juniorTVL').textContent = '$0.00';
+      document.getElementById('juniorPositionWithdraw').textContent = '$0.00';
+      document.getElementById('poolUtilization').textContent = '0%';
+    } catch (error) {
+      console.error('Error updating junior UI:', error);
+    }
   }
 }
 
@@ -355,7 +338,8 @@ async function depositJunior() {
       abi: ERC20_ABI,
       functionName: 'approve',
       args: [vaultAddress, amount],
-      account: connectedAddress
+      account: connectedAddress,
+      gas: 100000n
     });
 
     console.log('Waiting for approval confirmation...');
@@ -368,7 +352,8 @@ async function depositJunior() {
       abi: VAULT_ABI,
       functionName: 'depositJunior',
       args: [amount],
-      account: connectedAddress
+      account: connectedAddress,
+      gas: 500000n
     });
 
     console.log('Waiting for deposit confirmation...');
@@ -440,7 +425,8 @@ async function withdrawJunior() {
       abi: VAULT_ABI,
       functionName: 'withdrawJunior',
       args: [shares],
-      account: connectedAddress
+      account: connectedAddress,
+      gas: 500000n
     });
 
     console.log('Waiting for withdrawal confirmation...');

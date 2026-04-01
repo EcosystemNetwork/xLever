@@ -593,23 +593,23 @@
       </div>
 
       <div class="panel-section">
-        <div class="panel-title">Historical Performance</div>
+        <div class="panel-title">Real-Time Metrics</div>
         <div class="historical-stats">
           <div class="hist-stat">
-            <div class="hist-label">30-Day APY</div>
-            <div class="hist-value positive">+14.2%</div>
+            <div class="hist-label">Share Price</div>
+            <div class="hist-value" id="juniorSharePrice">$1.00</div>
           </div>
           <div class="hist-stat">
-            <div class="hist-label">90-Day APY</div>
-            <div class="hist-value positive">+11.8%</div>
+            <div class="hist-label">Total Shares</div>
+            <div class="hist-value" id="juniorTotalShares">0</div>
           </div>
           <div class="hist-stat">
-            <div class="hist-label">Max Drawdown</div>
-            <div class="hist-value negative">-8.5%</div>
+            <div class="hist-label">Your Shares</div>
+            <div class="hist-value" id="juniorUserShares">0</div>
           </div>
           <div class="hist-stat">
-            <div class="hist-label">Loss Events</div>
-            <div class="hist-value">2</div>
+            <div class="hist-label">Max Leverage</div>
+            <div class="hist-value" id="juniorMaxLeverage">4.0×</div>
           </div>
         </div>
       </div>
@@ -624,5 +624,24 @@
 <script src="app.js"></script>
 <script src="vault-functions.js"></script>
 <script src="position-manager.js"></script>
+<script src="junior-manager.js"></script>
+<script>
+// Initialize junior page when switching to it
+document.addEventListener('DOMContentLoaded', () => {
+  const juniorBtn = document.getElementById('juniorBtn');
+  if (juniorBtn) {
+    juniorBtn.addEventListener('click', () => {
+      setTimeout(() => {
+        if (typeof initJuniorPage === 'function') {
+          initJuniorPage();
+        }
+        if (typeof updateJuniorPageUI === 'function') {
+          updateJuniorPageUI();
+        }
+      }, 100);
+    });
+  }
+});
+</script>
 </body>
 </html>
