@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever | Vault Management Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "inverse-surface": "#e3e2e6",
+          "tertiary": "#00e475",
+          "inverse-on-surface": "#303034",
+          "background": "#121316",
+          "secondary-container": "#0066da",
+          "on-primary-fixed-variant": "#4f00d0",
+          "on-primary-fixed": "#20005f",
+          "on-primary": "#370096",
+          "outline": "#948ea1",
+          "on-primary-container": "#fcf6ff",
+          "on-background": "#e3e2e6",
+          "secondary-fixed-dim": "#adc6ff",
+          "surface-bright": "#38393c",
+          "surface-container-lowest": "#0d0e11",
+          "tertiary-fixed-dim": "#00e475",
+          "on-tertiary": "#003918",
+          "secondary": "#adc6ff",
+          "surface-variant": "#343538",
+          "on-error-container": "#ffdad6",
+          "outline-variant": "#494455",
+          "on-tertiary-fixed": "#00210b",
+          "primary-fixed": "#e8deff",
+          "on-error": "#690005",
+          "surface-dim": "#121316",
+          "on-tertiary-fixed-variant": "#005226",
+          "on-surface-variant": "#cac3d8",
+          "inverse-primary": "#6833ea",
+          "error-container": "#93000a",
+          "surface-container-highest": "#343538",
+          "on-tertiary-container": "#e8ffe7",
+          "on-secondary-fixed-variant": "#004495",
+          "on-secondary": "#002e6a",
+          "error": "#ffb4ab",
+          "secondary-fixed": "#d8e2ff",
+          "tertiary-fixed": "#62ff96",
+          "primary-fixed-dim": "#cdbdff",
+          "surface-container-low": "#1b1b1f",
+          "tertiary-container": "#008441",
+          "surface-tint": "#cdbdff",
+          "surface-container-high": "#292a2d",
+          "surface": "#121316",
+          "on-surface": "#e3e2e6",
+          "on-secondary-container": "#e6ecff",
+          "primary-container": "#7c4dff",
+          "on-secondary-fixed": "#001a42",
+          "surface-container": "#1f1f23",
+          "primary": "#cdbdff"
+        },
+        fontFamily: {
+          "headline": ["Space Grotesk"],
+          "body": ["Inter"],
+          "label": ["Inter"],
+          "mono": ["JetBrains Mono"]
+        },
+        borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+      },
+    },
+  }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #0d0e11;
+            color: #e3e2e6;
+            font-family: 'Inter', sans-serif;
+        }
+        .mono-data {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121316;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #343538;
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface">
+<script src="nav.js"></script>
+<script>XNav.init('vaults');</script>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0d0e11] flex flex-col py-4 border-r border-outline-variant/30">
+<div class="px-6 py-4 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center border border-outline-variant/50">
+<span class="material-symbols-outlined text-primary text-sm">terminal</span>
+</div>
+<div>
+<div class="text-[10px] uppercase tracking-widest text-outline">Node Status</div>
+<div class="text-xs font-mono text-tertiary">EULER V2 ACTIVE</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1 font-['Space_Grotesk'] font-medium text-xs uppercase tracking-widest">
+<a class="flex items-center gap-4 px-6 py-3 text-[#938f99] hover:bg-[#1b1b1f] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">terminal</span> Dashboard
+            </a>
+<a class="flex items-center gap-4 px-6 py-3 text-[#cdbdff] bg-[#1f1f23] border-l-4 border-[#7c4dff] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">show_chart</span> Trading
+            </a>
+<a class="flex items-center gap-4 px-6 py-3 text-[#938f99] hover:bg-[#1b1b1f] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">rss_feed</span> AI Agents
+            </a>
+<a class="flex items-center gap-4 px-6 py-3 text-[#938f99] hover:bg-[#1b1b1f] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">history</span> Vaults
+            </a>
+</nav>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full py-3 bg-surface-container-high border border-outline-variant/30 text-primary text-[10px] uppercase tracking-[0.2em] hover:bg-surface-container-highest transition-colors">
+                New Position
+            </button>
+<div class="flex flex-col gap-1 font-['Space_Grotesk'] font-medium text-xs uppercase tracking-widest">
+<a class="flex items-center gap-3 px-2 py-2 text-[#938f99] hover:text-[#e3e2e6]" href="#">
+<span class="material-symbols-outlined text-sm">settings</span> Settings
+                </a>
+<a class="flex items-center gap-3 px-2 py-2 text-[#938f99] hover:text-[#e3e2e6]" href="#">
+<span class="material-symbols-outlined text-sm">help_outline</span> Support
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 p-8 mb-8 pb-12">
+<!-- Header Section -->
+<div class="flex justify-between items-end mb-10">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<h1 class="text-3xl font-headline font-bold tracking-tight text-on-surface">Vault Management</h1>
+<span class="px-2 py-0.5 bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-wider rounded border border-primary/30">Euler V2 Integration</span>
+</div>
+<p class="text-outline text-sm font-body">Institutional leverage engine powered by modular liquidity hooks.</p>
+</div>
+<div class="text-right">
+<div class="text-[10px] uppercase tracking-widest text-outline mb-1">Total Network TVL</div>
+<div class="text-4xl font-mono font-medium text-on-surface tracking-tighter">$124,702,941</div>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-6">
+<!-- Left Column: Vaults & Tranches -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Vault Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Vault Card 1 -->
+<div class="bg-surface-container-low p-5 border border-outline-variant/20 hover:border-primary/40 transition-colors group">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline font-bold text-lg mb-1">QQQx 3× Leverage Vault</h3>
+<span class="text-[10px] px-2 py-0.5 bg-surface-container-highest text-outline uppercase tracking-wider">Aggressive</span>
+</div>
+<div class="text-right">
+<div class="text-tertiary font-mono text-xl font-bold">24.3% APY</div>
+<div class="text-[10px] text-outline uppercase tracking-widest">Compounding</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Total TVL</div>
+<div class="font-mono text-sm">$45.2M</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Your Deposit</div>
+<div class="font-mono text-sm text-primary">$125,000.00</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Earned (30d)</div>
+<div class="font-mono text-sm text-tertiary">+$4,281.44</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Utilization</div>
+<div class="font-mono text-sm text-on-surface">78.0%</div>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 overflow-hidden">
+<div class="bg-gradient-to-r from-tertiary to-tertiary-container h-full" style="width: 78%"></div>
+</div>
+</div>
+<!-- Vault Card 2 -->
+<div class="bg-surface-container-low p-5 border border-outline-variant/20 hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline font-bold text-lg mb-1">NVDAx 2× Leverage Vault</h3>
+<span class="text-[10px] px-2 py-0.5 bg-surface-container-highest text-outline uppercase tracking-wider">Moderate</span>
+</div>
+<div class="text-right">
+<div class="text-on-surface font-mono text-xl font-bold">18.7% APY</div>
+<div class="text-[10px] text-outline uppercase tracking-widest">Fixed Variable</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Total TVL</div>
+<div class="font-mono text-sm">$32.1M</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Your Deposit</div>
+<div class="font-mono text-sm text-primary">$75,000.00</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Earned (30d)</div>
+<div class="font-mono text-sm text-tertiary">+$2,103.12</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Utilization</div>
+<div class="font-mono text-sm text-on-surface">65.0%</div>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 overflow-hidden">
+<div class="bg-gradient-to-r from-tertiary to-tertiary-container h-full" style="width: 65%"></div>
+</div>
+</div>
+<!-- Vault Card 3 -->
+<div class="bg-surface-container-low p-5 border border-outline-variant/20 hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline font-bold text-lg mb-1">SPYx 1.5× Conservative Vault</h3>
+<span class="text-[10px] px-2 py-0.5 bg-surface-container-highest text-outline uppercase tracking-wider">Stable</span>
+</div>
+<div class="text-right">
+<div class="text-on-surface font-mono text-xl font-bold">12.1% APY</div>
+<div class="text-[10px] text-outline uppercase tracking-widest">Base Rate</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Total TVL</div>
+<div class="font-mono text-sm">$28.4M</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Your Deposit</div>
+<div class="font-mono text-sm text-primary">$50,000.00</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Earned (30d)</div>
+<div class="font-mono text-sm text-tertiary">+$891.05</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Utilization</div>
+<div class="font-mono text-sm text-on-surface">52.0%</div>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 overflow-hidden">
+<div class="bg-gradient-to-r from-tertiary to-tertiary-container h-full" style="width: 52%"></div>
+</div>
+</div>
+<!-- Vault Card 4 (Not Deposited) -->
+<div class="bg-surface-container-low p-5 border border-outline-variant/20 hover:border-primary/40 transition-colors border-dashed">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline font-bold text-lg mb-1 text-outline">TSLAx 2× Balanced Vault</h3>
+<span class="text-[10px] px-2 py-0.5 bg-surface-container-highest text-outline uppercase tracking-wider">Passive</span>
+</div>
+<div class="text-right">
+<div class="text-outline font-mono text-xl font-bold">15.8% APY</div>
+<div class="text-[10px] text-outline uppercase tracking-widest">Market Cap</div>
+</div>
+</div>
+<div class="flex flex-col items-center justify-center h-24 bg-surface-container-lowest/50 border border-outline-variant/10">
+<button class="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 px-6 py-2 rounded text-xs font-bold tracking-widest uppercase transition-all">
+                                Deposit
+                            </button>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-4 opacity-50">
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Total TVL</div>
+<div class="font-mono text-xs">$19.0M</div>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-1">Risk Rating</div>
+<div class="font-mono text-xs">AA+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tranche Visualization -->
+<div class="bg-surface-container p-6 border border-outline-variant/20">
+<h2 class="font-headline font-bold text-sm uppercase tracking-widest mb-6">Risk Tranche Segmentation</h2>
+<div class="flex h-12 w-full gap-1 mb-8">
+<div class="bg-error-container/40 border-l-2 border-error flex items-center px-3" style="width: 30%">
+<span class="font-mono text-xs text-error font-bold">JUNIOR (30%)</span>
+</div>
+<div class="bg-secondary-container/20 border-l-2 border-secondary flex items-center px-3" style="width: 25%">
+<span class="font-mono text-xs text-secondary font-bold">MEZZANINE (25%)</span>
+</div>
+<div class="bg-tertiary-container/20 border-l-2 border-tertiary flex items-center px-3" style="width: 45%">
+<span class="font-mono text-xs text-tertiary font-bold">SENIOR (45%)</span>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-8">
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-2">Junior APY</div>
+<div class="text-xl font-mono text-error">42.8%</div>
+<p class="text-[10px] text-outline-variant mt-1 leading-relaxed">High yield, first loss capital. 3x leverage multiplier applied.</p>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-2">Mezzanine APY</div>
+<div class="text-xl font-mono text-secondary">19.5%</div>
+<p class="text-[10px] text-outline-variant mt-1 leading-relaxed">Balanced risk, second loss priority. 1.5x leverage cap.</p>
+</div>
+<div>
+<div class="text-[10px] text-outline uppercase tracking-widest mb-2">Senior APY</div>
+<div class="text-xl font-mono text-tertiary">8.2%</div>
+<p class="text-[10px] text-outline-variant mt-1 leading-relaxed">Protected capital, preferential liquidation rights.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Transaction Panel -->
+<div class="col-span-12 lg:col-span-4">
+<div class="sticky top-24 bg-surface-container-low border border-outline-variant/20">
+<div class="flex border-b border-outline-variant/30">
+<button class="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest bg-surface-container-high border-b-2 border-primary text-primary">Deposit</button>
+<button class="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-outline hover:text-on-surface transition-colors">Withdraw</button>
+</div>
+<div class="p-6 space-y-6">
+<div>
+<label class="text-[10px] text-outline uppercase tracking-widest mb-3 block">Select Asset</label>
+<div class="flex items-center justify-between p-3 bg-surface-container-lowest border-b-2 border-outline-variant">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">USDC</div>
+<span class="font-headline font-medium text-sm">USDC Coin</span>
+</div>
+<span class="material-symbols-outlined text-outline">expand_more</span>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-3">
+<label class="text-[10px] text-outline uppercase tracking-widest block">Amount</label>
+<span class="text-[10px] font-mono text-outline">Balance: 42,081.22</span>
+</div>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-0 border-b-2 border-outline-variant focus:border-tertiary focus:ring-0 text-xl font-mono p-3 pr-16 text-on-surface" type="text" value="10,000.00"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-primary uppercase tracking-wider hover:bg-primary/10 px-2 py-1">Max</button>
+</div>
+</div>
+<div class="space-y-3 pt-2">
+<div class="flex justify-between items-center text-xs">
+<span class="text-outline">Estimated APY</span>
+<span class="font-mono text-tertiary">24.30%</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-outline">Deposit Fee</span>
+<span class="font-mono">0.10% ($10.00)</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-outline">Slippage Tolerance</span>
+<span class="font-mono">0.5%</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-outline">Vault Utilization Impact</span>
+<span class="font-mono text-secondary">+0.04%</span>
+</div>
+</div>
+<button class="w-full bg-tertiary-container py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-tertiary-container hover:brightness-110 active:scale-[0.98] transition-all">
+                            Confirm Deposit
+                        </button>
+<div class="pt-6 border-t border-outline-variant/20">
+<h4 class="text-[10px] text-outline uppercase tracking-widest mb-4">Live Transaction Sequence</h4>
+<div class="space-y-4">
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-tertiary text-lg">check_circle</span>
+<div class="w-0.5 h-full bg-outline-variant/30 mt-1"></div>
+</div>
+<div>
+<div class="text-[11px] font-bold uppercase tracking-tight">Approve USDC</div>
+<div class="text-[10px] text-outline font-mono">Tx: 0x48a...e21</div>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-primary text-lg animate-pulse">pending</span>
+<div class="w-0.5 h-full bg-outline-variant/30 mt-1"></div>
+</div>
+<div>
+<div class="text-[11px] font-bold uppercase tracking-tight text-on-surface">Execute Vault Strategy</div>
+<div class="text-[10px] text-outline font-mono">Routing via Euler V2...</div>
+</div>
+</div>
+<div class="flex gap-4 opacity-40">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-outline text-lg">circle</span>
+</div>
+<div>
+<div class="text-[11px] font-bold uppercase tracking-tight">Issue LP Tokens</div>
+<div class="text-[10px] text-outline font-mono">Pending previous step</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Section: Liquidity Pools -->
+<div class="col-span-12 mt-8">
+<div class="bg-surface-container-low border border-outline-variant/20 overflow-hidden">
+<div class="p-6 border-b border-outline-variant/20 flex justify-between items-center">
+<h2 class="font-headline font-bold text-sm uppercase tracking-widest">Global Liquidity Pool Composition</h2>
+<div class="flex gap-2">
+<div class="flex items-center gap-1.5 px-3 py-1 bg-surface-container-highest rounded-full">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<span class="text-[10px] font-mono text-on-surface">HEALTH: OPTIMAL</span>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="border-b border-outline-variant/10 text-[10px] uppercase tracking-widest text-outline">
+<th class="px-6 py-4 font-medium">Pool Name / Composition</th>
+<th class="px-6 py-4 font-medium">Network TVL</th>
+<th class="px-6 py-4 font-medium">Yield APY</th>
+<th class="px-6 py-4 font-medium">Your Share</th>
+<th class="px-6 py-4 font-medium">24H Volume</th>
+<th class="px-6 py-4 font-medium">7D Fees Earned</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col gap-2">
+<span class="text-xs font-bold font-headline">QQQx/USDC Core Vault</span>
+<div class="flex h-1 w-32 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary w-2/3 h-full"></div>
+<div class="bg-secondary w-1/3 h-full"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 font-mono text-sm">$48,201,102</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">14.2%</td>
+<td class="px-6 py-4 font-mono text-sm">2.41%</td>
+<td class="px-6 py-4 font-mono text-sm text-outline">$2.4M</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">+$12,408</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col gap-2">
+<span class="text-xs font-bold font-headline">NVDAx/USDC Leverage Pool</span>
+<div class="flex h-1 w-32 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary w-1/2 h-full"></div>
+<div class="bg-secondary w-1/2 h-full"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 font-mono text-sm">$32,590,119</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">18.7%</td>
+<td class="px-6 py-4 font-mono text-sm">0.82%</td>
+<td class="px-6 py-4 font-mono text-sm text-outline">$1.9M</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">+$8,941</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col gap-2">
+<span class="text-xs font-bold font-headline">SPYx/USDC Buffer Pool</span>
+<div class="flex h-1 w-32 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-secondary w-4/5 h-full"></div>
+<div class="bg-primary w-1/5 h-full"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 font-mono text-sm">$15,400,281</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">9.4%</td>
+<td class="px-6 py-4 font-mono text-sm">--</td>
+<td class="px-6 py-4 font-mono text-sm text-outline">$450K</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">+$1,202</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col gap-2">
+<span class="text-xs font-bold font-headline">TSLAx/USDC Delta-Neutral</span>
+<div class="flex h-1 w-32 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-tertiary w-full h-full"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 font-mono text-sm">$12,904,000</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">22.1%</td>
+<td class="px-6 py-4 font-mono text-sm">0.15%</td>
+<td class="px-6 py-4 font-mono text-sm text-outline">$3.1M</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">+$14,582</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col gap-2">
+<span class="text-xs font-bold font-headline">AAPLx/USDC Yield Vault</span>
+<div class="flex h-1 w-32 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary w-1/4 h-full"></div>
+<div class="bg-secondary w-3/4 h-full"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 font-mono text-sm">$8,291,550</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">31.2%</td>
+<td class="px-6 py-4 font-mono text-sm">--</td>
+<td class="px-6 py-4 font-mono text-sm text-outline">$120K</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">+$952</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col gap-2">
+<span class="text-xs font-bold font-headline">COINx/USDC Hedging Engine</span>
+<div class="flex h-1 w-32 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-secondary w-1/3 h-full"></div>
+<div class="bg-tertiary w-2/3 h-full"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 font-mono text-sm">$7,312,890</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">26.5%</td>
+<td class="px-6 py-4 font-mono text-sm">--</td>
+<td class="px-6 py-4 font-mono text-sm text-outline">$840K</td>
+<td class="px-6 py-4 font-mono text-sm text-tertiary">+$4,821</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full z-50 bg-[#0d0e11] border-t border-[#494455]/30 flex justify-between items-center px-4 h-8 w-full font-['JetBrains_Mono'] text-[10px] uppercase">
+<div class="flex items-center gap-6">
+<span class="text-[#e3e2e6] font-bold">xLever Protocol v2.4.1</span>
+<div class="flex gap-4 text-[#938f99]">
+<span class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-tertiary"></div> Mainnet: Online</span>
+<span class="hover:text-[#e3e2e6] cursor-default transition-colors">Gas: 12 Gwei</span>
+<span class="hover:text-[#e3e2e6] cursor-default transition-colors">Block: 18420912</span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-[#938f99]">
+<a class="hover:text-[#e3e2e6] transition-colors" href="#">Docs</a>
+<span class="text-tertiary">Audited by Zellic</span>
+</div>
+</footer>
+<script type="module" src="wallet.js"></script>
+<script type="module" src="pyth.js"></script>
+<script type="module" src="contracts.js"></script>
+<script src="ux.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Make Confirm Deposit button interactive
+  document.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent.trim() === 'Confirm Deposit') {
+      btn.addEventListener('click', () => {
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;animation:spin 0.8s linear infinite;">progress_activity</span> Processing Deposit...</span>';
+
+        // Animate the transaction sequence steps
+        const steps = btn.closest('.space-y-5, div')?.parentElement?.querySelectorAll('.flex.gap-4');
+
+        setTimeout(() => {
+          btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;color:#00e676;font-variation-settings:\'FILL\' 1;">check_circle</span> Deposit Confirmed</span>';
+          btn.style.background = '#00e676';
+          btn.style.color = '#003918';
+          XToast.show('Vault deposit of 5,000 USDC confirmed', 'success');
+          setTimeout(() => {
+            btn.innerHTML = original;
+            btn.style.background = '';
+            btn.style.color = '';
+            btn.disabled = false;
+          }, 3000);
+        }, 2500);
+      });
+    }
+    // Make vault card "Deposit" buttons show toast
+    if (btn.textContent.trim() === 'Deposit' && btn.classList.contains('bg-tertiary-container/15')) {
+      btn.addEventListener('click', () => {
+        XToast.show('Select a vault amount to deposit', 'info', 2500);
+      });
+    }
+  });
+
+  // Deposit/Withdraw tab toggle
+  const tabBtns = document.querySelectorAll('button');
+  tabBtns.forEach(btn => {
+    if (btn.textContent.trim() === 'Withdraw') {
+      btn.addEventListener('click', () => {
+        XToast.show('Withdraw functionality — select vault and amount', 'info', 2500);
+      });
+    }
+  });
+});
+</script>
+</body></html>

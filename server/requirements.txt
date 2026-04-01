@@ -1,0 +1,23 @@
+# FastAPI + server
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-dotenv==1.0.1
+httpx==0.27.2
+
+# Database
+sqlalchemy==2.0.35
+asyncpg==0.29.0
+alembic==1.13.3
+
+# Redis cache
+redis==5.1.1
+
+# Auth
+siwe==4.3.0
+pydantic[email]==2.9.2
+
+# CORS
+python-multipart==0.0.12
+
+# OpenBB intelligence layer
+openbb[all]>=4.0

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>xLever Operations Control</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed": "#20005f",
+                        "background": "#121316",
+                        "on-secondary-container": "#b0b4c9",
+                        "tertiary-container": "#196ee2",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#004495",
+                        "inverse-on-surface": "#303034",
+                        "outline": "#948ea1",
+                        "surface-container-lowest": "#0d0e11",
+                        "secondary-fixed-dim": "#c2c5db",
+                        "primary": "#cdbdff",
+                        "error-container": "#93000a",
+                        "on-primary-fixed-variant": "#4f00d0",
+                        "primary-container": "#7c4dff",
+                        "secondary": "#c2c5db",
+                        "surface-variant": "#343538",
+                        "tertiary-fixed-dim": "#adc6ff",
+                        "surface-container": "#1f1f23",
+                        "on-tertiary-container": "#f8f8ff",
+                        "surface-container-high": "#292a2d",
+                        "on-tertiary": "#002e6a",
+                        "on-primary-container": "#fcf6ff",
+                        "error": "#ffb4ab",
+                        "inverse-primary": "#6833ea",
+                        "on-surface": "#e3e2e6",
+                        "tertiary-fixed": "#d8e2ff",
+                        "on-tertiary-fixed": "#001a42",
+                        "secondary-container": "#424658",
+                        "surface-bright": "#38393c",
+                        "inverse-surface": "#e3e2e6",
+                        "primary-fixed": "#e8deff",
+                        "on-secondary": "#2b3040",
+                        "on-secondary-fixed": "#161b2b",
+                        "surface-container-highest": "#343538",
+                        "surface": "#121316",
+                        "on-background": "#e3e2e6",
+                        "on-primary": "#370096",
+                        "surface-tint": "#cdbdff",
+                        "on-surface-variant": "#cac3d8",
+                        "surface-container-low": "#1b1b1f",
+                        "on-secondary-fixed-variant": "#424658",
+                        "primary-fixed-dim": "#cdbdff",
+                        "tertiary": "#adc6ff",
+                        "secondary-fixed": "#dee1f7",
+                        "surface-dim": "#121316",
+                        "outline-variant": "#494455",
+                        "on-error": "#690005"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .data-pulse { width: 8px; height: 8px; background-color: #00e676; border-radius: 50%; box-shadow: 0 0 0 rgba(0, 230, 118, 0.4); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0d0e11; }
+        ::-webkit-scrollbar-thumb { background: #292a2d; border-radius: 2px; }
+        .ghost-border { border: 1px solid rgba(73, 68, 85, 0.25); }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<script src="nav.js"></script>
+<script>XNav.init('operations');</script>
+<!-- Side Navigation Shell -->
+<aside class="fixed left-0 top-14 h-[calc(100vh-56px)] w-64 bg-[#1b1b1f] flex flex-col py-4 z-40 hidden md:flex">
+<div class="px-6 mb-8">
+<h2 class="text-[#e3e2e6] font-bold text-xs uppercase tracking-widest">Terminal</h2>
+<p class="text-[10px] text-on-surface-variant font-mono">v4.2.0-stable</p>
+</div>
+<nav class="flex-grow">
+<ul class="space-y-1">
+<li class="px-4">
+<a class="flex items-center gap-3 py-2 px-3 text-[#e3e2e6] bg-[#292a2d] border-l-4 border-[#7C4DFF] translate-x-1 transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">monitor_heart</span>
+<span class="font-medium text-xs">System Health</span>
+</a>
+</li>
+<li class="px-4">
+<a class="flex items-center gap-3 py-2 px-3 text-[#e3e2e6]/50 hover:text-[#e3e2e6] hover:bg-[#1f1f23] transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">database</span>
+<span class="font-medium text-xs">Transaction Log</span>
+</a>
+</li>
+<li class="px-4">
+<a class="flex items-center gap-3 py-2 px-3 text-[#e3e2e6]/50 hover:text-[#e3e2e6] hover:bg-[#1f1f23] transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">speed</span>
+<span class="font-medium text-xs">Gas Optimizer</span>
+</a>
+</li>
+<li class="px-4">
+<a class="flex items-center gap-3 py-2 px-3 text-[#e3e2e6]/50 hover:text-[#e3e2e6] hover:bg-[#1f1f23] transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">security</span>
+<span class="font-medium text-xs">Risk Params</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="px-6 py-4 mt-auto space-y-4">
+<button class="w-full py-2 bg-primary-container text-on-primary-container text-xs font-bold rounded hover:opacity-90 transition-opacity">Force Sync</button>
+<div class="space-y-2">
+<a class="flex items-center gap-2 text-[10px] text-[#e3e2e6]/40 hover:text-[#e3e2e6] transition-colors" href="#">
+<span class="material-symbols-outlined text-[14px]">menu_book</span> Documentation
+                </a>
+<a class="flex items-center gap-2 text-[10px] text-[#e3e2e6]/40 hover:text-[#e3e2e6] transition-colors" href="#">
+<span class="material-symbols-outlined text-[14px]">support_agent</span> Support
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-20 pb-12 px-6">
+<!-- Header Section -->
+<section class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+<div>
+<h1 class="font-headline text-3xl font-bold tracking-tight mb-1">Operations Control</h1>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-[#00e676]/10 px-2 py-0.5 rounded-sm">
+<div class="data-pulse"></div>
+<span class="text-[10px] font-bold text-[#00e676] tracking-tighter uppercase">All Systems Operational</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant/60">Last sync: 2s ago</span>
+</div>
+</div>
+<div class="flex gap-8">
+<div class="text-right">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Network Uptime</p>
+<p class="font-mono text-xl font-medium text-tertiary">99.97%</p>
+</div>
+<div class="text-right">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Active Nodes</p>
+<p class="font-mono text-xl font-medium text-tertiary">124</p>
+</div>
+</div>
+</section>
+<!-- Health Grid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<!-- API Gateway -->
+<div class="bg-surface-container p-4 rounded ghost-border flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">API Gateway</span>
+<span class="text-[10px] font-bold text-[#00e676] bg-[#00e676]/10 px-1 rounded-sm">HEALTHY</span>
+</div>
+<div class="flex items-end justify-between">
+<div>
+<p class="font-mono text-lg leading-tight">23ms</p>
+<p class="text-[10px] font-mono text-on-surface-variant">1,247 req/min</p>
+</div>
+<div class="w-16 h-8 opacity-40">
+<img alt="" class="w-full h-full object-contain" data-alt="minimalist green line graph representing stable system data on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEC55yDNy2sETE5TvbZDQE8k8tKGzRuQjs0BXwWOWEK4DERi_LgPuVvcRNHxcwPdi75_KSY5Y0eft0HulIGPe-PkG2ceQRKvqBZYzuYyUXw-t-_6Gz17OEwhAuLsKRbkA6q_4XJgs8VlZ6lETMxJGANvib3lTVm45E5ffmvo75p97Rwn9VmFU8ukyhM1N06Axjq0OvoG2aiJatG3ezn2bSq8FXT9J8xzTTaQoyeNL3BBAUldEwR5BOXEu19rplwV-3U6YBLIzjtQE"/>
+</div>
+</div>
+</div>
+<!-- Oracle Feeds -->
+<div class="bg-surface-container p-4 rounded ghost-border flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Oracle Price Feeds</span>
+<span class="text-[10px] font-mono text-on-surface-variant">4/4 active</span>
+</div>
+<div class="flex items-end justify-between">
+<div>
+<p class="font-mono text-lg leading-tight">SYNCED</p>
+<p class="text-[10px] font-mono text-on-surface-variant">Updated 2s ago</p>
+</div>
+<div class="w-16 h-8 opacity-40">
+<img alt="" class="w-full h-full object-contain" data-alt="steady blue horizontal line with small fluctuations representing active data synchronization" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVZBWm_lGChkPhKJk_jXsYFmiwFBU70Nsws8sWEeNUJ4E9nlw-guB_P19Jykwqpqywf8USHyX37QWwPklkpoStxAxcPxft9qgJe6VCcJKD3HiMhHDJVQj-KioJQVrFytYBt85UdQtP9G2QIPdnPXZhRy7cw1QLbQ9j36cDBf4rXxM0yI8Q5U7hygrtpx-pMFcpH2tCKqkEXhZXuAI0SY6x8MKwNI03BV9laP4QfLbOLsxcFrS5eHyV586q3sYbyVMxCYl56zFr2HE"/>
+</div>
+</div>
+</div>
+<!-- Smart Contracts -->
+<div class="bg-surface-container p-4 rounded ghost-border flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Smart Contracts</span>
+<span class="text-[10px] font-mono text-[#ffd740]">3 PENDING</span>
+</div>
+<div class="flex items-end justify-between">
+<div>
+<p class="font-mono text-lg leading-tight">24 Gwei</p>
+<p class="text-[10px] font-mono text-on-surface-variant">Base: 18 Priority: 6</p>
+</div>
+<div class="w-16 h-8 opacity-40">
+<img alt="" class="w-full h-full object-contain" data-alt="jagged yellow line chart showing variations in network gas costs" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuL8Eyc3pQydgvDSPutYlN6SGD_3ZFxZ7E5p35c9n_R6SnMosJbU10wAfHVtuZiJ0AcprLgyPD1Uz_D5TIc2DjXUZ1XoCGhvT40gKPsvMvi-9djkRONsZ3QjAn-A_iDo26Xq9Cv47yZhTNpQRqMWLdwoon1DMnrt6G0DbUbtXJDfGvid6XvKshd_NZ-JHRiO4sNbjev3HRAOvnGn11ASsrrVb5LErRbJJwRvnJ3wqvb43qxUfcvbQrxEREfPK7AVQoQf9eFL79ZpU"/>
+</div>
+</div>
+</div>
+<!-- Database -->
+<div class="bg-surface-container p-4 rounded ghost-border flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Database Cluster</span>
+<span class="text-[10px] font-mono text-on-surface-variant">142/500 conn</span>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex gap-4">
+<div>
+<p class="font-mono text-lg leading-tight">34%</p>
+<p class="text-[10px] font-mono text-on-surface-variant uppercase">CPU</p>
+</div>
+<div>
+<p class="font-mono text-lg leading-tight">67%</p>
+<p class="text-[10px] font-mono text-on-surface-variant uppercase">MEM</p>
+</div>
+</div>
+<div class="w-16 h-8 opacity-40">
+<img alt="" class="w-full h-full object-contain" data-alt="smooth purple curve showing server resource utilization patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApoJhIxPx9d0puJQprNWYawDBRBzqAN27_77nLQenx_NEOW5LkWt1P9IX6Dnq9a8MvKDU1cu7i8isL829TwKlpF4sD1a7w52CzuuvjcW-7gVNCp5nGhJhDuYGXOz8pFg7T-AWDkAvVYK1mkl6e5EMf9QxvzDAr0DNLzT33WUF2O_keulZnZHnRSImMMuYmWLdKxx0odvd1lfCBmXCyIAJy4d5NLypXtFvGJd2ugnV5PRcrE0zg6WOO8mZgWr_VCrPU-sHX4hPgwZQ"/>
+</div>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Transaction History -->
+<div class="lg:col-span-2 bg-surface-container rounded ghost-border overflow-hidden">
+<div class="bg-surface-container-high px-6 py-3 flex justify-between items-center">
+<h3 class="text-xs font-bold uppercase tracking-widest">Transaction History</h3>
+<div class="flex gap-4 items-center">
+<span class="text-[10px] font-mono text-on-surface-variant">Showing 1-12 of 8,492</span>
+<div class="flex gap-1">
+<button class="w-6 h-6 flex items-center justify-center bg-background rounded hover:bg-surface-variant"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="w-6 h-6 flex items-center justify-center bg-background rounded hover:bg-surface-variant"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+<tr>
+<th class="px-6 py-3">Tx Hash</th>
+<th class="px-6 py-3">Type</th>
+<th class="px-6 py-3 text-right">Amount</th>
+<th class="px-6 py-3">Asset</th>
+<th class="px-6 py-3">Status</th>
+<th class="px-6 py-3">Gas</th>
+<th class="px-6 py-3">Time</th>
+</tr>
+</thead>
+<tbody class="text-xs font-mono">
+<!-- Row Template 1 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-3 text-primary">0x4a...d92c</td>
+<td class="px-6 py-3"><span class="bg-[#7C4DFF]/10 text-[#7C4DFF] px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Trade</span></td>
+<td class="px-6 py-3 text-right font-medium">1.4500</td>
+<td class="px-6 py-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">currency_bitcoin</span>
+<span>QQQx</span>
+</td>
+<td class="px-6 py-3"><span class="text-[#00e676]">CONFIRMED</span></td>
+<td class="px-6 py-3 text-on-surface-variant">22.4</td>
+<td class="px-6 py-3 text-on-surface-variant/60">12:45:01</td>
+</tr>
+<!-- Repeat rows... -->
+<tr class="bg-surface-container-low/50 hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-3 text-primary">0x82...f41a</td>
+<td class="px-6 py-3"><span class="bg-tertiary-container/10 text-tertiary px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Deposit</span></td>
+<td class="px-6 py-3 text-right font-medium">12,400.00</td>
+<td class="px-6 py-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">monetization_on</span>
+<span>USDC</span>
+</td>
+<td class="px-6 py-3"><span class="text-[#ffd740]">PENDING</span></td>
+<td class="px-6 py-3 text-on-surface-variant">25.1</td>
+<td class="px-6 py-3 text-on-surface-variant/60">12:44:52</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-6 py-3 text-primary">0xc1...33e8</td>
+<td class="px-6 py-3"><span class="bg-error-container/20 text-error px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Withdraw</span></td>
+<td class="px-6 py-3 text-right font-medium">0.8500</td>
+<td class="px-6 py-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">currency_exchange</span>
+<span>NVDAx</span>
+</td>
+<td class="px-6 py-3"><span class="text-error">FAILED</span></td>
+<td class="px-6 py-3 text-on-surface-variant">18.9</td>
+<td class="px-6 py-3 text-on-surface-variant/60">12:44:30</td>
+</tr>
+<!-- Simplified repeats to show volume -->
+<tr class="bg-surface-container-low/50 hover:bg-surface-container-high transition-colors"><td class="px-6 py-3 text-primary">0x9e...2a11</td><td class="px-6 py-3"><span class="bg-[#7C4DFF]/10 text-[#7C4DFF] px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Rebalance</span></td><td class="px-6 py-3 text-right font-medium">-</td><td class="px-6 py-3 flex items-center gap-2"><span class="material-symbols-outlined text-sm">rebase</span><span>QQQx Vault</span></td><td class="px-6 py-3 text-[#00e676]">CONFIRMED</td><td class="px-6 py-3 text-on-surface-variant">42.2</td><td class="px-6 py-3 text-on-surface-variant/60">12:43:18</td></tr>
+<tr class="hover:bg-surface-container-high transition-colors"><td class="px-6 py-3 text-primary">0x5f...d900</td><td class="px-6 py-3"><span class="bg-[#7C4DFF]/10 text-[#7C4DFF] px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Trade</span></td><td class="px-6 py-3 text-right font-medium">2.1000</td><td class="px-6 py-3 flex items-center gap-2"><span class="material-symbols-outlined text-sm">currency_exchange</span><span>SPYx</span></td><td class="px-6 py-3 text-[#00e676]">CONFIRMED</td><td class="px-6 py-3 text-on-surface-variant">24.5</td><td class="px-6 py-3 text-on-surface-variant/60">12:42:01</td></tr>
+<tr class="bg-surface-container-low/50 hover:bg-surface-container-high transition-colors"><td class="px-6 py-3 text-primary">0x12...b66e</td><td class="px-6 py-3"><span class="bg-tertiary-container/10 text-tertiary px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Deposit</span></td><td class="px-6 py-3 text-right font-medium">5,000.00</td><td class="px-6 py-3 flex items-center gap-2"><span class="material-symbols-outlined text-sm">monetization_on</span><span>USDC</span></td><td class="px-6 py-3 text-[#00e676]">CONFIRMED</td><td class="px-6 py-3 text-on-surface-variant">21.0</td><td class="px-6 py-3 text-on-surface-variant/60">12:41:45</td></tr>
+<tr class="hover:bg-surface-container-high transition-colors"><td class="px-6 py-3 text-primary">0xa3...f12c</td><td class="px-6 py-3"><span class="bg-[#7C4DFF]/10 text-[#7C4DFF] px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Trade</span></td><td class="px-6 py-3 text-right font-medium">0.1200</td><td class="px-6 py-3 flex items-center gap-2"><span class="material-symbols-outlined text-sm">currency_bitcoin</span><span>TSLAx</span></td><td class="px-6 py-3 text-[#00e676]">CONFIRMED</td><td class="px-6 py-3 text-on-surface-variant">23.8</td><td class="px-6 py-3 text-on-surface-variant/60">12:40:12</td></tr>
+<tr class="bg-surface-container-low/50 hover:bg-surface-container-high transition-colors"><td class="px-6 py-3 text-primary">0xdd...99a0</td><td class="px-6 py-3"><span class="bg-[#7C4DFF]/10 text-[#7C4DFF] px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase">Rebalance</span></td><td class="px-6 py-3 text-right font-medium">-</td><td class="px-6 py-3 flex items-center gap-2"><span class="material-symbols-outlined text-sm">rebase</span><span>NVDAx Vault</span></td><td class="px-6 py-3 text-[#00e676]">CONFIRMED</td><td class="px-6 py-3 text-on-surface-variant">38.4</td><td class="px-6 py-3 text-on-surface-variant/60">12:39:55</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Side Panels Stack -->
+<div class="space-y-6">
+<!-- Gas Optimization -->
+<div class="bg-surface-container rounded ghost-border overflow-hidden">
+<div class="bg-surface-container-high px-4 py-3 flex justify-between items-center">
+<h3 class="text-[10px] font-bold uppercase tracking-widest">Gas Optimization</h3>
+<span class="material-symbols-outlined text-sm">show_chart</span>
+</div>
+<div class="p-4">
+<div class="h-24 w-full mb-4">
+<img alt="" class="w-full h-full object-cover rounded opacity-80" data-alt="layered blue and purple area chart showing fluctuating digital network congestion levels" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlRJJiZAc14ZZ1HiAFfZdXv-ttDlFZ0tzTj5SfFI7mtb0QnKjU7zF7FbOVrS_tbMHJilQRRAdHe2Ln7UymEL4_Uo6kLxqujQs9HVViaZlflWy9iYDIC2cTKaIS7NQRnKwNAJMx8LDuhlkcR2oXP0AELh9OiT1Lmq_HjbZJIT5RP8bFaPJFItiMDiyqQ7DPfrW9hJzAzhOccgmJ3EXdbqMF9VH6bb2J3R08gBIBzSLMNqtQg5lQc8WHZVAfaxNVNG7EMdn7rZPP-h4"/>
+</div>
+<div class="grid grid-cols-3 gap-2 mb-4">
+<div class="bg-surface-container-low p-2 text-center rounded">
+<p class="text-[8px] uppercase text-on-surface-variant mb-1">Slow</p>
+<p class="font-mono text-sm text-on-surface">18</p>
+</div>
+<div class="bg-surface-container-high p-2 text-center rounded ring-1 ring-[#7C4DFF]">
+<p class="text-[8px] uppercase text-[#7C4DFF] mb-1 font-bold">Std</p>
+<p class="font-mono text-sm text-[#7C4DFF] font-bold">24</p>
+</div>
+<div class="bg-surface-container-low p-2 text-center rounded">
+<p class="text-[8px] uppercase text-on-surface-variant mb-1">Fast</p>
+<p class="font-mono text-sm text-on-surface">35</p>
+</div>
+</div>
+<ul class="space-y-2">
+<li class="flex justify-between text-[10px] font-mono border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant">Vault Deposit</span>
+<span>~$12.42</span>
+</li>
+<li class="flex justify-between text-[10px] font-mono border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant">Aggregator Swap</span>
+<span>~$28.15</span>
+</li>
+<li class="flex justify-between text-[10px] font-mono">
+<span class="text-on-surface-variant">LP Stake</span>
+<span>~$8.90</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Governance -->
+<div class="bg-surface-container rounded ghost-border overflow-hidden">
+<div class="bg-surface-container-high px-4 py-3">
+<h3 class="text-[10px] font-bold uppercase tracking-widest">Protocol Governance</h3>
+</div>
+<div class="p-4 space-y-4">
+<div>
+<div class="flex justify-between mb-1">
+<span class="text-[10px] font-mono text-primary font-bold">xLIP-42</span>
+<span class="text-[10px] font-mono text-on-surface-variant">Ends: 14h 22m</span>
+</div>
+<p class="text-xs font-medium mb-3">Add AAPLx and GOOGLx to supported assets</p>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden flex">
+<div class="h-full bg-[#00e676]" style="width: 72%"></div>
+<div class="h-full bg-error" style="width: 28%"></div>
+</div>
+<div class="flex justify-between mt-1 text-[9px] font-mono uppercase">
+<span class="text-[#00e676]">72% For (4.2M)</span>
+<span class="text-error">28% Against (1.6M)</span>
+</div>
+</div>
+<div class="opacity-60 grayscale">
+<div class="flex justify-between mb-1">
+<span class="text-[10px] font-mono text-on-surface-variant">xLIP-41</span>
+<span class="text-[10px] font-mono text-on-surface-variant">PASSED</span>
+</div>
+<p class="text-xs font-medium mb-1">Increase max leverage to ±4× for SPYx</p>
+</div>
+</div>
+</div>
+<!-- Alerts & Notifications -->
+<div class="bg-surface-container rounded ghost-border overflow-hidden">
+<div class="bg-surface-container-high px-4 py-3 flex justify-between items-center">
+<h3 class="text-[10px] font-bold uppercase tracking-widest">System Alerts</h3>
+<span class="text-[10px] font-mono text-on-surface-variant">Real-time</span>
+</div>
+<div class="max-h-64 overflow-y-auto">
+<div class="p-3 border-b border-outline-variant/10 flex gap-3">
+<span class="material-symbols-outlined text-[#ffd740] text-lg">warning</span>
+<div>
+<p class="text-[10px] font-bold leading-tight mb-0.5">High volatility on NVDAx/USDC feed</p>
+<p class="text-[9px] font-mono text-on-surface-variant">12:44:32 • ID: 884-X</p>
+</div>
+</div>
+<div class="p-3 border-b border-outline-variant/10 flex gap-3">
+<span class="material-symbols-outlined text-[#00e676] text-lg">check_circle</span>
+<div>
+<p class="text-[10px] font-bold leading-tight mb-0.5">Database migration complete</p>
+<p class="text-[9px] font-mono text-on-surface-variant">12:31:10 • ID: 883-M</p>
+</div>
+</div>
+<div class="p-3 border-b border-outline-variant/10 flex gap-3">
+<span class="material-symbols-outlined text-error text-lg">error</span>
+<div>
+<p class="text-[10px] font-bold leading-tight mb-0.5">Rejected TX: Insufficient Gas</p>
+<p class="text-[9px] font-mono text-on-surface-variant">12:15:55 • ID: 882-T</p>
+</div>
+</div>
+<div class="p-4 bg-surface-container-low">
+<p class="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">Notification Channels</p>
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-medium">Telegram Bot</span>
+<div class="w-8 h-4 bg-[#7C4DFF] rounded-full relative">
+<div class="absolute right-1 top-1 w-2 h-2 bg-white rounded-full"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-medium">Discord Webhook</span>
+<div class="w-8 h-4 bg-surface-container-highest rounded-full relative">
+<div class="absolute left-1 top-1 w-2 h-2 bg-on-surface-variant rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Terminal -->
+<footer class="fixed bottom-0 w-full flex justify-between items-center px-4 h-8 bg-[#0d0e11] z-50 border-t border-outline-variant/10">
+<div class="flex gap-6 items-center">
+<span class="text-[10px] font-mono text-on-surface-variant uppercase tracking-widest">xLever Protocol © 2026</span>
+<div class="h-3 w-px bg-outline-variant/20"></div>
+<span class="text-[10px] font-mono text-[#adc6ff] uppercase tracking-widest">Block: 18450231</span>
+</div>
+<div class="flex gap-6 items-center">
+<span class="text-[10px] font-mono text-on-surface-variant/40 uppercase hover:text-[#e3e2e6] transition-colors cursor-default">Uptime: 99.97%</span>
+<span class="text-[10px] font-mono text-on-surface-variant/40 uppercase hover:text-[#e3e2e6] transition-colors cursor-default">Nodes: 124</span>
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-mono text-[#00e676]">CONNECTED</span>
+<div class="w-2 h-2 bg-[#00e676] rounded-full"></div>
+</div>
+</div>
+</footer>
+<script type="module" src="wallet.js"></script>
+<script type="module" src="contracts.js"></script>
+<script src="ux.js"></script>
+</body></html>
