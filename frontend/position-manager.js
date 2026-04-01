@@ -173,6 +173,7 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     // Refresh from confirmed chain state (not polling)
     await fetchBalances();
     await loadUserPositions();
+    contracts.txEvents.emit('synced', { hash: result.hash, explorerUrl: result.explorerUrl, state: 'synced' });
 
     const explorerLink = result.explorerUrl || contracts.getExplorerUrl(result.hash);
     showToast(`Position opened! ${amount} USDC @ ${currentLeverage}x\nTx: ${result.hash.slice(0, 10)}...`, 'success', 6000);
@@ -368,6 +369,7 @@ window.closePosition = async function(asset, vaultAddress) {
     // Refresh from confirmed chain state
     await fetchBalances();
     await loadUserPositions();
+    contracts.txEvents.emit('synced', { hash: result.hash, explorerUrl: result.explorerUrl, state: 'synced' });
 
     const explorerLink = result.explorerUrl || contracts.getExplorerUrl(result.hash);
     showToast(`Position closed! Tx: ${result.hash.slice(0, 10)}...`, 'success', 6000);

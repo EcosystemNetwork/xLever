@@ -579,6 +579,7 @@ export const TX_STATES = Object.freeze({
   CONFIRMED: 'confirmed',
   FAILED:    'failed',
   REJECTED:  'rejected',
+  SYNCED:    'synced',     // UI state refreshed from confirmed chain reads
 })
 
 // ═══════════════════════════════════════════════════════════════
@@ -636,6 +637,7 @@ export function classifyTxError(err) {
 /**
  * Wait for a transaction receipt with exponential backoff retry.
  * Emits lifecycle events: submitted → pending → confirmed | failed
+ * Callers should emit 'synced' after refreshing UI from confirmed chain state.
  *
  * Retry strategy: up to 5 attempts with 2/4/8/16/32s backoff.
  * This survives transient RPC hiccups during a live demo.
