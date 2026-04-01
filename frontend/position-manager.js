@@ -10,6 +10,76 @@ function updateCurrentLevDisplay() {
   }
 }
 
+// Asset selection button handlers
+document.addEventListener('DOMContentLoaded', () => {
+  const assetButtons = document.querySelectorAll('.asset-btn');
+  const tickerButtons = document.querySelectorAll('.ticker-select-btn');
+  
+  // Function to update asset selection
+  function selectAsset(assetCode) {
+    // Update asset buttons
+    assetButtons.forEach(b => {
+      const isActive = b.dataset.asset === assetCode;
+      b.classList.toggle('active', isActive);
+      b.style.background = isActive ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255,255,255,0.05)';
+      b.style.borderColor = isActive ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255,255,255,0.1)';
+      b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
+    });
+    
+    // Update ticker buttons (top left)
+    const ticker = assetCode === 'wSPYx' ? 'SPY' : 'QQQ';
+    tickerButtons.forEach(b => {
+      b.classList.toggle('active', b.dataset.ticker === ticker);
+    });
+    
+    console.log('Selected asset:', assetCode);
+  }
+  
+  // Asset button click handlers
+  assetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const assetCode = btn.dataset.asset;
+      const ticker = assetCode === 'wSPYx' ? 'SPY' : 'QQQ';
+      
+      // Find and click the corresponding ticker button to trigger chart update
+      const tickerBtn = Array.from(tickerButtons).find(b => b.dataset.ticker === ticker);
+      if (tickerBtn && !tickerBtn.classList.contains('active')) {
+        tickerBtn.click(); // This will trigger app.js's chart update
+      }
+      
+      // Update asset buttons
+      assetButtons.forEach(b => {
+        const isActive = b.dataset.asset === assetCode;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255,255,255,0.05)';
+        b.style.borderColor = isActive ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255,255,255,0.1)';
+        b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
+      });
+      
+      console.log('Selected asset:', assetCode);
+    });
+  });
+  
+  // When ticker buttons are clicked, also update asset buttons
+  // Note: app.js already handles the chart update for ticker buttons
+  tickerButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const assetCode = btn.dataset.ticker === 'SPY' ? 'wSPYx' : 'wQQQx';
+      
+      // Update asset buttons to match
+      assetButtons.forEach(b => {
+        const isActive = b.dataset.asset === assetCode;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255,255,255,0.05)';
+        b.style.borderColor = isActive ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255,255,255,0.1)';
+        b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
+      });
+      
+      console.log('Selected asset from ticker:', assetCode);
+    });
+  });
+});
+
 // Check if user is on correct network
 async function ensureCorrectNetwork() {
   try {
@@ -106,14 +176,14 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     btn.textContent = 'Position opening...';
     
     // Wait for deposit to be mined
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 8000));
 
-    alert(`Position opened successfully! 🎉\n${amount} USDC @ ${currentLeverage}x leverage`);
-    amountInput.value = '';
-    
     // Refresh data
     await fetchBalances();
     await loadUserPositions();
+    
+    alert(`Position opened successfully! 🎉\n${amount} USDC @ ${currentLeverage}x leverage`);
+    amountInput.value = '';
   } catch (error) {
     console.error('Failed to open position:', error);
     alert(`Failed to open position: ${error.message}`);
@@ -175,11 +245,14 @@ async function loadUserPositions() {
       const isLong = pos.leverageBps > 0;
       const isShort = pos.leverageBps < 0;
       
+      // Convert wSPYx/wQQQx to SPY/QQQ for display
+      const displayName = pos.asset === 'wSPYx' ? 'SPY' : pos.asset === 'wQQQx' ? 'QQQ' : pos.asset;
+      
       return `
         <div class="position-card" style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.08);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
-              <div style="font-size: 16px; font-weight: 600; color: #fff;">${pos.asset}</div>
+              <div style="font-size: 16px; font-weight: 600; color: #fff;">${displayName}</div>
               <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">
                 ${depositAmount} USDC
               </div>
@@ -234,13 +307,13 @@ window.closePosition = async function(asset, vaultAddress) {
     }
     
     // Wait for transaction to be mined
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 8000));
 
-    alert(`Position closed successfully! 💰`);
-    
     // Refresh data
     await fetchBalances();
     await loadUserPositions();
+    
+    alert(`Position closed successfully! 💰`);
   } catch (error) {
     console.error('Failed to close position:', error);
     alert(`Failed to close position: ${error.message}`);
