@@ -1,10 +1,8 @@
 // Junior Tranche Manager - Real-time on-chain data and multi-asset deposits
 
-// Asset options for deposits
+// Asset options for deposits - Junior tranche only accepts USDC
 const DEPOSIT_ASSETS = {
-  USDC: { address: '0x6b57475467cd854d36Be7FB614caDa5207838943', decimals: 6, symbol: 'USDC' },
-  wSPYx: { address: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e', decimals: 18, symbol: 'wSPYx' },
-  wQQQx: { address: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', decimals: 18, symbol: 'wQQQx' }
+  USDC: { address: '0x6b57475467cd854d36Be7FB614caDa5207838943', decimals: 6, symbol: 'USDC' }
 };
 
 let selectedDepositAsset = 'USDC';
@@ -319,35 +317,7 @@ async function depositJuniorMultiAsset() {
   }
 }
 
-// Update asset selector buttons based on selected vault
-function updateAssetSelector() {
-  const assetButtons = document.querySelector('.asset-buttons');
-  if (!assetButtons) return;
-
-  // Determine which wrapped token to show based on vault
-  const wrappedToken = selectedVault; // 'wSPYx' or 'wQQQx'
-  
-  // Rebuild asset buttons with only USDC and the matching wrapped token
-  assetButtons.innerHTML = `
-    <button class="asset-btn ${selectedDepositAsset === 'USDC' ? 'active' : ''}" data-asset="USDC">USDC</button>
-    <button class="asset-btn ${selectedDepositAsset === wrappedToken ? 'active' : ''}" data-asset="${wrappedToken}">${wrappedToken}</button>
-  `;
-
-  // If current selection is not valid for this vault, switch to USDC
-  if (selectedDepositAsset !== 'USDC' && selectedDepositAsset !== wrappedToken) {
-    selectedDepositAsset = 'USDC';
-  }
-
-  // Re-attach event listeners
-  document.querySelectorAll('.asset-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      document.querySelectorAll('.asset-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedDepositAsset = btn.dataset.asset;
-      await updateAssetUI();
-    });
-  });
-}
+// Asset selector removed - junior deposits only accept USDC
 
 // Update UI when asset selection changes
 async function updateAssetUI() {
@@ -395,21 +365,7 @@ async function updateAssetUI() {
 
 // Initialize junior page
 function initJuniorPage() {
-  // Asset selector
-  const depositContent = document.getElementById('depositContent');
-  if (depositContent) {
-    const assetSelector = document.createElement('div');
-    assetSelector.className = 'asset-selector';
-    assetSelector.innerHTML = `
-      <label>Deposit Asset</label>
-      <div class="asset-buttons">
-        <!-- Populated dynamically based on selected vault -->
-      </div>
-    `;
-    
-    const inputGroup = depositContent.querySelector('.input-group');
-    depositContent.insertBefore(assetSelector, inputGroup);
-  }
+  // No asset selector needed - junior deposits only accept USDC
 
   // Vault selector
   const juniorHero = document.querySelector('.junior-hero');
@@ -432,8 +388,7 @@ function initJuniorPage() {
         btn.classList.add('active');
         selectedVault = btn.dataset.vault;
         
-        // Update asset selector to show only relevant tokens for this vault
-        updateAssetSelector();
+        // Update UI for selected vault
         await updateAssetUI();
         await updateJuniorPageUI();
       });
@@ -444,13 +399,13 @@ function initJuniorPage() {
   const depositBtn = document.getElementById('depositBtn');
   if (depositBtn) {
     depositBtn.onclick = depositJuniorMultiAsset;
+    depositBtn.textContent = 'Deposit USDC';
   }
 
-  // Initialize asset selector and UI with default selection
-  updateAssetSelector();
+  // Initialize UI with USDC balance
   updateAssetUI();
 
-  console.log('✓ Junior page initialized');
+  console.log('✓ Junior page initialized - USDC only');
 }
 
 // Export functions
