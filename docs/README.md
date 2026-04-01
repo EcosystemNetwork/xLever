@@ -15,6 +15,7 @@ Continuous leverage from **-4x to +4x** on tokenized assets, built on **Euler V2
 | [Frontend Guide](FRONTEND.md) | Screens, components, UI architecture, wallet connection |
 | [Risk Engine](RISK-ENGINE.md) | Risk sentinel FSM, auto-deleverage cascade, circuit breakers, loss waterfall |
 | [API Integrations](API-INTEGRATIONS.md) | Pyth oracle, OpenBB intelligence, Yahoo Finance proxy, FastAPI backend |
+| [Multi-Chain Lending](MULTI-CHAIN-LENDING.md) | Lending adapters, Kamino (Solana), EVAA (TON), Euler V2, cross-chain aggregation |
 | [Deployment](DEPLOYMENT.md) | Environment setup, build process, deployment targets, supported assets |
 
 ---
@@ -98,8 +99,9 @@ External Protocols
 | Frontend | Vite + Vanilla JS/CSS, TradingView Lightweight Charts v4.1.3 |
 | Styling | Tailwind CSS (Material Design 3 tokens), Bloomberg Terminal aesthetic |
 | Wallet | Reown AppKit (Ethereum, Ink Sepolia, Solana, TON) |
-| Blockchain Library | viem v2.47.6 + wagmi v3.6.0 |
+| Blockchain Library | viem v2.47.6 + wagmi v3.6.0 + @solana/web3.js + @ton/ton |
 | Smart Contracts | Solidity ^0.8.0, Foundry, Euler V2 EVK + EVC |
+| Lending Protocols | Euler V2 (EVM), Kamino Finance (Solana), EVAA Protocol (TON) |
 | Oracle | Pyth Network (Hermes pull-oracle) |
 | Intelligence | OpenBB Platform (market data, options, agent context) |
 | Backend | Python FastAPI + uvicorn, PostgreSQL, Redis |
@@ -123,6 +125,8 @@ xLever/
 │   ├── app.js                         # LTAP backtesting engine (1,100+ lines)
 │   ├── wallet.js                      # Reown AppKit (4-chain wallet)
 │   ├── contracts.js                   # viem contract adapter
+│   ├── lending-adapters.js            # Multi-chain lending (Euler/Kamino/EVAA)
+│   ├── lending-agent.js               # Chain-agnostic lending automation
 │   ├── pyth.js                        # Pyth Hermes client
 │   ├── risk-engine.js                 # Risk sentinel FSM
 │   ├── openbb.js                      # OpenBB intelligence client

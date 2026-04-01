@@ -562,6 +562,25 @@ tailwind.config = {
       <div class="p-4 font-mono text-[11px] leading-relaxed flex-1 terminal-scroll overflow-y-auto overflow-x-hidden space-y-1.5" id="executionLog">
         <p class="text-on-surface-variant opacity-60">[--:--:--] Waiting for agent activation...</p>
       </div>
+      <!-- Agent Prompt Input -->
+      <div class="border-t border-outline-variant/20 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-primary text-sm">chat</span>
+          <span class="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">Prompt Agent</span>
+        </div>
+        <form id="agentPromptForm" class="flex gap-2" onsubmit="handleAgentPrompt(event)">
+          <input type="text" id="agentPromptInput" placeholder="e.g. &quot;Set leverage to 3x&quot; or &quot;Take profit now&quot;" class="flex-1 bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2 font-mono text-[11px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" autocomplete="off">
+          <button type="submit" class="px-3 py-2 bg-primary-container hover:bg-primary-container/80 text-on-primary-container rounded-lg transition-colors flex items-center gap-1" title="Send prompt">
+            <span class="material-symbols-outlined text-base">send</span>
+          </button>
+        </form>
+        <div class="flex flex-wrap gap-1.5 mt-2" id="quickPrompts">
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Reduce leverage to 1x')">Reduce to 1×</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Take profit now')">Take profit</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('What is the current risk level?')">Risk status</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Pause all actions')">Pause</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -871,6 +890,123 @@ function emergencyStop() {
   const btn = document.getElementById('emergencyBtn');
   btn.classList.add('bg-error/30');
   setTimeout(() => btn.classList.remove('bg-error/30'), 1000);
+}
+
+// ──────────────────────────────────────────────────
+// AGENT PROMPT HANDLER
+// ──────────────────────────────────────────────────
+
+function handleAgentPrompt(e) {
+  e.preventDefault();
+  const input = document.getElementById('agentPromptInput');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+  input.value = '';
+  processAgentPrompt(prompt);
+}
+
+function sendQuickPrompt(prompt) {
+  processAgentPrompt(prompt);
+}
+
+function processAgentPrompt(prompt) {
+  logAction('USER', prompt, 'primary');
+
+  const lower = prompt.toLowerCase();
+
+  // --- Risk / status queries ---
+  if (lower.includes('risk') || lower.includes('status') || lower.includes('how') || lower.includes('what')) {
+    const riskState = typeof RiskEngine !== 'undefined' ? RiskEngine.getState?.() : null;
+    if (riskState) {
+      logAction('AGENT', `Current risk state: ${riskState.level || 'NORMAL'}. Leverage: ${STATE.currentLeverage}×.`, 'secondary');
+    } else {
+      logAction('AGENT', `Current leverage: ${STATE.currentLeverage}×. Active mode: ${STATE.activeMode ? getModeLabel(STATE.activeMode) : 'None'}.`, 'secondary');
+    }
+    return;
+  }
+
+  // --- Pause / stop ---
+  if (lower.includes('pause') || lower.includes('stop') || lower.includes('halt')) {
+    if (STATE.activeMode && !STATE.paused) {
+      pausePolicy();
+      logAction('AGENT', 'All agent actions paused.', 'yellow-500');
+    } else if (STATE.paused) {
+      logAction('AGENT', 'Agent is already paused.', 'on-surface-variant');
+    } else {
+      logAction('AGENT', 'No active policy to pause.', 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Resume ---
+  if (lower.includes('resume') || lower.includes('unpause') || lower.includes('continue')) {
+    if (STATE.paused) {
+      pausePolicy(); // toggles pause → resume
+      logAction('AGENT', 'Agent resumed.', 'secondary');
+    } else {
+      logAction('AGENT', 'Agent is not paused.', 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Take profit ---
+  if (lower.includes('take profit') || lower.includes('profit')) {
+    if (!STATE.activeMode) {
+      logAction('AGENT', 'No active position. Activate a strategy first.', 'yellow-500');
+      return;
+    }
+    logAction('AGENT', 'Initiating profit-take evaluation...', 'secondary');
+    setTimeout(() => {
+      logAction('AGENT', `Profit-take signal sent. Current leverage: ${STATE.currentLeverage}×.`, 'secondary');
+    }, 800);
+    return;
+  }
+
+  // --- Leverage change ---
+  const levMatch = lower.match(/leverage\s*(?:to\s*)?([\d.]+)\s*x?/i) || lower.match(/set\s*(?:to\s*)?([\d.]+)\s*x/i) || lower.match(/([\d.]+)\s*x\s*leverage/i);
+  if (levMatch || lower.includes('reduce') || lower.includes('increase') || lower.includes('leverage')) {
+    let targetLev = levMatch ? parseFloat(levMatch[1]) : null;
+
+    if (lower.includes('reduce') && !targetLev) targetLev = Math.max(1, STATE.currentLeverage - 0.5);
+    if (lower.includes('increase') && !targetLev) targetLev = STATE.currentLeverage + 0.5;
+
+    if (targetLev && targetLev >= 0.5 && targetLev <= 5) {
+      logAction('AGENT', `Adjusting leverage: ${STATE.currentLeverage}× → ${targetLev}×...`, 'primary');
+      setTimeout(() => {
+        STATE.currentLeverage = targetLev;
+        document.getElementById('currentLevDisplay').textContent = `${targetLev}×`;
+        logAction('AGENT', `Leverage adjusted to ${targetLev}×.`, 'secondary');
+        updateStats();
+      }, 1000);
+    } else if (targetLev) {
+      logAction('AGENT', `Leverage ${targetLev}× is out of range (0.5× – 5×).`, 'error');
+    } else {
+      logAction('AGENT', `Current leverage: ${STATE.currentLeverage}×. Specify a target, e.g. "set leverage to 2x".`, 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Close position ---
+  if (lower.includes('close') || lower.includes('exit')) {
+    if (STATE.activeMode) {
+      logAction('AGENT', 'Closing position and deactivating policy...', 'error');
+      setTimeout(() => {
+        deactivatePolicy();
+        STATE.currentLeverage = 0;
+        document.getElementById('currentLevDisplay').textContent = '0×';
+        logAction('AGENT', 'Position closed. All agent actions stopped.', 'error');
+      }, 1200);
+    } else {
+      logAction('AGENT', 'No active position to close.', 'on-surface-variant');
+    }
+    return;
+  }
+
+  // --- Fallback ---
+  logAction('AGENT', `Understood: "${prompt}". Processing...`, 'on-surface-variant');
+  setTimeout(() => {
+    logAction('AGENT', 'Command noted. Use quick actions or configure a strategy mode for automated execution.', 'on-surface-variant');
+  }, 600);
 }
 
 // Master toggle
