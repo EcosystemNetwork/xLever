@@ -91,14 +91,19 @@ async function fetchJuniorData() {
     
     const utilization = totalJuniorTVL > 0 ? (totalSeniorTVL / totalJuniorTVL) * 100 : 0;
     
-    // Calculate APY from fees
-    const avgLeverage = poolState.grossLongExposure + poolState.grossShortExposure > 0n
-      ? Number(poolState.grossLongExposure + poolState.grossShortExposure) / Number(poolState.totalSeniorDeposits)
+    // Calculate APY from fees with safeguards
+    const avgLeverage = (poolState.totalSeniorDeposits > 0n && poolState.grossLongExposure + poolState.grossShortExposure > 0n)
+      ? Number(formatUnits(poolState.grossLongExposure + poolState.grossShortExposure, 6)) / totalSeniorTVL
       : 0;
     
     const baseFeeRate = 0.02; // 2% base annual fee
     const annualFees = totalSeniorTVL * avgLeverage * baseFeeRate;
-    const juniorAPY = totalJuniorTVL > 0 ? (annualFees * 0.7 / totalJuniorTVL) * 100 : 0;
+    
+    // Cap APY to reasonable maximum (1000%) and require minimum TVL threshold
+    let juniorAPY = 0;
+    if (totalJuniorTVL > 0.01) { // Require at least $0.01 junior TVL
+      juniorAPY = Math.min((annualFees * 0.7 / totalJuniorTVL) * 100, 1000);
+    }
 
     // Net exposure
     const netExposure = Number(formatUnits(poolState.netExposure, 6));
@@ -266,20 +271,33 @@ async function depositJuniorMultiAsset() {
       return;
     }
 
-    // Approve asset
-    console.log(`Approving ${asset.symbol}...`);
-    const approveTx = await walletClient.writeContract({
+    // Check and approve asset if needed
+    const currentAllowance = await publicClient.readContract({
       address: asset.address,
       abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [vaultAddress, amount],
-      account: connectedAddress,
-      gas: 100000n,
-      maxFeePerGas: 2000000000n,
-      maxPriorityFeePerGas: 1000000000n
+      functionName: 'allowance',
+      args: [connectedAddress, vaultAddress]
     });
 
-    await publicClient.waitForTransactionReceipt({ hash: approveTx });
+    if (currentAllowance < amount) {
+      console.log(`Approving ${asset.symbol} (infinite approval)...`);
+      const MAX_UINT256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
+      
+      const approveTx = await walletClient.writeContract({
+        address: asset.address,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [vaultAddress, MAX_UINT256],
+        account: connectedAddress,
+        gas: 100000n,
+        maxFeePerGas: 2000000000n,
+        maxPriorityFeePerGas: 1000000000n
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash: approveTx });
+    } else {
+      console.log(`✓ ${asset.symbol} already approved, skipping...`);
+    }
 
     // Deposit
     console.log(`Depositing ${asset.symbol} to junior tranche...`);
