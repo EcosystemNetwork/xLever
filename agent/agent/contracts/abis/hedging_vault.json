@@ -1,0 +1,62 @@
+[
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "collateralAmount", "type": "uint256"},
+      {"internalType": "uint256", "name": "borrowAmount", "type": "uint256"},
+      {"internalType": "bytes", "name": "pythUpdateData", "type": "bytes"}
+    ],
+    "name": "openLongPosition",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "collateralAmount", "type": "uint256"},
+      {"internalType": "uint256", "name": "borrowAmount", "type": "uint256"},
+      {"internalType": "bytes", "name": "pythUpdateData", "type": "bytes"}
+    ],
+    "name": "openShortPosition",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "repayAmount", "type": "uint256"},
+      {"internalType": "bytes", "name": "pythUpdateData", "type": "bytes"}
+    ],
+    "name": "closeLongPosition",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "repayAmount", "type": "uint256"},
+      {"internalType": "bytes", "name": "pythUpdateData", "type": "bytes"}
+    ],
+    "name": "closeShortPosition",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "getHealthScore",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "getPosition",
+    "outputs": [
+      {"internalType": "uint256", "name": "collateral", "type": "uint256"},
+      {"internalType": "uint256", "name": "debt", "type": "uint256"},
+      {"internalType": "bool", "name": "isLong", "type": "bool"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

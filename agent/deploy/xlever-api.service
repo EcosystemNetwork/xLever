@@ -1,0 +1,41 @@
+[Unit]
+Description=xLever AI Trading Agent API Server
+Documentation=https://github.com/madschristensen99/xLever
+After=network-online.target xlever-agent.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xlever
+Group=xlever
+WorkingDirectory=/opt/xlever/agent
+Environment=PATH=/opt/xlever/venv/bin:/usr/local/bin:/usr/bin
+EnvironmentFile=/opt/xlever/agent/.env
+
+# API server process
+ExecStart=/opt/xlever/venv/bin/xlever-api
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart policy
+Restart=always
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=10
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/opt/xlever/agent
+
+# Resource limits
+MemoryMax=1G
+CPUQuota=50%
+
+# Logging
+StandardOutput=append:/var/log/xlever/api.log
+StandardError=append:/var/log/xlever/api-error.log
+
+[Install]
+WantedBy=multi-user.target
