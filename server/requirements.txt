@@ -20,7 +20,7 @@ pydantic[email]==2.9.2
 python-multipart==0.0.12
 
 # Web3 for on-chain reads
-web3>=7.0
+web3>=7.0,<8.0
 
-# OpenBB intelligence layer
-openbb[all]>=4.0
+# OpenBB data streams
+openbb>=4.5.0,<4.8.0

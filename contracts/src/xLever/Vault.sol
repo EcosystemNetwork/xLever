@@ -41,6 +41,9 @@ contract Vault is IVault {
 
     mapping(address => DataTypes.SlowWithdrawal) public slowWithdrawals;
 
+    // Module initialization flag — set to true after deployer transfers module ownership
+    bool private _modulesInitialized;
+
     // ═══════════════════════════════════════════════════════════════
     // EVENTS — risk state changes, leverage cap changes, auto-deleverage, agent actions
     // ═══════════════════════════════════════════════════════════════
@@ -549,7 +552,6 @@ contract Vault is IVault {
     ///      This is required because modules are deployed before the vault, so they initially
     ///      point to the deployer as their vault. This function transfers ownership so that
     ///      only this vault contract can call module admin functions going forward.
-    bool private _modulesInitialized;
     function initializeModules() external {
         require(!_modulesInitialized, "Already initialized");
         // The deployer must have transferred module ownership to this vault address

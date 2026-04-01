@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="modal-styles.css">
 <link rel="stylesheet" href="junior-styles.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.82/build/spline-viewer.js"></script>
 <script type="module">
   import { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits, parseUnits, defineChain, encodeFunctionData } from 'https://esm.sh/viem@2.7.15';
   import { mainnet } from 'https://esm.sh/viem@2.7.15/chains';
@@ -69,6 +70,9 @@
     </div>
     <h1>Leveraged Exposure.<br>No Liquidations.</h1>
     <p>Get up to ±4× constant leverage on tokenized assets like QQQ and SPY — on-chain, without daily rebalancing or liquidation risk. Powered by Euler V2 EVK.</p>
+    <div class="spline-viewer-wrap" style="width:100%; max-width:600px; height:400px; margin:0 auto 40px; position:relative;">
+      <spline-viewer url="https://prod.spline.design/nextsidecopycopy-YT41U99onw5g4HkGmaHvvrw5-ngH/scene.splinecode" events-target="global" style="width:100%; height:100%;"></spline-viewer>
+    </div>
     <div class="hero-actions">
       <a href="#" class="btn-primary" id="launchAppBtn">Launch App <span style="font-size:18px">→</span></a>
       <a href="#" class="btn-secondary" id="learnMoreBtn">How It Works</a>

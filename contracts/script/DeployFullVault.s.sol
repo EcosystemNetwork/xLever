@@ -3,9 +3,14 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Script.sol";
 import {Vault} from "../src/xLever/Vault.sol";
+import {TWAPOracle} from "../src/xLever/modules/TWAPOracle.sol";
+import {PositionModule} from "../src/xLever/modules/PositionModule.sol";
+import {FeeEngine} from "../src/xLever/modules/FeeEngine.sol";
+import {JuniorTranche} from "../src/xLever/modules/JuniorTranche.sol";
+import {RiskModule} from "../src/xLever/modules/RiskModule.sol";
 
 /// @title DeployFullVault
-/// @notice Deploys canonical Vault instances for SPY and QQQ with Pyth oracle integration
+/// @notice Deploys canonical Vault instances for SPY and QQQ with pre-deployed modules
 contract DeployFullVault is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -28,18 +33,24 @@ contract DeployFullVault is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy canonical SPY vault
+        // Deploy canonical SPY vault with pre-deployed modules
         console.log("\nDeploying wSPYx Vault...");
-        Vault spyVault = new Vault(usdc, wSPYx, deployer, deployer, pythAdapter, feedSPY);
+        address[5] memory spyModules = _deployModules(deployer);
+        Vault spyVault = new Vault(usdc, wSPYx, deployer, deployer, pythAdapter, feedSPY, spyModules);
+        _transferModuleOwnership(spyModules, address(spyVault));
+        spyVault.initializeModules();
         console.log("wSPYx Vault:", address(spyVault));
         console.log("  Oracle:", address(spyVault.oracle()));
         console.log("  FeeEngine:", address(spyVault.feeEngine()));
         console.log("  JuniorTranche:", address(spyVault.juniorTranche()));
         console.log("  RiskModule:", address(spyVault.riskModule()));
 
-        // Deploy canonical QQQ vault
+        // Deploy canonical QQQ vault with pre-deployed modules
         console.log("\nDeploying wQQQx Vault...");
-        Vault qqqVault = new Vault(usdc, wQQQx, deployer, deployer, pythAdapter, feedQQQ);
+        address[5] memory qqqModules = _deployModules(deployer);
+        Vault qqqVault = new Vault(usdc, wQQQx, deployer, deployer, pythAdapter, feedQQQ, qqqModules);
+        _transferModuleOwnership(qqqModules, address(qqqVault));
+        qqqVault.initializeModules();
         console.log("wQQQx Vault:", address(qqqVault));
         console.log("  Oracle:", address(qqqVault.oracle()));
         console.log("  FeeEngine:", address(qqqVault.feeEngine()));
@@ -49,8 +60,30 @@ contract DeployFullVault is Script {
         vm.stopBroadcast();
 
         console.log("\n=== Deployment Complete ===");
-        console.log("\nUpdate frontend VAULT_ADDRESSES:");
+        console.log("\nUpdate frontend config:");
         console.log("wSPYx: '", address(spyVault), "',");
         console.log("wQQQx: '", address(qqqVault), "'");
+    }
+
+    function _transferModuleOwnership(address[5] memory modules, address vaultAddr) internal {
+        TWAPOracle(modules[0]).setVault(vaultAddr);
+        PositionModule(modules[1]).setVault(vaultAddr);
+        FeeEngine(modules[2]).setVault(vaultAddr);
+        JuniorTranche(modules[3]).setVault(vaultAddr);
+        RiskModule(modules[4]).setVault(vaultAddr);
+    }
+
+    function _deployModules(address deployer) internal returns (address[5] memory modules) {
+        TWAPOracle oracle = new TWAPOracle(deployer, deployer);
+        PositionModule posModule = new PositionModule(address(oracle), deployer);
+        FeeEngine fee = new FeeEngine(address(oracle), deployer);
+        JuniorTranche junior = new JuniorTranche(deployer);
+        RiskModule risk = new RiskModule(deployer);
+
+        modules[0] = address(oracle);
+        modules[1] = address(posModule);
+        modules[2] = address(fee);
+        modules[3] = address(junior);
+        modules[4] = address(risk);
     }
 }

@@ -54,11 +54,10 @@ const TOKEN_ADDRESSES = window.xLeverContracts
   ? { USDC: window.xLeverContracts.ADDRESSES.usdc, wQQQx: window.xLeverContracts.ADDRESSES.wQQQx, wSPYx: window.xLeverContracts.ADDRESSES.wSPYx }
   : { USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943', wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e' };
 
-// Vault contract addresses (DEPLOYED - Full Vault with Junior Tranche)
-const VAULT_ADDRESSES = {
-  wSPYx: '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd',
-  wQQQx: '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b'
-};
+// Vault contract addresses — sourced from config via contracts.js
+const VAULT_ADDRESSES = window.xLeverContracts
+  ? { wSPYx: window.xLeverContracts.ADDRESSES.spyVault, wQQQx: window.xLeverContracts.ADDRESSES.qqqVault }
+  : { wSPYx: '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228', wQQQx: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6' };
 
 // Minimal ERC-20 ABI for balance display — balanceOf, decimals, and approve
 const ERC20_ABI = [
