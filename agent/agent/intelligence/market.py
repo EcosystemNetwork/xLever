@@ -8,7 +8,7 @@ from decimal import Decimal
 import httpx
 from loguru import logger
 
-from agent.intelligence.perplexity import PerplexityClient
+from agent.intelligence.tavily import TavilyClient
 from agent.execution.web3_client import Web3Client
 from agent.contracts.addresses import CONTRACTS, PYTH_HERMES_URL, PYTH_FEEDS, ASSETS
 
@@ -116,14 +116,14 @@ class MarketIntelligence:
     Combines data from multiple sources:
     - Pyth oracle for price feeds
     - On-chain pool state from Euler vaults
-    - Market sentiment from Perplexity AI
+    - Market sentiment from Tavily AI Search
 
     Implements caching and automatic refresh logic.
     """
 
     def __init__(
         self,
-        perplexity_client: PerplexityClient,
+        tavily_client: TavilyClient,
         web3_client: Web3Client,
         refresh_interval: int = 900,  # 15 minutes
         price_move_threshold_pct: float = 1.0,  # Force refresh on >1% move
@@ -131,12 +131,12 @@ class MarketIntelligence:
         """Initialize market intelligence aggregator.
 
         Args:
-            perplexity_client: Client for AI market analysis
+            tavily_client: Client for AI market analysis
             web3_client: Client for blockchain queries
             refresh_interval: Default refresh interval in seconds
             price_move_threshold_pct: Price move % to trigger immediate refresh
         """
-        self.perplexity = perplexity_client
+        self.tavily = tavily_client
         self.web3 = web3_client
         self.refresh_interval = refresh_interval
         self.price_move_threshold = price_move_threshold_pct
@@ -330,7 +330,7 @@ class MarketIntelligence:
         )
 
     async def _get_sentiment(self, asset: str) -> Optional[Dict[str, Any]]:
-        """Get market sentiment from Perplexity AI.
+        """Get market sentiment from Tavily AI Search.
 
         Args:
             asset: Asset ticker
@@ -342,59 +342,63 @@ class MarketIntelligence:
         ticker_map = {"wSPYx": "SPY", "wQQQx": "QQQ"}
         query_ticker = ticker_map.get(asset, asset)
 
-        system_prompt = (
-            "You are a market analyst for tokenized US equity assets (SP500, NASDAQ trackers). "
-            "Provide concise, factual analysis for algorithmic trading decisions."
-        )
-
-        current_price = self._last_prices.get(asset, "unknown")
-
-        prompt = f"""Analyze current market conditions for {query_ticker}.
-
-Current data:
-- Price: ${current_price}
-
-Provide a JSON response with:
-1. Current market sentiment (bullish/bearish/neutral) with confidence 0-100
-2. Key events in next 24-48 hours affecting US equities
-3. Risk factors that could cause >3% moves
-4. Recommended position bias (long/short/neutral) with reasoning
-
-Respond ONLY with valid JSON in this format:
-{{
-  "sentiment": "bullish|bearish|neutral",
-  "confidence": 0-100,
-  "upcoming_events": ["event1", "event2"],
-  "risk_factors": ["risk1", "risk2"],
-  "position_bias": "long|short|neutral",
-  "reasoning": "brief explanation"
-}}"""
-
         try:
-            response = await self.perplexity.query(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                temperature=0.5,
-                max_tokens=500,
+            # Use Tavily to search for market analysis
+            response = await self.tavily.analyze_market(
+                asset=query_ticker,
+                include_sentiment=True,
+                include_technicals=True,
             )
 
-            # Parse JSON from response
-            import json
-            content = response.content.strip()
+            # Parse the Tavily response to extract sentiment
+            content = response.content.lower()
 
-            # Try to extract JSON if wrapped in markdown
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
+            # Simple sentiment extraction from search results
+            bullish_signals = ["bullish", "buy", "upgrade", "outperform", "positive", "rally", "gains"]
+            bearish_signals = ["bearish", "sell", "downgrade", "underperform", "negative", "decline", "losses"]
 
-            data = json.loads(content)
-            logger.debug(f"Sentiment for {asset}: {data.get('sentiment')} ({data.get('confidence')}%)")
+            bullish_count = sum(1 for word in bullish_signals if word in content)
+            bearish_count = sum(1 for word in bearish_signals if word in content)
 
+            if bullish_count > bearish_count:
+                sentiment = "bullish"
+                confidence = min(70 + (bullish_count - bearish_count) * 5, 95)
+                position_bias = "long"
+            elif bearish_count > bullish_count:
+                sentiment = "bearish"
+                confidence = min(70 + (bearish_count - bullish_count) * 5, 95)
+                position_bias = "short"
+            else:
+                sentiment = "neutral"
+                confidence = 50
+                position_bias = "neutral"
+
+            # Extract events and risk factors from results
+            upcoming_events = []
+            risk_factors = []
+
+            for result in response.results[:5]:
+                title = result.title.lower()
+                if any(word in title for word in ["fed", "fomc", "earnings", "jobs", "cpi", "gdp"]):
+                    upcoming_events.append(result.title)
+                if any(word in title for word in ["risk", "warning", "concern", "crash", "volatility"]):
+                    risk_factors.append(result.title)
+
+            data = {
+                "sentiment": sentiment,
+                "confidence": confidence,
+                "upcoming_events": upcoming_events[:3],
+                "risk_factors": risk_factors[:3],
+                "position_bias": position_bias,
+                "reasoning": response.answer if response.answer else "Based on recent market news and analysis",
+                "sources": response.citations[:5],
+            }
+
+            logger.debug(f"Sentiment for {asset}: {sentiment} ({confidence}%)")
             return data
 
         except Exception as e:
-            logger.error(f"Failed to parse sentiment for {asset}: {e}")
+            logger.error(f"Failed to get sentiment for {asset}: {e}")
             return None
 
     async def close(self):

@@ -1,5 +1,5 @@
 """Intelligence layer for market analysis and decision making."""
 
-from agent.intelligence.perplexity import PerplexityClient, PerplexityResponse
+from agent.intelligence.tavily import TavilyClient, TavilyResponse
 
-__all__ = ["PerplexityClient", "PerplexityResponse"]
+__all__ = ["TavilyClient", "TavilyResponse"]

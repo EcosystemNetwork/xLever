@@ -30,13 +30,13 @@ class BlockchainConfig(BaseSettings):
 class APIConfig(BaseSettings):
     """External API configuration."""
 
-    perplexity_api_key: str = Field(..., description="Perplexity API key for market intelligence")
+    tavily_api_key: str = Field(..., description="Tavily API key for market intelligence")
 
-    @validator("perplexity_api_key")
+    @validator("tavily_api_key")
     def validate_api_key(cls, v: str) -> str:
         """Validate API key is set."""
-        if not v or v == "your_perplexity_api_key_here":
-            raise ValueError("PERPLEXITY_API_KEY must be set")
+        if not v or v == "your_tavily_api_key_here":
+            raise ValueError("TAVILY_API_KEY must be set")
         return v
 
     model_config = SettingsConfigDict(env_prefix="")
