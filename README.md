@@ -45,15 +45,30 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol
-- **wSPYx Vault**: [`0x95822416e61Ad6b45Fc45c7540947b6eF080D5a1`](https://explorer-sepolia.inkonchain.com/address/0x95822416e61Ad6b45Fc45c7540947b6eF080D5a1)
-- **wQQQx Vault**: [`0x1034259f355566fcE4571F792d239a99BBa1b9b4`](https://explorer-sepolia.inkonchain.com/address/0x1034259f355566fcE4571F792d239a99BBa1b9b4)
+### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅ (FIXED - Initialized TWAP)
+- **wSPYx Vault**: [`0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d`](https://explorer-sepolia.inkonchain.com/address/0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d)
+- **wQQQx Vault**: [`0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955`](https://explorer-sepolia.inkonchain.com/address/0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955)
 
-### Euler Hedging Modules (Leverage Looping)
-- **wSPYx Hedging**: [`0xd0673BeB607CA2136b126d34ED0D3Ff7826c93EE`](https://explorer-sepolia.inkonchain.com/address/0xd0673BeB607CA2136b126d34ED0D3Ff7826c93EE)
-- **wQQQx Hedging**: [`0x3Bc3c0D268455aD7eAe1432f57f3C24f42EdC7C8`](https://explorer-sepolia.inkonchain.com/address/0x3Bc3c0D268455aD7eAe1432f57f3C24f42EdC7C8)
+**Status:** ✅ **FULLY FUNCTIONAL WITH JUNIOR TRANCHE** - Full vault contracts with junior liquidity provider support deployed and integrated!
 
-**Status:** Contracts deployed and tested. Oracle price feeds required for full functionality.
+**Features:**
+- ✅ Open positions with USDC deposit and leverage selection (-4x to +4x)
+- ✅ Close positions and withdraw USDC
+- ✅ Asset selection (SPY/QQQ)
+- ✅ Real-time position tracking
+- ✅ Balance updates
+- ✅ **Junior tranche deposits and withdrawals**
+- ✅ **First-loss capital pool for LPs**
+- ✅ **Fee distribution to junior LPs**
+- ✅ Fully integrated frontend UI with chart visualization
+
+**How to Use:**
+1. Connect MetaMask wallet to Ink Sepolia network
+2. Get testnet USDC from faucet
+3. Select asset (SPY or QQQ) and leverage
+4. Enter USDC amount and open position
+5. View your active positions
+6. Close positions to withdraw USDC + P&L
 
 ### Tokens
 - **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)
@@ -92,22 +107,44 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Getting Started
 
-1. **Deploy Contracts**
-   ```bash
-   cd contracts
-   # Follow QUICKSTART.md
-   ```
+### Using the Live App
 
-2. **Run Frontend**
+1. **Setup Wallet**
+   - Install MetaMask
+   - Add Ink Sepolia network (Chain ID: 763373)
+   - RPC: `https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc`
+
+2. **Get Testnet Tokens**
+   - Get testnet ETH for gas
+   - Get testnet USDC: `0x6b57475467cd854d36Be7FB614caDa5207838943`
+
+3. **Run Frontend**
    ```bash
    cd frontend
-   # Open index.html in browser
+   python3 -m http.server 8080
+   # Open http://localhost:8080 in browser
    ```
 
-3. **Start Backend**
+4. **Open a Position**
+   - Connect wallet
+   - Select asset (SPY or QQQ)
+   - Choose leverage with slider
+   - Enter USDC amount
+   - Click "Open Position"
+   - Approve transactions in MetaMask
+
+### Development
+
+1. **Deploy New Contracts**
    ```bash
-   cd server
-   python server.py
+   cd contracts
+   forge script script/DeploySimple.s.sol:DeploySimple --rpc-url <RPC> --broadcast --private-key <KEY>
+   ```
+
+2. **Run Tests**
+   ```bash
+   cd contracts
+   forge test
    ```
 
 ## Team

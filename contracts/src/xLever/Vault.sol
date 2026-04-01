@@ -82,6 +82,7 @@ contract Vault is IVault {
         
         // Get current TWAP
         uint128 entryTWAP = oracle.getTWAP();
+        require(entryTWAP > 0, "Invalid TWAP");
         
         // Create position
         positionModule.updatePosition(msg.sender, uint128(amount - entryFee), leverageBps, entryTWAP);
@@ -254,6 +255,11 @@ contract Vault is IVault {
             _absInt256(poolState.netExposure),
             poolState.grossLongExposure + poolState.grossShortExposure
         );
+    }
+    
+    /// @notice Initialize TWAP oracle with starting price
+    function initializeOracle(uint128 startPrice) external onlyAdmin {
+        oracle.initializeBuffer(startPrice);
     }
     
     /// @notice Pause protocol

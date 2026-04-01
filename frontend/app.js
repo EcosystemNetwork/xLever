@@ -13,6 +13,12 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
+// Vault contract addresses (DEPLOYED - Fixed Vault with initialized TWAP)
+const VAULT_ADDRESSES = {
+  wSPYx: '0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d',
+  wQQQx: '0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955'
+};
+
 // Minimal ERC-20 ABI for balanceOf
 const ERC20_ABI = [
   {
@@ -28,6 +34,183 @@ const ERC20_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'uint8' }]
+  },
+  {
+    name: 'approve',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    outputs: [{ name: '', type: 'bool' }]
+  }
+];
+
+// Vault ABI for deposits and withdrawals
+const VAULT_ABI = [
+  {
+    name: 'deposit',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'leverageBps', type: 'int32' }
+    ],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'withdraw',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'depositJunior',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [{ name: 'shares', type: 'uint256' }]
+  },
+  {
+    name: 'withdrawJunior',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'shares', type: 'uint256' }],
+    outputs: [{ name: 'amount', type: 'uint256' }]
+  },
+  {
+    name: 'getPosition',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'depositAmount', type: 'uint128' },
+        { name: 'leverageBps', type: 'int32' },
+        { name: 'entryTWAP', type: 'uint128' },
+        { name: 'lastFeeTimestamp', type: 'uint64' },
+        { name: 'settledFees', type: 'uint128' },
+        { name: 'leverageLockExpiry', type: 'uint32' },
+        { name: 'isActive', type: 'bool' }
+      ]
+    }]
+  },
+  {
+    name: 'getJuniorValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'totalValue', type: 'uint256' },
+      { name: 'sharePrice', type: 'uint256' }
+    ]
+  },
+  {
+    name: 'juniorTranche',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }]
+  },
+  {
+    name: 'getPoolState',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'totalSeniorDeposits', type: 'uint128' },
+        { name: 'totalJuniorDeposits', type: 'uint128' },
+        { name: 'grossLongExposure', type: 'uint128' },
+        { name: 'grossShortExposure', type: 'uint128' },
+        { name: 'netExposure', type: 'int256' },
+        { name: 'currentMaxLeverageBps', type: 'uint32' },
+        { name: 'protocolState', type: 'uint8' }
+      ]
+    }]
+  },
+  {
+    name: 'getMaxLeverage',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'maxLeverageBps', type: 'int32' }]
+  },
+  {
+    name: 'getFundingRate',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'rateBps', type: 'int256' }]
+  },
+  {
+    name: 'getCurrentTWAP',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'twap', type: 'uint128' },
+      { name: 'spreadBps', type: 'uint16' }
+    ]
+  }
+];
+
+// Junior Tranche ABI
+const JUNIOR_TRANCHE_ABI = [
+  {
+    name: 'getShares',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'getUserValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'getSharePrice',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'price', type: 'uint256' }]
+  },
+  {
+    name: 'getTotalValue',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'value', type: 'uint256' }]
+  },
+  {
+    name: 'totalShares',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'totalSupply',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
   }
 ];
 
@@ -50,6 +233,12 @@ async function fetchBalances() {
       args: [connectedAddress]
     });
     document.getElementById('usdcBalance').textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2);
+    
+    // Update junior view USDC balance
+    const usdcBalanceJunior = document.getElementById('usdcBalanceJunior');
+    if (usdcBalanceJunior) {
+      usdcBalanceJunior.textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2);
+    }
 
     // Fetch wQQQx balance
     const wqqqxBalance = await publicClient.readContract({
@@ -75,10 +264,296 @@ async function fetchBalances() {
   }
 }
 
+async function fetchJuniorPosition(vaultAddress) {
+  if (!connectedAddress || !publicClient) return null;
+
+  try {
+    const { formatUnits } = window.viem;
+    
+    // Try to get junior tranche address - will fail if vault doesn't support it
+    const juniorTrancheAddress = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    }).catch(() => null);
+
+    if (!juniorTrancheAddress) {
+      console.log('Vault does not support junior tranche:', vaultAddress);
+      return null;
+    }
+
+    // Get user's shares
+    const shares = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getShares',
+      args: [connectedAddress]
+    });
+
+    // Get user's value
+    const userValue = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getUserValue',
+      args: [connectedAddress]
+    });
+
+    // Get share price
+    const sharePrice = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getSharePrice'
+    });
+
+    // Get total value
+    const totalValue = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getTotalValue'
+    });
+
+    return {
+      shares: parseFloat(formatUnits(shares, 6)),
+      userValue: parseFloat(formatUnits(userValue, 6)),
+      sharePrice: parseFloat(formatUnits(sharePrice, 6)),
+      totalValue: parseFloat(formatUnits(totalValue, 6))
+    };
+  } catch (error) {
+    console.log('Junior tranche not available for vault:', vaultAddress);
+    return null;
+  }
+}
+
+async function updateJuniorUI() {
+  if (!connectedAddress || !publicClient) return;
+
+  // Use the comprehensive junior page UI update if available
+  if (typeof updateJuniorPageUI === 'function') {
+    await updateJuniorPageUI();
+  } else {
+    // Fallback to basic update
+    try {
+      const wqqqxPosition = await publicClient.readContract({
+        address: VAULT_ADDRESSES.wQQQx,
+        abi: VAULT_ABI,
+        functionName: 'juniorTranche'
+      }).catch(() => null);
+
+      if (!wqqqxPosition) {
+        document.getElementById('yourJuniorPosition').textContent = 'Not Available';
+        document.getElementById('juniorTVL').textContent = 'Not Available';
+        document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
+        document.getElementById('poolUtilization').textContent = 'N/A';
+        return;
+      }
+
+      document.getElementById('yourJuniorPosition').textContent = '$0.00';
+      document.getElementById('juniorTVL').textContent = '$0.00';
+      document.getElementById('juniorPositionWithdraw').textContent = '$0.00';
+      document.getElementById('poolUtilization').textContent = '0%';
+    } catch (error) {
+      console.error('Error updating junior UI:', error);
+    }
+  }
+}
+
+async function depositJunior() {
+  if (!walletClient || !connectedAddress) {
+    showToast('Please connect your wallet first', 'error');
+    return;
+  }
+
+  const depositAmount = document.getElementById('depositAmount').value;
+  if (!depositAmount || parseFloat(depositAmount) <= 0) {
+    showToast('Please enter a valid deposit amount', 'error');
+    return;
+  }
+
+  try {
+    const { parseUnits } = window.viem;
+    const amount = parseUnits(depositAmount, 6);
+
+    // Use wQQQx vault by default (can be made dynamic)
+    const vaultAddress = VAULT_ADDRESSES.wQQQx;
+
+    // Check if vault supports junior tranche
+    const juniorTrancheAddress = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    }).catch(() => null);
+
+    if (!juniorTrancheAddress) {
+      showToast('⚠️ Junior tranche not available on current vaults', 'error');
+      return;
+    }
+
+    // First approve USDC
+    console.log('Approving USDC...');
+    const approveTx = await walletClient.writeContract({
+      address: TOKEN_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: 'approve',
+      args: [vaultAddress, amount],
+      account: connectedAddress,
+      gas: 100000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
+    });
+
+    console.log('Waiting for approval confirmation...');
+    await publicClient.waitForTransactionReceipt({ hash: approveTx });
+
+    // Then deposit
+    console.log('Depositing to junior tranche...');
+    const depositTx = await walletClient.writeContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'depositJunior',
+      args: [amount],
+      account: connectedAddress,
+      gas: 500000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
+    });
+
+    console.log('Waiting for deposit confirmation...');
+    await publicClient.waitForTransactionReceipt({ hash: depositTx });
+
+    showToast('✓ Junior deposit successful!', 'success');
+    
+    // Refresh balances and UI
+    await fetchBalances();
+    await updateJuniorUI();
+    
+    // Clear input
+    document.getElementById('depositAmount').value = '';
+  } catch (error) {
+    console.error('Junior deposit failed:', error);
+    showToast('Deposit failed: ' + (error.shortMessage || error.message || 'Unknown error'), 'error');
+  }
+}
+
+async function withdrawJunior() {
+  if (!walletClient || !connectedAddress) {
+    showToast('Please connect your wallet first', 'error');
+    return;
+  }
+
+  const withdrawAmount = document.getElementById('withdrawAmount').value;
+  if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+    showToast('Please enter a valid withdrawal amount', 'error');
+    return;
+  }
+
+  try {
+    const { parseUnits } = window.viem;
+    const vaultAddress = VAULT_ADDRESSES.wQQQx;
+
+    // Check if vault supports junior tranche
+    const juniorTrancheCheck = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    }).catch(() => null);
+
+    if (!juniorTrancheCheck) {
+      showToast('⚠️ Junior tranche not available on current vaults', 'error');
+      return;
+    }
+
+    // Get junior tranche address
+    const juniorTrancheAddress = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'juniorTranche'
+    });
+
+    // Get share price to calculate shares needed
+    const sharePrice = await publicClient.readContract({
+      address: juniorTrancheAddress,
+      abi: JUNIOR_TRANCHE_ABI,
+      functionName: 'getSharePrice'
+    });
+
+    // Calculate shares to withdraw (amount * 1e6 / sharePrice)
+    const amountInUsdc = parseUnits(withdrawAmount, 6);
+    const shares = (amountInUsdc * BigInt(1e6)) / sharePrice;
+
+    console.log('Withdrawing from junior tranche...');
+    const withdrawTx = await walletClient.writeContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'withdrawJunior',
+      args: [shares],
+      account: connectedAddress,
+      gas: 500000n
+    });
+
+    console.log('Waiting for withdrawal confirmation...');
+    await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
+
+    showToast('✓ Junior withdrawal successful!', 'success');
+    
+    // Refresh balances and UI
+    await fetchBalances();
+    await updateJuniorUI();
+    
+    // Clear input
+    document.getElementById('withdrawAmount').value = '';
+  } catch (error) {
+    console.error('Junior withdrawal failed:', error);
+    showToast('Withdrawal failed: ' + (error.shortMessage || error.message || 'Unknown error'), 'error');
+  }
+}
+
+async function switchToInkSepolia() {
+  try {
+    // First try to switch
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0xBA6ED' }],
+    });
+    console.log('✓ Switched to Ink Sepolia');
+    return true;
+  } catch (switchError) {
+    // If network not added (error 4902), add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0xBA6ED',
+            chainName: 'Ink Sepolia',
+            nativeCurrency: {
+              name: 'ETH',
+              symbol: 'ETH',
+              decimals: 18
+            },
+            rpcUrls: ['https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc'],
+            blockExplorerUrls: ['https://explorer-sepolia.inkonchain.com']
+          }]
+        });
+        console.log('✓ Added and switched to Ink Sepolia');
+        return true;
+      } catch (addError) {
+        console.error('Failed to add network:', addError);
+        return false;
+      }
+    } else if (switchError.code === 4001) {
+      console.log('User rejected network switch');
+      return false;
+    } else {
+      console.error('Network switch error:', switchError);
+      return false;
+    }
+  }
+}
+
 async function connectWallet() {
   try {
     if (!window.ethereum) {
-      alert('Please install MetaMask or another Web3 wallet to connect.');
+      showToast('Please install MetaMask or another Web3 wallet to connect.', 'warning', 5000);
       return;
     }
 
@@ -90,29 +565,48 @@ async function connectWallet() {
       throw new Error('No accounts found');
     }
 
-    const { createWalletClient, createPublicClient, custom, http, mainnet } = window.viem;
+    // Check current network
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const currentChainId = parseInt(chainId, 16);
+    
+    // Only switch if not already on Ink Sepolia
+    if (currentChainId !== 763373) {
+      console.log(`Current network: ${currentChainId}, switching to Ink Sepolia (763373)...`);
+      const switched = await switchToInkSepolia();
+      
+      if (!switched) {
+        showToast('Please switch to Ink Sepolia network in MetaMask.\n\nChain ID: 763373', 'warning', 6000);
+        return;
+      }
+    } else {
+      console.log('✓ Already on Ink Sepolia');
+    }
+
+    const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
     
     walletClient = createWalletClient({
-      chain: mainnet,
+      chain: inkSepolia,
       transport: custom(window.ethereum)
     });
 
     publicClient = createPublicClient({
-      chain: mainnet,
-      transport: http('https://ink-sepolia.drpc.org')
+      chain: inkSepolia,
+      transport: http('https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc')
     });
 
     connectedAddress = accounts[0];
     
     updateWalletUI();
     await fetchBalances();
+    await updateJuniorUI();
+    await loadUserPositions();
     
     localStorage.setItem('walletConnected', 'true');
     console.log('✓ Wallet connected:', connectedAddress);
     
   } catch (error) {
     console.error('Failed to connect wallet:', error);
-    alert('Failed to connect wallet. Please try again.');
+    showToast('Failed to connect wallet. Please try again.', 'error');
   }
 }
 
@@ -141,12 +635,14 @@ function updateWalletUI() {
 
 // Listen for account changes
 if (window.ethereum) {
-  window.ethereum.on('accountsChanged', (accounts) => {
+  window.ethereum.on('accountsChanged', async (accounts) => {
     if (accounts.length === 0) {
       disconnectWallet();
     } else {
       connectedAddress = accounts[0];
       updateWalletUI();
+      await fetchBalances();
+      await loadUserPositions();
       console.log('✓ Account changed:', connectedAddress);
     }
   });
@@ -196,8 +692,8 @@ let currentTicker = 'QQQ';
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
 let entryDateIndex = 0;
 let isDegenMode = false;
-let MIN_LEV = -4.0, MAX_LEV = 4.0;
-const NORMAL_MIN = -4.0, NORMAL_MAX = 4.0;
+let MIN_LEV = -3.5, MAX_LEV = 3.5;
+const NORMAL_MIN = -3.5, NORMAL_MAX = 3.5;
 const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0;
 
 async function fetchRealData(symbol, years) {
@@ -276,7 +772,7 @@ async function loadTickerData(ticker) {
   } catch (error) {
     console.error('Failed to load data:', error);
     dataLoading = false;
-    alert('Error loading data. Please check your connection and refresh the page.');
+    showToast('Error loading data. Please check your connection and refresh the page.', 'error', 6000);
   }
 }
 
@@ -1133,6 +1629,12 @@ function updateAll() {
   document.getElementById('levDisplay').textContent = `${signedDisplay}×`;
   document.getElementById('mobileLevDisplay').textContent = `${signedDisplay}×`;
   
+  // Update position entry leverage display
+  const currentLevDisplay = document.getElementById('currentLevDisplay');
+  if (currentLevDisplay) {
+    currentLevDisplay.textContent = `${signedDisplay}×`;
+  }
+  
   document.getElementById('legendBase').textContent = `${currentTicker} (1×)`;
   document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`;
   document.getElementById('dataSourceTicker').textContent = currentTicker;
@@ -1186,7 +1688,7 @@ function updateAll() {
   if (absLev > 3.0) requiredBuffer = 0.30;
   if (absLev > 3.5) requiredBuffer = 0.33;
   
-  let dynamicMax = 4.0;
+  let dynamicMax = 3.5;
   if (juniorRatio < 0.40) dynamicMax = 3.0;
   if (juniorRatio < 0.30) dynamicMax = 2.0;
   if (juniorRatio < 0.20) dynamicMax = 1.5;
@@ -1207,7 +1709,7 @@ function updateAll() {
 
   document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage));
 
-  const riskPct = Math.min(100, (absMag / 4.0) * 100);
+  const riskPct = Math.min(100, (absMag / 3.5) * 100);
   const rf = document.getElementById('riskFill');
   rf.style.width = riskPct + '%';
   
@@ -1271,7 +1773,8 @@ function snapLeverage(raw) {
   if (isDegenMode) {
     return Math.round(raw);
   } else {
-    return Math.round(raw * 4) / 4;
+    // Snap to 0.1 increments for finer control
+    return Math.round(raw * 10) / 10;
   }
 }
 
@@ -1418,11 +1921,16 @@ document.getElementById('seniorBtn').addEventListener('click', () => {
   document.getElementById('juniorBtn').classList.remove('active');
 });
 
-document.getElementById('juniorBtn').addEventListener('click', () => {
+document.getElementById('juniorBtn').addEventListener('click', async () => {
   document.getElementById('seniorView').style.display = 'none';
   document.getElementById('juniorView').style.display = 'block';
   document.getElementById('seniorBtn').classList.remove('active');
   document.getElementById('juniorBtn').classList.add('active');
+  
+  // Refresh junior UI data
+  if (connectedAddress && publicClient) {
+    await updateJuniorUI();
+  }
 });
 
 // Junior LP Tab Switching
@@ -1445,6 +1953,18 @@ if (depositTab && withdrawTab) {
     withdrawContent.style.display = 'block';
     depositContent.style.display = 'none';
   });
+}
+
+// Junior LP Deposit/Withdraw Buttons
+const depositBtn = document.getElementById('depositBtn');
+const withdrawBtn = document.getElementById('withdrawBtn');
+
+if (depositBtn) {
+  depositBtn.addEventListener('click', depositJunior);
+}
+
+if (withdrawBtn) {
+  withdrawBtn.addEventListener('click', withdrawJunior);
 }
 
 // How It Works Page Navigation
@@ -1534,13 +2054,13 @@ function updateNormalModeUI() {
   const notchContainer = document.querySelectorAll('.slider-notches');
   notchContainer.forEach(container => {
     container.innerHTML = `
-      <button class="notch-btn" data-lev="-4.0">-4×</button>
+      <button class="notch-btn" data-lev="-3.5">-3.5×</button>
       <button class="notch-btn" data-lev="-2.0">-2×</button>
       <button class="notch-btn" data-lev="-1.0">-1×</button>
       <button class="notch-btn" data-lev="0">0×</button>
       <button class="notch-btn" data-lev="1.0">+1×</button>
       <button class="notch-btn" data-lev="2.0">+2×</button>
-      <button class="notch-btn" data-lev="4.0">+4×</button>
+      <button class="notch-btn" data-lev="3.5">+3.5×</button>
     `;
     container.querySelectorAll('.notch-btn').forEach(b => {
       b.addEventListener('click', () => {
