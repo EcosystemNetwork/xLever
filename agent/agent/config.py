@@ -14,7 +14,10 @@ class BlockchainConfig(BaseSettings):
         description="RPC endpoint URL for Ink Sepolia",
     )
     chain_id: int = Field(default=763373, description="Chain ID for Ink Sepolia")
-    private_key: str = Field(..., description="Private key for transaction signing")
+    private_key: str = Field(
+        default="0000000000000000000000000000000000000000000000000000000000000001",
+        description="Private key for transaction signing",
+    )
 
     @validator("private_key")
     def validate_private_key(cls, v: str) -> str:
@@ -24,13 +27,16 @@ class BlockchainConfig(BaseSettings):
         # Remove 0x prefix if present for consistency
         return v.removeprefix("0x")
 
-    model_config = SettingsConfigDict(env_prefix="")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
 
 class APIConfig(BaseSettings):
     """External API configuration."""
 
-    tavily_api_key: str = Field(..., description="Tavily API key for market intelligence")
+    tavily_api_key: str = Field(
+        default="tvly-dev-placeholder",
+        description="Tavily API key for market intelligence",
+    )
 
     @validator("tavily_api_key")
     def validate_api_key(cls, v: str) -> str:
@@ -39,7 +45,7 @@ class APIConfig(BaseSettings):
             raise ValueError("TAVILY_API_KEY must be set")
         return v
 
-    model_config = SettingsConfigDict(env_prefix="")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
 
 class DatabaseConfig(BaseSettings):
@@ -49,7 +55,7 @@ class DatabaseConfig(BaseSettings):
         default="sqlite+aiosqlite:///./agent.db", description="Async database URL"
     )
 
-    model_config = SettingsConfigDict(env_prefix="")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
 
 class AgentConfig(BaseSettings):
@@ -62,7 +68,7 @@ class AgentConfig(BaseSettings):
         default=300, ge=60, le=3600, description="Seconds between decision cycles"
     )
 
-    model_config = SettingsConfigDict(env_prefix="AGENT_")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="AGENT_", extra="ignore")
 
 
 class RiskConfig(BaseSettings):
@@ -81,7 +87,7 @@ class RiskConfig(BaseSettings):
         default=20.0, ge=5.0, le=100.0, description="Take profit percentage"
     )
 
-    model_config = SettingsConfigDict(env_prefix="")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
 
 class LoggingConfig(BaseSettings):
@@ -89,7 +95,7 @@ class LoggingConfig(BaseSettings):
 
     log_level: str = Field(default="INFO", description="Log level")
 
-    model_config = SettingsConfigDict(env_prefix="")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
 
 class Settings(BaseSettings):
