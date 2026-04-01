@@ -1,39 +1,155 @@
 /**
- * xLever LLM Analyst — Perplexity-Powered Market Intelligence
- * ─────────────────────────────────────────────────────────────
+ * xLever LLM Analyst — Provider-Agnostic Market Intelligence
+ * ────────────────────────────────────────────────────────────
  * Fourth analyst agent in the news-to-trade pipeline.
- * Uses Perplexity AI (online LLM with live web search) to:
+ * Supports multiple LLM backends via a unified interface:
  *
- *  1. Analyze news items with real-time market context
- *  2. Generate structured trading signals (direction, confidence, reasoning)
- *  3. Provide AI-driven recommendations that complement heuristic analysts
+ *   groq      — Free tier, 30 req/min, Llama 3.3 70B (DEFAULT)
+ *   ollama    — Local, free forever, any model, offline capable
+ *   openrouter — Multi-model gateway, free tiers available
+ *   gemini    — Google AI, free tier 15 req/min
+ *   perplexity — Online LLM with web search (paid)
  *
  * Integrates into NewsAnalysts.analyzeAll() alongside sentiment, technical, macro.
  *
- * Requires: PERPLEXITY_API_KEY in environment / window.__ENV__
+ * Config via window.__ENV__ or setProvider() / setApiKey() at runtime.
  */
 
 const LLMAnalyst = (() => {
 
   // ═══════════════════════════════════════════════════════════════
-  // CONFIG
+  // PROVIDER REGISTRY
   // ═══════════════════════════════════════════════════════════════
 
-  const API_URL = 'https://api.perplexity.ai/chat/completions'
-  const MODEL = 'llama-3.1-sonar-small-128k-online'
-  const MAX_TOKENS = 600
-  const TEMPERATURE = 0.5          // Low temp for consistent trading decisions
-  const TIMEOUT_MS = 15000         // 15s max per request
-  const MAX_RETRIES = 2
+  const PROVIDERS = {
+    groq: {
+      name: 'Groq',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      model: 'llama-3.3-70b-versatile',
+      keyEnv: 'GROQ_API_KEY',
+      rateLimit: 30,
+      authHeader: key => `Bearer ${key}`,
+      buildPayload: (messages, model) => ({
+        model,
+        messages,
+        temperature: 0.5,
+        max_tokens: 600,
+        response_format: { type: 'json_object' },
+      }),
+      parseResponse: data => ({
+        content: data.choices?.[0]?.message?.content || '',
+        model: data.model || '',
+        usage: data.usage || {},
+      }),
+    },
 
-  // Rate limiter state
+    ollama: {
+      name: 'Ollama (local)',
+      url: 'http://localhost:11434/api/chat',
+      model: 'llama3.1',
+      keyEnv: null,  // No API key needed
+      rateLimit: 60,
+      authHeader: () => null,
+      buildPayload: (messages, model) => ({
+        model,
+        messages,
+        stream: false,
+        options: { temperature: 0.5, num_predict: 600 },
+        format: 'json',
+      }),
+      parseResponse: data => ({
+        content: data.message?.content || '',
+        model: data.model || '',
+        usage: { prompt_tokens: data.prompt_eval_count || 0, completion_tokens: data.eval_count || 0 },
+      }),
+    },
+
+    openrouter: {
+      name: 'OpenRouter',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
+      keyEnv: 'OPENROUTER_API_KEY',
+      rateLimit: 20,
+      authHeader: key => `Bearer ${key}`,
+      extraHeaders: { 'HTTP-Referer': 'https://xlever.markets', 'X-Title': 'xLever Trading Agent' },
+      buildPayload: (messages, model) => ({
+        model,
+        messages,
+        temperature: 0.5,
+        max_tokens: 600,
+      }),
+      parseResponse: data => ({
+        content: data.choices?.[0]?.message?.content || '',
+        model: data.model || '',
+        usage: data.usage || {},
+      }),
+    },
+
+    gemini: {
+      name: 'Google Gemini',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+      model: 'gemini-2.0-flash',
+      keyEnv: 'GEMINI_API_KEY',
+      rateLimit: 15,
+      authHeader: () => null,  // Key passed as query param
+      buildUrl: (baseUrl, model, key) => baseUrl.replace('{model}', model) + `?key=${key}`,
+      buildPayload: (messages) => ({
+        contents: messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' : m.role === 'system' ? 'user' : m.role,
+          parts: [{ text: m.content }],
+        })),
+        generationConfig: { temperature: 0.5, maxOutputTokens: 600, responseMimeType: 'application/json' },
+      }),
+      parseResponse: data => ({
+        content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+        model: data.modelVersion || '',
+        usage: { prompt_tokens: data.usageMetadata?.promptTokenCount || 0, completion_tokens: data.usageMetadata?.candidatesTokenCount || 0 },
+      }),
+    },
+
+    perplexity: {
+      name: 'Perplexity',
+      url: 'https://api.perplexity.ai/chat/completions',
+      model: 'llama-3.1-sonar-small-128k-online',
+      keyEnv: 'PERPLEXITY_API_KEY',
+      rateLimit: 10,
+      authHeader: key => `Bearer ${key}`,
+      buildPayload: (messages, model) => ({
+        model,
+        messages,
+        temperature: 0.5,
+        max_tokens: 600,
+        return_citations: true,
+        return_images: false,
+      }),
+      parseResponse: data => ({
+        content: data.choices?.[0]?.message?.content || '',
+        citations: data.citations || [],
+        model: data.model || '',
+        usage: data.usage || {},
+      }),
+    },
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════
+
+  let _activeProvider = 'groq'    // Default to free Groq
+  let _modelOverride = null       // Override the provider's default model
+  let _ollamaUrl = null           // Override Ollama base URL
+
+  const MAX_RETRIES = 2
+  const TIMEOUT_MS = 15000
+
+  // Rate limiter
   const _rateLimiter = {
-    maxPerMinute: 10,
-    timestamps: [],               // Request timestamps within the window
+    timestamps: [],
   }
 
   // Stats
   const _stats = {
+    provider: 'groq',
     queries: 0,
     successes: 0,
     failures: 0,
@@ -42,18 +158,38 @@ const LLMAnalyst = (() => {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // API KEY
+  // CONFIG
   // ═══════════════════════════════════════════════════════════════
 
+  function getProvider() {
+    return PROVIDERS[_activeProvider]
+  }
+
   function getApiKey() {
-    // Check multiple sources for the API key
-    if (window.__ENV__?.PERPLEXITY_API_KEY) return window.__ENV__.PERPLEXITY_API_KEY
-    if (window.PERPLEXITY_API_KEY) return window.PERPLEXITY_API_KEY
+    const provider = getProvider()
+    if (!provider) return null
+
+    // Ollama needs no key
+    if (!provider.keyEnv) return '__local__'
+
+    const env = window.__ENV__ || {}
+    // Check provider-specific key first
+    if (env[provider.keyEnv]) return env[provider.keyEnv]
+    // Check window-level
+    if (window[provider.keyEnv]) return window[provider.keyEnv]
+    // Legacy: check PERPLEXITY_API_KEY if that provider is active
+    if (_activeProvider === 'perplexity' && env.PERPLEXITY_API_KEY) return env.PERPLEXITY_API_KEY
     return null
   }
 
   function isAvailable() {
+    // Ollama: try to assume it's available (no key check needed)
+    if (_activeProvider === 'ollama') return true
     return !!getApiKey()
+  }
+
+  function getActiveModel() {
+    return _modelOverride || getProvider()?.model || 'unknown'
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -61,12 +197,12 @@ const LLMAnalyst = (() => {
   // ═══════════════════════════════════════════════════════════════
 
   function acquireRateSlot() {
+    const provider = getProvider()
+    const limit = provider?.rateLimit || 10
     const now = Date.now()
-    const windowMs = 60000
-    // Purge timestamps older than 1 minute
-    _rateLimiter.timestamps = _rateLimiter.timestamps.filter(t => t > now - windowMs)
+    _rateLimiter.timestamps = _rateLimiter.timestamps.filter(t => t > now - 60000)
 
-    if (_rateLimiter.timestamps.length >= _rateLimiter.maxPerMinute) {
+    if (_rateLimiter.timestamps.length >= limit) {
       _stats.rateLimited++
       return false
     }
@@ -76,36 +212,49 @@ const LLMAnalyst = (() => {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // PERPLEXITY CLIENT
+  // UNIFIED LLM CLIENT
   // ═══════════════════════════════════════════════════════════════
 
-  async function queryPerplexity(prompt, systemPrompt) {
-    const apiKey = getApiKey()
-    if (!apiKey) throw new Error('No Perplexity API key configured')
+  async function queryLLM(prompt, systemPrompt) {
+    const provider = getProvider()
+    if (!provider) throw new Error(`Unknown provider: ${_activeProvider}`)
 
+    const apiKey = getApiKey()
+    if (!apiKey) throw new Error(`No API key for ${provider.name}`)
+
+    const model = getActiveModel()
+
+    // Build messages
     const messages = []
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt })
     messages.push({ role: 'user', content: prompt })
 
-    const payload = {
-      model: MODEL,
-      messages,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
-      return_citations: true,
-      return_images: false,
+    // Build request URL
+    let url = provider.url
+    if (_activeProvider === 'ollama' && _ollamaUrl) {
+      url = _ollamaUrl + '/api/chat'
+    }
+    if (provider.buildUrl) {
+      url = provider.buildUrl(url, model, apiKey)
     }
 
+    // Build payload
+    const payload = provider.buildPayload(messages, model)
+
+    // Build headers
+    const headers = { 'Content-Type': 'application/json' }
+    const authVal = provider.authHeader(apiKey)
+    if (authVal) headers['Authorization'] = authVal
+    if (provider.extraHeaders) Object.assign(headers, provider.extraHeaders)
+
+    // Fire request
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
       })
@@ -114,19 +263,15 @@ const LLMAnalyst = (() => {
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '')
-        throw new Error(`Perplexity API ${res.status}: ${errText.slice(0, 200)}`)
+        throw new Error(`${provider.name} ${res.status}: ${errText.slice(0, 200)}`)
       }
 
       const data = await res.json()
-      return {
-        content: data.choices?.[0]?.message?.content || '',
-        citations: data.citations || [],
-        model: data.model || MODEL,
-        usage: data.usage || {},
-      }
+      return provider.parseResponse(data)
+
     } catch (e) {
       clearTimeout(timeoutId)
-      if (e.name === 'AbortError') throw new Error('Perplexity request timed out')
+      if (e.name === 'AbortError') throw new Error(`${provider.name} request timed out`)
       throw e
     }
   }
@@ -135,7 +280,7 @@ const LLMAnalyst = (() => {
     let lastErr
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        return await queryPerplexity(prompt, systemPrompt)
+        return await queryLLM(prompt, systemPrompt)
       } catch (e) {
         lastErr = e
         if (attempt < MAX_RETRIES) {
@@ -163,7 +308,6 @@ Analyze the news item and respond with ONLY valid JSON in this exact format:
 }
 
 Rules:
-- Use LIVE web data to verify claims before forming an opinion
 - Be conservative: default to "hold" unless signal is clear
 - confidence 0-30 = noise, 30-60 = weak signal, 60-80 = actionable, 80+ = high conviction
 - Consider: market momentum, volatility regime, event risk, position crowding
@@ -186,7 +330,6 @@ Rules:
       parts.push(`MENTIONED TICKERS: ${newsItem.symbols.join(', ')}`)
     }
 
-    // Add live market context if available
     if (marketContext) {
       if (marketContext.oraclePrice) {
         parts.push(`CURRENT QQQ PRICE (Pyth oracle): $${marketContext.oraclePrice.toFixed(2)}`)
@@ -237,11 +380,10 @@ Rules:
       return makeFallbackSignal('Could not parse LLM response', content)
     }
 
-    // Validate and clamp values
     const directionRaw = String(data.direction || 'neutral').toLowerCase()
     const direction = ['bullish', 'bearish', 'neutral'].includes(directionRaw) ? directionRaw : 'neutral'
 
-    const confidence = Math.max(0, Math.min(100, Number(data.confidence) || 0)) / 100 // Normalize to 0..1
+    const confidence = Math.max(0, Math.min(100, Number(data.confidence) || 0)) / 100
 
     const actionRaw = String(data.action || 'hold').toLowerCase()
     const action = ['increase', 'decrease', 'close', 'hold', 'open'].includes(actionRaw) ? actionRaw : 'hold'
@@ -261,10 +403,12 @@ Rules:
       confidence,
       urgency,
       action,
-      reasoning: `LLM: ${reasoning}`,
+      reasoning: `LLM (${getProvider()?.name || _activeProvider}): ${reasoning}`,
       affectedAssets,
       timestamp: Date.now(),
       meta: {
+        provider: _activeProvider,
+        model: getActiveModel(),
         rawResponse: content.slice(0, 500),
         parseSuccess: true,
       },
@@ -282,6 +426,7 @@ Rules:
       affectedAssets: [],
       timestamp: Date.now(),
       meta: {
+        provider: _activeProvider,
         rawResponse: rawResponse.slice(0, 500),
         parseSuccess: false,
       },
@@ -295,7 +440,6 @@ Rules:
   async function gatherMarketContext() {
     const ctx = {}
 
-    // Pyth oracle price
     try {
       const pyth = window.xLeverPyth
       if (pyth) {
@@ -305,7 +449,6 @@ Rules:
       }
     } catch {}
 
-    // OpenBB daily context
     try {
       const obb = window.xLeverOpenBB
       if (obb) {
@@ -317,7 +460,6 @@ Rules:
       }
     } catch {}
 
-    // Risk engine state
     try {
       if (window.RiskLive?.state) {
         ctx.riskState = window.RiskLive.state.state
@@ -331,39 +473,25 @@ Rules:
   // MAIN ANALYSIS FUNCTION
   // ═══════════════════════════════════════════════════════════════
 
-  /**
-   * Analyze a news item using Perplexity AI.
-   * Returns a signal compatible with NewsAnalysts.makeSignal() schema.
-   *
-   * @param {Object} newsItem - { headline, body, source, priority, symbols }
-   * @returns {Object} signal - { analyst, direction, confidence, urgency, action, reasoning, affectedAssets }
-   */
   async function analyze(newsItem) {
-    // No API key — return empty signal (graceful degradation)
     if (!isAvailable()) {
-      return makeFallbackSignal('No Perplexity API key configured')
+      return makeFallbackSignal(`No API key for ${getProvider()?.name || _activeProvider}`)
     }
 
-    // Rate limit check
     if (!acquireRateSlot()) {
-      return makeFallbackSignal('Rate limited (10 req/min)')
+      return makeFallbackSignal(`Rate limited (${getProvider()?.rateLimit || '?'} req/min)`)
     }
 
     _stats.queries++
+    _stats.provider = _activeProvider
     const start = performance.now()
 
     try {
-      // Gather live market context to enrich the prompt
       const marketContext = await gatherMarketContext()
-
-      // Build and send prompt
       const prompt = buildPrompt(newsItem, marketContext)
       const response = await queryWithRetry(prompt, SYSTEM_PROMPT)
-
-      // Parse the structured response
       const signal = parseResponse(response.content, newsItem)
 
-      // Track latency
       const latency = performance.now() - start
       _stats.avgLatencyMs = (_stats.avgLatencyMs * _stats.successes + latency) / (_stats.successes + 1)
       _stats.successes++
@@ -377,7 +505,7 @@ Rules:
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STANDALONE MARKET ANALYSIS (for direct use outside news pipeline)
+  // STANDALONE MARKET ANALYSIS
   // ═══════════════════════════════════════════════════════════════
 
   async function analyzeMarket(asset = 'QQQ') {
@@ -395,19 +523,60 @@ Rules:
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // AUTO-DETECT BEST AVAILABLE PROVIDER
+  // ═══════════════════════════════════════════════════════════════
+
+  function autoDetect() {
+    const env = window.__ENV__ || {}
+    // Priority: groq (free+fast) > ollama (local) > openrouter > gemini > perplexity
+    if (env.GROQ_API_KEY || window.GROQ_API_KEY)               return 'groq'
+    if (env.OPENROUTER_API_KEY || window.OPENROUTER_API_KEY)     return 'openrouter'
+    if (env.GEMINI_API_KEY || window.GEMINI_API_KEY)             return 'gemini'
+    if (env.PERPLEXITY_API_KEY || window.PERPLEXITY_API_KEY)     return 'perplexity'
+    // Ollama as last resort (may not be running)
+    return 'ollama'
+  }
+
+  // Run auto-detect on load
+  _activeProvider = autoDetect()
+
+  // ═══════════════════════════════════════════════════════════════
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════
 
   return Object.freeze({
+    // Core
     analyze,
     analyzeMarket,
     isAvailable,
 
+    // Provider info
+    get provider() { return _activeProvider },
+    get providerName() { return getProvider()?.name || _activeProvider },
+    get model() { return getActiveModel() },
+    get providers() { return Object.keys(PROVIDERS) },
     get stats() { return { ..._stats } },
 
-    // Allow runtime config
-    setApiKey(key) { window.__ENV__ = window.__ENV__ || {}; window.__ENV__.PERPLEXITY_API_KEY = key },
-    setRateLimit(rpm) { _rateLimiter.maxPerMinute = rpm },
+    // Configuration
+    setProvider(name, opts = {}) {
+      if (!PROVIDERS[name]) throw new Error(`Unknown provider: ${name}. Available: ${Object.keys(PROVIDERS).join(', ')}`)
+      _activeProvider = name
+      _modelOverride = opts.model || null
+      _rateLimiter.timestamps = []  // Reset rate limiter for new provider
+      _stats.provider = name
+      if (name === 'ollama' && opts.url) _ollamaUrl = opts.url
+    },
+
+    setApiKey(key, provider) {
+      window.__ENV__ = window.__ENV__ || {}
+      const p = provider || _activeProvider
+      const prov = PROVIDERS[p]
+      if (prov?.keyEnv) window.__ENV__[prov.keyEnv] = key
+    },
+
+    setModel(model) { _modelOverride = model },
+    setRateLimit(rpm) { const p = getProvider(); if (p) p.rateLimit = rpm },
+    autoDetect() { _activeProvider = autoDetect(); return _activeProvider },
   })
 })()
 
