@@ -65,9 +65,16 @@ async function depositToVault(asset, amountUSDC, leverageBps) {
   return receipt;
 }
 
-// Withdraw from vault
-// Delegates to contracts.closePosition which handles:
-//   Pyth update → writeContract → waitForTx with retry
+/**
+ * Withdraw USDC from a vault (close position).
+ * Delegates to contracts.closePosition which handles:
+ *   Pyth price update -> writeContract -> waitForTx with retry
+ *
+ * @param {string} asset - Vault asset identifier ('wSPYx' or 'wQQQx')
+ * @param {number} amountUSDC - USDC amount to withdraw
+ * @returns {Promise<Object>} Transaction receipt from the withdrawal
+ * @throws {Error} If contracts not initialized or wallet not connected
+ */
 async function withdrawFromVault(asset, amountUSDC) {
   const contracts = window.xLeverContracts;
   if (!contracts) throw new Error('Contract system not initialized');
@@ -94,7 +101,11 @@ async function withdrawFromVault(asset, amountUSDC) {
   return receipt;
 }
 
-// Fetch user's position in a vault
+/**
+ * Fetch the user's active position in a specific vault from on-chain state.
+ * @param {string} asset - Vault asset identifier ('wSPYx' or 'wQQQx')
+ * @returns {Promise<Object|null>} Position data with isActive, depositAmount, leverageBps, or null
+ */
 async function fetchPosition(asset) {
   if (!connectedAddress || !publicClient) return null;
 

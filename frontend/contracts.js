@@ -449,6 +449,12 @@ export async function getPositionValue(userAddress) {
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPositionValue', args: [userAddress] })
 }
 
+/**
+ * Read the vault's pool-level state (TVL, exposure, utilization, protocol state).
+ * Not user-specific — returns aggregate vault metrics.
+ *
+ * @returns {Promise<Object|null>} Raw pool state tuple, or null if no vault
+ */
 export async function getPoolState() {
   if (!ADDRESSES.vault) return null
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPoolState' })

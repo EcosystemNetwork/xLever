@@ -69,6 +69,17 @@ const NewsVerifier = (() => {
 
   const DIRECTION_BEARISH = /crash|plunge|plummet|drop|fall|fell|decline|tumble|sink|slide|down|loss/i
 
+  /**
+   * Price verification — extract claimed % moves from headlines and compare
+   * against live market data from Pyth oracle and OpenBB.
+   *
+   * Uses 50% tolerance (or 1% minimum) when comparing claimed vs actual moves.
+   * A price mismatch is a hard verification failure that causes news rejection.
+   *
+   * @param {Object} newsItem - News item with headline, body, and symbols
+   * @param {Object} check - Mutable check result object (status, passed, detail, data)
+   * @returns {Promise<void>} Modifies check in place
+   */
   async function verifyPrice(newsItem, check) {
     const text = `${newsItem.headline} ${newsItem.body}`
     const symbols = newsItem.symbols || []

@@ -246,7 +246,10 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Policy Configuration Panel -->
+    <!-- ===== SECTION: Policy Configuration Panel =====
+         Hidden by default, shown when a mode card is selected.
+         Contains config-safe, config-target, config-accumulate sub-panels
+         with sliders for volatility trigger, leverage targets, DCA amounts, etc. -->
     <section id="configPanel" class="hidden">
       <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
         <div class="bg-surface-container-high px-5 py-3 flex items-center justify-between border-b border-outline-variant/10">
@@ -398,7 +401,10 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Active Policy Summary -->
+    <!-- ===== SECTION: Active Policy Summary =====
+         Shown when a policy is activated. Displays policy rules, agent permissions,
+         stats (actions taken, PnL impact, uptime, current leverage),
+         and pause/deactivate/reconfigure controls. -->
     <section id="activePolicySection" class="hidden">
       <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
         <div class="bg-surface-container-high px-5 py-3 flex items-center justify-between border-b border-outline-variant/10">
