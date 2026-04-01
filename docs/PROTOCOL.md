@@ -1,5 +1,7 @@
 # Protocol Mechanics
 
+> **Note:** This document describes the full LTAP protocol design. The **live deployment** (VaultSimple on Ink Sepolia) supports deposit, withdraw, adjust leverage, and Pyth oracle pricing. The fee engine, junior tranche, Euler V2 hedging, TWAP oracle, and auto-deleverage are part of the **planned modular Vault** — designed and coded but not yet deployed. See [LIVE-VS-PLANNED.md](LIVE-VS-PLANNED.md) for details.
+
 Core design of the Leveraged Tokenized Asset Protocol (LTAP).
 
 ---

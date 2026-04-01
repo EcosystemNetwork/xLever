@@ -1,18 +1,34 @@
 /**
- * xLever Agent Coordinator
- * ─────────────────────────
+ * @file agent-coordinator.js
+ * @module AgentCoordinator
+ * @description
+ * xLever Agent Coordinator — Multi-agent orchestrator for the news-to-trade pipeline.
+ *
  * Orchestrates the full news-to-trade pipeline:
  *
- *  NewsIngest → NewsAnalysts (parallel) → SignalAggregator → AgentExecutor
+ *  NewsIngest → NewsVerifier → NewsAnalysts (parallel) → SignalAggregator → AgentExecutor
  *
  * Responsibilities:
- *  1. Subscribes to the news queue
- *  2. Processes items by priority (CRITICAL first)
- *  3. Runs three analyst agents in parallel
- *  4. Aggregates signals into action recommendations
- *  5. Feeds actionable recommendations into AgentExecutor
- *  6. Rate-limits execution to prevent over-trading
- *  7. Maintains an audit log of all decisions
+ *  1. Subscribes to the news queue via NewsIngest
+ *  2. Verifies news items through NewsVerifier before analysis
+ *  3. Processes items by priority (CRITICAL first, sequentially; others in parallel)
+ *  4. Runs three (or four, with LLM) analyst agents in parallel via NewsAnalysts
+ *  5. Aggregates signals into action recommendations via SignalAggregator
+ *  6. Gates execution through rate limits, risk checks, and conviction thresholds
+ *  7. Feeds actionable recommendations into AgentExecutor
+ *  8. Maintains a capped audit log of all decisions (max 200 entries)
+ *
+ * @exports {Object} AgentCoordinator - Frozen singleton exposed on window.AgentCoordinator
+ *
+ * @dependencies
+ *  - window.NewsIngest      — News ingestion and priority queue
+ *  - window.NewsVerifier    — Source credibility and claim verification
+ *  - window.NewsAnalysts    — Parallel analyst agents (sentiment, technical, macro, LLM)
+ *  - window.SignalAggregator — Weighted signal combination and consensus detection
+ *  - window.AgentExecutor   — Trade execution engine (optional, for live execution)
+ *  - window.RiskLive        — Live risk engine state (optional, for execution gating)
+ *  - window.WSBroadcast     — WebSocket event relay (optional, for external consumers)
+ *  - window.LLMAnalyst      — LLM-based analyst (optional, enhances pipeline to 4 analysts)
  */
 
 const AgentCoordinator = (() => {
@@ -56,7 +72,23 @@ const AgentCoordinator = (() => {
   // PIPELINE
   // ═══════════════════════════════════════════════════════════════
 
-  // Process a single news item through the full pipeline
+  /**
+   * Process a single news item through the full pipeline:
+   * verify → analyze (parallel) → aggregate → gate → execute.
+   *
+   * News items that fail price verification are rejected outright.
+   * Unverified items receive a 40% confidence penalty on their recommendation.
+   *
+   * @param {Object} newsItem - Ingested news item from NewsIngest
+   * @param {string} newsItem.id - Unique identifier (timestamp-hash)
+   * @param {string} newsItem.headline - News headline text
+   * @param {string} newsItem.body - Full article body
+   * @param {string} newsItem.source - Source identifier
+   * @param {string[]} newsItem.symbols - Matched ticker symbols
+   * @param {number} newsItem.priority - Priority level (0=CRITICAL, 1=HIGH, 2=MEDIUM, 3=LOW)
+   * @param {number} newsItem.timestamp - Unix timestamp of the news item
+   * @returns {Promise<Object|null>} Recommendation object from SignalAggregator, or null on rejection/error
+   */
   async function processNewsItem(newsItem) {
     const startTime = performance.now()
 
@@ -177,6 +209,25 @@ const AgentCoordinator = (() => {
   // EXECUTION GATING
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Evaluate whether a recommendation should be executed through a series of gates.
+   * All gates must pass for execution to proceed.
+   *
+   * Gate sequence:
+   *  1. Non-hold action check
+   *  2. Minimum conviction threshold (rejects 'low' and 'neutral')
+   *  3. Rate limit — minimum 5s gap between executions
+   *  4. Per-minute execution cap (max 6/min)
+   *  5. Risk engine state check (blocks in EMERGENCY, restricts in RESTRICTED)
+   *  6. Conflicting consensus with weak score filter
+   *
+   * @param {Object} recommendation - Aggregated recommendation from SignalAggregator
+   * @param {string} recommendation.action - Recommended action (hold, increase, decrease, etc.)
+   * @param {string} recommendation.conviction - Conviction level (low, neutral, medium, high, critical)
+   * @param {string} recommendation.consensus - Analyst consensus type (unanimous, conflicting, mixed, insufficient)
+   * @param {number} recommendation.score - Weighted score (-1 to +1 range)
+   * @returns {boolean} True if the recommendation should be executed
+   */
   function evaluateExecution(recommendation) {
     // Gate 1: Only act on non-hold recommendations
     if (recommendation.action === 'hold') {
@@ -239,6 +290,17 @@ const AgentCoordinator = (() => {
   // EXECUTION BRIDGE → AgentExecutor
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Bridge a recommendation to the AgentExecutor for trade execution.
+   * Updates rate-limit counters and maps the recommendation to an executor action format.
+   *
+   * @param {Object} rec - Recommendation from SignalAggregator
+   * @param {string} rec.action - Action type (strong_increase, increase, decrease, strong_decrease, emergency_close)
+   * @param {string} rec.conviction - Conviction level
+   * @param {string} rec.direction - Market direction (bullish, bearish, neutral)
+   * @param {number} rec.score - Weighted confidence score
+   * @returns {Promise<void>}
+   */
   async function executeRecommendation(rec) {
     const executor = window.AgentExecutor
     if (!executor || !executor.isRunning) {
@@ -261,6 +323,18 @@ const AgentCoordinator = (() => {
     _stats.actionsExecuted++
   }
 
+  /**
+   * Map an aggregated recommendation to the AgentExecutor action format.
+   * Translates pipeline-level actions (strong_increase, decrease, etc.) into
+   * executor-level actions (adjust, deleverage, close).
+   *
+   * @param {Object} rec - Recommendation from SignalAggregator
+   * @param {string} rec.action - Pipeline action type
+   * @param {string} rec.conviction - Conviction level
+   * @param {number} rec.score - Weighted score
+   * @param {Object} [rec.newsItem] - Original news item reference
+   * @returns {Object|null} Executor action object with type, reason, severity, and newsSignal; null if action is unrecognized
+   */
   function mapToExecutorAction(rec) {
     const headline = rec.newsItem?.headline || 'Unknown signal'
     switch (rec.action) {
@@ -317,6 +391,15 @@ const AgentCoordinator = (() => {
   // BATCH PROCESSOR
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Drain and process a batch of news items from the priority queue.
+   * CRITICAL items are processed sequentially (order matters for immediate actions);
+   * remaining items are processed in parallel for throughput.
+   *
+   * Uses a processing lock (_processing) to prevent concurrent batch runs.
+   *
+   * @returns {Promise<void>}
+   */
   async function processBatch() {
     if (_processing || !_running) return
     _processing = true
@@ -365,6 +448,13 @@ const AgentCoordinator = (() => {
   // CRITICAL ITEM HANDLER (instant processing)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Callback invoked when the NewsIngest queue receives new items.
+   * If the top item is CRITICAL and no batch is currently processing,
+   * triggers an immediate batch run to fast-track critical news.
+   *
+   * @param {PriorityQueue} queue - The NewsIngest priority queue instance
+   */
   function onQueueUpdate(queue) {
     // Check if top item is CRITICAL — process immediately
     const top = queue.peek()
@@ -378,6 +468,17 @@ const AgentCoordinator = (() => {
   // LIFECYCLE
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Start the agent coordinator and all dependent subsystems.
+   * Initializes the news ingest pipeline, subscribes to queue updates,
+   * starts the batch processing timer, and configures rate-limit counters.
+   *
+   * @param {Object} [opts={}] - Configuration options
+   * @param {Function} [opts.log] - Logging callback with signature (label, message, color)
+   * @param {Function} [opts.onDecision] - Callback invoked on each decision with (recommendation, auditEntry)
+   * @param {number} [opts.batchSize=5] - Maximum news items to process per batch cycle
+   * @param {number} [opts.processIntervalMs=3000] - Milliseconds between batch processing cycles
+   */
   function start(opts = {}) {
     if (_running) return
     _running = true
@@ -416,6 +517,10 @@ const AgentCoordinator = (() => {
     _log('COORDINATOR', `Agent coordinator started. Batch: ${_batchSize}, Interval: ${_processIntervalMs / 1000}s, Max exec/min: ${MAX_EXECUTIONS_PER_MINUTE}.`, 'primary')
   }
 
+  /**
+   * Stop the agent coordinator and all dependent subsystems.
+   * Clears timers, unsubscribes from the news queue, and stops NewsIngest.
+   */
   function stop() {
     _running = false
     if (_processInterval) { clearInterval(_processInterval); _processInterval = null }
@@ -432,6 +537,16 @@ const AgentCoordinator = (() => {
   // MANUAL INJECTION (for testing / direct news input)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Manually inject a news item into the pipeline for immediate processing.
+   * Useful for testing or direct user input. Bypasses the queue and processes
+   * the item through the full pipeline synchronously.
+   *
+   * @param {string} headline - News headline text
+   * @param {string} [body=''] - Optional article body
+   * @param {string} [source='manual'] - Source identifier
+   * @returns {Promise<Object|null>} Recommendation from the pipeline, or null if ingestion failed
+   */
   async function injectNews(headline, body = '', source = 'manual') {
     const ingest = window.NewsIngest
     if (!ingest) return null
@@ -461,7 +576,10 @@ const AgentCoordinator = (() => {
     get auditLog() { return [..._auditLog] },
     get recentTrend() { return window.SignalAggregator?.getRecentTrend() || null },
 
-    // Configuration
+    /**
+     * Update the analyst weight configuration in the SignalAggregator.
+     * @param {Object} w - Weight overrides keyed by analyst name (sentiment, technical, macro, llm)
+     */
     setWeights(w) {
       if (window.SignalAggregator) window.SignalAggregator.setWeights(w)
     },

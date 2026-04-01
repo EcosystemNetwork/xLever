@@ -1,35 +1,61 @@
 /**
- * xLever Unified Navigation
- * One nav bar for landing page AND app — consumer-grade flow.
+ * @file nav.js — xLever Unified Navigation (XNav component)
  *
- * Landing mode:  logo + Features/GitHub/Launch App (clean, minimal)
- * App mode:      logo + Trade/Research toggle + page links + network + wallet
+ * Provides a single responsive navigation bar that operates in two modes:
+ *   - Landing mode: logo + Features/Docs/GitHub links + "Launch App" CTA
+ *   - App mode: logo + Trade/Research toggle + page tabs + network badge + wallet button
  *
- * Call XNav.init(null) on index.html (starts in landing mode).
- * Call XNav.init('pageName') on any sub-page (starts in app mode).
- * Call XNav.enterApp() to transition from landing → app.
+ * Also supports Judge Mode, which replaces the mode toggle with a "Live Demo" badge
+ * and filters visible pages to a curated demo flow.
+ *
+ * @module XNav
+ * @exports {Object} XNav - Singleton exposed on window.XNav
+ * @exports {Function} XNav.init - Initialize the nav bar for a given page
+ * @exports {Function} XNav.enterApp - Transition from landing mode to app mode
+ *
+ * @dependencies
+ *   - localStorage ('xlever-mode') for persisted mode preference
+ *   - window.JudgeMode (optional) for demo mode filtering
+ *   - window.XMode (optional) for mode synchronization
+ *   - window.xLeverWallet (optional) for Reown AppKit network switching
+ *   - window.xLeverLendingAdapters (optional) for chain-aware adapter switching
+ *   - window.xLeverLendingAgent (optional) for agent chain hot-swap
  */
 const XNav = (() => {
+  /**
+   * Page definitions for the app navigation.
+   * Each entry maps a page ID to its label, href, and which mode it belongs to.
+   * Pages with mode=null are visible in all modes (e.g., Admin).
+   * @type {Array<{id: string, label: string, href: string, mode: string|null}>}
+   */
   const PAGES = [
     { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html',              mode: 'trade' },
     { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html',       mode: 'trade' },
-    { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html',       mode: 'trade' },
-    { id: 'risk',       label: 'Risk',        href: '05-risk-management.html',        mode: 'trade' },
-    { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html',      mode: 'trade' },
-    { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html',  mode: 'research' },
     { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html',    mode: 'research' },
-    { id: 'operations', label: 'Operations',  href: '07-operations-control.html',     mode: null },
     { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html',        mode: null },
   ];
 
+  /** @type {string|null} Currently active page ID, or null for landing */
   let _activePageId = null;
+  /** @type {boolean} Whether the nav is in landing mode (no app chrome) */
   let _isLanding = false;
+  /** @type {boolean} Whether Judge Mode is active (curated demo flow) */
   let _isJudgeMode = false;
 
+  /**
+   * Read the current UI mode from localStorage.
+   * @returns {string} 'trade' or 'research'
+   */
   function getMode() {
     return localStorage.getItem('xlever-mode') || 'trade';
   }
 
+  /**
+   * Filter PAGES to those visible in the given mode.
+   * In Judge Mode, delegates filtering to JudgeMode.filterPages().
+   * @param {string} mode - 'trade' or 'research'
+   * @returns {Array<{id: string, label: string, href: string, mode: string|null}>}
+   */
   function pagesForMode(mode) {
     // Judge mode overrides: only show the core demo flow
     if (window.JudgeMode && window.JudgeMode.isActive()) {
@@ -38,6 +64,12 @@ const XNav = (() => {
     return PAGES.filter(p => p.mode === mode || p.mode === null);
   }
 
+  /**
+   * Initialize the navigation bar.
+   * Pass null for landing page, or a page ID string for app pages.
+   * Renders both desktop and mobile nav, wires up event handlers.
+   * @param {string|null} activePageId - The ID of the current page, or null for landing
+   */
   function init(activePageId) {
     _activePageId = activePageId;
     _isLanding = (activePageId === null);
@@ -67,6 +99,14 @@ const XNav = (() => {
     wireUpModeToggle(_activePageId);
   }
 
+  /**
+   * Generate an HTML anchor string for a desktop nav link.
+   * Active links get a highlighted background; inactive links are muted.
+   * In Judge Mode, prepends a numbered step indicator badge.
+   * @param {{id: string, label: string, href: string}} page - Page definition
+   * @param {boolean} isActive - Whether this page is the current page
+   * @returns {string} HTML string for the link element
+   */
   function navLink(page, isActive) {
     // In judge mode, add step numbers for the linear flow
     let stepHtml = '';
@@ -82,6 +122,12 @@ const XNav = (() => {
     return `<a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
   }
 
+  /**
+   * Generate an HTML anchor string for a mobile drawer nav link.
+   * @param {{id: string, label: string, href: string}} page - Page definition
+   * @param {boolean} isActive - Whether this page is the current page
+   * @returns {string} HTML string for the mobile link element
+   */
   function mobileLink(page, isActive) {
     if (isActive) {
       return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="${page.href}">${page.label}</a>`;
@@ -89,6 +135,12 @@ const XNav = (() => {
     return `<a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="${page.href}">${page.label}</a>`;
   }
 
+  /**
+   * Build and prepend the desktop navigation bar to the document body.
+   * Renders either landing mode (minimal links + Launch App CTA) or
+   * app mode (mode toggle + page tabs + network badge + wallet).
+   * @param {string|null} activeId - The currently active page ID
+   */
   function renderNav(activeId) {
     const mode = getMode();
     const nav = document.createElement('nav');
@@ -154,6 +206,11 @@ const XNav = (() => {
     document.body.prepend(nav);
   }
 
+  /**
+   * Build and insert the mobile navigation drawer below the nav bar.
+   * Hidden by default; toggled via the hamburger menu button.
+   * @param {string|null} activeId - The currently active page ID
+   */
   function renderMobileDrawer(activeId) {
     const mode = getMode();
     const drawer = document.createElement('div');
@@ -187,7 +244,10 @@ const XNav = (() => {
     if (nav) nav.after(drawer);
   }
 
-  // Chain display names
+  /**
+   * Mapping of chain IDs (numeric or CAIP) to display names for the network badge.
+   * @type {Object<number|string, string>}
+   */
   const CHAIN_NAMES = {
     763373: 'Ink Sepolia',
     1: 'Ethereum',
@@ -195,6 +255,10 @@ const XNav = (() => {
     'ton:mainnet': 'TON',
   };
 
+  /**
+   * Update the network name text in both desktop and mobile badge elements.
+   * @param {string} name - Network display name (e.g., "Ink Sepolia")
+   */
   function updateNetworkBadge(name) {
     const desktop = document.getElementById('networkBadgeText');
     const mobile = document.getElementById('networkBadgeMobile');
@@ -202,6 +266,11 @@ const XNav = (() => {
     if (mobile) mobile.textContent = name;
   }
 
+  /**
+   * Wire up the network badge click handler and subscribe to Reown AppKit
+   * CAIP network change events. On network switch, updates the badge text
+   * and propagates the chain change to the lending adapter registry and agent.
+   */
   function wireUpNetworkSwitcher() {
     const badge = document.getElementById('networkBadgeText');
     if (badge && window.xLeverWallet) {
@@ -228,6 +297,12 @@ const XNav = (() => {
     }
   }
 
+  /**
+   * Attach click handlers to the Trade/Research mode toggle buttons.
+   * On mode switch: persists to localStorage, re-renders nav links,
+   * updates body class, and notifies XMode if available.
+   * @param {string|null} activeId - The currently active page ID
+   */
   function wireUpModeToggle(activeId) {
     document.querySelectorAll('.nav-mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -265,6 +340,10 @@ const XNav = (() => {
     });
   }
 
+  /**
+   * Wire up the mobile hamburger menu button to toggle the mobile drawer
+   * visibility and swap the icon between "menu" and "close".
+   */
   function wireUpMobileMenu() {
     const btn = document.getElementById('mobileMenuBtn');
     const nav = document.getElementById('mobileNav');

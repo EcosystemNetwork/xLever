@@ -63,7 +63,7 @@ npm run dev
 
 ```bash
 cd server
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 Requires `DATABASE_URL`, `REDIS_URL`, and `CORS_ORIGINS` in `.env`.
@@ -88,7 +88,7 @@ npm run preview
 |---------|-------|
 | Root | `frontend/` |
 | Output | `dist/` |
-| Entry points | 8 HTML pages (multi-page build) |
+| Entry points | 10 HTML pages (multi-page build) |
 | Dev proxy | `/api/*` -> `http://localhost:8000` |
 | Dev port | 3000 |
 

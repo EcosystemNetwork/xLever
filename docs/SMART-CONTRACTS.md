@@ -5,6 +5,8 @@ Complete reference for xLever's Solidity contracts.
 > **Canonical deployed contract: `VaultSimple.sol`** — 33 asset vaults on Ink Sepolia.
 > The full modular `Vault.sol` with 7 modules is in `contracts/src/xLever/experimental/` and is **not yet deployed**.
 
+> **33 vaults are also deployed on Ethereum Sepolia** (Chain ID 11155111) as a full mirror. See `deployment.json` for all addresses.
+
 ---
 
 ## Deployed Addresses (Ink Sepolia — Chain ID 763373)

@@ -1,11 +1,41 @@
+/**
+ * @file vault-functions.js — High-Level Vault Interaction Helpers
+ *
+ * Provides simplified wrappers around contracts.js for common vault operations:
+ *   - depositToVault: Open a leveraged position (approve + deposit)
+ *   - withdrawFromVault: Close a position (Pyth update + withdraw)
+ *   - fetchPosition: Read on-chain position state for a given vault
+ *   - quickDeposit / quickWithdraw: UI button handlers with error classification
+ *
+ * All functions delegate to contracts.js which handles the full transaction
+ * lifecycle (allowance check, approve, write, receipt polling, retries).
+ *
+ * @module vault-functions
+ *
+ * @dependencies
+ *   - window.xLeverContracts (contracts.js) for on-chain operations
+ *   - window.showToast for user notifications
+ *   - window.viem for formatUnits
+ *   - Global vars: connectedAddress, publicClient, currentLeverage, VAULT_ADDRESSES, VAULT_ABI
+ *   - Functions: fetchBalances (from app.js)
+ */
+
 // ═══════════════════════════════════════════════════════════
 // VAULT INTERACTION FUNCTIONS — receipt-driven via contracts.js
 // ═══════════════════════════════════════════════════════════
 
-// Deposit USDC into vault with leverage
-// Delegates to contracts.openPosition which handles:
-//   allowance check → approve (with waitForTx) → deposit → waitForTx
-//   All with retry, event emission, and structured errors.
+/**
+ * Deposit USDC into a vault with leverage.
+ * Delegates to contracts.openPosition which handles:
+ *   allowance check -> approve (with waitForTx) -> deposit -> waitForTx
+ *   All with retry, event emission, and structured errors.
+ *
+ * @param {string} asset - Vault asset identifier ('wSPYx' or 'wQQQx')
+ * @param {number} amountUSDC - USDC amount to deposit
+ * @param {number} leverageBps - Leverage in basis points (e.g., 20000 = 2x)
+ * @returns {Promise<Object>} Transaction receipt from the deposit
+ * @throws {Error} If contracts not initialized or wallet not connected
+ */
 async function depositToVault(asset, amountUSDC, leverageBps) {
   const contracts = window.xLeverContracts;
   if (!contracts) throw new Error('Contract system not initialized');

@@ -4,7 +4,7 @@
 
 ```
                            xlever.markets
-                          (Vite SPA, 9 screens)
+                          (Vite SPA, 10 screens)
                                  |
                  +---------------+---------------+
                  |               |               |
@@ -40,7 +40,7 @@
 
 | Component | Tech | Entry Point |
 |-----------|------|-------------|
-| Frontend | Vite 8, Vanilla JS, Tailwind, TradingView | `frontend/index.html` (9 screens) |
+| Frontend | Vite 8, Vanilla JS, Tailwind, TradingView | `frontend/index.html` (10 screens) |
 | Wallet | Reown AppKit v1.8.19 | `frontend/wallet.js` |
 | Oracle | Pyth Hermes pull-oracle | `frontend/pyth.js` + PythOracleAdapter contract |
 | Contracts | Solidity, Foundry, Euler V2 EVK | `contracts/src/xLever/VaultSimple.sol` |
@@ -57,8 +57,8 @@
 | Junior Tranche | ERC-4626 first-loss capital | `experimental/modules/JuniorTranche.sol` | Needs modular Vault |
 | On-chain Auto-Deleverage | 5-level cascade | `experimental/Vault.sol` | Needs modular Vault |
 | Euler V2 Hedging | EVC atomic looping | `experimental/modules/EulerHedgingModule.sol` | Needs modular Vault |
-| Solana Vaults | Anchor program | `solana/` | Devnet deployment pending |
-| TON Vaults | Tact contracts | `ton/` | Testnet deployment pending |
+| Solana Vaults | Anchor program | `solana/` | Code complete, devnet deploy ready |
+| TON Vaults | Tact contracts | `ton/` | Code complete, testnet deploy ready |
 | FastAPI Backend | Python, PostgreSQL, Redis | `server/api/` | Production hosting pending |
 
 ## Data Flow

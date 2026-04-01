@@ -59,6 +59,13 @@ export const CHAIN_CONFIGS = {
 
 let activeChainId = 763373 // default to Ink Sepolia
 
+/**
+ * Switch the active chain and re-create viem clients for the new chain.
+ * Also re-resolves the vault address for the current active asset on the new chain.
+ *
+ * @param {number} chainId — EVM chain ID (e.g., 763373 for Ink Sepolia, 11155111 for Eth Sepolia)
+ * @throws {Error} If the chainId is not in CHAIN_CONFIGS
+ */
 export function switchChain(chainId) {
   const config = CHAIN_CONFIGS[chainId]
   if (!config) throw new Error(`Unsupported chain: ${chainId}`)
@@ -72,7 +79,10 @@ export function switchChain(chainId) {
   setActiveAsset(activeAsset)
 }
 
+/** @returns {number} The currently active EVM chain ID */
 export function getActiveChainId() { return activeChainId }
+
+/** @returns {Object} The CHAIN_CONFIGS entry for the active chain (includes chain def and vault map) */
 export function getActiveChainConfig() { return CHAIN_CONFIGS[activeChainId] }
 
 // ═══════════════════════════════════════════════════════════════
@@ -152,16 +162,36 @@ export const VAULT_REGISTRY = {
 // Backfill: Ink Sepolia uses VAULT_REGISTRY as its vault map
 CHAIN_CONFIGS[763373].vaults = VAULT_REGISTRY
 
+/**
+ * Look up the deployed vault address for a given asset symbol on the active chain.
+ * Falls back to the default VAULT_REGISTRY if the active chain has no vault map.
+ *
+ * @param {string} symbol — Bare ticker symbol (e.g., 'QQQ', 'SPY')
+ * @returns {string|null} Vault contract address, or null if no vault is deployed for this asset
+ */
 export function getVaultForAsset(symbol) {
   const config = CHAIN_CONFIGS[activeChainId]
   const vaults = config?.vaults || VAULT_REGISTRY
   return vaults[symbol] || null
 }
 
+/**
+ * Check whether a vault has been deployed for the given asset on the active chain.
+ *
+ * @param {string} symbol — Bare ticker symbol (e.g., 'QQQ')
+ * @returns {boolean} True if a vault address exists for this symbol
+ */
 export function isVaultDeployed(symbol) {
   return !!getVaultForAsset(symbol)
 }
 
+/**
+ * Override a contract address at runtime. Used for dynamic configuration
+ * when deploying new contracts or switching environments.
+ *
+ * @param {string} key — Address key in the ADDRESSES object (e.g., 'vault', 'usdc')
+ * @param {string} address — New Ethereum address (0x-prefixed, checksummed)
+ */
 export function setAddress(key, address) {
   ADDRESSES[key] = address
 }
@@ -252,6 +282,12 @@ export { ASSET_FEED_MAP }
 
 let activeAsset = 'QQQ'
 
+/**
+ * Set the active asset for all vault operations. Updates ADDRESSES.vault
+ * to point to the correct vault contract for the selected symbol.
+ *
+ * @param {string} symbol — Bare ticker symbol (e.g., 'QQQ', 'SPY')
+ */
 export function setActiveAsset(symbol) {
   activeAsset = symbol
   // Switch vault address to match the selected asset
@@ -264,10 +300,17 @@ export function setActiveAsset(symbol) {
   }
 }
 
+/** @returns {string} The currently active asset symbol (e.g., 'QQQ') */
 export function getActiveAsset() {
   return activeAsset
 }
 
+/**
+ * Get the Pyth feed ID for the currently active asset.
+ * Falls back to QQQ/USD if the active asset has no registered feed.
+ *
+ * @returns {string} Hex-encoded Pyth feed ID (0x-prefixed)
+ */
 export function getActiveFeedId() {
   return ASSET_FEED_MAP[activeAsset] || PYTH_FEEDS['QQQ/USD']
 }
@@ -279,6 +322,12 @@ export function getActiveFeedId() {
 let publicClient = null
 let walletClient = null
 
+/**
+ * Get or create the viem public client for read-only RPC calls.
+ * Lazily initializes on first call using the active chain's RPC URL.
+ *
+ * @returns {import('viem').PublicClient} viem public client instance
+ */
 export function getPublicClient() {
   if (!publicClient) {
     publicClient = createPublicClient({ chain: inkSepolia, transport: http() })
@@ -286,6 +335,12 @@ export function getPublicClient() {
   return publicClient
 }
 
+/**
+ * Get or create the viem wallet client for write transactions.
+ * Requires window.ethereum (MetaMask/injected provider). Returns null if unavailable.
+ *
+ * @returns {import('viem').WalletClient|null} viem wallet client, or null if no provider
+ */
 export function getWalletClient() {
   if (!walletClient && window.ethereum) {
     walletClient = createWalletClient({ chain: inkSepolia, transport: custom(window.ethereum) })
@@ -293,6 +348,12 @@ export function getWalletClient() {
   return walletClient
 }
 
+/**
+ * Get the first connected wallet address from the wallet client.
+ *
+ * @returns {Promise<string>} Checksummed Ethereum address
+ * @throws {Error} If no wallet is connected or no account is found
+ */
 async function getAccount() {
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
@@ -305,6 +366,13 @@ async function getAccount() {
 // ERC-20 READS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Read the ERC-20 token balance for a user, returning both raw and formatted values.
+ *
+ * @param {string} tokenAddress — ERC-20 token contract address
+ * @param {string} userAddress — Wallet address to query
+ * @returns {Promise<{raw: bigint, formatted: string, decimals: number}>} Balance data
+ */
 export async function getBalance(tokenAddress, userAddress) {
   try {
     const pc = getPublicClient()
@@ -317,6 +385,14 @@ export async function getBalance(tokenAddress, userAddress) {
   }
 }
 
+/**
+ * Read the ERC-20 allowance granted by an owner to a spender.
+ *
+ * @param {string} tokenAddress — ERC-20 token contract address
+ * @param {string} ownerAddress — Token holder's address
+ * @param {string} spenderAddress — Address authorized to spend tokens (typically the vault)
+ * @returns {Promise<bigint>} Remaining allowance in token base units
+ */
 export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
   return getPublicClient().readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'allowance', args: [ownerAddress, spenderAddress] })
 }
@@ -325,6 +401,15 @@ export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
 // ERC-20 WRITES
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Approve a spender (typically the vault) to transfer tokens on behalf of the user.
+ * Uses max uint256 (infinite approval) to avoid repeated approval popups.
+ *
+ * @param {string} tokenAddress — ERC-20 token to approve
+ * @param {string} spenderAddress — Address receiving the approval (typically vault)
+ * @param {string} _amount — Unused (infinite approval is always granted)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ */
 export async function approveToken(tokenAddress, spenderAddress, _amount) {
   const account = await getAccount()
   const wc = getWalletClient()
@@ -342,11 +427,23 @@ export async function approveToken(tokenAddress, spenderAddress, _amount) {
 // VAULT READS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Read a user's leveraged position from the active vault contract.
+ *
+ * @param {string} userAddress — Wallet address to query
+ * @returns {Promise<Object|null>} Raw position tuple (depositAmount, leverageBps, entryTWAP, etc.), or null if no vault
+ */
 export async function getPosition(userAddress) {
   if (!ADDRESSES.vault) return null
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPosition', args: [userAddress] })
 }
 
+/**
+ * Read the current USD value and unrealized P&L for a user's position.
+ *
+ * @param {string} userAddress — Wallet address to query
+ * @returns {Promise<{value: bigint, pnl: bigint}>} Position value and P&L in USDC base units (6 decimals)
+ */
 export async function getPositionValue(userAddress) {
   if (!ADDRESSES.vault) return { value: 0n, pnl: 0n }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPositionValue', args: [userAddress] })

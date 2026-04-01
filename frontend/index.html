@@ -1,4 +1,17 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     index.html — xLever Landing Page
+
+     Public-facing entry point for xLever Protocol. Displays:
+     - Hero section with product tagline and CTA buttons
+     - Key stats strip (max leverage, liquidations, underlyings, chains)
+     - Feature cards explaining constant leverage, no liquidation, on-chain
+     - "How It Works" educational page (toggled via JS, initially hidden)
+     - Legacy main app container (hidden, redirects to 01-dashboard.html)
+
+     Uses custom CSS (styles.css) for landing-specific styling rather than
+     the Tailwind theme used by the rest of the app.
+     ============================================================================ -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -42,11 +55,12 @@
 </script>
 </head>
 <body>
+<!-- ===== SCRIPTS: Judge mode (demo scoring) and navigation bar ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init(null);</script>
 
-<!-- Landing Page -->
+<!-- ===== MAIN CONTENT: Landing Page Hero + Features ===== -->
 <div class="landing" id="landingPage" style="padding-top:90px;">
   <div class="hero">
     <div class="hero-badge">
@@ -61,6 +75,7 @@
     </div>
   </div>
 
+  <!-- ===== SECTION: Key Protocol Stats Strip ===== -->
   <div class="stats-strip">
     <div class="stat-block"><div class="stat-num">&plusmn;4&times;</div><div class="stat-desc">Max Leverage</div></div>
     <div class="stat-block"><div class="stat-num">0</div><div class="stat-desc">Liquidations</div></div>
@@ -68,6 +83,7 @@
     <div class="stat-block"><div class="stat-num">4</div><div class="stat-desc">Target Chains</div></div>
   </div>
 
+  <!-- ===== SECTION: Feature Cards (Constant Leverage, No Liquidation, On-Chain) ===== -->
   <div class="features">
     <div class="feature-card">
       <div class="feature-icon">×</div>
@@ -86,6 +102,7 @@
     </div>
   </div>
 
+  <!-- ===== FOOTER: Landing Page Links ===== -->
   <div class="landing-footer">
     <span>© 2025 xLever Protocol</span>
     <div class="footer-links">
@@ -96,6 +113,7 @@
   </div>
 </div>
 
+<!-- ===== SCRIPTS: Landing page navigation (Launch App / Learn More) ===== -->
 <script>
   // Landing page navigation — Launch App goes to the real dashboard
   document.getElementById('launchAppBtn').addEventListener('click', (e) => {
@@ -118,7 +136,10 @@
   });
 </script>
 
-<!-- How It Works Page -->
+<!-- ===== SECTION: How It Works — Educational Content (hidden by default) =====
+     Toggled visible when user clicks "How It Works" on landing page.
+     Contains: leverage explanation, auto-deleverage cascade, fee structure,
+     degen mode warning, and Euler V2 / Pyth oracle technical details. -->
 <div id="howItWorksPage" class="how-it-works-page" style="display: none;">
   <div class="how-it-works-container">
     <button class="back-to-chart-btn" id="backToChart">← Back to Chart</button>
@@ -224,7 +245,10 @@
   </div>
 </div>
 
-<!-- Main App Container -->
+<!-- ===== LEGACY: Main App Container (hidden, preserved for research mode) =====
+     Contains the original single-page app with chart, leverage slider,
+     senior/junior tranche views, position entry, and strategy details.
+     New users are redirected to 01-dashboard.html instead. -->
 <div id="mainApp" class="main-app" style="display:none;">
 <div class="header">
   <div class="header-left">

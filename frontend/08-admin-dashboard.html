@@ -86,6 +86,33 @@
     .bar { transition: height 0.4s ease; }
     .stat-card { transition: border-color 0.2s ease; }
     .stat-card:hover { border-color: #7c4dff40; }
+    .admin-tab {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: #555970;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .admin-tab:hover { color: #e3e2e6; }
+    .admin-tab.active {
+      color: #7c4dff;
+      border-bottom-color: #7c4dff;
+    }
+    .admin-tab-panel.hidden { display: none; }
+    .admin-iframe {
+      width: 100%;
+      height: calc(100vh - 200px);
+      min-height: 600px;
+      border: none;
+      border-radius: 8px;
+      background: #0a0b0e;
+    }
 </style>
 </head>
 <body class="text-on-surface overflow-x-hidden pb-12">
@@ -127,6 +154,19 @@
     </div>
   </div>
 </div>
+
+<!-- Sub-Tab Navigation -->
+<div class="flex gap-1 overflow-x-auto border-b border-[#252833] pb-0 -mb-px" id="adminTabs">
+  <button class="admin-tab active" data-tab="overview">Overview</button>
+  <button class="admin-tab" data-tab="analytics">Analytics</button>
+  <button class="admin-tab" data-tab="operations">Operations</button>
+  <button class="admin-tab" data-tab="vaults">Vaults</button>
+  <button class="admin-tab" data-tab="risk">Risk</button>
+  <button class="admin-tab" data-tab="lending">Lending</button>
+</div>
+
+<!-- Tab Panel: Overview (existing admin content) -->
+<div class="admin-tab-panel" id="panel-overview">
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="statsGrid">
@@ -330,6 +370,33 @@
   <div id="debugOutput" class="px-5 py-3 font-mono text-[11px] max-h-[300px] overflow-y-auto">
     <div class="text-on-surface-variant/40 py-2">No logs yet</div>
   </div>
+</div>
+
+</div><!-- end panel-overview -->
+
+<!-- Tab Panel: Analytics -->
+<div class="admin-tab-panel hidden" id="panel-analytics">
+  <iframe src="06-analytics-backtesting.html" class="admin-iframe" id="iframe-analytics"></iframe>
+</div>
+
+<!-- Tab Panel: Operations -->
+<div class="admin-tab-panel hidden" id="panel-operations">
+  <iframe src="07-operations-control.html" class="admin-iframe" id="iframe-operations"></iframe>
+</div>
+
+<!-- Tab Panel: Vaults -->
+<div class="admin-tab-panel hidden" id="panel-vaults">
+  <iframe src="04-vault-management.html" class="admin-iframe" id="iframe-vaults"></iframe>
+</div>
+
+<!-- Tab Panel: Risk -->
+<div class="admin-tab-panel hidden" id="panel-risk">
+  <iframe src="05-risk-management.html" class="admin-iframe" id="iframe-risk"></iframe>
+</div>
+
+<!-- Tab Panel: Lending -->
+<div class="admin-tab-panel hidden" id="panel-lending">
+  <iframe src="09-lending-borrowing.html" class="admin-iframe" id="iframe-lending"></iframe>
 </div>
 
 </main>
@@ -694,6 +761,39 @@ setInterval(refreshAll, 30000);
 <style>
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
+
+<script>
+// ─── Admin Sub-Tab Switching ───────────────────────────────────
+(function() {
+  const tabs = document.querySelectorAll('.admin-tab');
+  const panels = document.querySelectorAll('.admin-tab-panel');
+  const loadedIframes = new Set();
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      panels.forEach(p => {
+        if (p.id === 'panel-' + target) {
+          p.classList.remove('hidden');
+        } else {
+          p.classList.add('hidden');
+        }
+      });
+
+      // Lazy-load iframes: only set src when tab is first opened
+      const iframe = document.getElementById('iframe-' + target);
+      if (iframe && !loadedIframes.has(target)) {
+        loadedIframes.add(target);
+        // src is already set in HTML, browser loads on display
+      }
+    });
+  });
+})();
+</script>
 
 <script type="module" src="wallet.js"></script>
 <script src="ux.js"></script>

@@ -1,5 +1,7 @@
 # Risk Engine
 
+> **Note:** The Risk Sentinel FSM (Section 1) and Frontend Deleverage Levels run **client-side** in the browser and are live at [xlever.markets](https://xlever.markets). The Auto-Deleverage Cascade based on Euler V2 health scores, Circuit Breaker System, Loss Waterfall, and Naked Short Exposure Check are part of the **planned modular Vault** and are not yet deployed on-chain.
+
 xLever's deterministic risk management system: a 4-state sentinel, auto-deleverage cascade, circuit breakers, and loss waterfall.
 
 ---

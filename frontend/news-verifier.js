@@ -1,15 +1,28 @@
 /**
- * xLever News Verification Agent
- * ────────────────────────────────
+ * @file news-verifier.js
+ * @module NewsVerifier
+ * @description
+ * xLever News Verification Agent — Source credibility and claim verification.
  * Sits between NewsIngest and NewsAnalysts to verify claims before trading.
  *
- * Four verification layers:
- *  1. Price-verify   — Does the claimed move match live Pyth/OpenBB data?
- *  2. Source-verify   — Is anyone else reporting this? (corroboration check)
- *  3. Calendar-verify — Is this a scheduled event (Fed, CPI, earnings)?
- *  4. Staleness-check — Is the news actually fresh or recycled?
+ * Four verification layers (run in parallel):
+ *  1. Price-verify    — Does the claimed % move match live Pyth/OpenBB data?
+ *  2. Source-verify    — Is anyone else reporting this? (corroboration via backend poll)
+ *  3. Calendar-verify  — Is this a scheduled event (Fed, CPI, earnings) on the right day?
+ *  4. Staleness-check  — Is the news actually fresh or recycled/repackaged?
  *
- * Output: enriched news item with verification metadata + adjusted priority
+ * Output: enriched verification result with composite confidence score,
+ *         adjusted priority (can upgrade or downgrade), and warning flags.
+ *
+ * Scoring weights: price=0.35, source=0.25, calendar=0.15, staleness=0.25
+ *
+ * @exports {Object} NewsVerifier - Frozen singleton exposed on window.NewsVerifier
+ *
+ * @dependencies
+ *  - window.xLeverPyth   — Pyth oracle for price verification
+ *  - window.xLeverOpenBB — OpenBB for daily change comparison
+ *  - window.xLeverAssets — Asset feed ID mapping
+ *  - window.NewsIngest   — News pipeline for source corroboration buffer
  */
 
 const NewsVerifier = (() => {
@@ -18,6 +31,12 @@ const NewsVerifier = (() => {
   // VERIFICATION RESULT SCHEMA
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Create a fresh verification result object with all checks in 'pending' state.
+   *
+   * @param {Object} newsItem - The news item being verified
+   * @returns {Object} Verification result with checks map, confidence, flags, and adjustedPriority
+   */
   function makeVerification(newsItem) {
     return {
       newsItem,

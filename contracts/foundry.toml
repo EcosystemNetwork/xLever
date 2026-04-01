@@ -3,9 +3,6 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-# Exclude experimental modules (broken relative imports) and tests referencing unmoved modules
-exclude = ["src/xLever/experimental/**"]
-
 optimizer = true
 optimizer_runs = 20_000
 via_ir = true

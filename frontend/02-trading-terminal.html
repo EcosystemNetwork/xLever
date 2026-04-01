@@ -1,5 +1,21 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     02-trading-terminal.html — Trading Terminal
 
+     Professional trading interface with three-panel layout:
+     - LEFT: Chart area (70%) with TradingView Lightweight Charts, asset selector,
+       timeframe buttons, drawing tools, price triggers, strategy overlays
+     - RIGHT: Order panel (30%) with market/limit/stop order form, leverage slider,
+       risk meter, position details, tranche health, simulated order book
+     - BOTTOM: Positions table with tabs (Positions / Open Orders / History)
+
+     Features: searchable ticker dropdown (33+ assets), favorite tickers bar,
+     candlestick/area chart toggle, Fibonacci/trendline drawing tools,
+     price trigger system, strategy preset overlays (safe/target/accumulate).
+
+     Data: Synthetic chart data generated client-side. Real position data from
+     contracts.js when wallet connected. Prices from Pyth oracle feeds.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -127,120 +143,46 @@
     </style>
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-white">
-<!-- Top Ticker Strip (live prices populated by JS) -->
-<div class="w-full h-10 bg-surface-container-lowest etched-border flex items-center overflow-hidden z-50">
-<div class="flex whitespace-nowrap px-4 gap-8" id="tickerMarquee">
-<div class="flex items-center space-x-3">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">QQQx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="QQQ">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="QQQ">--</span>
+<!-- ===== DATA: Hidden ticker price strip (populated by pyth.js for live price updates) ===== -->
+<div class="hidden" id="tickerMarquee">
+<span data-ticker-price="QQQ"></span><span data-ticker-chg="QQQ"></span>
+<span data-ticker-price="SPY"></span><span data-ticker-chg="SPY"></span>
+<span data-ticker-price="NVDA"></span><span data-ticker-chg="NVDA"></span>
+<span data-ticker-price="TSLA"></span><span data-ticker-chg="TSLA"></span>
+<span data-ticker-price="SMH"></span><span data-ticker-chg="SMH"></span>
+<span data-ticker-price="CEG"></span><span data-ticker-chg="CEG"></span>
+<span data-ticker-price="AAPL"></span><span data-ticker-chg="AAPL"></span>
+<span data-ticker-price="STRK"></span><span data-ticker-chg="STRK"></span>
 </div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SPYx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="SPY">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="SPY">--</span>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">NVDAx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="NVDA">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="NVDA">--</span>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">TSLAx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="TSLA">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="TSLA">--</span>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SMHx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="SMH">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="SMH">--</span>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">CEGx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="CEG">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="CEG">--</span>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">AAPLx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="AAPL">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="AAPL">--</span>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">STRKx</span>
-<span class="mono text-sm font-semibold" data-ticker-price="STRK">---</span>
-<span class="mono text-[11px] text-tertiary" data-ticker-chg="STRK">--</span>
-</div>
-</div>
-</div>
-<!-- Nav + Risk Banner rendered by nav.js -->
+<!-- ===== SCRIPTS: Navigation bar and risk banner (rendered by nav.js) ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('trading');</script>
-<div class="flex h-[calc(100vh-284px)] overflow-hidden" style="margin-top:36px">
-<!-- Sidebar Navigation -->
-<aside id="leftSidebar" class="flex flex-col w-16 md:w-64 border-r border-[#494455]/15 bg-[#1b1b1f] shrink-0">
-<div id="leftPanelToggle" class="panel-toggle" onclick="toggleLeftPanel()">
-<span class="material-symbols-outlined">chevron_left</span>
-</div>
-<div class="sidebar-content flex flex-col flex-grow">
-<div class="p-4 border-b border-outline-variant/10 hidden md:block">
-<h2 class="font-headline font-bold text-on-surface text-sm">xLever Terminal</h2>
-<p class="text-[10px] text-outline uppercase tracking-widest mt-0.5">Institutional DeFi</p>
-</div>
-<div class="flex flex-col gap-1 p-2 flex-grow">
-<a class="flex items-center gap-3 px-3 py-2 text-[#7c4dff] bg-[#292a2d] rounded-sm group" href="#">
-<span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
-<span class="text-sm font-medium hidden md:block">Tickers</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#292a2d] transition-colors rounded-sm group" href="#">
-<span class="material-symbols-outlined" data-icon="rss_feed">rss_feed</span>
-<span class="text-sm font-medium hidden md:block">Live Feed</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#292a2d] transition-colors rounded-sm group" href="#">
-<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
-<span class="text-sm font-medium hidden md:block">Alerts</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#292a2d] transition-colors rounded-sm group" href="#">
-<span class="material-symbols-outlined" data-icon="settings">settings</span>
-<span class="text-sm font-medium hidden md:block">Settings</span>
-</a>
-</div>
-<div class="mt-auto p-4 hidden md:block">
-<div class="bg-surface-container-highest p-3 rounded-sm space-y-2">
-<div class="flex justify-between text-[10px] text-outline">
-<span>Buying Power</span>
-<span class="mono text-on-surface" id="buyingPowerDisplay">$0.00</span>
-</div>
-<div class="w-full h-1 bg-surface-dim rounded-full overflow-hidden">
-<div class="h-full bg-primary-container w-[0%]" id="buyingPowerBar"></div>
-</div>
-</div>
-</div>
-</div>
-</aside>
-<!-- Main Terminal Workspace -->
+
+<!-- ═══ MAIN LAYOUT: Chart + Order Panel ═══ -->
+<div class="flex h-[calc(100vh-200px)] overflow-hidden" style="margin-top:60px">
 <main class="flex-grow flex flex-col md:flex-row overflow-hidden bg-background">
-<!-- Left Panel: Chart Area (65%) -->
-<section class="w-full md:w-[65%] flex flex-col border-r border-outline-variant/15">
-<!-- Chart Header with Searchable Ticker Selector -->
-<div class="h-12 flex items-center justify-between px-4 bg-surface-container-lowest/50 border-b border-outline-variant/10">
-<div class="flex items-center gap-4">
-<!-- Searchable Ticker Selector -->
+
+<!-- ===== CHART AREA (70% width) =====
+     Contains: asset selector dropdown, live price, favorite tickers bar,
+     timeframe buttons, chart type toggle, drawing tools, price triggers,
+     strategy overlay dropdown, fullscreen button, and the chart canvas. -->
+<section class="w-full md:w-[70%] flex flex-col">
+<!-- Row 1: Asset selector + price -->
+<div class="h-11 flex items-center justify-between px-4 bg-surface-container-lowest/50 border-b border-outline-variant/10">
+<div class="flex items-center gap-3">
 <div class="relative" id="tickerSelectorWrap">
 <button id="tickerSelectorBtn" class="flex items-center gap-2 bg-surface-container-high rounded-sm px-3 py-1.5 border border-outline-variant/10 hover:border-primary-container/40 transition-colors">
-  <span class="mono text-sm font-bold text-on-surface" id="activeTickerLabel">QQQx</span>
+  <span class="mono text-base font-bold text-on-surface" id="activeTickerLabel">QQQx</span>
   <span class="text-[10px] text-outline hidden sm:inline" id="activeTickerName">Nasdaq-100 ETF</span>
-  <span class="mono text-sm font-semibold text-tertiary" id="activeTickerPrice">---</span>
   <span class="material-symbols-outlined text-sm text-outline">expand_more</span>
 </button>
-<!-- Dropdown -->
 <div class="ticker-dropdown bg-surface-container-lowest border border-outline-variant/20 rounded-sm shadow-2xl mt-1 w-80" id="tickerDropdown">
   <div class="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 p-2">
     <div class="relative">
       <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
       <input id="tickerSearch" type="text" placeholder="Search assets..." class="w-full bg-surface-container-high text-on-surface text-xs pl-8 pr-3 py-2 rounded-sm border border-outline-variant/10 focus:border-primary-container focus:outline-none mono" autocomplete="off"/>
     </div>
-    <!-- Quick category filters -->
     <div class="flex gap-1 mt-2 flex-wrap" id="catFilters">
       <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-primary-container/15 text-primary" data-cat="all">All</button>
       <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="index">Index</button>
@@ -252,97 +194,90 @@
       <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="crypto">Crypto</button>
     </div>
   </div>
-  <div id="tickerList" class="py-1">
-    <!-- Populated by JS from assets.js -->
-  </div>
+  <div id="tickerList" class="py-1"></div>
   <div class="px-3 py-2 border-t border-outline-variant/10 text-[9px] text-outline mono">
     <span id="tickerCount">33</span> assets available
   </div>
 </div>
 </div>
-<!-- Favorite tickers (quick access) -->
-<div class="hidden md:flex gap-0.5 bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10">
-<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all bg-primary-container text-on-primary-container" data-sym="QQQ">QQQx</button>
-<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SPY">SPYx</button>
-<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="NVDA">NVDAx</button>
-<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="TSLA">TSLAx</button>
-<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="AAPL">AAPLx</button>
-<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SMH">SMHx</button>
+<!-- Live price inline -->
+<span class="mono text-lg font-bold text-on-surface" id="activeTickerPrice">---</span>
 </div>
-<div class="h-4 w-px bg-outline-variant/30"></div>
-<div class="flex gap-1" id="timeframeBtns">
-<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="1M">1M</button>
-<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="3M">3M</button>
-<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-primary bg-primary-container/10 rounded-sm" data-tf="1Y">1Y</button>
-<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="5Y">5Y</button>
-<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="MAX">MAX</button>
+<!-- Right side: timeframe + chart tools -->
+<div class="flex items-center gap-2">
+<!-- Favorite tickers -->
+<div class="hidden lg:flex gap-0.5 bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10">
+<button class="fav-ticker px-2 py-0.5 text-[10px] font-bold tracking-tight rounded-sm transition-all bg-primary-container text-on-primary-container" data-sym="QQQ">QQQ</button>
+<button class="fav-ticker px-2 py-0.5 text-[10px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SPY">SPY</button>
+<button class="fav-ticker px-2 py-0.5 text-[10px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="NVDA">NVDA</button>
+<button class="fav-ticker px-2 py-0.5 text-[10px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="TSLA">TSLA</button>
+<button class="fav-ticker px-2 py-0.5 text-[10px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="AAPL">AAPL</button>
+<button class="fav-ticker px-2 py-0.5 text-[10px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SMH">SMH</button>
 </div>
+<div class="h-4 w-px bg-outline-variant/20 hidden lg:block"></div>
+<!-- Timeframes -->
+<div class="flex gap-0.5" id="timeframeBtns">
+<button class="tf-btn px-2 py-0.5 text-[10px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="1M">1M</button>
+<button class="tf-btn px-2 py-0.5 text-[10px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="3M">3M</button>
+<button class="tf-btn px-2 py-0.5 text-[10px] font-medium text-primary bg-primary-container/10 rounded-sm" data-tf="1Y">1Y</button>
+<button class="tf-btn px-2 py-0.5 text-[10px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="5Y">5Y</button>
+<button class="tf-btn px-2 py-0.5 text-[10px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="MAX">MAX</button>
 </div>
-<div class="flex items-center gap-3">
+<div class="h-4 w-px bg-outline-variant/20"></div>
+<!-- Chart type -->
 <button class="chart-type-btn p-1 hover:bg-surface-container-high rounded-sm text-outline" data-type="candlestick" title="Candlestick">
-<span class="material-symbols-outlined" data-icon="candlestick_chart">candlestick_chart</span>
+<span class="material-symbols-outlined text-[18px]" data-icon="candlestick_chart">candlestick_chart</span>
 </button>
 <button class="chart-type-btn p-1 bg-surface-container-high rounded-sm text-primary" data-type="area" title="Area">
-<span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
+<span class="material-symbols-outlined text-[18px]" data-icon="show_chart">show_chart</span>
 </button>
-<div class="h-4 w-px bg-outline-variant/30"></div>
-<!-- Drawing Tools -->
-<div class="flex items-center gap-0.5 bg-surface-container rounded-sm p-0.5 border border-outline-variant/10">
-<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="hline" title="Horizontal Line (Support/Resistance)">
-<span class="material-symbols-outlined text-[18px]" data-icon="horizontal_rule">horizontal_rule</span>
+<div class="h-4 w-px bg-outline-variant/20"></div>
+<!-- Drawing tools -->
+<div class="flex items-center gap-0.5">
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="hline" title="Horizontal Line">
+<span class="material-symbols-outlined text-[16px]" data-icon="horizontal_rule">horizontal_rule</span>
 </button>
 <button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="trendline" title="Trend Line">
-<span class="material-symbols-outlined text-[18px]" data-icon="trending_up">trending_up</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="trending_up">trending_up</span>
 </button>
-<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="rect" title="Rectangle Zone">
-<span class="material-symbols-outlined text-[18px]" data-icon="crop_landscape">crop_landscape</span>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="rect" title="Rectangle">
+<span class="material-symbols-outlined text-[16px]" data-icon="crop_landscape">crop_landscape</span>
 </button>
-<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="fib" title="Fibonacci Retracement">
-<span class="material-symbols-outlined text-[18px]" data-icon="stacked_line_chart">stacked_line_chart</span>
+<button class="draw-tool-btn p-1 hover:bg-surface-container-high rounded-sm text-outline transition-colors" data-tool="fib" title="Fibonacci">
+<span class="material-symbols-outlined text-[16px]" data-icon="stacked_line_chart">stacked_line_chart</span>
 </button>
 </div>
-<div class="h-4 w-px bg-outline-variant/30"></div>
-<!-- Trigger Tools -->
+<div class="h-4 w-px bg-outline-variant/20"></div>
+<!-- Triggers -->
 <div class="relative" id="triggerDropdownWrap">
-<button id="triggerDropdownBtn" class="flex items-center gap-1 px-2 py-1 bg-surface-container rounded-sm border border-outline-variant/10 hover:border-tertiary/40 transition-colors" title="Price Triggers">
-<span class="material-symbols-outlined text-[18px] text-tertiary" data-icon="bolt">bolt</span>
-<span class="text-[10px] font-medium text-outline hidden lg:inline">Triggers</span>
+<button id="triggerDropdownBtn" class="flex items-center gap-1 px-1.5 py-0.5 hover:bg-surface-container-high rounded-sm transition-colors" title="Price Triggers">
+<span class="material-symbols-outlined text-[16px] text-tertiary" data-icon="bolt">bolt</span>
 <span class="text-[9px] mono font-bold text-tertiary hidden" id="triggerCountBadge">0</span>
-<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
 </button>
 <div id="triggerDropdown" class="hidden absolute right-0 top-full mt-1 w-72 bg-surface-container-low border border-outline-variant/20 rounded-sm shadow-xl z-30">
 <div class="p-2 border-b border-outline-variant/10 flex justify-between items-center">
   <span class="text-[9px] uppercase tracking-widest text-outline font-bold">Price Triggers</span>
-  <div class="flex gap-1">
-    <button id="triggerMonitorToggle" class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-surface-container hover:bg-surface-container-high text-outline transition-colors" title="Toggle live monitoring">
-      <span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Off
-    </button>
-  </div>
+  <button id="triggerMonitorToggle" class="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-surface-container hover:bg-surface-container-high text-outline transition-colors" title="Toggle live monitoring">
+    <span class="material-symbols-outlined text-[14px] align-middle">sensors</span> Off
+  </button>
 </div>
-<!-- Quick-add trigger buttons -->
 <div class="p-1.5 grid grid-cols-5 gap-1 border-b border-outline-variant/10">
-  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="alert" data-direction="below" title="Alert when price drops below">
-    <span class="material-symbols-outlined text-[16px] text-[#ffb300]">notifications</span>
-    <span>Alert</span>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="alert" data-direction="below">
+    <span class="material-symbols-outlined text-[16px] text-[#ffb300]">notifications</span><span>Alert</span>
   </button>
-  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="buy" data-direction="below" title="Buy when price drops below">
-    <span class="material-symbols-outlined text-[16px] text-[#00e475]">add_circle</span>
-    <span>Buy</span>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="buy" data-direction="below">
+    <span class="material-symbols-outlined text-[16px] text-[#00e475]">add_circle</span><span>Buy</span>
   </button>
-  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="sell" data-direction="above" title="Sell when price rises above">
-    <span class="material-symbols-outlined text-[16px] text-[#ff5252]">remove_circle</span>
-    <span>Sell</span>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="sell" data-direction="above">
+    <span class="material-symbols-outlined text-[16px] text-[#ff5252]">remove_circle</span><span>Sell</span>
   </button>
-  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="adjust" data-direction="above" title="Adjust leverage when price moves">
-    <span class="material-symbols-outlined text-[16px] text-[#29b6f6]">tune</span>
-    <span>Adjust</span>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="adjust" data-direction="above">
+    <span class="material-symbols-outlined text-[16px] text-[#29b6f6]">tune</span><span>Adjust</span>
   </button>
-  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="deleverage" data-direction="below" title="Deleverage when price drops below">
-    <span class="material-symbols-outlined text-[16px] text-[#ff9800]">trending_down</span>
-    <span>Delev</span>
+  <button class="trigger-place-btn flex flex-col items-center gap-0.5 p-1.5 text-[9px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-action="deleverage" data-direction="below">
+    <span class="material-symbols-outlined text-[16px] text-[#ff9800]">trending_down</span><span>Delev</span>
   </button>
 </div>
-<!-- Trigger params form (shown when placing) -->
 <div id="triggerParamsForm" class="hidden p-2 border-b border-outline-variant/10 space-y-2 bg-surface-container/50">
   <div class="flex justify-between items-center">
     <span class="text-[10px] font-bold text-on-surface" id="triggerFormTitle">Place Trigger</span>
@@ -384,26 +319,20 @@
     </button>
   </div>
 </div>
-<!-- Active triggers list -->
 <div id="triggerList" class="max-h-48 overflow-y-auto">
-  <div id="triggerListEmpty" class="p-3 text-center text-[10px] text-outline">
-    No active triggers. Click a type above then click on the chart to place.
-  </div>
+  <div id="triggerListEmpty" class="p-3 text-center text-[10px] text-outline">No active triggers.</div>
 </div>
 <div class="p-1.5 border-t border-outline-variant/10 flex gap-1">
   <button id="clearTriggersBtn" class="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-outline hover:text-error hover:bg-surface-container-high rounded-sm transition-colors">
-    <span class="material-symbols-outlined text-[14px]">delete_sweep</span>
-    Clear All
+    <span class="material-symbols-outlined text-[14px]">delete_sweep</span> Clear All
   </button>
 </div>
 </div>
 </div>
-<!-- Agent Strategy Dropdown -->
+<!-- Strategy -->
 <div class="relative" id="strategyDropdownWrap">
-<button id="strategyDropdownBtn" class="flex items-center gap-1 px-2 py-1 bg-surface-container rounded-sm border border-outline-variant/10 hover:border-primary-container/40 transition-colors" title="Agent Strategy Overlay">
-<span class="material-symbols-outlined text-[18px] text-secondary" data-icon="smart_toy">smart_toy</span>
-<span class="text-[10px] font-medium text-outline hidden lg:inline">Strategy</span>
-<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+<button id="strategyDropdownBtn" class="flex items-center gap-1 px-1.5 py-0.5 hover:bg-surface-container-high rounded-sm transition-colors" title="Strategy Overlay">
+<span class="material-symbols-outlined text-[16px] text-secondary" data-icon="smart_toy">smart_toy</span>
 </button>
 <div id="strategyDropdown" class="hidden absolute right-0 top-full mt-1 w-56 bg-surface-container-low border border-outline-variant/20 rounded-sm shadow-xl z-30">
 <div class="p-2 border-b border-outline-variant/10">
@@ -412,51 +341,41 @@
 <div class="p-1.5 space-y-0.5">
   <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="safe">
     <span class="material-symbols-outlined text-[16px] text-tertiary">shield</span>
-    <div>
-      <div class="font-medium">Safe Mode</div>
-      <div class="text-[9px] text-outline">SL bands + de-leverage zones</div>
-    </div>
+    <div><div class="font-medium">Safe Mode</div><div class="text-[9px] text-outline">SL bands + de-leverage zones</div></div>
   </button>
   <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="target">
     <span class="material-symbols-outlined text-[16px] text-secondary">adjust</span>
-    <div>
-      <div class="font-medium">Target Exposure</div>
-      <div class="text-[9px] text-outline">Rebalance bands + entry levels</div>
-    </div>
+    <div><div class="font-medium">Target Exposure</div><div class="text-[9px] text-outline">Rebalance bands + entry levels</div></div>
   </button>
   <button class="strategy-preset w-full flex items-center gap-2 px-2 py-1.5 text-left text-[11px] text-on-surface hover:bg-surface-container-high rounded-sm transition-colors" data-strategy="accumulate">
     <span class="material-symbols-outlined text-[16px] text-primary">trending_up</span>
-    <div>
-      <div class="font-medium">Accumulate (DCA)</div>
-      <div class="text-[9px] text-outline">DCA levels + take-profit targets</div>
-    </div>
+    <div><div class="font-medium">Accumulate (DCA)</div><div class="text-[9px] text-outline">DCA levels + take-profit targets</div></div>
   </button>
 </div>
 <div class="p-1.5 border-t border-outline-variant/10">
   <button id="clearStrategyBtn" class="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] text-outline hover:text-error hover:bg-surface-container-high rounded-sm transition-colors">
-    <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
-    Clear All Drawings
+    <span class="material-symbols-outlined text-[16px]">delete_sweep</span> Clear All Drawings
   </button>
 </div>
 </div>
 </div>
-<div class="h-4 w-px bg-outline-variant/30"></div>
+<!-- Fullscreen -->
 <button class="p-1 hover:bg-surface-container-high rounded-sm text-outline" id="fullscreenBtn" title="Fullscreen">
-<span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="fullscreen">fullscreen</span>
 </button>
 </div>
 </div>
-<!-- Live Chart (lightweight-charts) -->
+
+<!-- Chart -->
 <div class="flex-grow relative bg-[#0a0b0e] overflow-hidden" id="chartWrap">
-<!-- Chart renders here -->
 <div id="tv-chart" class="absolute inset-0"></div>
-<!-- Price overlay (populated by chart engine) -->
-<div class="absolute left-4 top-3 z-10 pointer-events-none">
+<!-- Price overlay -->
+<div class="absolute left-5 top-4 z-10 pointer-events-none">
 <div class="mono text-[10px] text-outline uppercase tracking-widest" id="chartLabel">QQQx 2.0x Leveraged</div>
-<div class="mono text-2xl font-bold text-on-surface" id="chartPrice">--</div>
-<div class="mono text-xs" id="chartChange">--</div>
+<div class="mono text-3xl font-bold text-on-surface mt-0.5" id="chartPrice">--</div>
+<div class="mono text-sm mt-0.5" id="chartChange">--</div>
 </div>
-<!-- Chart loading skeleton -->
+<!-- Loading skeleton -->
 <div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-[#0a0b0e] z-20">
   <div class="text-center space-y-3">
     <div class="w-48 h-2 skeleton mx-auto"></div>
@@ -464,139 +383,76 @@
     <div class="text-[10px] text-outline uppercase tracking-widest mono mt-4">Loading chart data...</div>
   </div>
 </div>
-<!-- Chart Markers Legend -->
-<div class="absolute bottom-4 left-4 p-2 bg-surface-container-lowest/80 border border-outline-variant/20 rounded-sm backdrop-blur-sm z-10">
-<div class="flex gap-4 items-center flex-wrap">
-<div class="flex items-center gap-1.5">
-<span class="text-yellow-400 font-bold">↓</span>
-<span class="text-[9px] uppercase tracking-tighter text-outline">De-Leverage</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="text-tertiary font-bold">↑</span>
-<span class="text-[9px] uppercase tracking-tighter text-outline">Re-Leverage</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="text-error">●</span>
-<span class="text-[9px] uppercase tracking-tighter text-outline">Circuit Breaker</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="text-[#00e475] font-bold">↑</span>
-<span class="text-[9px] uppercase tracking-tighter text-outline">Agent Buy</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="text-[#ff5252] font-bold">↓</span>
-<span class="text-[9px] uppercase tracking-tighter text-outline">Agent Sell</span>
-</div>
-</div>
-</div>
-<!-- Active drawing tool indicator -->
+<!-- Drawing tool indicator -->
 <div id="drawToolIndicator" class="hidden absolute top-3 right-4 z-10 px-2 py-1 bg-primary-container/90 rounded-sm backdrop-blur-sm">
 <span class="text-[9px] uppercase tracking-widest text-on-primary-container font-bold mono" id="drawToolLabel">Drawing</span>
 <span class="text-[9px] text-on-primary-container/60 ml-1">Right-click to cancel</span>
 </div>
-<!-- Active trigger placement indicator -->
+<!-- Trigger placement indicator -->
 <div id="triggerPlaceIndicator" class="hidden absolute top-3 right-4 z-10 px-2 py-1 bg-tertiary/90 rounded-sm backdrop-blur-sm">
 <span class="text-[9px] uppercase tracking-widest text-on-tertiary font-bold mono" id="triggerPlaceLabel">Place Trigger</span>
 <span class="text-[9px] text-on-tertiary/60 ml-1">Click chart to set price | ESC to cancel</span>
 </div>
 </div>
-<!-- Bottom Indicators Strip -->
-<div class="h-16 border-t border-outline-variant/15 grid grid-cols-4 items-center px-4 bg-surface-container-lowest/30">
-<div class="space-y-1">
-<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">RSI (14)</span>
-<div class="flex items-center gap-2">
-<span class="mono text-sm text-on-surface">58.3</span>
-<div class="w-16 h-1 bg-surface-container-highest rounded-full">
-<div class="h-full bg-secondary w-[58%]"></div>
-</div>
-</div>
-</div>
-<div class="space-y-1">
-<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">MACD (12,26,9)</span>
-<div class="flex items-center gap-2">
-<span class="mono text-sm text-tertiary">1.24</span>
-<span class="material-symbols-outlined text-xs text-tertiary" data-icon="trending_up">trending_up</span>
-</div>
-</div>
-<div class="space-y-1">
-<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">Volume 24h</span>
-<div class="flex items-center gap-2 text-on-surface">
-<span class="mono text-sm">2.4M</span>
-<span class="mono text-[10px] text-outline">QQQx</span>
-</div>
-</div>
-<div class="space-y-1">
-<span class="text-[10px] text-outline font-medium uppercase tracking-tighter">24h Range</span>
-<div class="flex items-center justify-between mono text-[10px] mb-1">
-<span>481.12</span>
-<span>490.45</span>
-</div>
-<div class="w-full h-1.5 bg-surface-container-highest rounded-full relative overflow-hidden">
-<div class="absolute h-full bg-primary w-[3px] left-[70%]"></div>
-</div>
-</div>
-</div>
 </section>
-<!-- Right Panel: Order Entry (35%) -->
-<section id="rightPanel" class="w-full md:w-[35%] flex flex-col bg-surface-container-low border-l border-outline-variant/10 overflow-y-auto pb-8">
+
+<!-- ===== SIDEBAR: Order Entry Panel (30% width) =====
+     Market/Limit/Stop order tabs, USDC size input, leverage slider (-4x to +4x),
+     risk meter (conservative to max), fee/oracle info, no-liquidation badge,
+     CTA button, collapsible position details, tranche health, and order book. -->
+<section id="rightPanel" class="w-full md:w-[30%] flex flex-col bg-surface-container-low border-l border-outline-variant/15 overflow-y-auto">
 <div id="rightPanelToggle" class="panel-toggle" onclick="toggleRightPanel()">
 <span class="material-symbols-outlined">chevron_right</span>
 </div>
-<div class="panel-content">
-<!-- No Liquidation Badge -->
-<div class="mx-4 mt-4 p-3 bg-primary-container/10 border border-primary-container/30 rounded-sm flex items-center gap-3">
-<span class="material-symbols-outlined text-primary text-xl" data-icon="verified_user">verified_user</span>
-<div>
-<p class="text-[11px] font-bold text-on-surface leading-tight">No Liquidation Risk</p>
-<p class="text-[9px] text-outline leading-tight">Risk socialized via Junior tranche</p>
-</div>
-</div>
-<!-- Order Form -->
-<div class="p-4 space-y-5">
+<div class="panel-content flex flex-col h-full">
+
+<!-- Order Form — clean flow -->
+<div class="p-5 space-y-5 flex-grow">
+<!-- Order type tabs -->
 <div class="flex gap-4 border-b border-outline-variant/10 pb-1">
 <button class="text-xs font-bold text-primary border-b-2 border-primary pb-2 px-1">Market</button>
 <button class="text-xs font-bold text-outline hover:text-on-surface pb-2 px-1">Limit</button>
 <button class="text-xs font-bold text-outline hover:text-on-surface pb-2 px-1">Stop</button>
 </div>
-<div class="space-y-3">
+
+<!-- Size input -->
 <div class="space-y-1.5">
 <div class="flex justify-between">
 <label class="text-[10px] uppercase font-bold text-outline tracking-wider">Size (USD)</label>
 <span class="text-[10px] text-outline mono" id="balanceLabel">Bal: 0</span>
 </div>
-<div class="relative group">
-<input class="w-full bg-surface-container-lowest border-none focus:ring-0 mono text-lg p-3 rounded-sm text-on-surface" type="text" value="10,000"/>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-none focus:ring-0 mono text-xl p-3 rounded-sm text-on-surface" type="text" value="10,000"/>
 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-outline">USDC</span>
 </div>
 </div>
-<!-- Bidirectional Leverage Slider -->
-<div class="space-y-3 py-2">
+
+<!-- Leverage slider -->
+<div class="space-y-3 pt-1">
 <div class="flex justify-between items-end">
 <label class="text-[10px] uppercase font-bold text-outline tracking-wider">Leverage</label>
-<span class="mono text-2xl font-bold"><span id="leverage-display" style="color:#00e676">+2.0</span><span class="text-xs text-outline">x</span></span>
+<span class="mono text-3xl font-bold leading-none"><span id="leverage-display" style="color:#00e676">+2.0</span><span class="text-sm text-outline">x</span></span>
 </div>
-<!-- Interactive Bidirectional Slider -->
 <div class="relative h-12 flex flex-col justify-center">
 <div class="leverage-slider-track">
   <div class="leverage-center-mark"></div>
   <div class="leverage-fill" style="left:50%;width:25%;background:#00e676;"></div>
   <div class="leverage-handle" style="left:75%;background:#00e676;"></div>
 </div>
-<!-- Quick Select Notches -->
 <div class="grid leverage-grid w-full mt-4">
-<button data-leverage="-4" class="text-[8px] mono font-bold text-outline hover:text-error transition-colors">-4x</button>
-<button data-leverage="-2" class="text-[8px] mono font-bold text-outline hover:text-error transition-colors">-2x</button>
-<button data-leverage="-1" class="text-[8px] mono font-bold text-outline hover:text-error transition-colors">-1x</button>
-<button data-leverage="0" class="text-[8px] mono font-bold text-on-surface transition-colors">0x</button>
-<button data-leverage="1" class="text-[8px] mono font-bold text-outline hover:text-tertiary transition-colors">+1x</button>
-<button data-leverage="2" class="text-[8px] mono font-bold transition-colors" style="font-weight:800;color:#00e676;">+2x</button>
-<button data-leverage="4" class="text-[8px] mono font-bold text-outline hover:text-tertiary transition-colors">+4x</button>
+<button data-leverage="-4" class="text-[9px] mono font-bold text-outline hover:text-error transition-colors">-4x</button>
+<button data-leverage="-2" class="text-[9px] mono font-bold text-outline hover:text-error transition-colors">-2x</button>
+<button data-leverage="-1" class="text-[9px] mono font-bold text-outline hover:text-error transition-colors">-1x</button>
+<button data-leverage="0" class="text-[9px] mono font-bold text-on-surface transition-colors">0x</button>
+<button data-leverage="1" class="text-[9px] mono font-bold text-outline hover:text-tertiary transition-colors">+1x</button>
+<button data-leverage="2" class="text-[9px] mono font-bold transition-colors" style="font-weight:800;color:#00e676;">+2x</button>
+<button data-leverage="4" class="text-[9px] mono font-bold text-outline hover:text-tertiary transition-colors">+4x</button>
 </div>
 </div>
 </div>
-<!-- Risk Meter -->
-<div class="space-y-2 pt-2">
-<label class="text-[10px] uppercase font-bold text-outline tracking-wider">Risk Profile</label>
+
+<!-- Risk meter -->
+<div class="space-y-1.5">
 <div class="h-2 flex gap-0.5 w-full rounded-full overflow-hidden bg-surface-container-highest">
 <div class="risk-segment h-full w-1/4 bg-blue-500/50 transition-colors duration-200" title="Conservative"></div>
 <div class="risk-segment h-full w-1/4 bg-tertiary transition-colors duration-200" title="Moderate"></div>
@@ -607,97 +463,94 @@
 <span>Cons.</span><span>Mod.</span><span>Aggr.</span><span>Max</span>
 </div>
 </div>
-<!-- Strategy Info Panel -->
-<div class="bg-surface-container-lowest/50 border border-outline-variant/10 rounded-sm p-3 space-y-2">
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Leverage Type</span>
-<span class="mono text-on-surface">Constant from Entry</span>
+
+<!-- Fee + oracle info (compact) -->
+<div class="flex justify-between text-[10px] text-outline">
+<span>Fee: <span class="mono text-on-surface" id="annual-fee-display">0% APR</span></span>
+<span>Oracle: <span class="mono text-on-surface">TWAP (Pyth)</span></span>
 </div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Annual Fee</span>
-<span class="mono text-on-surface" id="annual-fee-display">0% APR</span>
+
+<!-- No liquidation badge (compact inline) -->
+<div class="flex items-center gap-2 text-[10px] text-primary">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified_user">verified_user</span>
+<span class="font-medium">No liquidation risk — socialized via Junior tranche</span>
 </div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Fee Split</span>
-<span class="mono text-on-surface text-right" id="feeSplitDisplay">- / - / -</span>
+
+<!-- CTA Button -->
+<button id="open-position-btn" class="w-full py-4 bg-tertiary text-on-tertiary font-bold uppercase tracking-widest text-base hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-tertiary/20">
+Open Position
+</button>
 </div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Oracle</span>
-<span class="mono text-on-surface">15-min TWAP (Pyth)</span>
+
+<!-- Collapsible details -->
+<div class="border-t border-outline-variant/10 mt-auto">
+<details class="group">
+<summary class="flex items-center justify-between px-5 py-2.5 cursor-pointer text-[10px] uppercase font-bold text-outline tracking-wider hover:text-on-surface transition-colors">
+  <span>Position Details</span>
+  <span class="material-symbols-outlined text-[14px] group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="px-5 pb-3 space-y-1.5">
+<div class="flex justify-between text-[10px]"><span class="text-outline">Leverage Type</span><span class="mono text-on-surface">Constant from Entry</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Fee Split</span><span class="mono text-on-surface text-right" id="feeSplitDisplay">- / - / -</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Rebalance</span><span class="mono text-on-surface">On User Adjust</span></div>
 </div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Rebalance</span>
-<span class="mono text-on-surface">On User Adjust</span>
+</details>
+<details class="group border-t border-outline-variant/5">
+<summary class="flex items-center justify-between px-5 py-2.5 cursor-pointer text-[10px] uppercase font-bold text-outline tracking-wider hover:text-on-surface transition-colors">
+  <span>Tranche Health</span>
+  <span class="material-symbols-outlined text-[14px] group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="px-5 pb-3 space-y-1.5">
+<div class="flex justify-between text-[10px]"><span class="text-outline">Pool Structure</span><span class="mono text-on-surface" id="poolStructureDisplay">0% Senior / 0% Junior</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Junior APY</span><span class="mono text-tertiary font-bold">Dynamic</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Buffer Health</span><span class="mono text-tertiary font-bold">Healthy</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Insurance Fund</span><span class="mono text-on-surface" id="insuranceFundDisplay">$0</span></div>
 </div>
-</div>
-<div class="pt-2 space-y-2">
-<button id="open-position-btn" class="w-full py-4 bg-tertiary text-on-tertiary font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-tertiary/10">
-                                Open Position
-                            </button>
-</div>
-</div>
-</div>
-<!-- Buffer Tranche Info Section -->
-<div class="mx-4 mb-4 p-3 bg-surface-container-lowest/50 border border-outline-variant/10 rounded-sm space-y-2">
-<h3 class="text-[10px] font-bold text-outline uppercase tracking-wider border-b border-outline-variant/10 pb-1 mb-2">Tranche Health</h3>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Pool Structure</span>
-<span class="mono text-on-surface" id="poolStructureDisplay">0% Senior / 0% Junior</span>
-</div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Junior APY</span>
-<span class="mono text-tertiary font-bold">Dynamic</span>
-</div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Buffer Health</span>
-<span class="mono text-tertiary font-bold flex items-center gap-1">✓ Healthy</span>
-</div>
-<div class="flex justify-between text-[10px]">
-<span class="text-outline">Insurance Fund</span>
-<span class="mono text-on-surface" id="insuranceFundDisplay">$0</span>
-</div>
-</div>
-<!-- Order Book Depth (Compact) -->
-<div class="flex-grow flex flex-col mx-4 etched-border bg-surface-container-lowest/30">
-<div class="p-2 flex justify-between items-center border-b border-outline-variant/5">
-<span class="text-[10px] uppercase font-bold text-outline tracking-wider">Order Book</span>
-<span class="text-[10px] text-outline mono" id="orderBookSpread">Spread: -</span>
-</div>
-<div class="flex flex-col h-32 overflow-hidden font-mono text-[9px]">
-<!-- Asks -->
+</details>
+<details class="group border-t border-outline-variant/5">
+<summary class="flex items-center justify-between px-5 py-2.5 cursor-pointer text-[10px] uppercase font-bold text-outline tracking-wider hover:text-on-surface transition-colors">
+  <span>Order Book</span>
+  <span class="mono text-[10px] text-outline mr-auto ml-2" id="orderBookSpread">Spread: -</span>
+  <span class="material-symbols-outlined text-[14px] group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="px-5 pb-3">
+<div class="flex flex-col h-28 overflow-hidden font-mono text-[9px]">
 <div class="flex-grow flex flex-col-reverse justify-end">
-<div class="flex justify-between px-2 py-0.5">
-<span class="text-error" id="askPrice1">-</span>
-<span class="text-outline" id="askSize1">-</span>
+<div class="flex justify-between py-0.5"><span class="text-error" id="askPrice1">-</span><span class="text-outline" id="askSize1">-</span></div>
+<div class="flex justify-between py-0.5"><span class="text-error" id="askPrice2">-</span><span class="text-outline" id="askSize2">-</span></div>
 </div>
-<div class="flex justify-between px-2 py-0.5">
-<span class="text-error" id="askPrice2">-</span>
-<span class="text-outline" id="askSize2">-</span>
-</div>
-</div>
-<!-- Current Price -->
 <div class="bg-surface-container-highest/30 py-1 px-2 flex justify-center items-center border-y border-outline-variant/10">
 <span class="mono text-xs font-bold text-tertiary" id="orderBookMidPrice">-</span>
 </div>
-<!-- Bids -->
 <div class="flex-grow flex flex-col justify-start">
-<div class="flex justify-between px-2 py-0.5">
-<span class="text-tertiary" id="bidPrice1">-</span>
-<span class="text-outline" id="bidSize1">-</span>
-</div>
-<div class="flex justify-between px-2 py-0.5">
-<span class="text-tertiary" id="bidPrice2">-</span>
-<span class="text-outline" id="bidSize2">-</span>
+<div class="flex justify-between py-0.5"><span class="text-tertiary" id="bidPrice1">-</span><span class="text-outline" id="bidSize1">-</span></div>
+<div class="flex justify-between py-0.5"><span class="text-tertiary" id="bidPrice2">-</span><span class="text-outline" id="bidSize2">-</span></div>
 </div>
 </div>
 </div>
+</details>
+<!-- Buying power (moved from removed sidebar) -->
+<div class="px-5 py-3 border-t border-outline-variant/5">
+<div class="flex justify-between text-[10px] text-outline">
+<span>Buying Power</span>
+<span class="mono text-on-surface" id="buyingPowerDisplay">$0.00</span>
 </div>
+<div class="w-full h-1 bg-surface-dim rounded-full overflow-hidden mt-1.5">
+<div class="h-full bg-primary-container w-[0%]" id="buyingPowerBar"></div>
+</div>
+</div>
+</div>
+
 </div><!-- /panel-content -->
 </section>
+
 </main>
 </div>
-<!-- Bottom Panel: Positions Table -->
-<div class="h-44 bg-surface-container-lowest border-t border-outline-variant/20 overflow-hidden" id="positionsPanel">
+<!-- ===== BOTTOM PANEL: Positions Table =====
+     Tabbed view: Positions (active leveraged positions with P/L),
+     Open Orders, and History. Shows wallet connection status.
+     Positions populated from contract reads when wallet connected. -->
+<div class="h-32 bg-surface-container-lowest border-t border-outline-variant/20 overflow-hidden" id="positionsPanel">
 <div class="flex items-center justify-between h-8 px-4 bg-surface-container border-b border-outline-variant/10">
 <div class="flex gap-6">
 <button class="pos-tab text-[11px] font-bold text-primary border-b border-primary h-full" data-tab="positions">Positions (<span id="posCount">0</span>)</button>
@@ -765,7 +618,9 @@
 </table>
 </div>
 </div>
-<!-- Terminal Footer -->
+<!-- ===== FOOTER: Terminal Status Bar =====
+     Shows network (Ink Sepolia), block number, nav links, UTC clock,
+     and terminal active indicator. -->
 <footer class="fixed bottom-0 w-full z-50 h-8 flex items-center justify-between px-4 border-t border-[#494455]/15 bg-[#0a0b0e]">
 <div class="flex items-center gap-6">
 <span class="mono text-[10px] uppercase tracking-widest text-[#00e475]">
@@ -783,6 +638,12 @@
 <span class="text-[10px] uppercase mono">Terminal Active</span>
 </div>
 </footer>
+<!-- ===== SCRIPTS: Core modules =====
+     assets.js    — Asset catalog (33+ assets with categories, Pyth feed IDs)
+     wallet.js    — Reown wallet provider
+     pyth.js      — Pyth oracle price feeds for live pricing
+     contracts.js — Euler V2 contract reads for position data
+     ux.js        — Shared UX (XAuthGate, XToast, XPreflight, XDemoReset) -->
 <script type="module" src="assets.js"></script>
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
@@ -800,6 +661,9 @@ document.addEventListener('DOMContentLoaded', () => {
   XDemoReset.init('#rightPanel .panel-content');
 });
 </script>
+<!-- ===== SCRIPTS: Chart interaction modules =====
+     chart-strategy-tools.js — Drawing tools (hline, trendline, rect, fib) + strategy overlays
+     chart-triggers.js       — Price trigger system (alert, buy, sell, adjust, deleverage) -->
 <script src="chart-strategy-tools.js"></script>
 <script src="chart-triggers.js"></script>
 <script>
@@ -1711,11 +1575,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script>
 function toggleLeftPanel() {
-  const sidebar = document.getElementById('leftSidebar');
-  const icon = document.querySelector('#leftPanelToggle .material-symbols-outlined');
-  sidebar.classList.toggle('collapsed');
-  icon.textContent = sidebar.classList.contains('collapsed') ? 'chevron_right' : 'chevron_left';
-  if (window.tvChart) setTimeout(() => window.tvChart.resize(), 250);
+  // Left sidebar removed — no-op
 }
 function toggleRightPanel() {
   const panel = document.getElementById('rightPanel');

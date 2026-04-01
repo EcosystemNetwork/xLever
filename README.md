@@ -65,7 +65,7 @@ External Protocols
 
 ---
 
-## Frontend (9 Screens)
+## Frontend (10 Screens)
 
 | Screen | File | Description |
 |--------|------|-------------|
@@ -103,7 +103,7 @@ Full vault address list in `deployment.json` and `frontend/contracts.js`.
 
 ### Ethereum Sepolia — 33 vaults mirrored
 
-Full mirror deployment. Frontend supports chain switching via `switchChain(11155111)`.
+Full mirror deployment with 33/33 vaults live on Ethereum Sepolia (Chain ID 11155111). Frontend supports chain switching via `switchChain(11155111)`.
 
 ### Solana (Devnet) — Ready to deploy
 
@@ -207,7 +207,7 @@ Autonomous Python agent with:
 
 ```
 xLever/
-├── frontend/              # Vite SPA (10 HTML screens, 30+ JS modules)
+├── frontend/              # Vite SPA (10 HTML screens, 34 JS modules)
 ├── contracts/             # Solidity — VaultSimple (deployed), experimental modules
 ├── server/                # Python data proxy + FastAPI backend
 ├── agent/                 # Autonomous Python AI agent

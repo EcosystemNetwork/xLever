@@ -1,8 +1,34 @@
+/**
+ * @file position-manager.js — Position Tracking and PnL Management
+ *
+ * Manages the lifecycle of leveraged positions on xLever vaults:
+ *   - Asset selection (wSPYx/wQQQx) with synced ticker buttons
+ *   - Network validation (Ink Sepolia chain ID 763373)
+ *   - Opening positions via contracts.js with real-time tx status updates
+ *   - Loading and displaying active positions from on-chain state
+ *   - Closing positions with Pyth oracle integration
+ *
+ * All transaction flows are receipt-driven (no hardcoded waits for correctness).
+ * Button state transitions track the full tx lifecycle: approving -> submitted -> pending -> confirmed/failed.
+ *
+ * @module position-manager
+ *
+ * @dependencies
+ *   - window.xLeverContracts (contracts.js) for on-chain operations
+ *   - window.showToast or XToast for user notifications
+ *   - window.viem for formatUnits
+ *   - Global vars: connectedAddress, publicClient, currentLeverage, VAULT_ADDRESSES, VAULT_ABI
+ *   - Functions: fetchBalances (from app.js)
+ */
+
 // ═══════════════════════════════════════════════════════════
 // POSITION MANAGEMENT — receipt-driven, no hardcoded waits
 // ═══════════════════════════════════════════════════════════
 
-// Update current leverage display
+/**
+ * Update the leverage display element with the current leverage value.
+ * Reads from the global `currentLeverage` variable set by the leverage slider.
+ */
 function updateCurrentLevDisplay() {
   const display = document.getElementById('currentLevDisplay');
   if (display) {
@@ -80,7 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Check if user is on correct network
+/**
+ * Check if the user's wallet is connected to Ink Sepolia (chain ID 763373).
+ * Shows a warning toast if on the wrong network.
+ * @returns {Promise<boolean>} True if on the correct network
+ */
 async function ensureCorrectNetwork() {
   try {
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
@@ -101,6 +131,12 @@ async function ensureCorrectNetwork() {
 // TX STATUS HELPER — updates button text with lifecycle state
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * Update a button's text to reflect the current transaction lifecycle state.
+ * @param {HTMLButtonElement} btn - The button element to update
+ * @param {string} state - Lifecycle state: 'approving'|'submitted'|'pending'|'confirmed'|'failed'|'rejected'|'depositing'|'withdrawing'
+ * @param {Object} [extra] - Additional context (e.g., {attempt, maxRetries} for pending state)
+ */
 function setButtonState(btn, state, extra) {
   if (!btn) return;
   const labels = {
@@ -199,7 +235,12 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
   }
 });
 
-// Load user positions
+/**
+ * Load all active user positions from both vault contracts (wSPYx, wQQQx).
+ * Renders position cards with deposit amount, leverage, direction, and close button.
+ * Shows "no positions" placeholder if the user has no active positions.
+ * @returns {Promise<void>}
+ */
 async function loadUserPositions() {
   if (!connectedAddress || !publicClient) {
     document.getElementById('noPositions').style.display = 'block';

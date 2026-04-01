@@ -1,5 +1,19 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     01-dashboard.html — Portfolio Dashboard
 
+     Primary dashboard view after wallet connection. Displays:
+     - KPI strip: portfolio value, 24h PnL, total ROI, positions, active agents
+     - Performance chart with timeframe toggles (1D/1W/1M/1Y/ALL)
+     - Live operations feed (recent trades table)
+     - Asset allocation donut chart with percentage breakdown
+     - Protocol health metrics (TVL, senior/junior splits, liquidity buffer)
+     - Market sentiment gauge (fear/greed indicator)
+     - Footer status bar with gas, block, connection status, UTC clock
+
+     Data is populated from on-chain reads via contracts.js (Euler V2 pool state,
+     position values, max leverage). Requires wallet connection for user-specific data.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -87,11 +101,15 @@
     </style>
 </head>
 <body class="text-on-surface overflow-x-hidden pb-12">
+<!-- ===== SCRIPTS: Judge mode and navigation bar initialization ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('dashboard');</script>
+<!-- ===== MAIN CONTENT ===== -->
 <main class="pt-28 px-6 max-w-[1600px] mx-auto space-y-6">
-<!-- Portfolio Summary Strip -->
+<!-- ===== SECTION: Portfolio KPI Summary Strip =====
+     Five cards: Total Portfolio Value, 24h PnL, Total ROI, Active Positions, Active AI Agents.
+     Values populated by loadUserData() and loadAgentCount() in the page script. -->
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
 <!-- Total Portfolio Value -->
 <div class="bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
@@ -122,11 +140,13 @@
 <p class="font-mono text-2xl font-semibold text-primary" id="kpiAgents">0</p>
 </div>
 </div>
-<!-- Main Dashboard Grid -->
+<!-- ===== MAIN DASHBOARD GRID: 2-column layout (8/4 on large screens) ===== -->
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-<!-- Left Column: Performance & Trades (2/3) -->
+<!-- ===== LEFT COLUMN: Performance Chart & Live Trades (2/3 width) ===== -->
 <div class="lg:col-span-8 space-y-6">
-<!-- Portfolio Performance Chart -->
+<!-- ===== SECTION: Portfolio Performance Chart =====
+     CSS-rendered area chart with SVG overlay line. Timeframe toggle buttons
+     (1D/1W/1M/1Y/ALL) switch active view. Y-axis labels on right side. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <div class="flex justify-between items-center mb-8">
 <div>
@@ -167,7 +187,9 @@
 </div>
 </div>
 </section>
-<!-- Recent Trades Feed -->
+<!-- ===== SECTION: Live Operations Feed =====
+     Table showing recent trades: time, asset, side, size, price, PnL, status.
+     "VIEW FULL LOGS" links to 07-operations-control.html. -->
 <section class="bg-surface-container border border-outline-variant/15 rounded-lg overflow-hidden">
 <div class="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Live Operations</h2>
@@ -197,9 +219,11 @@
 </div>
 </section>
 </div>
-<!-- Right Column: Allocation & Health (1/3) -->
+<!-- ===== RIGHT COLUMN: Allocation, Protocol Health, Sentiment (1/3 width) ===== -->
 <div class="lg:col-span-4 space-y-6">
-<!-- Asset Allocation -->
+<!-- ===== SECTION: Asset Allocation Donut Chart =====
+     SVG donut chart showing portfolio breakdown by asset (NVDAx, SPYx, QQQx, etc.)
+     with percentage legend. Center displays total value. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-6">Asset Allocation</h2>
 <div class="flex items-center gap-6">
@@ -256,7 +280,9 @@
 </div>
 </div>
 </section>
-<!-- Protocol Health -->
+<!-- ===== SECTION: Protocol Health =====
+     Displays TVL (total, senior, junior), max leverage, and liquidity buffer bar.
+     Data from getPoolState() and getMaxLeverage() contract reads. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-6">Protocol Health</h2>
 <div class="grid grid-cols-2 gap-y-6 gap-x-4">
@@ -287,7 +313,9 @@
 </div>
 </div>
 </section>
-<!-- Market Sentiment -->
+<!-- ===== SECTION: Market Sentiment Gauge =====
+     Semi-circle gauge showing fear/greed score (0-100).
+     Styled with CSS border-radius trick for the arc. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-4">Market Sentiment</h2>
 <div class="flex flex-col items-center">
@@ -309,7 +337,9 @@
 </div>
 </div>
 </main>
-<!-- Bottom Status Bar -->
+<!-- ===== FOOTER: Bottom Status Bar =====
+     Fixed bar showing gas price, block number, connection status, UTC clock.
+     Updated live by loadBlockAndGas() and setInterval clock. -->
 <footer class="fixed bottom-0 left-0 w-full h-8 bg-[#0d0e11] flex items-center justify-start px-6 gap-8 border-t border-[#494455]/15 z-50">
 <div class="flex items-center gap-2 text-[#00e475]">
 <span class="material-symbols-outlined text-sm">local_gas_station</span>
@@ -328,6 +358,14 @@
 <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest">14:02:45 UTC</span>
 </div>
 </footer>
+<!-- ===== SCRIPTS: Core modules =====
+     wallet.js    — Reown wallet provider (connect/disconnect/state)
+     pyth.js      — Pyth oracle price feeds
+     contracts.js — Euler V2 contract reads (pool state, positions, leverage)
+     openbb.js    — OpenBB market data integration
+     risk-engine.js — Client-side risk state machine
+     risk-live.js — Live risk banner updates
+     ux.js        — Shared UX utilities (XAuthGate, XToast, XPreflight, etc.) -->
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
@@ -335,6 +373,7 @@
 <script src="risk-engine.js"></script>
 <script src="risk-live.js"></script>
 <script src="ux.js"></script>
+<!-- ===== SCRIPTS: Initialize page — staggered reveal animation, live clock, timeframe toggles ===== -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // Staggered reveal animation
@@ -376,6 +415,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+<!-- ===== SCRIPTS: Dashboard KPI wiring — reads on-chain data for all dashboard metrics =====
+     Loads protocol health (TVL, buffer), max leverage, block/gas info,
+     user position value/PnL/ROI, and active agent count.
+     Uses XAuthGate to gate data loading behind wallet connection. -->
 <script type="module">
 // ─── Dashboard: wire all KPIs to real on-chain data ───
 import { getPoolState, getPublicClient, getPosition, getPositionValue, getMaxLeverage, VAULT_REGISTRY } from './contracts.js';

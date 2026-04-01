@@ -1,10 +1,40 @@
 /**
- * xLever Consumer-Grade UX Layer
- * Transaction modals, toast notifications, skeleton loading, interactive controls
+ * @file ux.js — xLever Consumer-Grade UX Layer
+ *
+ * Provides polished UX primitives so the trading interface feels like a fintech app:
+ *   - XToast: Slide-in toast notifications with five severity types
+ *   - XModal: Trade confirmation modal with real-time transaction progress
+ *   - XWallet: Wallet connection state wrapper (delegates to Reown AppKit)
+ *   - XLeverage: Interactive -4x to +4x leverage slider with drag/click/preset controls
+ *   - XSkeleton: Animated loading placeholders for data-dependent sections
+ *   - XAuthGate: Wallet connection gate (blocks or disables page content)
+ *   - XPreflight: Pre-demo health check panel for verifying system readiness
+ *   - XDemoReset: One-click page reset for demo scenarios
+ *   - XTxTracker: Transaction lifecycle toast notifications via contracts.js events
+ *
+ * @module ux
+ * @exports {Object} XToast - window.XToast (via DOMContentLoaded auto-init)
+ * @exports {Object} XModal - Accessible as XModal.confirmTrade(details)
+ * @exports {Object} XWallet - window.XWallet (via auto-init)
+ * @exports {Object} XLeverage - window.XLeverage (via auto-init)
+ * @exports {Object} XSkeleton - window.XSkeleton
+ * @exports {Object} XAuthGate - window.XAuthGate
+ * @exports {Object} XPreflight - window.XPreflight
+ * @exports {Object} XDemoReset - window.XDemoReset
+ * @exports {Object} XTxTracker - window.XTxTracker
+ *
+ * @dependencies
+ *   - Google Material Symbols (icon font)
+ *   - window.xLeverContracts (optional) for live transaction path
+ *   - window.xLeverWallet (optional, Reown AppKit) for wallet state
  */
-// This file provides polished UX primitives so the trading interface feels like a fintech app, not a raw dApp
 
-// Sanitize strings before interpolation into innerHTML to prevent XSS
+/**
+ * Sanitize a string for safe interpolation into innerHTML.
+ * Prevents XSS by converting special chars to HTML entities.
+ * @param {string} str - The raw string to escape
+ * @returns {string} HTML-safe escaped string
+ */
 function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = String(str);

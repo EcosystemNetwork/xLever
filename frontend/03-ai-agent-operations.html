@@ -1,4 +1,22 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     03-ai-agent-operations.html — AI Agent Control Panel (Smart Agent)
+
+     Three-column layout for automated portfolio management:
+     - LEFT (5/12): Strategy mode selector (Safe/Target Exposure/Accumulation),
+       policy configuration panels with sliders, active policy summary with stats
+     - MIDDLE (4/12): News Swarm control panel (multi-agent news analysis pipeline),
+       analyst weight sliders, trend/consensus indicators, signal feed
+     - RIGHT (3/12): Execution action log (terminal-style), agent prompt input
+       with quick-prompt buttons for natural language commands
+
+     Features: Master agent toggle, emergency override button, smart account
+     status bar, policy activation/pause/deactivate controls.
+
+     Modules: risk-engine.js, agent-executor.js, ws-broadcast.js, agent-bridge.js,
+     llm-analyst.js, news-ingest/verifier/analysts.js, signal-aggregator.js,
+     agent-coordinator.js, swarm-bridge/connector.js
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -102,13 +120,16 @@ tailwind.config = {
 </head>
 <body class="bg-surface font-body text-on-surface antialiased">
 
+<!-- ===== SCRIPTS: Judge mode and navigation bar ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('agents');</script>
 
 <main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
 
-<!-- Smart Account Status Bar -->
+<!-- ===== STATUS BAR: Smart Account Connection =====
+     Shows account status, address, Euler V2 vault connection,
+     deposit amount, and current leverage display. -->
 <div class="bg-surface-container-low border border-outline-variant/20 rounded-lg px-5 py-3 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
   <div class="flex items-center gap-4">
     <div class="flex items-center gap-2">
@@ -126,7 +147,7 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- Page Header -->
+<!-- ===== HEADER: Page Title + Master Agent Toggle + Emergency Override ===== -->
 <header class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
   <div>
     <h1 class="text-2xl font-display font-bold text-on-surface">Smart Agent</h1>
@@ -154,10 +175,13 @@ tailwind.config = {
 
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-  <!-- LEFT COLUMN: Strategy Modes + Config -->
+  <!-- ===== LEFT COLUMN (5/12): Strategy Modes + Policy Config ===== -->
   <div class="lg:col-span-5 space-y-6">
 
-    <!-- Strategy Mode Selector -->
+    <!-- ===== SECTION: Strategy Mode Selector =====
+         Three clickable cards: Safe Mode (de-risk on volatility),
+         Target Exposure (maintain leverage band), Accumulation (DCA + profit-taking).
+         Clicking a card reveals its configuration panel below. -->
     <section>
       <div class="flex items-center gap-2 mb-3">
         <span class="material-symbols-outlined text-primary text-lg">tune</span>
