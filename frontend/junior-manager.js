@@ -91,10 +91,17 @@ async function fetchJuniorData() {
     
     const utilization = totalJuniorTVL > 0 ? (totalSeniorTVL / totalJuniorTVL) * 100 : 0;
     
-    // Calculate APY from fees with safeguards
-    const avgLeverage = (poolState.totalSeniorDeposits > 0n && poolState.grossLongExposure + poolState.grossShortExposure > 0n)
-      ? Number(formatUnits(poolState.grossLongExposure + poolState.grossShortExposure, 6)) / totalSeniorTVL
-      : 0;
+    // Calculate average leverage from gross exposures
+    // Note: grossLongExposure and grossShortExposure are already the notional amounts (deposit * leverage)
+    // So avgLeverage = totalNotional / totalDeposits
+    let avgLeverage = 0;
+    if (poolState.totalSeniorDeposits > 0n && totalSeniorTVL > 0.01) {
+      const totalExposureValue = Number(formatUnits(poolState.grossLongExposure + poolState.grossShortExposure, 6));
+      const rawLeverage = totalExposureValue / totalSeniorTVL;
+      // Sanity check: leverage should be between 0 and 4 for this protocol
+      avgLeverage = (rawLeverage > 0 && rawLeverage <= 4) ? rawLeverage : 0;
+      console.log(`Debug avgLeverage: totalExposure=${totalExposureValue}, seniorTVL=${totalSeniorTVL}, raw=${rawLeverage}, final=${avgLeverage}`);
+    }
     
     const baseFeeRate = 0.02; // 2% base annual fee
     const annualFees = totalSeniorTVL * avgLeverage * baseFeeRate;
