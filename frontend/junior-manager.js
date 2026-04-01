@@ -34,7 +34,7 @@ async function fetchJuniorData() {
       poolState,
       juniorValue,
       userShares,
-      totalShares,
+      totalSharesValue,
       fundingRate,
       maxLeverage,
       twapData
@@ -52,13 +52,13 @@ async function fetchJuniorData() {
       publicClient.readContract({
         address: juniorTrancheAddress,
         abi: JUNIOR_TRANCHE_ABI,
-        functionName: 'balanceOf',
+        functionName: 'getShares',
         args: [connectedAddress]
       }),
       publicClient.readContract({
         address: juniorTrancheAddress,
         abi: JUNIOR_TRANCHE_ABI,
-        functionName: 'totalSupply'
+        functionName: 'totalShares'
       }),
       publicClient.readContract({
         address: vaultAddress,
@@ -82,7 +82,9 @@ async function fetchJuniorData() {
     // Calculate metrics
     const totalJuniorTVL = Number(formatUnits(juniorValue[0], 6));
     const sharePrice = Number(formatUnits(juniorValue[1], 6));
-    const userPosition = Number(formatUnits(userShares, 18)) * sharePrice;
+    const userSharesNum = Number(formatUnits(userShares, 6)); // Shares are in 6 decimals (USDC-based)
+    const totalSharesNum = Number(formatUnits(totalSharesValue, 6));
+    const userPosition = userSharesNum * sharePrice;
     const totalSeniorTVL = Number(formatUnits(poolState.totalSeniorDeposits, 6));
     const totalTVL = totalJuniorTVL + totalSeniorTVL;
     
@@ -116,8 +118,8 @@ async function fetchJuniorData() {
       totalTVL,
       sharePrice,
       userPosition,
-      userShares: Number(formatUnits(userShares, 18)),
-      totalShares: Number(formatUnits(totalShares, 18)),
+      userShares: userSharesNum,
+      totalShares: totalSharesNum,
       juniorRatio,
       seniorRatio,
       utilization,
@@ -238,13 +240,13 @@ function formatNumber(num) {
 // Deposit with selected asset
 async function depositJuniorMultiAsset() {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'error');
     return;
   }
 
   const depositAmount = document.getElementById('depositAmount').value;
   if (!depositAmount || parseFloat(depositAmount) <= 0) {
-    alert('Please enter a valid deposit amount');
+    showToast('Please enter a valid deposit amount', 'error');
     return;
   }
 
@@ -262,7 +264,7 @@ async function depositJuniorMultiAsset() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      alert('⚠️ Junior tranche not available on this vault');
+      showToast('⚠️ Junior tranche not available on this vault', 'error');
       return;
     }
 
@@ -309,6 +311,80 @@ async function depositJuniorMultiAsset() {
   }
 }
 
+// Update asset selector buttons based on selected vault
+function updateAssetSelector() {
+  const assetButtons = document.querySelector('.asset-buttons');
+  if (!assetButtons) return;
+
+  // Determine which wrapped token to show based on vault
+  const wrappedToken = selectedVault; // 'wSPYx' or 'wQQQx'
+  
+  // Rebuild asset buttons with only USDC and the matching wrapped token
+  assetButtons.innerHTML = `
+    <button class="asset-btn ${selectedDepositAsset === 'USDC' ? 'active' : ''}" data-asset="USDC">USDC</button>
+    <button class="asset-btn ${selectedDepositAsset === wrappedToken ? 'active' : ''}" data-asset="${wrappedToken}">${wrappedToken}</button>
+  `;
+
+  // If current selection is not valid for this vault, switch to USDC
+  if (selectedDepositAsset !== 'USDC' && selectedDepositAsset !== wrappedToken) {
+    selectedDepositAsset = 'USDC';
+  }
+
+  // Re-attach event listeners
+  document.querySelectorAll('.asset-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('.asset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedDepositAsset = btn.dataset.asset;
+      await updateAssetUI();
+    });
+  });
+}
+
+// Update UI when asset selection changes
+async function updateAssetUI() {
+  const depositContent = document.getElementById('depositContent');
+  if (!depositContent) return;
+
+  const asset = DEPOSIT_ASSETS[selectedDepositAsset];
+  
+  // Update input label
+  const inputLabel = depositContent.querySelector('.input-group label');
+  if (inputLabel) {
+    inputLabel.textContent = `Amount (${asset.symbol})`;
+  }
+
+  // Update balance display
+  const balanceDisplay = document.getElementById('usdcBalanceJunior');
+  if (balanceDisplay && connectedAddress && publicClient) {
+    try {
+      const { formatUnits } = window.viem;
+      const balance = await publicClient.readContract({
+        address: asset.address,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [connectedAddress]
+      });
+      balanceDisplay.textContent = parseFloat(formatUnits(balance, asset.decimals)).toFixed(4);
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      balanceDisplay.textContent = '0.00';
+    }
+  }
+
+  // Update deposit button text
+  const depositBtn = document.getElementById('depositBtn');
+  if (depositBtn) {
+    depositBtn.textContent = `Deposit ${asset.symbol}`;
+  }
+
+  // Update info row label
+  const balanceLabel = depositContent.querySelector('.info-row span:first-child');
+  if (balanceLabel && balanceLabel.textContent.includes('Balance')) {
+    balanceLabel.textContent = `Your ${asset.symbol} Balance:`;
+  }
+}
+
 // Initialize junior page
 function initJuniorPage() {
   // Asset selector
@@ -319,27 +395,12 @@ function initJuniorPage() {
     assetSelector.innerHTML = `
       <label>Deposit Asset</label>
       <div class="asset-buttons">
-        <button class="asset-btn active" data-asset="USDC">USDC</button>
-        <button class="asset-btn" data-asset="wSPYx">wSPYx</button>
-        <button class="asset-btn" data-asset="wQQQx">wQQQx</button>
+        <!-- Populated dynamically based on selected vault -->
       </div>
     `;
     
     const inputGroup = depositContent.querySelector('.input-group');
     depositContent.insertBefore(assetSelector, inputGroup);
-
-    // Asset button handlers
-    document.querySelectorAll('.asset-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.asset-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedDepositAsset = btn.dataset.asset;
-        
-        // Update label
-        const label = depositContent.querySelector('label');
-        label.textContent = `Amount (${selectedDepositAsset})`;
-      });
-    });
   }
 
   // Vault selector
@@ -362,6 +423,10 @@ function initJuniorPage() {
         document.querySelectorAll('.vault-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedVault = btn.dataset.vault;
+        
+        // Update asset selector to show only relevant tokens for this vault
+        updateAssetSelector();
+        await updateAssetUI();
         await updateJuniorPageUI();
       });
     });
@@ -372,6 +437,10 @@ function initJuniorPage() {
   if (depositBtn) {
     depositBtn.onclick = depositJuniorMultiAsset;
   }
+
+  // Initialize asset selector and UI with default selection
+  updateAssetSelector();
+  updateAssetUI();
 
   console.log('✓ Junior page initialized');
 }

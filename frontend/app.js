@@ -197,6 +197,20 @@ const JUNIOR_TRANCHE_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'totalSupply',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
   }
 ];
 
@@ -345,13 +359,13 @@ async function updateJuniorUI() {
 
 async function depositJunior() {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'error');
     return;
   }
 
   const depositAmount = document.getElementById('depositAmount').value;
   if (!depositAmount || parseFloat(depositAmount) <= 0) {
-    alert('Please enter a valid deposit amount');
+    showToast('Please enter a valid deposit amount', 'error');
     return;
   }
 
@@ -370,7 +384,7 @@ async function depositJunior() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.\n\nSee DeployFullVault.s.sol script.');
+      showToast('⚠️ Junior tranche not available on current vaults', 'error');
       return;
     }
 
@@ -406,7 +420,7 @@ async function depositJunior() {
     console.log('Waiting for deposit confirmation...');
     await publicClient.waitForTransactionReceipt({ hash: depositTx });
 
-    alert('✓ Junior deposit successful!');
+    showToast('✓ Junior deposit successful!', 'success');
     
     // Refresh balances and UI
     await fetchBalances();
@@ -416,19 +430,19 @@ async function depositJunior() {
     document.getElementById('depositAmount').value = '';
   } catch (error) {
     console.error('Junior deposit failed:', error);
-    alert('Deposit failed: ' + (error.message || 'Unknown error'));
+    showToast('Deposit failed: ' + (error.shortMessage || error.message || 'Unknown error'), 'error');
   }
 }
 
 async function withdrawJunior() {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'error');
     return;
   }
 
   const withdrawAmount = document.getElementById('withdrawAmount').value;
   if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-    alert('Please enter a valid withdrawal amount');
+    showToast('Please enter a valid withdrawal amount', 'error');
     return;
   }
 
@@ -444,7 +458,7 @@ async function withdrawJunior() {
     }).catch(() => null);
 
     if (!juniorTrancheCheck) {
-      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.');
+      showToast('⚠️ Junior tranche not available on current vaults', 'error');
       return;
     }
 
@@ -479,7 +493,7 @@ async function withdrawJunior() {
     console.log('Waiting for withdrawal confirmation...');
     await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
 
-    alert('✓ Junior withdrawal successful!');
+    showToast('✓ Junior withdrawal successful!', 'success');
     
     // Refresh balances and UI
     await fetchBalances();
@@ -489,7 +503,7 @@ async function withdrawJunior() {
     document.getElementById('withdrawAmount').value = '';
   } catch (error) {
     console.error('Junior withdrawal failed:', error);
-    alert('Withdrawal failed: ' + (error.message || 'Unknown error'));
+    showToast('Withdrawal failed: ' + (error.shortMessage || error.message || 'Unknown error'), 'error');
   }
 }
 
