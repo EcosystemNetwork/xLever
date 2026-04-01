@@ -813,8 +813,8 @@ body.mode-research [data-mode="trade"] { display: none !important; }
   line-height: 1.6; margin-bottom: 48px; position: relative;
 }
 
-.spline-viewer-wrap { border-radius: 16px; overflow: hidden; }
-@media (max-width: 640px) { .spline-viewer-wrap { height: 260px; } }
+spline-viewer { pointer-events: none; }
+@media (max-width: 640px) { spline-viewer { height: 260px !important; } }
 .hero-actions { display: flex; gap: 16px; position: relative; flex-wrap: wrap; justify-content: center; }
 .btn-primary {
   display: inline-flex; align-items: center; gap: 8px;
