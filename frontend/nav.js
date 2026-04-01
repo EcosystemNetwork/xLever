@@ -133,6 +133,19 @@ const XNav = (() => {
         if (!newNetwork) return;
         const name = CHAIN_NAMES[newNetwork.id] || CHAIN_NAMES[newNetwork.caipNetworkId] || newNetwork.name || 'Unknown';
         updateNetworkBadge(name);
+
+        // Sync lending adapter registry to the selected chain
+        const registry = window.xLeverLendingAdapters;
+        if (registry) {
+          const chain = registry.resolveChainFromNetwork(newNetwork.id) || registry.resolveChainFromNetwork(newNetwork.caipNetworkId);
+          if (chain) {
+            registry.setActiveChain(chain);
+            // Hot-swap the lending agent if it's running
+            if (window.xLeverLendingAgent?.isRunning()) {
+              window.xLeverLendingAgent.switchChain(chain);
+            }
+          }
+        }
       });
     }
   }

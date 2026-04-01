@@ -1,14 +1,16 @@
 /**
- * xLever Lending Agent — Automated Lending & Borrowing Management
+ * xLever Lending Agent — Multi-Chain Automated Lending & Borrowing
  * ────────────────────────────────────────────────────────────────
- * Extends the agent swarm with lending-specific automation:
- *  1. Monitors Euler V2 lending markets for supply/borrow opportunities
- *  2. Auto-supplies idle USDC for yield when not in active positions
+ * Chain-agnostic lending automation powered by the adapter registry:
+ *  1. Monitors lending markets across Euler V2, Kamino, and EVAA
+ *  2. Auto-supplies idle capital for yield on the active chain
  *  3. Manages borrow positions for leverage optimization
  *  4. Monitors health factors and auto-repays to prevent liquidation
  *  5. Rate arbitrage — moves capital between markets for best yield
+ *  6. Cross-chain opportunity detection via aggregated market view
  *
  * Four policy modes: Yield, Leverage, Hedge, Monitor-Only
+ * Works on: Ink Sepolia (Euler V2), Ethereum (Euler V2), Solana (Kamino), TON (EVAA)
  */
 
 const LendingAgent = (() => {
@@ -27,38 +29,47 @@ const LendingAgent = (() => {
   let _tickTimestamps = []
 
   // ═══════════════════════════════════════════════════════════════
+  // ADAPTER ACCESS — lazy reference to the registry singleton
+  // ═══════════════════════════════════════════════════════════════
+
+  function _getRegistry() {
+    return window.xLeverLendingAdapters || null
+  }
+
+  function _getAdapter() {
+    const reg = _getRegistry()
+    return reg ? reg.active() : null
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // PERMISSION BOUNDARIES (code-enforced, not just UI)
   // ═══════════════════════════════════════════════════════════════
 
   const PERMISSIONS = {
-    // Yield mode: auto-supply idle capital, auto-compound rewards
     yield: {
-      canSupply: true,        // Core action — deposit idle assets into lending pools
-      canWithdraw: true,      // Allowed to rebalance or exit if rates drop
-      canBorrow: false,       // No borrowing — yield mode is supply-only
-      canRepay: false,        // No borrows to repay
-      canMoveMarkets: true,   // Allowed to move between pools for better APY
-      canLeverage: false,     // No recursive supply/borrow loops
+      canSupply: true,
+      canWithdraw: true,
+      canBorrow: false,
+      canRepay: false,
+      canMoveMarkets: true,
+      canLeverage: false,
     },
-    // Leverage mode: borrow against supplied collateral for leveraged exposure
     leverage: {
-      canSupply: true,        // Must supply collateral before borrowing
-      canWithdraw: false,     // Blocked to maintain collateral ratio
-      canBorrow: true,        // Core action — borrow against collateral
-      canRepay: true,         // Allowed to manage debt levels
-      canMoveMarkets: false,  // Keep positions stable during leverage
-      canLeverage: true,      // Recursive supply/borrow loops allowed within health bounds
+      canSupply: true,
+      canWithdraw: false,
+      canBorrow: true,
+      canRepay: true,
+      canMoveMarkets: false,
+      canLeverage: true,
     },
-    // Hedge mode: supply/borrow to hedge existing xLever positions
     hedge: {
-      canSupply: true,        // Supply as part of hedging strategy
-      canWithdraw: true,      // Unwind hedges when position changes
-      canBorrow: true,        // Borrow to create offsetting exposure
-      canRepay: true,         // Unwind borrow-side of hedge
-      canMoveMarkets: false,  // Keep hedges in predictable markets
-      canLeverage: false,     // No recursive loops — hedges should be simple
+      canSupply: true,
+      canWithdraw: true,
+      canBorrow: true,
+      canRepay: true,
+      canMoveMarkets: false,
+      canLeverage: false,
     },
-    // Monitor mode: read-only, alerts only — no transactions
     monitor: {
       canSupply: false,
       canWithdraw: false,
@@ -70,101 +81,64 @@ const LendingAgent = (() => {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // MARKET DEFINITIONS
-  // ═══════════════════════════════════════════════════════════════
-
-  // Euler V2 lending markets tracked by the agent
-  const MARKETS = {
-    USDC: {
-      symbol: 'USDC',
-      decimals: 6,
-      collateralFactor: 0.85,   // 85% LTV
-      liquidationThreshold: 0.90,
-      reserveFactor: 0.10,
-    },
-    wQQQx: {
-      symbol: 'wQQQx',
-      decimals: 18,
-      collateralFactor: 0.65,   // 65% LTV — more volatile asset
-      liquidationThreshold: 0.75,
-      reserveFactor: 0.15,
-    },
-    wSPYx: {
-      symbol: 'wSPYx',
-      decimals: 18,
-      collateralFactor: 0.70,   // 70% LTV
-      liquidationThreshold: 0.80,
-      reserveFactor: 0.12,
-    },
-    WETH: {
-      symbol: 'WETH',
-      decimals: 18,
-      collateralFactor: 0.80,   // 80% LTV
-      liquidationThreshold: 0.85,
-      reserveFactor: 0.10,
-    },
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // LIVE STATE GATHERING
+  // LIVE STATE GATHERING (chain-agnostic via adapter)
   // ═══════════════════════════════════════════════════════════════
 
   async function gatherLendingState() {
+    const adapter = _getAdapter()
+    const registry = _getRegistry()
+    const chain = registry?.getActiveChain() || 'unknown'
+
     const state = {
-      markets: {},          // Per-market data: APY, utilization, total supply/borrow
-      userSupplies: [],     // User's active supply positions
-      userBorrows: [],      // User's active borrow positions
-      healthFactor: null,   // Aggregate health factor across all positions
-      idleBalance: null,    // Undeployed USDC in wallet
-      oraclePrice: null,    // Current price from Pyth
-      riskState: null,      // Risk engine output
-      xLeverPosition: null, // Active xLever position (for hedge mode coordination)
+      chain,
+      protocol: adapter?.protocolName || 'unknown',
+      markets: {},
+      userSupplies: [],
+      userBorrows: [],
+      healthFactor: null,
+      idleBalance: null,
+      oraclePrice: null,
+      riskState: null,
+      xLeverPosition: null,
+      crossChainMarkets: null,
     }
 
-    // 1. Fetch market data from backend
+    if (!adapter) {
+      _log('LENDING', 'No adapter available for current chain', 'error')
+      return state
+    }
+
+    // 1. Fetch markets from active chain adapter
     try {
-      const res = await fetch('/api/lending/markets')
-      if (res.ok) {
-        state.markets = await res.json()
-      }
+      state.markets = await adapter.getMarkets()
     } catch (e) {
-      _log('LENDING', 'Market data fetch failed: ' + e.message, 'error')
+      _log('LENDING', `Market data fetch failed (${chain}): ${e.message}`, 'error')
     }
 
-    // 2. Fetch user positions
+    // 2. Fetch user positions via adapter
     try {
-      const contracts = window.xLeverContracts
-      if (contracts) {
-        const wc = contracts.getWalletClient()
-        if (wc) {
-          const [addr] = await wc.getAddresses()
-          if (addr) {
-            // Idle USDC balance
-            const bal = await contracts.getBalance(contracts.ADDRESSES.usdc, addr)
-            state.idleBalance = parseFloat(bal.formatted)
+      const address = await adapter.getAddress()
+      if (address) {
+        state.idleBalance = await adapter.getIdleBalance(address)
 
-            // Active xLever position (for hedge coordination)
-            const pos = await contracts.getPosition(addr)
-            state.xLeverPosition = contracts.formatPosition(pos)
+        const positions = await adapter.getPositions(address)
+        state.userSupplies = positions.supplies || []
+        state.userBorrows = positions.borrows || []
+        state.healthFactor = positions.healthFactor
 
-            // Fetch user lending positions from backend
-            try {
-              const posRes = await fetch(`/api/lending/positions/${addr}`)
-              if (posRes.ok) {
-                const positions = await posRes.json()
-                state.userSupplies = positions.supplies || []
-                state.userBorrows = positions.borrows || []
-                state.healthFactor = positions.healthFactor
-              }
-            } catch { /* positions may not exist yet */ }
-          }
+        // xLever position (EVM only, for hedge coordination)
+        if (window.xLeverContracts) {
+          try {
+            const pos = await window.xLeverContracts.getPosition(address)
+            state.xLeverPosition = window.xLeverContracts.formatPosition(pos)
+          } catch { /* no xLever position on this chain */ }
         }
       }
     } catch (e) {
-      _log('LENDING', 'Position fetch failed: ' + e.message, 'error')
+      _log('LENDING', `Position fetch failed (${chain}): ${e.message}`, 'error')
     }
 
-    // 3. Oracle price
+    // 3. Oracle price (Pyth — available on EVM chains)
     try {
       const pyth = window.xLeverPyth
       if (pyth) {
@@ -172,7 +146,7 @@ const LendingAgent = (() => {
         const p = await pyth.getPriceForFeed(feed)
         state.oraclePrice = p.price
       }
-    } catch { /* degrade gracefully */ }
+    } catch { /* oracle not available on this chain */ }
 
     // 4. Risk engine state
     try {
@@ -180,6 +154,13 @@ const LendingAgent = (() => {
         state.riskState = window.xLeverRisk.getState()
       }
     } catch { /* risk engine may not be initialized */ }
+
+    // 5. Cross-chain market overview (for yield comparison)
+    try {
+      if (registry) {
+        state.crossChainMarkets = await registry.getAllMarkets()
+      }
+    } catch { /* non-critical */ }
 
     return state
   }
@@ -192,21 +173,43 @@ const LendingAgent = (() => {
     const actions = []
     const perms = PERMISSIONS.yield
 
-    // Auto-supply idle USDC if above threshold
+    // Auto-supply idle stablecoin if above threshold
     if (perms.canSupply && state.idleBalance > (config.minIdleThreshold || 100)) {
       const supplyAmount = state.idleBalance - (config.reserveBalance || 50)
       if (supplyAmount > 0) {
-        // Find best APY market for USDC
-        const usdcMarket = state.markets?.USDC
-        const minApy = config.minSupplyApy || 2.0
+        // Find best APY market on current chain
+        let bestMarket = null
+        let bestApy = config.minSupplyApy || 2.0
 
-        if (usdcMarket && usdcMarket.supplyApy >= minApy) {
+        for (const [symbol, market] of Object.entries(state.markets || {})) {
+          if (market.supplyApy > bestApy) {
+            bestApy = market.supplyApy
+            bestMarket = { symbol, ...market }
+          }
+        }
+
+        if (bestMarket) {
           actions.push({
             type: 'SUPPLY',
-            asset: 'USDC',
+            asset: bestMarket.symbol,
             amount: supplyAmount.toFixed(2),
-            reason: `Idle USDC (${state.idleBalance.toFixed(2)}) exceeds threshold. Supply APY: ${usdcMarket.supplyApy.toFixed(2)}%`,
+            chain: state.chain,
+            reason: `Idle balance (${state.idleBalance.toFixed(2)}) exceeds threshold. Best APY on ${state.protocol}: ${bestMarket.symbol} at ${bestMarket.supplyApy.toFixed(2)}%`,
           })
+        }
+      }
+    }
+
+    // Cross-chain yield alert: flag if another chain has significantly better rates
+    if (state.crossChainMarkets) {
+      const currentBestApy = Math.max(...Object.values(state.markets || {}).map(m => m.supplyApy || 0), 0)
+
+      for (const [chain, markets] of Object.entries(state.crossChainMarkets)) {
+        if (chain === state.chain) continue
+        for (const [symbol, market] of Object.entries(markets)) {
+          if (market.supplyApy > currentBestApy + (config.crossChainApyThreshold || 3.0)) {
+            _log('YIELD', `Cross-chain opportunity: ${symbol} on ${chain} at ${market.supplyApy.toFixed(2)}% vs local best ${currentBestApy.toFixed(2)}%`, 'info')
+          }
         }
       }
     }
@@ -215,9 +218,8 @@ const LendingAgent = (() => {
     if (perms.canMoveMarkets && state.userSupplies.length > 0) {
       for (const supply of state.userSupplies) {
         const currentMarket = state.markets?.[supply.asset]
-        const apyDiffThreshold = config.apyDiffThreshold || 1.5 // 1.5% minimum improvement
+        const apyDiffThreshold = config.apyDiffThreshold || 1.5
 
-        // Check all markets for better rates
         for (const [symbol, market] of Object.entries(state.markets || {})) {
           if (symbol !== supply.asset && market.supplyApy - (currentMarket?.supplyApy || 0) > apyDiffThreshold) {
             actions.push({
@@ -225,7 +227,8 @@ const LendingAgent = (() => {
               from: supply.asset,
               to: symbol,
               amount: supply.amount,
-              reason: `APY differential: ${market.supplyApy.toFixed(2)}% vs ${currentMarket?.supplyApy?.toFixed(2) || '?'}% (${symbol} vs ${supply.asset})`,
+              chain: state.chain,
+              reason: `APY differential: ${market.supplyApy.toFixed(2)}% vs ${currentMarket?.supplyApy?.toFixed(2) || '?'}% (${symbol} vs ${supply.asset}) on ${state.protocol}`,
             })
           }
         }
@@ -249,36 +252,39 @@ const LendingAgent = (() => {
       actions.push({
         type: 'REPAY',
         urgency,
-        reason: `Health factor ${state.healthFactor.toFixed(2)} below minimum ${minHF}. ${urgency}: auto-repaying to restore safety margin.`,
+        chain: state.chain,
+        reason: `Health factor ${state.healthFactor.toFixed(2)} below minimum ${minHF} on ${state.protocol}. ${urgency}: auto-repaying.`,
       })
-      return actions // Repay takes priority over everything
+      return actions
     }
 
-    // Supply collateral if we have idle balance and want to borrow
+    // Supply collateral if we have idle balance
     if (perms.canSupply && state.idleBalance > (config.minCollateral || 200)) {
+      // Determine best collateral asset for this chain
+      const collateralAsset = config.collateralAsset || _defaultStable(state.chain)
       actions.push({
         type: 'SUPPLY',
-        asset: 'USDC',
+        asset: collateralAsset,
         amount: state.idleBalance.toFixed(2),
-        reason: `Supplying ${state.idleBalance.toFixed(2)} USDC as collateral for leverage.`,
+        chain: state.chain,
+        reason: `Supplying ${state.idleBalance.toFixed(2)} ${collateralAsset} as collateral on ${state.protocol}.`,
       })
     }
 
-    // Borrow against collateral if health factor allows — cap at maxLoops iterations
+    // Borrow against collateral if health factor allows
     if (perms.canBorrow && state.healthFactor !== null && state.healthFactor > targetHF) {
-      // Only propose borrow if we haven't exceeded the max loop count for this session
       const existingBorrows = state.userBorrows?.length || 0
       if (existingBorrows < maxLoops) {
         const borrowRoom = (state.healthFactor - targetHF) / state.healthFactor
-        const borrowAsset = config.borrowAsset || 'USDC'
-        // Estimate borrow amount from collateral value and room to borrow
+        const borrowAsset = config.borrowAsset || _defaultStable(state.chain)
         const collateralUsd = state.userSupplies?.reduce((sum, s) => sum + (s.valueUsd || 0), 0) || 0
         const estimatedBorrow = collateralUsd * borrowRoom
         actions.push({
           type: 'BORROW',
           asset: borrowAsset,
           amount: estimatedBorrow > 0 ? estimatedBorrow.toFixed(2) : '0',
-          reason: `Health factor ${state.healthFactor.toFixed(2)} above target ${targetHF}. Room to borrow: ${(borrowRoom * 100).toFixed(1)}%. Loop ${existingBorrows + 1}/${maxLoops}.`,
+          chain: state.chain,
+          reason: `Health factor ${state.healthFactor.toFixed(2)} above target ${targetHF} on ${state.protocol}. Room: ${(borrowRoom * 100).toFixed(1)}%. Loop ${existingBorrows + 1}/${maxLoops}.`,
         })
       }
     }
@@ -292,7 +298,7 @@ const LendingAgent = (() => {
     const pos = state.xLeverPosition
 
     if (!pos) {
-      _log('LENDING', 'No active xLever position to hedge', 'info')
+      _log('LENDING', `No active xLever position to hedge on ${state.chain}`, 'info')
       return actions
     }
 
@@ -300,36 +306,36 @@ const LendingAgent = (() => {
     const depositUsd = parseFloat(pos.deposit) || 0
     const hedgeAmount = (depositUsd * Math.abs(pos.leverage) * hedgeRatio).toFixed(2)
 
-    // If long, borrow the underlying asset to create a partial hedge
     if (pos.isLong && perms.canBorrow) {
-      // Determine hedge asset from position context (default wQQQx for QQQ positions)
       const hedgeAsset = config.hedgeAsset || 'wQQQx'
       actions.push({
         type: 'BORROW',
         asset: hedgeAsset,
         amount: hedgeAmount,
-        reason: `Hedging ${(hedgeRatio * 100).toFixed(0)}% of ${pos.leverageDisplay} long ($${hedgeAmount}) via ${hedgeAsset} borrow.`,
+        chain: state.chain,
+        reason: `Hedging ${(hedgeRatio * 100).toFixed(0)}% of ${pos.leverageDisplay} long ($${hedgeAmount}) via ${hedgeAsset} borrow on ${state.protocol}.`,
         hedgeRatio,
       })
     }
 
-    // If short, supply idle USDC to earn yield while short
     if (pos.isShort && perms.canSupply && state.idleBalance > 0) {
+      const stableAsset = _defaultStable(state.chain)
       const supplyAmount = Math.min(state.idleBalance, depositUsd).toFixed(2)
       actions.push({
         type: 'SUPPLY',
-        asset: 'USDC',
+        asset: stableAsset,
         amount: supplyAmount,
-        reason: `Supplying $${supplyAmount} USDC to earn yield alongside ${pos.leverageDisplay} short position.`,
+        chain: state.chain,
+        reason: `Supplying $${supplyAmount} ${stableAsset} to earn yield alongside ${pos.leverageDisplay} short on ${state.protocol}.`,
       })
     }
 
-    // Monitor health factor on existing hedge positions
     if (perms.canRepay && state.healthFactor !== null && state.healthFactor < (config.hedgeMinHF || 1.5)) {
       actions.push({
         type: 'REPAY',
         urgency: 'WARNING',
-        reason: `Hedge health factor ${state.healthFactor.toFixed(2)} dropping — reducing borrow to protect hedge.`,
+        chain: state.chain,
+        reason: `Hedge health factor ${state.healthFactor.toFixed(2)} dropping on ${state.protocol} — reducing borrow.`,
       })
     }
 
@@ -342,36 +348,49 @@ const LendingAgent = (() => {
     // Health factor alerts
     if (state.healthFactor !== null) {
       if (state.healthFactor < 1.1) {
-        alerts.push({ level: 'CRITICAL', message: `Health factor critically low: ${state.healthFactor.toFixed(2)}` })
+        alerts.push({ level: 'CRITICAL', message: `[${state.protocol}] Health factor critically low: ${state.healthFactor.toFixed(2)}` })
       } else if (state.healthFactor < 1.3) {
-        alerts.push({ level: 'WARNING', message: `Health factor low: ${state.healthFactor.toFixed(2)}` })
+        alerts.push({ level: 'WARNING', message: `[${state.protocol}] Health factor low: ${state.healthFactor.toFixed(2)}` })
       }
     }
 
     // APY change alerts
     for (const [symbol, market] of Object.entries(state.markets || {})) {
       if (market.supplyApy < 0.5) {
-        alerts.push({ level: 'INFO', message: `${symbol} supply APY dropped to ${market.supplyApy.toFixed(2)}%` })
+        alerts.push({ level: 'INFO', message: `[${state.protocol}] ${symbol} supply APY dropped to ${market.supplyApy.toFixed(2)}%` })
       }
       if (market.utilization > 0.95) {
-        alerts.push({ level: 'WARNING', message: `${symbol} utilization at ${(market.utilization * 100).toFixed(1)}% — withdrawals may be delayed` })
+        alerts.push({ level: 'WARNING', message: `[${state.protocol}] ${symbol} utilization at ${(market.utilization * 100).toFixed(1)}%` })
       }
     }
 
-    // Log all alerts
+    // Cross-chain health monitoring
+    if (state.crossChainMarkets) {
+      for (const [chain, markets] of Object.entries(state.crossChainMarkets)) {
+        for (const [symbol, market] of Object.entries(markets)) {
+          if (market.utilization > 0.95) {
+            alerts.push({ level: 'WARNING', message: `[${chain}] ${symbol} utilization critical: ${(market.utilization * 100).toFixed(1)}%` })
+          }
+        }
+      }
+    }
+
     for (const alert of alerts) {
       _log('MONITOR', `[${alert.level}] ${alert.message}`, alert.level === 'CRITICAL' ? 'error' : 'warn')
     }
 
-    return [] // Monitor mode never produces executable actions
+    return []
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // EXECUTION ENGINE
+  // EXECUTION ENGINE (dispatches to active chain adapter)
   // ═══════════════════════════════════════════════════════════════
 
   async function executeAction(action) {
-    _log('EXECUTE', `${_dryRun ? '[DRY RUN] ' : ''}${action.type}: ${action.reason}`, 'info')
+    const adapter = _getAdapter()
+    const chainLabel = adapter ? `${adapter.protocolName} (${adapter.config.name})` : action.chain
+
+    _log('EXECUTE', `${_dryRun ? '[DRY RUN] ' : ''}[${chainLabel}] ${action.type}: ${action.reason}`, 'info')
 
     if (_dryRun) {
       _actionCount++
@@ -379,40 +398,61 @@ const LendingAgent = (() => {
       return { success: true, dryRun: true, action }
     }
 
-    try {
-      const contracts = window.xLeverContracts
-      if (!contracts) throw new Error('Contracts not initialized')
+    if (!adapter) {
+      _log('EXECUTE', 'No adapter available — cannot execute', 'error')
+      return { success: false, error: 'No adapter', action }
+    }
 
+    try {
+      let result
       switch (action.type) {
-        case 'SUPPLY': {
-          // Use Euler V2 vault deposit
-          const result = await contracts.depositJunior(action.amount)
-          _log('EXECUTE', `Supplied ${action.amount} ${action.asset}. TX: ${result.hash}`, 'success')
+        case 'SUPPLY':
+          result = await adapter.supply(action.asset, parseFloat(action.amount))
+          _log('EXECUTE', `Supplied ${action.amount} ${action.asset} on ${chainLabel}. TX: ${result.hash}`, 'success')
           break
-        }
-        case 'BORROW': {
-          _log('EXECUTE', `Borrow execution pending Euler V2 integration`, 'warn')
+        case 'WITHDRAW':
+          result = await adapter.withdraw(action.asset, parseFloat(action.amount))
+          _log('EXECUTE', `Withdrew ${action.amount} ${action.asset} on ${chainLabel}. TX: ${result.hash}`, 'success')
           break
-        }
-        case 'REPAY': {
-          _log('EXECUTE', `Repay execution pending Euler V2 integration`, 'warn')
+        case 'BORROW':
+          result = await adapter.borrow(action.asset, parseFloat(action.amount))
+          _log('EXECUTE', `Borrowed ${action.amount} ${action.asset} on ${chainLabel}. TX: ${result.hash}`, 'success')
           break
-        }
-        case 'REBALANCE': {
-          _log('EXECUTE', `Rebalance ${action.from} → ${action.to} pending multi-vault routing`, 'warn')
+        case 'REPAY':
+          result = await adapter.repay(action.asset || _defaultStable(action.chain), parseFloat(action.amount || '0'))
+          _log('EXECUTE', `Repaid on ${chainLabel}. TX: ${result.hash}`, 'success')
           break
-        }
+        case 'REBALANCE':
+          // Withdraw from old market, supply to new — two-step
+          await adapter.withdraw(action.from, parseFloat(action.amount))
+          result = await adapter.supply(action.to, parseFloat(action.amount))
+          _log('EXECUTE', `Rebalanced ${action.from} → ${action.to} on ${chainLabel}. TX: ${result.hash}`, 'success')
+          break
         default:
           _log('EXECUTE', `Unknown action type: ${action.type}`, 'error')
       }
 
       _actionCount++
       _onStats({ actions: _actionCount, lastAction: action })
-      return { success: true, action }
+      return { success: true, action, result }
     } catch (e) {
-      _log('EXECUTE', `Action failed: ${e.message}`, 'error')
+      _log('EXECUTE', `Action failed on ${chainLabel}: ${e.message}`, 'error')
       return { success: false, error: e.message, action }
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════
+
+  function _defaultStable(chain) {
+    const stables = {
+      'ink-sepolia': 'USDC',
+      'ethereum': 'USDC',
+      'solana': 'USDC',
+      'ton': 'USDT',
+    }
+    return stables[chain] || 'USDC'
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -422,7 +462,6 @@ const LendingAgent = (() => {
   async function tick() {
     if (_paused || !_policy) return
 
-    // Rate limiting
     const now = Date.now()
     if (now - _lastTickTime < MIN_TICK_GAP) return
     _tickTimestamps = _tickTimestamps.filter(t => now - t < 60000)
@@ -430,8 +469,11 @@ const LendingAgent = (() => {
     _lastTickTime = now
     _tickTimestamps.push(now)
 
+    const adapter = _getAdapter()
+    const chainLabel = adapter ? `${adapter.protocolName} on ${adapter.config.name}` : 'unknown'
+
     try {
-      _log('TICK', `Gathering lending market state...`, 'info')
+      _log('TICK', `Gathering lending state from ${chainLabel}...`, 'info')
       const state = await gatherLendingState()
 
       let actions = []
@@ -445,16 +487,16 @@ const LendingAgent = (() => {
       }
 
       if (actions.length === 0) {
-        _log('TICK', `No actions needed. Markets stable.`, 'info')
+        _log('TICK', `No actions needed on ${chainLabel}. Markets stable.`, 'info')
         return
       }
 
-      _log('TICK', `${actions.length} action(s) proposed`, 'info')
+      _log('TICK', `${actions.length} action(s) proposed on ${chainLabel}`, 'info')
       for (const action of actions) {
         await executeAction(action)
       }
     } catch (e) {
-      _log('TICK', `Tick failed: ${e.message}`, 'error')
+      _log('TICK', `Tick failed on ${chainLabel}: ${e.message}`, 'error')
     }
   }
 
@@ -470,8 +512,12 @@ const LendingAgent = (() => {
     _dryRun = dryRun
     _actionCount = 0
 
-    _log('INIT', `Lending Agent started in ${policy.mode.toUpperCase()} mode ${_dryRun ? '(DRY RUN)' : '(LIVE)'}`, 'success')
+    const adapter = _getAdapter()
+    const chainLabel = adapter ? `${adapter.protocolName} on ${adapter.config.name}` : 'no adapter'
+
+    _log('INIT', `Lending Agent started in ${policy.mode.toUpperCase()} mode ${_dryRun ? '(DRY RUN)' : '(LIVE)'} — ${chainLabel}`, 'success')
     _log('INIT', `Permissions: ${Object.entries(PERMISSIONS[policy.mode] || {}).filter(([,v]) => v).map(([k]) => k).join(', ') || 'none'}`, 'info')
+    _log('INIT', `Supported chains: ${_getRegistry()?.chains().map(c => CHAIN_CONFIG_NAMES[c] || c).join(', ') || 'none'}`, 'info')
 
     tick().catch(e => _log('INIT', `Initial tick failed: ${e.message}`, 'error'))
     _interval = setInterval(tick, intervalMs)
@@ -491,17 +537,52 @@ const LendingAgent = (() => {
   function resume() { _paused = false; _log('RESUME', 'Lending Agent resumed', 'success') }
   function isRunning() { return _interval !== null && !_paused }
   function getPolicy() { return _policy }
-  function getStats() { return { actions: _actionCount, paused: _paused, running: !!_interval, mode: _policy?.mode || null } }
+
+  function getStats() {
+    const adapter = _getAdapter()
+    return {
+      actions: _actionCount,
+      paused: _paused,
+      running: !!_interval,
+      mode: _policy?.mode || null,
+      chain: _getRegistry()?.getActiveChain() || null,
+      protocol: adapter?.protocolName || null,
+    }
+  }
+
   function setDryRun(val) { _dryRun = val; _log('CONFIG', `Dry run: ${val}`, 'info') }
+
+  /** Switch the agent to a different chain (hot-swap, no restart needed) */
+  function switchChain(chain) {
+    const registry = _getRegistry()
+    if (!registry) throw new Error('Adapter registry not initialized')
+    registry.setActiveChain(chain)
+    const adapter = registry.active()
+    _log('CHAIN', `Switched to ${adapter.protocolName} on ${adapter.config.name}`, 'success')
+  }
+
+  /** Get cross-chain market snapshot */
+  async function getCrossChainMarkets() {
+    const registry = _getRegistry()
+    if (!registry) return {}
+    return registry.getAllMarkets()
+  }
+
+  // Chain config display names for logging
+  const CHAIN_CONFIG_NAMES = {
+    'ink-sepolia': 'Ink Sepolia (Euler V2)',
+    'ethereum': 'Ethereum (Euler V2)',
+    'solana': 'Solana (Kamino)',
+    'ton': 'TON (EVAA)',
+  }
 
   return {
     start, stop, pause, resume,
     isRunning, getPolicy, getStats, setDryRun,
-    PERMISSIONS, MARKETS,
-    // Expose for testing/external use
+    switchChain, getCrossChainMarkets,
+    PERMISSIONS,
     gatherLendingState, tick,
   }
 })()
 
-// Expose globally for non-module scripts
 window.xLeverLendingAgent = LendingAgent

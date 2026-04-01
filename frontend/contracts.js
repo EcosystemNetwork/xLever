@@ -22,6 +22,87 @@ export const inkSepolia = {
   },
 }
 
+export const ethSepolia = {
+  id: 11155111,
+  name: 'Ethereum Sepolia',
+  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://ethereum-sepolia-rpc.publicnode.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' },
+  },
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MULTI-CHAIN VAULT REGISTRIES
+// ═══════════════════════════════════════════════════════════════
+
+export const CHAIN_CONFIGS = {
+  // Ink Sepolia (763373) — primary chain
+  763373: {
+    chain: inkSepolia,
+    vaults: null, // populated below from VAULT_REGISTRY (default)
+  },
+  // Ethereum Sepolia (11155111)
+  11155111: {
+    chain: ethSepolia,
+    vaults: {
+      QQQ:  '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
+      SPY:  '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
+      VUG:  '0x5a446C69c8C635ae473Ed859b1853Bd580F671B7',
+      VGK:  '0x5FA09F20C04533a8564F280A9127Cf63aDE08621',
+      VXUS: '0x445B9A6B774E42BeF772671D2eEA6529bc28bC26',
+      SGOV: '0x30A37d04aFa2648FA4427b13c7ca380490F46BaD',
+      SMH:  '0x6F5C1fB59C4887dD3938fAF19D46C21d1dFF8cF6',
+      XLE:  '0x73ad91867737622971D9f928AD65f2078EC3e184',
+      XOP:  '0xD4F23c93237D9594b13662D1Ce7B2078efe6B0ec',
+      ITA:  '0x7D2C5FA48954F601faF30ed4A1611150E7CA72b8',
+      AAPL: '0x31026d0de55Eb7523EeADeBB58fec60876235f09',
+      NVDA: '0xe212D68B4e18747b2bAb256090c1d09Ab9A5371a',
+      TSLA: '0x5b493Fc8B66A6827f7A1658BFcFA01693534326e',
+      DELL: '0xab455997817026cCf4791Bb565189Dd873ECE675',
+      SMCI: '0x28AFF61B3801eE173CAfaeCdD5Ff78D65B478b3E',
+      ANET: '0x63b25f2d081e02475F5B4F99f0966EA2e7a3C54a',
+      VRT:  '0x4D1785862e24C9fC719B0C2ff3749C67fD315562',
+      SNDK: '0xf8D8c163e8B36799e4C719384AE20DD7873A5DfE',
+      KLAC: '0xb4288Ba6B4C61b64cc2d5d3Da1466dE6Cd904398',
+      LRCX: '0x83B11A1A46182B933674607B10643Ac97D104247',
+      AMAT: '0x2d3b2B1F563b7552f2aB24250164C4a7379a4c33',
+      TER:  '0xCFd3631169Ba659744A55904774B03346795e1F1',
+      CEG:  '0x3Ac370b7617350f3C7eff089541dd7F0E886f7e5',
+      GEV:  '0x184D592eAf314c81877532CBda6Dc1fB8A74Ed68',
+      SMR:  '0xc235cC4efCf42E98385A9132dac093d1426a5ED2',
+      ETN:  '0xacF8600BCBfde39Fc5aF017E7d9009310bEC0D6B',
+      PWR:  '0xCd258E69A5Cc4A7E6D6Ea7219355CeB0a3153472',
+      APLD: '0x594332f239Fe809Ccf6B3Dd791Eb8252A3efA38c',
+      SLV:  '0x46ce7cd72763B784977349686AEA72B84d3F86B6',
+      PPLT: '0xEC9455F29A5a7A2a5F496bB7D4B428A1df3850dF',
+      PALL: '0x5fcAbBc1e9ab0bEca3d6cd9EF0257F2369230D12',
+      STRK: '0x0a66152096f37F83D41c56534022e746B159b052',
+      BTGO: '0x6FB4b73B1e980217010d20B7DA065b06EA7802B6',
+    },
+  },
+}
+
+let activeChainId = 763373 // default to Ink Sepolia
+
+export function switchChain(chainId) {
+  const config = CHAIN_CONFIGS[chainId]
+  if (!config) throw new Error(`Unsupported chain: ${chainId}`)
+  activeChainId = chainId
+  // Re-create clients for new chain
+  publicClient = createPublicClient({ chain: config.chain, transport: http() })
+  if (window.ethereum) {
+    walletClient = createWalletClient({ chain: config.chain, transport: custom(window.ethereum) })
+  }
+  // Re-resolve vault for active asset
+  setActiveAsset(activeAsset)
+}
+
+export function getActiveChainId() { return activeChainId }
+export function getActiveChainConfig() { return CHAIN_CONFIGS[activeChainId] }
+
 // ═══════════════════════════════════════════════════════════════
 // CONTRACT ADDRESSES (filled after deployment)
 // ═══════════════════════════════════════════════════════════════
@@ -96,12 +177,17 @@ export const VAULT_REGISTRY = {
   BTGO: '0x0a66152096f37F83D41c56534022e746B159b052',
 }
 
+// Backfill: Ink Sepolia uses VAULT_REGISTRY as its vault map
+CHAIN_CONFIGS[763373].vaults = VAULT_REGISTRY
+
 export function getVaultForAsset(symbol) {
-  return VAULT_REGISTRY[symbol] || null
+  const config = CHAIN_CONFIGS[activeChainId]
+  const vaults = config?.vaults || VAULT_REGISTRY
+  return vaults[symbol] || null
 }
 
 export function isVaultDeployed(symbol) {
-  return !!VAULT_REGISTRY[symbol]
+  return !!getVaultForAsset(symbol)
 }
 
 export function setAddress(key, address) {
@@ -487,9 +573,10 @@ export function formatPoolState(pool) {
 
 // Expose globally for non-module scripts
 window.xLeverContracts = {
-  ADDRESSES, setAddress, VAULT_REGISTRY,
+  ADDRESSES, setAddress, VAULT_REGISTRY, CHAIN_CONFIGS,
   ASSET_FEED_MAP, setActiveAsset, getActiveAsset, getActiveFeedId,
   getVaultForAsset, isVaultDeployed,
+  switchChain, getActiveChainId, getActiveChainConfig,
   getBalance, getAllowance, approveToken,
   getPosition, getPositionValue, getPoolState, getTWAP, getMaxLeverage, getFundingRate, getJuniorValue,
   openPosition, closePosition, adjustLeverage, depositJunior, withdrawJunior,
