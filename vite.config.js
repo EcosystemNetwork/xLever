@@ -2,18 +2,39 @@
 import { defineConfig } from 'vite'
 // resolve constructs absolute paths for the multi-page entry points below
 import { resolve } from 'path'
+// viteStaticCopy copies non-bundled files to the dist folder
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 // Export the Vite config so the dev server and build process both use these settings
 export default defineConfig({
   // Set the project root to the frontend directory so Vite resolves HTML and assets from there
   root: 'frontend',
   envDir: resolve(__dirname),
+  // Public directory for assets that should be copied as-is
+  publicDir: 'public',
+  // Plugins to extend Vite functionality
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        {
+          src: '*.js',
+          dest: '.'
+        },
+        {
+          src: '*.css',
+          dest: '.'
+        }
+      ]
+    })
+  ],
   // Build configuration controls how Rollup bundles the production output
   build: {
     // Output the production build one level up into /dist (relative to root, so project-root/dist)
     outDir: '../dist',
     // Clear the dist folder before each build to avoid stale files from previous builds
     emptyOutDir: true,
+    // Copy public directory files to dist
+    copyPublicDir: true,
     // Warn only for chunks above 1MB (wallet SDK bundles are large by nature)
     chunkSizeWarningLimit: 2000,
     // Rollup-specific options for the multi-page app entry points
