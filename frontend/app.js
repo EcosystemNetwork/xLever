@@ -1726,7 +1726,8 @@ function snapLeverage(raw) {
   if (isDegenMode) {
     return Math.round(raw);
   } else {
-    return Math.round(raw * 4) / 4;
+    // Snap to 0.1 increments for finer control
+    return Math.round(raw * 10) / 10;
   }
 }
 
