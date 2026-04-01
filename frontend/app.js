@@ -506,7 +506,7 @@ async function switchToInkSepolia() {
 async function connectWallet() {
   try {
     if (!window.ethereum) {
-      alert('Please install MetaMask or another Web3 wallet to connect.');
+      showToast('Please install MetaMask or another Web3 wallet to connect.', 'warning', 5000);
       return;
     }
 
@@ -528,7 +528,7 @@ async function connectWallet() {
       const switched = await switchToInkSepolia();
       
       if (!switched) {
-        alert('⚠️ Please switch to Ink Sepolia network in MetaMask.\n\nYou can add it manually:\nChain ID: 763373\nRPC: https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc');
+        showToast('Please switch to Ink Sepolia network in MetaMask.\n\nChain ID: 763373', 'warning', 6000);
         return;
       }
     } else {
@@ -558,7 +558,7 @@ async function connectWallet() {
     
   } catch (error) {
     console.error('Failed to connect wallet:', error);
-    alert('Failed to connect wallet. Please try again.');
+    showToast('Failed to connect wallet. Please try again.', 'error');
   }
 }
 
@@ -642,8 +642,8 @@ let currentTicker = 'QQQ';
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
 let entryDateIndex = 0;
 let isDegenMode = false;
-let MIN_LEV = -4.0, MAX_LEV = 4.0;
-const NORMAL_MIN = -4.0, NORMAL_MAX = 4.0;
+let MIN_LEV = -3.5, MAX_LEV = 3.5;
+const NORMAL_MIN = -3.5, NORMAL_MAX = 3.5;
 const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0;
 
 async function fetchRealData(symbol, years) {
@@ -722,7 +722,7 @@ async function loadTickerData(ticker) {
   } catch (error) {
     console.error('Failed to load data:', error);
     dataLoading = false;
-    alert('Error loading data. Please check your connection and refresh the page.');
+    showToast('Error loading data. Please check your connection and refresh the page.', 'error', 6000);
   }
 }
 
@@ -1638,7 +1638,7 @@ function updateAll() {
   if (absLev > 3.0) requiredBuffer = 0.30;
   if (absLev > 3.5) requiredBuffer = 0.33;
   
-  let dynamicMax = 4.0;
+  let dynamicMax = 3.5;
   if (juniorRatio < 0.40) dynamicMax = 3.0;
   if (juniorRatio < 0.30) dynamicMax = 2.0;
   if (juniorRatio < 0.20) dynamicMax = 1.5;
@@ -1659,7 +1659,7 @@ function updateAll() {
 
   document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage));
 
-  const riskPct = Math.min(100, (absMag / 4.0) * 100);
+  const riskPct = Math.min(100, (absMag / 3.5) * 100);
   const rf = document.getElementById('riskFill');
   rf.style.width = riskPct + '%';
   
@@ -2003,13 +2003,13 @@ function updateNormalModeUI() {
   const notchContainer = document.querySelectorAll('.slider-notches');
   notchContainer.forEach(container => {
     container.innerHTML = `
-      <button class="notch-btn" data-lev="-4.0">-4×</button>
+      <button class="notch-btn" data-lev="-3.5">-3.5×</button>
       <button class="notch-btn" data-lev="-2.0">-2×</button>
       <button class="notch-btn" data-lev="-1.0">-1×</button>
       <button class="notch-btn" data-lev="0">0×</button>
       <button class="notch-btn" data-lev="1.0">+1×</button>
       <button class="notch-btn" data-lev="2.0">+2×</button>
-      <button class="notch-btn" data-lev="4.0">+4×</button>
+      <button class="notch-btn" data-lev="3.5">+3.5×</button>
     `;
     container.querySelectorAll('.notch-btn').forEach(b => {
       b.addEventListener('click', () => {
