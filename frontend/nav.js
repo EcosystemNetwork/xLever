@@ -117,9 +117,9 @@ const XNav = (() => {
       }
     }
     if (isActive) {
-      return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833] flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
+      return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2 rounded bg-[#1a1d26] border border-[#252833] flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
     }
-    return `<a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
+    return `<a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium px-4 py-2 rounded transition-colors flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
   }
 
   /**
@@ -145,24 +145,24 @@ const XNav = (() => {
     const mode = getMode();
     const nav = document.createElement('nav');
     nav.id = 'xnav';
-    nav.className = 'bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50';
+    nav.className = 'bg-[#0a0b0e] flex justify-between items-center w-full px-8 h-16 border-b border-[#252833] fixed top-0 z-50';
     nav.style.transition = 'all 0.3s ease';
 
     if (_isLanding) {
       // ── Landing mode: clean & minimal ──
       nav.innerHTML = `
         <div class="flex items-center gap-10">
-          <a href="index.html" class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter no-underline">
+          <a href="index.html" class="font-['JetBrains_Mono'] text-xl font-bold tracking-tighter no-underline">
             <span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span>
           </a>
           <div class="hidden sm:flex items-center gap-6">
-            <a href="#features" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium transition-colors no-underline">Features</a>
-            <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium transition-colors no-underline">Docs</a>
-            <a href="https://github.com/madschristensen99/xLever" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium transition-colors no-underline">GitHub</a>
+            <a href="#features" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium transition-colors no-underline">Features</a>
+            <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium transition-colors no-underline">Docs</a>
+            <a href="https://github.com/madschristensen99/xLever" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium transition-colors no-underline">GitHub</a>
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <a href="#" id="navLaunchAppBtn" class="inline-flex items-center gap-2 bg-[#7c4dff] hover:bg-[#6a3de8] text-white font-['DM_Sans'] text-[14px] font-semibold px-5 py-2 rounded-lg transition-all no-underline" style="transform: translateY(0); transition: all 0.2s;">
+          <a href="#" id="navLaunchAppBtn" class="inline-flex items-center gap-2 bg-[#7c4dff] hover:bg-[#6a3de8] text-white font-['DM_Sans'] text-[15px] font-semibold px-6 py-2.5 rounded-lg transition-all no-underline" style="transform: translateY(0); transition: all 0.2s;">
             Launch App <span style="font-size:16px">→</span>
           </a>
           <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
@@ -175,7 +175,7 @@ const XNav = (() => {
       const visiblePages = pagesForMode(mode);
       nav.innerHTML = `
         <div class="flex items-center gap-6">
-          <a href="index.html" class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter no-underline">
+          <a href="index.html" class="font-['JetBrains_Mono'] text-xl font-bold tracking-tighter no-underline">
             <span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span>
           </a>
           ${_isJudgeMode
@@ -191,11 +191,11 @@ const XNav = (() => {
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
+          <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3.5 py-2 border border-[#252833] rounded">
             <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-            <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest cursor-pointer" id="networkBadgeText">Ink Sepolia</span>
+            <span class="font-['JetBrains_Mono'] text-[11px] text-[#8b8fa3] uppercase tracking-widest cursor-pointer" id="networkBadgeText">Ink Sepolia</span>
           </div>
-          <appkit-button size="sm"></appkit-button>
+          <appkit-button size="md"></appkit-button>
           <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
             <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
           </button>
@@ -238,7 +238,7 @@ const XNav = (() => {
     const mode = getMode();
     const drawer = document.createElement('div');
     drawer.id = 'mobileNav';
-    drawer.className = 'md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden';
+    drawer.className = 'md:hidden fixed top-16 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden';
     drawer.style.transition = 'all 0.25s ease';
 
     if (_isLanding) {
