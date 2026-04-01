@@ -51,19 +51,14 @@ body {
 /* Utility class to switch to monospace font wherever data/numbers are displayed */
 .mono { font-family: 'JetBrains Mono', monospace; }
 
-/* Top navigation bar — flexbox layout with logo left, wallet/controls right */
-.header {
-  /* Flex row spreads logo-left and wallet-right to opposite edges */
+/* Toolbar — page-specific controls strip below XNav */
+.toolbar {
   display: flex; align-items: center; justify-content: space-between;
-  /* Compact padding keeps the header slim; bottom border separates it from content */
-  padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+  padding: 8px 24px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+  margin-top: 56px; /* offset for fixed XNav height */
 }
-/* Left side of header groups logo and ticker selector together */
-.header-left { display: flex; align-items: center; gap: 16px; }
-/* Logo uses monospace to match terminal branding; tight letter-spacing feels technical */
-.logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; letter-spacing: -0.5px; }
-/* The "x" in "xLever" is accent-colored to highlight the brand mark */
-.logo span { color: var(--accent); }
+.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.toolbar-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
 /* Ticker selector container groups asset buttons in a pill-shaped row */
 .ticker-selector {
   /* Row layout with small gap between ticker buttons */
@@ -112,14 +107,6 @@ body {
   0%, 100% { transform: scale(1); box-shadow: 0 0 20px #ff0000; }
   50% { transform: scale(1.05); box-shadow: 0 0 30px #ff0000, 0 0 40px #ff0000; }
 }
-/* Right side of header shows wallet info, clock, and chain status in monospace */
-.header-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
-/* Shared nav link styling — replaces per-link inline styles and onmouseover/onmouseout handlers */
-.nav-link { color: #8b8fa3; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 4px; text-decoration: none; white-space: nowrap; transition: color 0.2s; }
-.nav-link:hover { color: #e3e2e6; }
-/* Launch App button in index.html header */
-.launch-btn { background: var(--accent); color: #fff; padding: 6px 16px; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
-.launch-btn:hover { background: #9c6fff; }
 /* Primary CTA button for connecting wallet — accent-colored to stand out */
 .connect-wallet-btn {
   /* Accent background with dark text for high contrast on the main action */
@@ -190,7 +177,8 @@ body {
 }
 
 /* Main two-column layout: chart takes remaining space, right panel is fixed 320px */
-.main-layout { display: grid; grid-template-columns: 1fr 320px; height: calc(100vh - 49px); }
+/* Height accounts for fixed XNav (56px) + toolbar strip (~41px) */
+.main-layout { display: grid; grid-template-columns: 1fr 320px; height: calc(100vh - 97px); }
 
 /* --- Mobile Responsive Styles --- */
 
@@ -243,8 +231,8 @@ body {
 
 /* Mobile breakpoint at 768px: collapses to single-column, hides right panel */
 @media (max-width: 768px) {
-  /* Single column layout since right panel is hidden on mobile */
-  .main-layout { grid-template-columns: 1fr; height: calc(100vh - 41px); }
+  /* Single column layout since right panel is hidden on mobile; toolbar-right hidden so less offset */
+  .main-layout { grid-template-columns: 1fr; height: calc(100vh - 89px); }
   /* Right panel (leverage/strategy controls) hidden on mobile — replaced by bottom bar */
   .right-panel { display: none !important; }
   /* Chart fills screen minus header and mobile bottom bar heights */
@@ -255,12 +243,10 @@ body {
   #tv-chart { height: 100%; }
   /* Bottom stats bar hidden on mobile to save vertical space for the chart */
   .chart-bottom { display: none; }
-  /* Wallet info hidden on mobile — accessed via separate wallet screen */
-  .header-right { display: none; }
-  /* Tighter header padding on mobile to save horizontal space */
-  .header { padding: 8px 12px; }
-  /* Smaller logo on mobile to fit within compact header */
-  .logo { font-size: 13px; }
+  /* Toolbar right-side items hidden on mobile — accessed via separate wallet screen */
+  .toolbar-right { display: none; }
+  /* Tighter toolbar padding on mobile */
+  .toolbar { padding: 6px 12px; }
   /* Smaller ticker badge on mobile */
   .ticker-badge { font-size: 11px; padding: 4px 8px; }
   /* Toolbar wraps on mobile since all buttons may not fit in one row */
@@ -562,7 +548,7 @@ body.degen-mode {
   50% { filter: hue-rotate(20deg); }
 }
 
-body.degen-mode .header {
+body.degen-mode .toolbar {
   background: linear-gradient(90deg, #ff0080, #7928ca, #ff0080);
   background-size: 200% 100%;
   animation: gradient-slide 3s ease infinite;
