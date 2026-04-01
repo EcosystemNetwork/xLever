@@ -30,14 +30,14 @@ contract VaultSimple {
         usdc = IERC20(_usdc);
         asset = _asset;
         admin = _admin;
-        poolState.currentMaxLeverageBps = 40000;
+        poolState.currentMaxLeverageBps = 35000;
         poolState.protocolState = 0;
     }
     
     /// @notice Deposit USDC (simplified - no fees, no hedging)
     function deposit(uint256 amount, int32 leverageBps) external returns (uint256) {
         require(amount > 0, "Zero deposit");
-        require(leverageBps >= -40000 && leverageBps <= 40000, "Invalid leverage");
+        require(leverageBps >= -35000 && leverageBps <= 35000, "Invalid leverage");
         
         require(usdc.transferFrom(msg.sender, address(this), amount), "Transfer failed");
         

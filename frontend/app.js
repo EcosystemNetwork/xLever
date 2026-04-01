@@ -13,10 +13,10 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
-// Vault contract addresses (DEPLOYED - with withdraw fix)
+// Vault contract addresses (DEPLOYED - with 3.5x max leverage)
 const VAULT_ADDRESSES = {
-  wSPYx: '0x8D7DD0A1FD26A2602837B028afB7A1f1b21DA9E7',
-  wQQQx: '0xAc8a09e63FC010C5968e34135a7Dc34D4a9448ab'
+  wSPYx: '0x757f5719f6Ec948c3Ee9ba70E19dD8318933b151',
+  wQQQx: '0x85c43291b9c95DFb2ce67564985aFbeB4FF9C4bE'
 };
 
 // Minimal ERC-20 ABI for balanceOf
@@ -312,8 +312,8 @@ let currentTicker = 'QQQ';
 let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
 let entryDateIndex = 0;
 let isDegenMode = false;
-let MIN_LEV = -4.0, MAX_LEV = 4.0;
-const NORMAL_MIN = -4.0, NORMAL_MAX = 4.0;
+let MIN_LEV = -3.5, MAX_LEV = 3.5;
+const NORMAL_MIN = -3.5, NORMAL_MAX = 3.5;
 const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0;
 
 async function fetchRealData(symbol, years) {
@@ -1308,7 +1308,7 @@ function updateAll() {
   if (absLev > 3.0) requiredBuffer = 0.30;
   if (absLev > 3.5) requiredBuffer = 0.33;
   
-  let dynamicMax = 4.0;
+  let dynamicMax = 3.5;
   if (juniorRatio < 0.40) dynamicMax = 3.0;
   if (juniorRatio < 0.30) dynamicMax = 2.0;
   if (juniorRatio < 0.20) dynamicMax = 1.5;
@@ -1329,7 +1329,7 @@ function updateAll() {
 
   document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage));
 
-  const riskPct = Math.min(100, (absMag / 4.0) * 100);
+  const riskPct = Math.min(100, (absMag / 3.5) * 100);
   const rf = document.getElementById('riskFill');
   rf.style.width = riskPct + '%';
   
@@ -1656,13 +1656,13 @@ function updateNormalModeUI() {
   const notchContainer = document.querySelectorAll('.slider-notches');
   notchContainer.forEach(container => {
     container.innerHTML = `
-      <button class="notch-btn" data-lev="-4.0">-4×</button>
+      <button class="notch-btn" data-lev="-3.5">-3.5×</button>
       <button class="notch-btn" data-lev="-2.0">-2×</button>
       <button class="notch-btn" data-lev="-1.0">-1×</button>
       <button class="notch-btn" data-lev="0">0×</button>
       <button class="notch-btn" data-lev="1.0">+1×</button>
       <button class="notch-btn" data-lev="2.0">+2×</button>
-      <button class="notch-btn" data-lev="4.0">+4×</button>
+      <button class="notch-btn" data-lev="3.5">+3.5×</button>
     `;
     container.querySelectorAll('.notch-btn').forEach(b => {
       b.addEventListener('click', () => {
