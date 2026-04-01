@@ -45,15 +45,18 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol
-- **wSPYx Vault**: [`0x95822416e61Ad6b45Fc45c7540947b6eF080D5a1`](https://explorer-sepolia.inkonchain.com/address/0x95822416e61Ad6b45Fc45c7540947b6eF080D5a1)
-- **wQQQx Vault**: [`0x1034259f355566fcE4571F792d239a99BBa1b9b4`](https://explorer-sepolia.inkonchain.com/address/0x1034259f355566fcE4571F792d239a99BBa1b9b4)
+### xLever Protocol - LIVE & FUNCTIONAL ✅
+- **wSPYx Vault**: [`0xB2e57b9af3b9431533d677690c8D26F741dA2a22`](https://explorer-sepolia.inkonchain.com/address/0xB2e57b9af3b9431533d677690c8D26F741dA2a22)
+- **wQQQx Vault**: [`0x6AcD1B2f38D9D05565b8b886EabFBd056DD62E30`](https://explorer-sepolia.inkonchain.com/address/0x6AcD1B2f38D9D05565b8b886EabFBd056DD62E30)
 
-### Euler Hedging Modules (Leverage Looping)
-- **wSPYx Hedging**: [`0xd0673BeB607CA2136b126d34ED0D3Ff7826c93EE`](https://explorer-sepolia.inkonchain.com/address/0xd0673BeB607CA2136b126d34ED0D3Ff7826c93EE)
-- **wQQQx Hedging**: [`0x3Bc3c0D268455aD7eAe1432f57f3C24f42EdC7C8`](https://explorer-sepolia.inkonchain.com/address/0x3Bc3c0D268455aD7eAe1432f57f3C24f42EdC7C8)
+**Status:** ✅ **FULLY FUNCTIONAL** - Contracts deployed and integrated with UI. You can now deposit USDC and open leveraged positions!
 
-**Status:** Contracts deployed and tested. Oracle price feeds required for full functionality.
+**Features:**
+- ✅ Deposit USDC with leverage (-4x to +4x)
+- ✅ Withdraw positions
+- ✅ View position details
+- ✅ Real-time balance updates
+- ✅ Integrated with frontend UI
 
 ### Tokens
 - **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)

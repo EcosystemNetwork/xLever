@@ -13,6 +13,12 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
+// Vault contract addresses (DEPLOYED)
+const VAULT_ADDRESSES = {
+  wSPYx: '0xB2e57b9af3b9431533d677690c8D26F741dA2a22',
+  wQQQx: '0x6AcD1B2f38D9D05565b8b886EabFBd056DD62E30'
+};
+
 // Minimal ERC-20 ABI for balanceOf
 const ERC20_ABI = [
   {
@@ -28,6 +34,56 @@ const ERC20_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'uint8' }]
+  },
+  {
+    name: 'approve',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    outputs: [{ name: '', type: 'bool' }]
+  }
+];
+
+// Vault ABI for deposits and withdrawals
+const VAULT_ABI = [
+  {
+    name: 'deposit',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'leverageBps', type: 'int32' }
+    ],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'withdraw',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [{ name: 'received', type: 'uint256' }]
+  },
+  {
+    name: 'getPosition',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'depositAmount', type: 'uint128' },
+        { name: 'leverageBps', type: 'int32' },
+        { name: 'entryTWAP', type: 'uint128' },
+        { name: 'lastFeeTimestamp', type: 'uint64' },
+        { name: 'settledFees', type: 'uint128' },
+        { name: 'leverageLockExpiry', type: 'uint32' },
+        { name: 'isActive', type: 'bool' }
+      ]
+    }]
   }
 ];
 
@@ -75,6 +131,49 @@ async function fetchBalances() {
   }
 }
 
+async function switchToInkSepolia() {
+  try {
+    // First try to switch
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0xBA6ED' }],
+    });
+    console.log('✓ Switched to Ink Sepolia');
+    return true;
+  } catch (switchError) {
+    // If network not added (error 4902), add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0xBA6ED',
+            chainName: 'Ink Sepolia',
+            nativeCurrency: {
+              name: 'ETH',
+              symbol: 'ETH',
+              decimals: 18
+            },
+            rpcUrls: ['https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc'],
+            blockExplorerUrls: ['https://explorer-sepolia.inkonchain.com']
+          }]
+        });
+        console.log('✓ Added and switched to Ink Sepolia');
+        return true;
+      } catch (addError) {
+        console.error('Failed to add network:', addError);
+        return false;
+      }
+    } else if (switchError.code === 4001) {
+      console.log('User rejected network switch');
+      return false;
+    } else {
+      console.error('Network switch error:', switchError);
+      return false;
+    }
+  }
+}
+
 async function connectWallet() {
   try {
     if (!window.ethereum) {
@@ -90,16 +189,33 @@ async function connectWallet() {
       throw new Error('No accounts found');
     }
 
-    const { createWalletClient, createPublicClient, custom, http, mainnet } = window.viem;
+    // Check current network
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const currentChainId = parseInt(chainId, 16);
+    
+    // Only switch if not already on Ink Sepolia
+    if (currentChainId !== 763373) {
+      console.log(`Current network: ${currentChainId}, switching to Ink Sepolia (763373)...`);
+      const switched = await switchToInkSepolia();
+      
+      if (!switched) {
+        alert('⚠️ Please switch to Ink Sepolia network in MetaMask.\n\nYou can add it manually:\nChain ID: 763373\nRPC: https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc');
+        return;
+      }
+    } else {
+      console.log('✓ Already on Ink Sepolia');
+    }
+
+    const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
     
     walletClient = createWalletClient({
-      chain: mainnet,
+      chain: inkSepolia,
       transport: custom(window.ethereum)
     });
 
     publicClient = createPublicClient({
-      chain: mainnet,
-      transport: http('https://ink-sepolia.drpc.org')
+      chain: inkSepolia,
+      transport: http('https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc')
     });
 
     connectedAddress = accounts[0];
@@ -1132,6 +1248,12 @@ function updateAll() {
   document.getElementById('dynamicTicker').textContent = `${currentTicker} × ${signedDisplay}`;
   document.getElementById('levDisplay').textContent = `${signedDisplay}×`;
   document.getElementById('mobileLevDisplay').textContent = `${signedDisplay}×`;
+  
+  // Update position entry leverage display
+  const currentLevDisplay = document.getElementById('currentLevDisplay');
+  if (currentLevDisplay) {
+    currentLevDisplay.textContent = `${signedDisplay}×`;
+  }
   
   document.getElementById('legendBase').textContent = `${currentTicker} (1×)`;
   document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`;

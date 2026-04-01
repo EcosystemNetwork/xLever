@@ -77,3 +77,9 @@ artifacts/
 # Don't ignore example files
 !.env.example
 !contracts/.env.example
+
+# Temporary documentation
+READY_TO_USE.md
+DEPLOYMENT_STEPS.md
+DEPLOY_NOW.md
+DEPLOYED.md
