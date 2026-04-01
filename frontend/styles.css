@@ -776,46 +776,8 @@ body.mode-research [data-mode="trade"] { display: none !important; }
 /* ═══════════════════════════════════════════════════════════
    Landing Page
    ═══════════════════════════════════════════════════════════ */
-.landing { min-height: 100vh; display: flex; flex-direction: column; }
-
-.hero {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; padding: 80px 24px 60px; position: relative; overflow: hidden;
-}
-.hero::before {
-  content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
-  width: 800px; height: 800px; border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 20px;
-  padding: 6px 16px; margin-bottom: 32px; position: relative;
-}
-.hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
-.hero-badge span {
-  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary);
-  text-transform: uppercase; letter-spacing: 1.5px;
-}
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-.hero h1 {
-  font-family: 'DM Sans', sans-serif; font-size: clamp(40px, 6vw, 72px); font-weight: 700;
-  line-height: 1.1; margin-bottom: 24px; position: relative;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero p {
-  font-size: clamp(16px, 2vw, 20px); color: var(--text-secondary); max-width: 600px;
-  line-height: 1.6; margin-bottom: 48px; position: relative;
-}
-
-#splineCanvas { pointer-events: none; }
-@media (max-width: 640px) { #splineCanvas { height: 260px !important; } }
-.hero-actions { display: flex; gap: 16px; position: relative; flex-wrap: wrap; justify-content: center; }
 .btn-primary {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--accent); color: #fff; border: none; border-radius: 8px;
@@ -830,49 +792,6 @@ body.mode-research [data-mode="trade"] { display: none !important; }
   font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s;
 }
 .btn-secondary:hover { border-color: var(--border-active); background: var(--bg-card); }
-
-.features {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px; padding: 60px 40px 80px; max-width: 1200px; margin: 0 auto; width: 100%;
-}
-.feature-card {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
-  padding: 32px; transition: border-color 0.2s;
-}
-.feature-card:hover { border-color: var(--border-active); }
-.feature-icon {
-  width: 40px; height: 40px; border-radius: 10px; background: var(--accent-dim);
-  display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
-  font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent);
-}
-.feature-card h3 {
-  font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 600;
-  margin-bottom: 8px; color: var(--text-primary);
-}
-.feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
-
-.stats-strip {
-  display: flex; justify-content: center; gap: 48px; padding: 40px 24px;
-  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary); flex-wrap: wrap;
-}
-.stat-block { text-align: center; }
-.stat-block .stat-num {
-  font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--accent);
-}
-.stat-block .stat-desc {
-  font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase;
-  letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;
-}
-
-.landing-footer {
-  display: flex; align-items: center; justify-content: space-between; padding: 24px 40px;
-  border-top: 1px solid var(--border); background: var(--bg-secondary);
-}
-.landing-footer span { font-size: 13px; color: var(--text-muted); }
-.landing-footer .footer-links { display: flex; gap: 20px; }
-.landing-footer .footer-links a { font-size: 13px; color: var(--text-secondary); text-decoration: none; }
-.landing-footer .footer-links a:hover { color: var(--text-primary); }
 
 @media (max-width: 640px) {
   .features { padding: 40px 20px 60px; }
