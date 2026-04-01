@@ -28,7 +28,7 @@ export const inkSepolia = {
 
 export const ADDRESSES = {
   evc: '0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c',
-  vault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',  // QQQ Vault (default)
+  vault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',  // Active vault (switches with asset)
   usdc: '0x6b57475467cd854d36Be7FB614caDa5207838943',
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e',
   wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
@@ -46,6 +46,34 @@ export const ADDRESSES = {
     QQQx: '0xa753a7395cae905cd615da0b82a53e0560f250af',
     SPYx: '0x90a2a4c76b5d8c0bc892a69ea28aa775a8f2dd48',
   },
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VAULT REGISTRY — maps ticker symbol → deployed vault address
+// Add new vault addresses here after deploying via VaultFactory
+// ═══════════════════════════════════════════════════════════════
+
+export const VAULT_REGISTRY = {
+  QQQ:  '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
+  SPY:  '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
+  // Remaining 31 assets — add vault addresses after deployment:
+  // VUG:  null,  VGK:  null,  VXUS: null,  SGOV: null,
+  // SMH:  null,  XLE:  null,  XOP:  null,  ITA:  null,
+  // AAPL: null,  NVDA: null,  TSLA: null,  DELL: null,
+  // SMCI: null,  ANET: null,  VRT:  null,  SNDK: null,
+  // KLAC: null,  LRCX: null,  AMAT: null,  TER:  null,
+  // CEG:  null,  GEV:  null,  SMR:  null,  ETN:  null,
+  // PWR:  null,  APLD: null,
+  // SLV:  null,  PPLT: null,  PALL: null,
+  // STRK: null,  BTGO: null,
+}
+
+export function getVaultForAsset(symbol) {
+  return VAULT_REGISTRY[symbol] || null
+}
+
+export function isVaultDeployed(symbol) {
+  return !!VAULT_REGISTRY[symbol]
 }
 
 export function setAddress(key, address) {
@@ -126,6 +154,18 @@ let activeAsset = 'QQQ'
 
 export function setActiveAsset(symbol) {
   activeAsset = symbol
+  // Switch vault address to match the selected asset
+  const vaultAddr = getVaultForAsset(symbol)
+  if (vaultAddr) {
+    ADDRESSES.vault = vaultAddr
+  } else {
+    // No vault deployed — null out so write functions throw early
+    ADDRESSES.vault = null
+  }
+}
+
+export function getActiveAsset() {
+  return activeAsset
 }
 
 export function getActiveFeedId() {
@@ -419,8 +459,9 @@ export function formatPoolState(pool) {
 
 // Expose globally for non-module scripts
 window.xLeverContracts = {
-  ADDRESSES, setAddress,
-  ASSET_FEED_MAP, setActiveAsset, getActiveFeedId,
+  ADDRESSES, setAddress, VAULT_REGISTRY,
+  ASSET_FEED_MAP, setActiveAsset, getActiveAsset, getActiveFeedId,
+  getVaultForAsset, isVaultDeployed,
   getBalance, getAllowance, approveToken,
   getPosition, getPositionValue, getPoolState, getTWAP, getMaxLeverage, getFundingRate, getJuniorValue,
   openPosition, closePosition, adjustLeverage, depositJunior, withdrawJunior,

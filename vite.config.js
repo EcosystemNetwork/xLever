@@ -33,7 +33,8 @@ export default defineConfig({
         analytics: resolve(__dirname, 'frontend/06-analytics-backtesting.html'),
         // Operations control panel for protocol admin and monitoring
         operations: resolve(__dirname, 'frontend/07-operations-control.html'),
-        admin: resolve(__dirname, 'frontend/08-admin-dashboard.html')
+        admin: resolve(__dirname, 'frontend/08-admin-dashboard.html'),
+        lending: resolve(__dirname, 'frontend/09-lending-borrowing.html')
       }
     }
   },

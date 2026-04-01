@@ -17,7 +17,7 @@ from .config import get_settings
 # init_db creates tables on startup — avoids manual migration steps during early development
 from .database import init_db
 # Import all route modules to register their endpoints with the app
-from .routes import users, positions, agents, prices, alerts, openbb, news, admin
+from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending
 
 # Cache the settings singleton so we don't re-parse env vars on every access
 settings = get_settings()
@@ -73,6 +73,8 @@ app.include_router(openbb.router, prefix="/api")
 app.include_router(news.router, prefix="/api")
 # Admin analytics dashboard — platform stats, user activity, session tracking
 app.include_router(admin.router, prefix="/api")
+# Lending route serves Euler V2 lending market data and user lending positions
+app.include_router(lending.router, prefix="/api")
 
 
 # Health check endpoint for Docker/k8s readiness probes and frontend connectivity tests

@@ -666,8 +666,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Set active asset in contracts adapter
-      if (window.xLeverContracts) window.xLeverContracts.setActiveAsset(sym);
+      // Set active asset in contracts adapter (switches vault address too)
+      if (window.xLeverContracts) {
+        window.xLeverContracts.setActiveAsset(sym);
+        const hasVault = window.xLeverContracts.isVaultDeployed(sym);
+        const tradeBtn = document.getElementById('executeTrade') || document.querySelector('[data-action="trade"]');
+        if (!hasVault) {
+          XToast.show(`${sym}x vault not yet deployed — chart & data available, trading disabled`, 'warn', 4000);
+          if (tradeBtn) { tradeBtn.disabled = true; tradeBtn.title = 'Vault not deployed for this asset'; }
+        } else {
+          if (tradeBtn) { tradeBtn.disabled = false; tradeBtn.title = ''; }
+        }
+      }
 
       // Update chart label
       const lev = window.XLeverage ? XLeverage.getLeverage() : 2;

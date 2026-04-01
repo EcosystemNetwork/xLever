@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later // required license header for Euler-derived code compatibility
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0; // Solidity 0.8+ gives us built-in overflow protection critical for price math
 
 import "forge-std/Script.sol"; // Foundry Script base provides vm cheatcodes and console.log for deployment scripting
