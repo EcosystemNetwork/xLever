@@ -221,3 +221,50 @@ class PriceResponse(BaseModel):
     data: dict[str, Any]
     # Tells the client whether this came from cache or a fresh Yahoo Finance fetch
     cached: bool = False
+
+
+# ─── Admin / Analytics ─────────────────────────────────────────
+
+class SessionCreate(BaseModel):
+    wallet_address: str = Field(pattern=r"^0x[a-fA-F0-9]{40}$")
+    page: str | None = None
+    referrer: str | None = None
+
+class SessionOut(BaseModel):
+    id: int
+    wallet_address: str
+    connected_at: datetime
+    disconnected_at: datetime | None
+    duration_seconds: int | None
+    page: str | None
+    country: str | None
+    model_config = {"from_attributes": True}
+
+class PlatformStats(BaseModel):
+    total_users: int
+    total_sessions: int
+    active_sessions: int
+    total_positions: int
+    open_positions: int
+    total_agent_runs: int
+    active_agents: int
+    total_alerts: int
+
+class UserDetail(BaseModel):
+    id: int
+    wallet_address: str
+    created_at: datetime
+    last_seen: datetime
+    total_sessions: int
+    total_positions: int
+    total_agent_runs: int
+    model_config = {"from_attributes": True}
+
+class DailyActivity(BaseModel):
+    date: str
+    logins: int
+    new_users: int
+
+class HourlyActivity(BaseModel):
+    hour: int
+    sessions: int

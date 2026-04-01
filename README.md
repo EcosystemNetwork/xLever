@@ -37,6 +37,7 @@ npm run dev
 | 6 | Risk Management | Risk sentinel live state, auto-deleverage triggers, oracle health |
 | 7 | AI Agent Ops | Smart agent control panel, bounded policy execution |
 | 8 | Operations Control | System health, transaction tracking |
+| 9 | Admin Dashboard | Platform stats, user activity, session tracking |
 
 ### 3. Key technical proof
 
@@ -46,6 +47,11 @@ npm run dev
 - **Risk engine** ([frontend/risk-engine.js](frontend/risk-engine.js)): Deterministic 4-state risk sentinel (NORMAL → WARNING → RESTRICTED → EMERGENCY) with auto-deleverage recommendations, oracle health checks, and scenario simulation runner
 - **AI agent executor** ([frontend/agent-executor.js](frontend/agent-executor.js)): Bounded smart-account automation with 3 policy modes (Safe, Target Exposure, Accumulation) — gathers live state from Pyth + on-chain + OpenBB, enforces permission boundaries in code
 - **OpenBB intelligence** ([frontend/openbb.js](frontend/openbb.js)): Market intelligence client providing real-time quotes, historical data, options chains, and curated dashboard context for agent decision-making
+- **News intelligence pipeline** ([frontend/news-ingest.js](frontend/news-ingest.js), [frontend/news-analysts.js](frontend/news-analysts.js), [frontend/news-verifier.js](frontend/news-verifier.js)): Real-time news ingestion via SSE, multi-analyst scoring, source credibility verification, and signal extraction for agent context
+- **Signal aggregator** ([frontend/signal-aggregator.js](frontend/signal-aggregator.js)): Combines signals from news, oracle, and market data into weighted trading signals for agent decision-making
+- **Agent coordinator** ([frontend/agent-coordinator.js](frontend/agent-coordinator.js)): Multi-agent swarm orchestration — coordinates multiple bounded agents with shared state and conflict resolution
+- **Shared navigation** ([frontend/nav.js](frontend/nav.js)): Reusable navigation component with mobile drawer, network badge, and risk sentinel banner across all pages
+- **Admin dashboard** ([frontend/08-admin-dashboard.html](frontend/08-admin-dashboard.html)): Platform-wide analytics — user stats, daily/hourly activity charts, session tracking
 - **Consumer UX** ([frontend/ux.js](frontend/ux.js)): Production-grade UX layer with toast notifications, trade confirmation modals (real + simulated tx paths), interactive leverage slider, and skeleton loading states
 - **Protocol design**: 80KB architecture document covering vault mechanics, fee engine, circuit breakers, and Euler V2 integration ([protocol.md](protocol.md))
 
@@ -55,7 +61,7 @@ npm run dev
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Frontend (8 screens) | **Live** | Vite-bundled, Bloomberg Terminal aesthetic |
+| Frontend (9 screens) | **Live** | Vite-bundled, Bloomberg Terminal aesthetic |
 | Wallet connection | **Live** | Reown AppKit — Ethereum, Ink Sepolia, Solana, TON |
 | Smart contracts | **Deployed** | Vault, VaultFactory, PythOracleAdapter on Ink Sepolia |
 | Pyth oracle | **Live** | Hermes price feeds for QQQ, SPY, AAPL, NVDA, TSLA, ETH |
@@ -64,7 +70,9 @@ npm run dev
 | Trading charts | **Live** | TradingView Lightweight Charts with real QQQ/SPY data |
 | Data server | **Live** | Python proxy serving Yahoo Finance data with caching |
 | OpenBB intelligence | **Live** | Market snapshots, options context, agent tooling |
+| News intelligence | **Live** | Real-time news ingestion, analyst scoring, signal aggregation |
 | AI agent trading | **Bounded** | Policy-based executor with real tx capabilities (dry-run default) |
+| Admin dashboard | **Live** | User stats, activity charts, session tracking |
 
 ---
 
@@ -118,6 +126,7 @@ External Protocols
 | Contracts | Solidity, Euler V2 EVK + EVC, deployed on Ink Sepolia |
 | Oracle | Pyth Network (Hermes pull-oracle) |
 | Intelligence | OpenBB Platform (market data, options, agent context) |
+| News | Real-time ingestion, analyst scoring, signal aggregation |
 | Backend | Python — simple HTTP proxy + FastAPI with PostgreSQL |
 | Risk | Deterministic 4-state sentinel engine |
 | Styling | Bloomberg Terminal dark aesthetic (custom CSS) |
@@ -128,7 +137,7 @@ External Protocols
 
 ```
 xLever/
-├── frontend/                           # 9,000+ LOC interactive UI
+├── frontend/                           # 12,000+ LOC interactive UI
 │   ├── index.html                      # Landing page with protocol overview
 │   ├── 01-dashboard.html               # Portfolio command center
 │   ├── 02-trading-terminal.html        # TradingView charts + leverage trading
@@ -137,11 +146,21 @@ xLever/
 │   ├── 05-risk-management.html         # Risk sentinel visualization
 │   ├── 06-analytics-backtesting.html   # LTAP vs daily-reset backtesting
 │   ├── 07-operations-control.html      # System health + tx tracking
+│   ├── 08-admin-dashboard.html         # Admin panel — user stats, activity
+│   ├── risk-engine.test.html           # Risk engine test harness
 │   ├── wallet.js                       # Reown AppKit (4-chain wallet)
 │   ├── contracts.js                    # viem contract adapter (Vault + ERC-20)
 │   ├── pyth.js                         # Pyth Hermes oracle client
+│   ├── assets.js                       # Canonical Pyth feed IDs per asset
 │   ├── risk-engine.js                  # 4-state risk sentinel engine
+│   ├── risk-live.js                    # Live risk dashboard polling
 │   ├── agent-executor.js               # AI agent with bounded policies
+│   ├── agent-coordinator.js            # Multi-agent swarm coordinator
+│   ├── news-ingest.js                  # Real-time news ingestion + SSE stream
+│   ├── news-analysts.js                # News analyst scoring pipeline
+│   ├── news-verifier.js                # Source verification / credibility
+│   ├── signal-aggregator.js            # Trading signal aggregation
+│   ├── nav.js                          # Shared navigation component
 │   ├── openbb.js                       # OpenBB market intelligence client
 │   ├── app.js                          # LTAP backtesting engine (1,400+ LOC)
 │   ├── ux.js                           # UX layer (toasts, modals, slider)
@@ -181,8 +200,10 @@ xLever/
 │           ├── positions.py            # Position history + stats
 │           ├── agents.py               # Agent run lifecycle
 │           ├── alerts.py               # Risk/price alert management
-│           ├── openbb.py              # OpenBB market intelligence
-│           └── users.py               # Wallet-based user management
+│           ├── openbb.py               # OpenBB market intelligence
+│           ├── news.py                 # News ingestion + SSE streaming
+│           ├── admin.py                # Admin stats + activity tracking
+│           └── users.py                # Wallet-based user management
 │
 ├── dist/                               # Vite production build output
 ├── vite.config.js                      # Vite bundler + dev server config

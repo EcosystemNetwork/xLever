@@ -61,8 +61,46 @@ const AgentCoordinator = (() => {
     const startTime = performance.now()
 
     try {
-      // Step 1: Run all three analysts in parallel
-      const analysis = await window.NewsAnalysts.analyzeAll(newsItem)
+      // Step 0: VERIFY the news item before analysis
+      const verifier = window.NewsVerifier
+      let verifiedItem = newsItem
+      let verification = null
+
+      if (verifier) {
+        verification = await verifier.verify(newsItem)
+        verifier.recordStats(verification)
+
+        const vConf = (verification.confidence * 100).toFixed(0)
+        const vFlags = verification.flags.length > 0 ? ` [${verification.flags.join(', ')}]` : ''
+
+        if (!verification.verified && verification.checks.price.passed === false) {
+          // Hard fail — price mismatch, skip entirely
+          _log('VERIFIER', `REJECTED: ${newsItem.headline.slice(0, 60)}... Price mismatch.${vFlags}`, 'error')
+          _stats.newsProcessed++ // Count but don't analyze
+          _stats.newsRejected = (_stats.newsRejected || 0) + 1
+          return null
+        }
+
+        if (!verification.verified) {
+          _log('VERIFIER', `UNVERIFIED (${vConf}%): ${newsItem.headline.slice(0, 50)}...${vFlags}`, 'yellow-500')
+        } else {
+          const checkSummary = Object.entries(verification.checks)
+            .filter(([_, c]) => c.passed !== null)
+            .map(([name, c]) => `${name}:${c.passed ? '✓' : '✗'}`)
+            .join(' ')
+          _log('VERIFIER', `VERIFIED (${vConf}%): ${checkSummary}${vFlags}`, 'secondary')
+        }
+
+        // Apply adjusted priority from verification
+        verifiedItem = { ...newsItem, priority: verification.adjustedPriority }
+        if (verification.adjustedPriority !== newsItem.priority) {
+          const labels = ['CRIT', 'HIGH', 'MED', 'LOW']
+          _log('VERIFIER', `Priority ${labels[newsItem.priority]} → ${labels[verification.adjustedPriority]}`, 'on-surface-variant')
+        }
+      }
+
+      // Step 1: Run all three analysts in parallel (on verified item)
+      const analysis = await window.NewsAnalysts.analyzeAll(verifiedItem)
       _stats.signalsGenerated += analysis.signals.length
 
       // Log each analyst's output
@@ -74,6 +112,12 @@ const AgentCoordinator = (() => {
 
       // Step 2: Aggregate signals into a recommendation
       const recommendation = window.SignalAggregator.aggregate(analysis)
+
+      // Dampen recommendation confidence if news was unverified
+      if (verification && !verification.verified) {
+        recommendation.score *= 0.6  // 40% penalty for unverified news
+        recommendation.flags = [...(recommendation.flags || []), 'UNVERIFIED']
+      }
 
       const elapsed = (performance.now() - startTime).toFixed(0)
       const scoreStr = recommendation.score > 0 ? `+${recommendation.score.toFixed(2)}` : recommendation.score.toFixed(2)
@@ -87,6 +131,15 @@ const AgentCoordinator = (() => {
         headline: newsItem.headline,
         priority: newsItem.priority,
         recommendation,
+        verification: verification ? {
+          verified: verification.verified,
+          confidence: verification.confidence,
+          flags: verification.flags,
+          adjustedPriority: verification.adjustedPriority,
+          checks: Object.fromEntries(
+            Object.entries(verification.checks).map(([k, v]) => [k, { passed: v.passed, detail: v.detail }])
+          ),
+        } : null,
         elapsed: Number(elapsed),
         timestamp: Date.now(),
         executed: false,

@@ -110,6 +110,12 @@ body {
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 /* Right side of header shows wallet info, clock, and chain status in monospace */
 .header-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+/* Shared nav link styling — replaces per-link inline styles and onmouseover/onmouseout handlers */
+.nav-link { color: #8b8fa3; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 4px; text-decoration: none; white-space: nowrap; transition: color 0.2s; }
+.nav-link:hover { color: #e3e2e6; }
+/* Launch App button in index.html header */
+.launch-btn { background: var(--accent); color: #fff; padding: 6px 16px; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
+.launch-btn:hover { background: #9c6fff; }
 /* Primary CTA button for connecting wallet — accent-colored to stand out */
 .connect-wallet-btn {
   /* Accent background with dark text for high contrast on the main action */

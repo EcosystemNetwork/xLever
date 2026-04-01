@@ -1033,7 +1033,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ═══════════════════════════════════════════
   async function fetchBlock() {
     try {
-      const resp = await fetch('https://rpc-gel-sepolia.inkonchain.com', {
+      const rpcUrl = window.viem?.inkSepolia?.rpcUrls?.default?.http?.[0] || 'https://rpc-gel-sepolia.inkonchain.com';
+      const resp = await fetch(rpcUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 })
       });

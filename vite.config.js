@@ -32,7 +32,8 @@ export default defineConfig({
         // Analytics and backtesting screen for strategy performance review
         analytics: resolve(__dirname, 'frontend/06-analytics-backtesting.html'),
         // Operations control panel for protocol admin and monitoring
-        operations: resolve(__dirname, 'frontend/07-operations-control.html')
+        operations: resolve(__dirname, 'frontend/07-operations-control.html'),
+        admin: resolve(__dirname, 'frontend/08-admin-dashboard.html')
       }
     }
   },

@@ -12,6 +12,7 @@ const XNav = (() => {
     { id: 'risk',       label: 'Risk',        href: '05-risk-management.html' },
     { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html' },
     { id: 'operations', label: 'Operations',  href: '07-operations-control.html' },
+    { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html' },
   ];
 
   function init(activePageId) {

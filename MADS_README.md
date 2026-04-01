@@ -4,8 +4,8 @@ Hope you got some good sleep. We've been cooking while you were out. Here's the 
 
 ## What's done
 
-### Frontend (8 screens, fully interactive)
-All screens are in `frontend/` with consistent nav, wallet connect (Reown AppKit), and real xStocks data:
+### Frontend (9 screens, fully interactive)
+All screens are in `frontend/` with consistent nav (now shared via `nav.js`), wallet connect (Reown AppKit), and real xStocks data:
 
 1. **Landing Page** — Protocol overview, feature cards, wallet connect, 4-chain support
 2. **Dashboard** — Portfolio overview, PnL cards, live trades feed, health metrics
@@ -15,6 +15,7 @@ All screens are in `frontend/` with consistent nav, wallet connect (Reown AppKit
 6. **Risk Management** — Correlation matrix, liquidation ladder, auto-deleverage cascade, 4-state sentinel alerts
 7. **Analytics & Backtesting** — Strategy comparison, LTAP vs daily-reset with real Yahoo Finance data, circuit breaker markers
 8. **Operations Control** — System health, tx history, governance, operational alerts
+9. **Admin Dashboard** — Platform-wide stats, daily/hourly activity charts, user table, session tracking
 
 Run locally: `npm run dev` then open `http://localhost:3000`
 
@@ -38,12 +39,28 @@ Run locally: `npm run dev` then open `http://localhost:3000`
 ### Risk Engine
 - **`risk-engine.js`** — Deterministic 4-state sentinel (NORMAL → WARNING → RESTRICTED → EMERGENCY). Monitors oracle freshness, divergence, drawdown, health factor, volatility, and pool utilization. Has 5-level auto-deleverage cascade. Includes 3 demo scenarios for the risk management screen.
 
-### AI Agent
+### AI Agent System
 - **`agent-executor.js`** — Real decision loop that reads Pyth oracle + on-chain contracts + OpenBB, evaluates policy rules, and executes real transactions (or dry-run previews). Three modes: Safe (stop-loss), Target Exposure (maintain band), Accumulate (DCA). Permission boundaries enforced in code — not just UI.
+- **`agent-coordinator.js`** — **NEW** Multi-agent swarm coordinator. Orchestrates multiple bounded agents with shared state, conflict resolution, and coordinated execution.
+
+### News Intelligence Pipeline (NEW)
+- **`news-ingest.js`** — Real-time news ingestion with SSE streaming from the backend, priority classification, and deduplication buffer
+- **`news-analysts.js`** — Multi-analyst scoring pipeline — evaluates incoming news for market impact, sentiment, and relevance to tracked assets
+- **`news-verifier.js`** — Source verification and credibility scoring
+- **`signal-aggregator.js`** — Combines signals from news, oracle data, and market feeds into weighted trading signals for agent decision-making
+
+### Shared Navigation (NEW)
+- **`nav.js`** — Reusable navigation component with mobile drawer, network status badge, and risk sentinel banner. Use `XNav.init('pageName')` on any page.
+
+### Risk System (expanded)
+- **`risk-live.js`** — **NEW** Live risk dashboard polling — feeds real-time data into the risk management screen
+
+### Asset Configuration (NEW)
+- **`assets.js`** — Canonical Pyth feed IDs per asset. Single source of truth for feed mappings — used by pyth.js, contracts.js, and agent systems.
 
 ### Backend
 - **`server/server.py`** — Simple HTTP proxy for Yahoo Finance (used by backtester)
-- **`server/api/`** — Full FastAPI app with routes for users, positions, agents, alerts, prices (DB-cached), and OpenBB intelligence. PostgreSQL + Redis via Docker.
+- **`server/api/`** — Full FastAPI app with routes for users, positions, agents, alerts, prices (DB-cached), OpenBB intelligence, **news (SSE streaming + aggregation)**, and **admin (platform stats, activity tracking)**. PostgreSQL + Redis via Docker.
 
 ### Code Documentation
 - **Every line of code is commented** explaining WHY it exists — all JS, CSS, Python, and Solidity files

@@ -4,10 +4,19 @@
 Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4× to +4× on tokenized assets (starting with xQQQ on xStocks) without liquidation risk.
 
 ## Current Status
-✅ **Basic Setup Complete**
+✅ **Core Implementation Complete**
 - Protocol architecture documented (`protocol.md`)
-- Frontend scaffold (`frontend/index.html`)
-- Backend server (`server/server.py`)
+- Frontend fully built (9 interactive screens)
+- Backend server + full FastAPI application
+- Wallet integration (4 chains via Reown AppKit)
+- Smart contracts deployed to Ink Sepolia
+- Pyth oracle integration live
+- Risk engine + 4-state sentinel operational
+- AI agent executor with 3 policy modes
+- Multi-agent coordinator (swarm orchestration)
+- News intelligence pipeline (ingestion, analysts, signals)
+- OpenBB market intelligence integration
+- Admin dashboard with activity analytics
 
 ---
 
@@ -22,14 +31,14 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 - Configure vault architecture for LTAP protocol
 
 #### Tasks
-- [ ] Deploy Euler V2 vault contracts
-- [ ] Configure EVC for batched multicalls with deferred solvency checks
-- [ ] Set up sub-accounts for isolated risk management
-- [ ] Implement cross-vault collateralization
-- [ ] Test atomic leverage loop construction (single transaction)
-- [ ] Configure vault parameters for xQQQ asset
-- [ ] Deploy to testnet and verify functionality
-- [ ] Document deployment addresses and configuration
+- [x] Deploy Euler V2 vault contracts
+- [x] Configure EVC for batched multicalls with deferred solvency checks
+- [x] Set up sub-accounts for isolated risk management
+- [x] Implement cross-vault collateralization
+- [x] Test atomic leverage loop construction (single transaction)
+- [x] Configure vault parameters for xQQQ asset
+- [x] Deploy to testnet and verify functionality
+- [x] Document deployment addresses and configuration
 
 #### Key Technical Requirements
 - Euler V2 modular vault architecture
@@ -48,44 +57,37 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 - Create monitoring and rebalancing logic
 
 #### Tasks
-- [ ] Design AI agent architecture and decision-making framework
-- [ ] Integrate Perplexity API for real-time information access
-  - [ ] Set up API credentials and connection
-  - [ ] Implement market news and sentiment analysis
-  - [ ] Real-time event monitoring (earnings, macro events, etc.)
-  - [ ] Context-aware decision making with current market conditions
-- [ ] Implement position entry/exit logic
-  - [ ] Leverage selection algorithm (-4× to +4×)
-  - [ ] Entry timing and signal processing
-  - [ ] Exit strategy and profit-taking
-- [ ] Build risk management system
-  - [ ] Position sizing based on account health
-  - [ ] Dynamic leverage adjustment
-  - [ ] Stop-loss and take-profit automation
-- [ ] Implement monitoring capabilities
-  - [ ] Real-time PnL tracking
-  - [ ] Health factor monitoring
-  - [ ] Market condition analysis
-- [ ] Create rebalancing logic
-  - [ ] Auto-deleverage triggers
-  - [ ] Position optimization
-  - [ ] Fee minimization strategies
-- [ ] Integrate with protocol smart contracts
-  - [ ] Vault interaction (deposit/withdraw)
-  - [ ] Position management calls
-  - [ ] Oracle price feeds (Pyth)
-- [ ] Build agent API/interface
-- [ ] Testing and simulation
-  - [ ] Backtesting framework
-  - [ ] Paper trading mode
-  - [ ] Performance metrics
-- [ ] **Demo Video (Maroua)** - Create compelling demo video (<2 minutes)
-  - [ ] Script and storyboard
-  - [ ] Screen recordings of xLever interface
-  - [ ] AI agent in action demonstration
-  - [ ] Voiceover explaining key features
-  - [ ] Final editing and polish
-
+- [x] Design AI agent architecture and decision-making framework
+- [x] Integrate Perplexity API for real-time information access
+  - [x] Set up API credentials and connection
+  - [x] Implement market news and sentiment analysis (news-analysts.js)
+  - [x] Real-time event monitoring (news-ingest.js + SSE streaming)
+  - [x] Context-aware decision making with current market conditions (signal-aggregator.js)
+- [x] Implement position entry/exit logic
+  - [x] Leverage selection algorithm (-4× to +4×)
+  - [x] Entry timing and signal processing
+  - [x] Exit strategy and profit-taking
+- [x] Build risk management system
+  - [x] Position sizing based on account health
+  - [x] Dynamic leverage adjustment
+  - [x] Stop-loss and take-profit automation
+- [x] Implement monitoring capabilities
+  - [x] Real-time PnL tracking
+  - [x] Health factor monitoring (risk-live.js)
+  - [x] Market condition analysis (OpenBB + news pipeline)
+- [x] Create rebalancing logic
+  - [x] Auto-deleverage triggers (risk-engine.js, 5-level cascade)
+  - [x] Position optimization
+  - [x] Fee minimization strategies
+- [x] Integrate with protocol smart contracts
+  - [x] Vault interaction (deposit/withdraw) via contracts.js
+  - [x] Position management calls
+  - [x] Oracle price feeds (Pyth) via pyth.js
+- [x] Build agent API/interface
+- [x] Testing and simulation
+  - [x] Backtesting framework (app.js, 1400+ LOC)
+  - [x] Paper trading mode (dry-run default in agent-executor.js)
+  - [x] Performance metrics
 #### Key Technical Requirements
 - **Perplexity API:** Real-time market intelligence, news, and sentiment analysis
 - Integration with Euler V2 vaults via smart contracts
@@ -94,6 +96,45 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 - Handle Senior (leverage traders) and Junior (LP) positions
 - Real-time monitoring and automated responses
 - Gas optimization for transaction batching
+
+---
+
+### 🎯 Workstream 3: QA, Marketing & Pitch
+**Owner:** Maroua
+
+#### Objectives
+- Ensure product quality through thorough QA testing and bug fixing
+- Create compelling marketing and pitch materials
+- Refine AI agent policies and risk documentation
+
+#### Tasks
+- [ ] **Agent Policies & Risk Materials**
+  - [ ] Document and refine the 3 agent policy modes (Safe, Target Exposure, Accumulate)
+  - [ ] Create clear risk disclosures and policy explanations for users
+  - [ ] Review risk engine parameters and thresholds for accuracy
+  - [ ] Prepare agent policy comparison charts for pitch materials
+- [ ] **Marketing Materials**
+  - [ ] Design pitch deck / presentation slides
+  - [ ] Write project summary and value proposition
+  - [ ] Prepare talking points and key differentiators
+  - [ ] Create visual assets (diagrams, architecture overview, screenshots)
+- [ ] **QA Testing & Bug Fixes**
+  - [ ] End-to-end testing across all 9 frontend screens
+  - [ ] Wallet connection testing (Ethereum, Ink Sepolia, Solana, TON)
+  - [ ] AI agent flow testing (executor, coordinator, news pipeline)
+  - [ ] API endpoint validation (all backend routes)
+  - [ ] Cross-browser and responsive testing
+  - [ ] Log and triage bugs, coordinate fixes with Eric
+- [ ] **Pitch Video** (<2 minutes)
+  - [ ] Script and storyboard
+  - [ ] Screen recordings of xLever interface
+  - [ ] AI agent in action demonstration
+  - [ ] Voiceover explaining key features
+  - [ ] Final editing and polish
+- [ ] **Refinement & Polish**
+  - [ ] UI/UX review and consistency pass
+  - [ ] Copy editing across all screens and docs
+  - [ ] Final submission review against hackathon criteria
 
 ---
 
@@ -116,25 +157,36 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 
 ## Milestones
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation
 - [x] Protocol design complete
 - [x] Basic frontend/backend setup
-- [ ] Euler vault deployment (Mads)
-- [ ] AI agent architecture design (Eric & Maroua)
+- [x] Euler vault deployment (Mads)
+- [x] AI agent architecture design (Eric & Maroua)
 
 ### Phase 2: Core Implementation
-- [ ] Vault integration complete and tested
-- [ ] AI agent core logic implemented
-- [ ] Testnet deployment and integration
+- [x] Vault integration complete and tested
+- [x] AI agent core logic implemented
+- [x] Testnet deployment and integration
+- [x] 9-screen frontend with Bloomberg Terminal aesthetic
+- [x] Pyth oracle integration (live Hermes feeds)
+- [x] Risk sentinel engine (4-state, 5-level auto-deleverage)
+- [x] OpenBB market intelligence pipeline
+- [x] News ingestion + analyst scoring + signal aggregation
+- [x] Multi-agent swarm coordinator
+- [x] Admin dashboard with activity analytics
 
-### Phase 3: Testing & Refinement
-- [ ] End-to-end testing
+### Phase 3: Testing & Refinement (Current)
+- [x] Backtesting engine with real Yahoo Finance data
+- [x] Risk engine test harness
+- [ ] End-to-end integration testing
 - [ ] AI agent backtesting and optimization
 - [ ] Security review
 - [ ] Gas optimization
 
 ### Phase 4: Demo & Launch
-- [ ] Demo preparation
+- [x] Demo script prepared (DEMO_SCRIPT.md)
+- [x] Submission checklist (SUBMISSION_CHECKLIST.md)
+- [ ] Demo video (Maroua)
 - [ ] Documentation finalization
 - [ ] Mainnet deployment plan
 
@@ -144,21 +196,26 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 
 ### Smart Contracts
 - Euler V2 EVK + EVC
-- Solidity
-- Foundry/Hardhat for deployment
+- Solidity (Vault, VaultSimple, VaultFactory, 7 modules)
+- Foundry for deployment (23 scripts)
+- Deployed to Ink Sepolia testnet
 
 ### AI Agent
-- Python (likely - TBD by Eric & Maroua)
-- Web3.py / ethers.js for blockchain interaction
-- ML framework (TBD)
+- JavaScript (frontend) — agent-executor.js, agent-coordinator.js
+- 3 policy modes: Safe, Target Exposure, Accumulate
+- News intelligence: news-ingest.js, news-analysts.js, signal-aggregator.js
+- Perplexity API for real-time market intelligence
 
 ### Frontend
-- HTML/JavaScript (current)
-- Web3 wallet integration
+- Vite + Vanilla JS/CSS (9 interactive screens, 12K+ LOC)
+- TradingView Lightweight Charts
+- Reown AppKit (Ethereum, Ink Sepolia, Solana, TON)
+- Bloomberg Terminal dark aesthetic
 
 ### Backend
-- Python server (current: `server.py`)
-- API for agent communication
+- Python — simple HTTP proxy (server.py) + FastAPI (server/api/)
+- PostgreSQL + Redis via Docker
+- Routes: prices, positions, agents, alerts, openbb, news (SSE), admin, users
 
 ---
 
@@ -173,6 +230,7 @@ Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4
 - Contract addresses and ABIs (Mads → Eric & Maroua)
 - API endpoints and schemas
 - Test accounts and credentials
+- **⚠️ Environment Files:** Team members need to set up their own `.env` files — figure out the required env vars and configure them locally
 
 ---
 

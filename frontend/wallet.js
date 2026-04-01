@@ -4,27 +4,11 @@ import { createAppKit } from '@reown/appkit'
 import { mainnet } from '@reown/appkit/networks'
 // Import Wagmi adapter — bridges Reown's modal to wagmi hooks so the rest of the app can use standard wagmi APIs
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
+// Import Ink Sepolia chain config — single source of truth in contracts.js
+import { inkSepolia } from './contracts.js'
 
 // Reown Cloud project ID authorizes our app with WalletConnect relay servers; falls back to placeholder for local dev
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID || 'REPLACE_WITH_YOUR_PROJECT_ID'
-
-// Define Ink Sepolia as a custom chain — xLever's primary deployment target for Euler V2 EVK vaults (testnet phase)
-const inkSepolia = {
-  // Ink Sepolia's unique chain ID used by wallets to identify this network
-  id: 763373,
-  // Human-readable name displayed in the wallet modal's network selector
-  name: 'Ink Sepolia',
-  // Native currency config — Ink Sepolia uses bridged ETH as its gas token
-  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-  // RPC endpoint — Gelato-hosted public RPC for Ink Sepolia; used by viem/wagmi for all on-chain reads and tx submission
-  rpcUrls: {
-    default: { http: ['https://rpc-gel-sepolia.inkonchain.com'] },
-  },
-  // Block explorer config — lets the modal link users to transaction details after signing
-  blockExplorers: {
-    default: { name: 'Ink Explorer', url: 'https://explorer-sepolia.inkonchain.com' },
-  },
-}
 
 // Define Solana as a custom chain — xLever targets Solana for cross-chain leverage positions via Wormhole bridging
 const solana = {

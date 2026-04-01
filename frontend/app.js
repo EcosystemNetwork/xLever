@@ -7,30 +7,15 @@
 let connectedAddress = null; // Track wallet address globally so balance fetching and UI updates can reference it without re-querying the modal
 let publicClient = null; // viem public client for Ink Sepolia RPC — kept global so we create it once on connect instead of per-call
 
-// Token contract addresses on Ink Sepolia testnet — these are the deployed LTAP vault wrapper tokens
-const TOKEN_ADDRESSES = {
-  USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943',   // Stablecoin collateral that users deposit into senior tranche
-  wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', // Wrapped leveraged QQQ exposure token — the core LTAP product
-  wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'  // Wrapped leveraged SPY exposure token — second supported underlying
-};
+// Token addresses — single source of truth is contracts.js ADDRESSES
+const TOKEN_ADDRESSES = window.xLeverContracts
+  ? { USDC: window.xLeverContracts.ADDRESSES.usdc, wQQQx: window.xLeverContracts.ADDRESSES.wQQQx, wSPYx: window.xLeverContracts.ADDRESSES.wSPYx }
+  : { USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943', wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e' };
 
-// Minimal ERC-20 ABI — only balanceOf and decimals because that's all we need to display wallet balances
-// Full ABI would add unnecessary payload; deposit/withdraw use the vault contract ABI instead
+// Minimal ERC-20 ABI for balance display — balanceOf and decimals only
 const ERC20_ABI = [
-  {
-    name: 'balanceOf',   // Read token balance to show in the wallet panel
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [{ name: 'balance', type: 'uint256' }]
-  },
-  {
-    name: 'decimals',    // Need decimals to convert raw uint256 to human-readable amounts (USDC=6, wTokens=18)
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint8' }]
-  }
+  { name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: 'balance', type: 'uint256' }] },
+  { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint8' }] }
 ];
 
 async function fetchBalances() {
@@ -72,7 +57,6 @@ async function fetchBalances() {
     });
     document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4); // Same 18-decimal format as wQQQx
 
-    // console.log('✓ Balances updated');
   } catch (error) {
     console.error('Failed to fetch balances:', error); // Non-fatal: UI still works, user just sees stale balances
   }
@@ -107,17 +91,15 @@ function initWalletListeners() {
       const { createPublicClient, http, inkSepolia } = window.viem; // viem provides typed RPC clients — imported from window because we load it via CDN
       publicClient = createPublicClient({
         chain: inkSepolia, // Ink Sepolia is the testnet where LTAP vault contracts are deployed
-        transport: http('https://rpc-gel-sepolia.inkonchain.com') // Gelato-hosted RPC endpoint for Ink Sepolia — more reliable than public default
+        transport: http(inkSepolia.rpcUrls.default.http[0])
       });
       updateWalletUI(); // Show the wallet address and balance panel in the header
       await fetchBalances(); // Fetch all token balances now that we have a valid client and address
-      // console.log('✓ Wallet connected:', connectedAddress);
     }
     if (event?.data?.event === 'DISCONNECT_SUCCESS') { // User explicitly disconnected or session expired
       connectedAddress = null; // Clear address so guard clauses in fetchBalances prevent stale RPC calls
       publicClient = null; // Release the RPC client since we no longer need it
       updateWalletUI(); // Hide the balance panel and reset displayed values to dashes
-      // console.log('✓ Wallet disconnected');
     }
   });
 
@@ -134,7 +116,7 @@ function initWalletListeners() {
       const { createPublicClient, http, inkSepolia } = window.viem; // Re-import here because this code path runs independently of the event handler
       publicClient = createPublicClient({
         chain: inkSepolia, // Same chain as in CONNECT_SUCCESS — must match deployed contracts
-        transport: http('https://rpc-gel-sepolia.inkonchain.com') // Same RPC endpoint for consistency
+        transport: http(inkSepolia.rpcUrls.default.http[0])
       });
       updateWalletUI(); // Show wallet panel immediately on page load if session persists
       fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
@@ -250,7 +232,6 @@ async function fetchRealData(symbol, years) { // Orchestrator: tries data source
   // Try OpenBB first because it provides higher-quality, pre-cleaned institutional data
   try {
     const data = await fetchFromOpenBB(symbol, years);
-    // console.log(`✓ Loaded ${data.length} days via OpenBB`);
     return data; // Success — return OpenBB data without trying Yahoo
   } catch (e) {
     console.warn('OpenBB unavailable, falling back to Yahoo:', e.message); // Log but don't crash — Yahoo fallback handles this gracefully
@@ -277,7 +258,6 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
     if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) { // Use cache if it exists and is less than 24 hours old
       allData = JSON.parse(cached); // Deserialize the cached OHLCV array — avoids a network round-trip on page reload
       dataLoading = false; // Data is ready for rendering
-      // console.log(`✓ Loaded ${allData.length} days of ${ticker} data from cache`);
     } else { // Cache is missing or stale — fetch fresh data from APIs
       allData = await fetchRealData(ticker, 25); // Fetch 25 years of history — the maximum timeframe our UI supports ("25Y" and "MAX" buttons)
       dataLoading = false; // Data arrived successfully
@@ -285,10 +265,8 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
       try {
         localStorage.setItem(cacheKey, JSON.stringify(allData)); // Persist to localStorage so subsequent page loads are instant
         localStorage.setItem(cacheTimeKey, now.toString()); // Record cache time for the 24-hour staleness check
-        // console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server (cached)`);
       } catch (e) {
         console.warn('Failed to cache data:', e); // localStorage might be full (5MB limit) or disabled — data still works, just won't cache
-        // console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server`);
       }
     }
 
@@ -296,7 +274,6 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
     updateAll(); // Re-render the chart and stats with the new ticker data
   } catch (error) {
     console.error('Failed to load data, using generated data:', error); // Both OpenBB and Yahoo failed — degrade gracefully to synthetic data
-    const yearsMap = {'1M':1/12,'3M':0.25,'6M':0.5,'1Y':1,'3Y':3,'5Y':5,'10Y':10,'25Y':25,'MAX':25}; // Unused here but documents the period mapping for reference
     allData = generateQQQData(25); // Generate 25 years of synthetic QQQ-like data as final fallback so the UI still works offline
     dataLoading = false; // Even synthetic data counts as "loaded"
     entryDateIndex = 0; // Reset entry point for consistency
@@ -922,7 +899,6 @@ function getFiltered(period) { // Slice the master 25-year dataset down to the s
 
 function updateAll() { // Master render function — called on every user interaction (leverage change, timeframe change, chart type toggle, entry point click)
   const { data, years } = getFiltered(currentPeriod); // Get the OHLCV data sliced to the selected timeframe and the corresponding year count
-  // console.log(`Period: ${currentPeriod}, Data points: ${data.length}, Years: ${years}, First date: ${data[0]?.time}, Last date: ${data[data.length-1]?.time}`);
   if (data.length < 2) return; // Need at least 2 data points to compute a return — single point has no movement
 
   const isShort = currentLeverage < 0; // Negative leverage means short position — LTAP supports both long and short
@@ -945,8 +921,6 @@ function updateAll() { // Master render function — called on every user intera
   const levOHLC = levOHLCResult.data; // OHLC bars for candlestick view
   const dailyResetLine = dailyResetResult.data; // Daily-reset comparison line
   const noFeeLine = noFeeResult.data; // No-fee comparison line
-
-  // console.log(`First lev value: ${levLine[0]?.value}, Last lev value: ${levLine[levLine.length-1]?.value}`);
 
   const finalPnL = levLine[levLine.length - 1].value - levLine[0].value; // Raw P&L in dollar terms to determine if the position is profitable
   const isProfitable = finalPnL >= 0; // Used to color the chart line green (profit) or red (loss)
@@ -1397,7 +1371,6 @@ chart.subscribeClick((param) => { // TradingView's click callback provides the t
 
   if (clickedIndex >= 0) { // Valid data point clicked — set it as the new backtest entry point
     entryDateIndex = clickedIndex; // Update the entry index — updateAll() will slice the data from this point
-    // console.log(`Entry date set to: ${data[clickedIndex].time} (index ${clickedIndex})`);
     updateAll(); // Re-render everything from the new entry point — chart, stats, and comparison grid all update
   }
 });
@@ -1406,7 +1379,6 @@ chart.subscribeClick((param) => { // TradingView's click callback provides the t
 chartEl.addEventListener('dblclick', () => { // Listen on the chart container element for double-click events
   if (entryDateIndex !== 0) { // Only reset if entry is not already at the start — avoids unnecessary re-renders
     entryDateIndex = 0; // Reset to the beginning of the selected period
-    // console.log('Entry date reset to start');
     updateAll(); // Re-render with full period data
   }
 });

@@ -453,7 +453,7 @@ tailwind.config = {
       </div>
       <div class="p-5 space-y-4">
         <!-- Swarm Stats -->
-        <div class="grid grid-cols-4 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <div class="bg-surface-container-highest/30 rounded p-2 text-center">
             <p class="font-mono text-[9px] text-on-surface-variant uppercase">Queue</p>
             <p class="font-mono text-sm text-on-surface font-bold" id="swarmQueue">0</p>
@@ -466,9 +466,19 @@ tailwind.config = {
             <p class="font-mono text-[9px] text-on-surface-variant uppercase">Signals</p>
             <p class="font-mono text-sm text-tertiary font-bold" id="swarmSignals">0</p>
           </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Verified</p>
+            <p class="font-mono text-sm text-secondary font-bold" id="swarmVerified">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Rejected</p>
+            <p class="font-mono text-sm text-error font-bold" id="swarmRejected">0</p>
+          </div>
           <div class="bg-surface-container-highest/30 rounded p-2 text-center">
             <p class="font-mono text-[9px] text-on-surface-variant uppercase">Executed</p>
-            <p class="font-mono text-sm text-secondary font-bold" id="swarmExecuted">0</p>
+            <p class="font-mono text-sm text-primary font-bold" id="swarmExecuted">0</p>
           </div>
         </div>
 
@@ -576,6 +586,7 @@ tailwind.config = {
 <script src="risk-engine.js"></script>
 <script src="agent-executor.js"></script>
 <script src="news-ingest.js"></script>
+<script src="news-verifier.js"></script>
 <script src="news-analysts.js"></script>
 <script src="signal-aggregator.js"></script>
 <script src="agent-coordinator.js"></script>
@@ -961,6 +972,14 @@ function updateSwarmStats() {
   document.getElementById('swarmExecuted').textContent = stats.actionsExecuted;
   document.getElementById('signalCount').textContent = `${window.SignalAggregator.historySize} signals`;
 
+  // Verifier stats
+  const verifier = window.NewsVerifier;
+  if (verifier) {
+    const vStats = verifier.stats;
+    document.getElementById('swarmVerified').textContent = vStats.verified;
+    document.getElementById('swarmRejected').textContent = vStats.failed;
+  }
+
   // Trend
   const trend = coord.recentTrend;
   if (trend && trend.count > 0) {
@@ -985,13 +1004,25 @@ function onSwarmDecision(recommendation, audit) {
   const dirColor = recommendation.direction === 'bullish' ? 'text-secondary' : recommendation.direction === 'bearish' ? 'text-error' : 'text-on-surface-variant';
   const scoreStr = recommendation.score > 0 ? `+${recommendation.score.toFixed(2)}` : recommendation.score.toFixed(2);
 
+  // Verification badge
+  const v = audit.verification;
+  let vBadge = '';
+  if (v) {
+    if (v.verified) {
+      vBadge = `<span class="text-secondary font-bold text-[9px]">✓ VERIFIED ${(v.confidence*100).toFixed(0)}%</span>`;
+    } else {
+      vBadge = `<span class="text-yellow-500 font-bold text-[9px]">⚠ UNVERIFIED${v.flags.length ? ' ' + v.flags[0] : ''}</span>`;
+    }
+  }
+
   const line = document.createElement('div');
   line.className = 'flex flex-col gap-0.5 py-1 border-b border-outline-variant/10';
   line.innerHTML = `
     <div class="flex items-center gap-2">
       <span class="text-on-surface-variant opacity-60">[${ts}]</span>
       <span class="${pColor} font-bold">${pLabel}</span>
-      <span class="text-on-surface truncate flex-1">${recommendation.newsItem.headline.slice(0, 60)}...</span>
+      ${vBadge}
+      <span class="text-on-surface truncate flex-1">${recommendation.newsItem.headline.slice(0, 55)}...</span>
     </div>
     <div class="flex items-center gap-3 pl-16">
       <span class="${dirColor} font-bold">${recommendation.action.toUpperCase()}</span>

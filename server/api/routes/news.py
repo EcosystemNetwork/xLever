@@ -399,6 +399,123 @@ async def news_inject(body: NewsInject):
 # ═══════════════════════════════════════════════════════════════
 
 
+@router.get("/calendar")
+async def economic_calendar():
+    """
+    Return upcoming/recent economic events for verification.
+    Tries OpenBB economics calendar, falls back to static schedule.
+    """
+    events = []
+
+    # Try OpenBB economics calendar
+    try:
+        from openbb import obb
+        result = obb.economy.calendar(
+            start_date=(datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
+            end_date=(datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d"),
+        )
+        if hasattr(result, "results") and result.results:
+            for ev in result.results:
+                name = getattr(ev, "event", "") or getattr(ev, "name", "") or ""
+                date = getattr(ev, "date", None)
+                date_str = date.strftime("%Y-%m-%d") if hasattr(date, "strftime") else str(date) if date else ""
+
+                # Classify event type
+                event_type = _classify_econ_event(name)
+                events.append({
+                    "name": name,
+                    "date": date_str,
+                    "type": event_type,
+                    "country": getattr(ev, "country", "US"),
+                    "actual": getattr(ev, "actual", None),
+                    "forecast": getattr(ev, "forecast", None),
+                    "previous": getattr(ev, "previous", None),
+                })
+    except ImportError:
+        pass  # OpenBB not installed
+    except Exception as e:
+        logger.warning(f"OpenBB calendar failed: {e}")
+
+    # If no events from OpenBB, generate static schedule
+    if not events:
+        events = _generate_static_calendar()
+
+    return {"events": events, "source": "openbb" if events and events[0].get("actual") is not None else "static"}
+
+
+def _classify_econ_event(name: str) -> str:
+    """Classify an economic event name into our known types."""
+    n = name.lower()
+    if any(k in n for k in ["fomc", "fed funds", "interest rate decision", "federal reserve"]):
+        return "fomc"
+    if any(k in n for k in ["cpi", "consumer price", "inflation"]):
+        return "cpi"
+    if any(k in n for k in ["nonfarm", "payroll", "employment", "jobs report", "unemployment"]):
+        return "jobs"
+    if any(k in n for k in ["gdp", "gross domestic"]):
+        return "gdp"
+    if any(k in n for k in ["earnings", "quarterly results"]):
+        return "earnings"
+    if any(k in n for k in ["pmi", "manufacturing", "ism"]):
+        return "pmi"
+    if any(k in n for k in ["retail sales"]):
+        return "retail"
+    return "other"
+
+
+def _generate_static_calendar() -> list[dict]:
+    """Generate approximate calendar when OpenBB is unavailable."""
+    today = datetime.now(timezone.utc)
+    events = []
+
+    # FOMC: ~8 meetings per year, roughly every 6 weeks
+    # CPI: ~12th of each month
+    # Jobs: first Friday of each month
+    # GDP: last week of Jan/Apr/Jul/Oct
+
+    # CPI estimate for this month (around the 12th)
+    cpi_day = today.replace(day=12)
+    if abs((today - cpi_day).days) <= 3:
+        events.append({
+            "name": "CPI - Consumer Price Index",
+            "date": cpi_day.strftime("%Y-%m-%d"),
+            "type": "cpi",
+            "country": "US",
+            "actual": None,
+            "forecast": None,
+            "previous": None,
+        })
+
+    # Jobs report: first Friday
+    first_day = today.replace(day=1)
+    days_until_friday = (4 - first_day.weekday()) % 7
+    first_friday = first_day.replace(day=1 + days_until_friday)
+    if abs((today - first_friday).days) <= 2:
+        events.append({
+            "name": "Nonfarm Payrolls",
+            "date": first_friday.strftime("%Y-%m-%d"),
+            "type": "jobs",
+            "country": "US",
+            "actual": None,
+            "forecast": None,
+            "previous": None,
+        })
+
+    # GDP: last week of Jan(0), Apr(3), Jul(6), Oct(9)
+    if today.month in [1, 4, 7, 10] and today.day >= 25:
+        events.append({
+            "name": "GDP Growth Rate",
+            "date": today.strftime("%Y-%m-%d"),
+            "type": "gdp",
+            "country": "US",
+            "actual": None,
+            "forecast": None,
+            "previous": None,
+        })
+
+    return events
+
+
 @router.get("/sources")
 async def news_sources():
     """List configured news sources and their status."""
