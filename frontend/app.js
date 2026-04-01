@@ -602,6 +602,12 @@ function initWalletListeners() {
       });
       updateWalletUI(); // Show the wallet address and balance panel in the header
       await fetchBalances(); // Fetch all token balances now that we have a valid client and address
+
+      // Redirect to dashboard after fresh wallet connection from the landing page
+      if (document.getElementById('landingPage')) {
+        window.location.href = '01-dashboard.html';
+        return;
+      }
     }
     if (event?.data?.event === 'DISCONNECT_SUCCESS') { // User explicitly disconnected or session expired
       connectedAddress = null; // Clear address so guard clauses in fetchBalances prevent stale RPC calls

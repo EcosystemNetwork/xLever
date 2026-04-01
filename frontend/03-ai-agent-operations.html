@@ -457,6 +457,11 @@ tailwind.config = {
             <span class="w-2 h-2 rounded-full" id="pythonAgentDot" style="background:#948ea1"></span>
             <span class="font-mono text-[10px] uppercase" id="pythonAgentLabel">AI Agent: Offline</span>
           </div>
+          <!-- Swarm / OpenClaw Status -->
+          <div class="flex items-center gap-2 pl-3 border-l border-outline-variant/30">
+            <span class="w-2 h-2 rounded-full" id="swarmDot" style="background:#948ea1"></span>
+            <span class="font-mono text-[10px] uppercase text-on-surface-variant" id="swarmLabel">Swarm: Offline</span>
+          </div>
         </div>
       </div>
       <div class="p-5 space-y-4">
@@ -587,6 +592,11 @@ tailwind.config = {
           <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Take profit now')">Take profit</button>
           <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('What is the current risk level?')">Risk status</button>
           <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendQuickPrompt('Pause all actions')">Pause</button>
+          <span class="w-px h-4 bg-outline-variant/20"></span>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded text-[9px] font-mono text-tertiary transition-colors" onclick="sendQuickPrompt('Oracle price')">Oracle</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded text-[9px] font-mono text-tertiary transition-colors" onclick="sendQuickPrompt('Latest news')">News</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded text-[9px] font-mono text-tertiary transition-colors" onclick="sendQuickPrompt('Lending markets')">Lending</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded text-[9px] font-mono text-tertiary transition-colors" onclick="sendQuickPrompt('Swarm pipeline stats')">Swarm</button>
         </div>
       </div>
     </div>
@@ -620,6 +630,8 @@ tailwind.config = {
 <script src="news-analysts.js"></script>
 <script src="signal-aggregator.js"></script>
 <script src="agent-coordinator.js"></script>
+<script src="swarm-bridge.js"></script>
+<script src="swarm-connector.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SMART AGENT — xLever Automation Layer
@@ -1013,7 +1025,14 @@ function processAgentPrompt(prompt) {
     return;
   }
 
-  // --- Fallback ---
+  // --- Swarm / OpenClaw fallback — route through tool registry ---
+  if (window.SwarmConnector) {
+    logAction('SWARM', 'Routing through Swarm tool registry...', 'on-surface-variant');
+    swarmChat(prompt);
+    return;
+  }
+
+  // --- Fallback (no Swarm) ---
   logAction('AGENT', `Understood: "${prompt}". Processing...`, 'on-surface-variant');
   setTimeout(() => {
     logAction('AGENT', 'Command noted. Use quick actions or configure a strategy mode for automated execution.', 'on-surface-variant');
@@ -1386,6 +1405,72 @@ async function setPythonAgentMode(mode) {
 
 // Initialize Python Agent Bridge when page loads
 document.addEventListener('DOMContentLoaded', initPythonAgentBridge);
+
+// ═══════════════════════════════════════════════════════════
+// SWARM / OPENCLAW CONNECTOR
+// ═══════════════════════════════════════════════════════════
+
+let swarmConnected = false;
+
+function initSwarmConnector() {
+  if (!window.SwarmConnector) {
+    logAction('SWARM', 'SwarmConnector not loaded — Swarm integration disabled', 'on-surface-variant');
+    return;
+  }
+
+  SwarmConnector.connect({
+    hub: 'https://swarmprotocol.fun',
+    name: 'xLever-Agent',
+    openclawUrl: null, // Set to OpenClaw URL when available (e.g. 'http://localhost:3000/chat')
+    log: logAction,
+    onMessage: (msg) => {
+      logAction('SWARM', `← ${msg.from || 'agent'}: ${(msg.text || '').slice(0, 80)}`, 'primary');
+    },
+  }).then((result) => {
+    if (result && !result.error) {
+      swarmConnected = true;
+      logAction('SWARM', `✓ Swarm connected — ${result.tools} tools available for external agents`, 'secondary');
+      // Update status indicator
+      const dot = document.getElementById('swarmDot');
+      const label = document.getElementById('swarmLabel');
+      if (dot) dot.style.background = '#05e777';
+      if (label) {
+        label.textContent = 'Swarm: Online';
+        label.className = 'font-mono text-[10px] uppercase text-secondary';
+      }
+    }
+  });
+}
+
+// Send a chat message through SwarmConnector (for UI chat input)
+async function swarmChat(message) {
+  if (!window.SwarmConnector) return;
+  const result = await SwarmConnector.chat(message);
+  // Display result in the agent log
+  if (result.tool) {
+    logAction('SWARM', `[${result.tool}] ${JSON.stringify(result.result).slice(0, 200)}`, 'secondary');
+  } else if (result.response) {
+    logAction('OPENCLAW', result.response.slice(0, 300), 'primary');
+  } else if (result.openclaw_response) {
+    logAction('OPENCLAW', result.openclaw_response.slice(0, 300), 'primary');
+    if (result.tool_result) {
+      logAction('TOOL', `${result.tool_call}: ${JSON.stringify(result.tool_result).slice(0, 200)}`, 'secondary');
+    }
+  } else if (result.available_tools) {
+    logAction('SWARM', `${result.message} (${result.available_tools.length} tools)`, 'on-surface-variant');
+  }
+  return result;
+}
+
+// Connect an OpenClaw instance at runtime
+function connectOpenClaw(url) {
+  if (!window.SwarmBridge) return;
+  window.SwarmBridge.setOpenClawUrl(url);
+  logAction('OPENCLAW', `Connected to OpenClaw at ${url}`, 'secondary');
+}
+
+// Initialize Swarm connector after page loads
+document.addEventListener('DOMContentLoaded', initSwarmConnector);
 
 // ═══════════════════════════════════════════════════════════
 // TEST NEWS INJECTION

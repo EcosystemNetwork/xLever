@@ -168,9 +168,8 @@ class TradingAgent:
             )
 
             # 9. Health monitor
-            # TODO: Use actual vault address from config
             from agent.contracts.addresses import CONTRACTS
-            vault_address = CONTRACTS.get("wSPYx_vault", "0x0")
+            vault_address = CONTRACTS["wSPYx_HEDGING"]
 
             self.health_monitor = HealthMonitor(
                 web3_client=self.web3,
