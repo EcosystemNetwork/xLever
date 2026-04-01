@@ -1,6 +1,11 @@
 /**
  * xLever Contract Adapter
  * viem-based interface for xLever Vault + ERC-20 interactions
+ *
+ * NOTE: Contract addresses below are hardcoded for testnet development.
+ * In production, addresses MUST be loaded from environment variables or
+ * a configuration service to support multi-environment deployments and
+ * prevent accidental use of test addresses on mainnet.
  */
 import { createPublicClient, createWalletClient, http, custom, parseUnits, formatUnits, encodeFunctionData, parseEther } from 'viem'
 import { getPriceForFeed } from './pyth.js'

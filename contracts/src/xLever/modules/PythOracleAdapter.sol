@@ -232,6 +232,8 @@ contract PythOracleAdapter is IPythOracleAdapter {
     /// @notice Set vault address (called once after vault deployment)
     // Must be called by admin after vault deployment to authorize the vault for price updates
     function setVault(address _vault) external onlyAdmin {
+        // Prevent setting vault to zero address which would break authorization checks
+        require(_vault != address(0), "Zero address");
         // Store vault address — enables the onlyVaultOrAdmin modifier to authorize the vault
         vault = _vault;
     }
@@ -246,7 +248,9 @@ contract PythOracleAdapter is IPythOracleAdapter {
     /// @notice Transfer admin
     // Allows admin rotation for security (e.g., migrating to a multisig)
     function transferAdmin(address newAdmin) external onlyAdmin {
-        // Transfer admin authority — no zero-address check (intentional: allows renouncing admin)
+        // Prevent accidental admin renouncement by rejecting zero address
+        require(newAdmin != address(0), "Zero address");
+        // Transfer admin authority to the new address
         admin = newAdmin;
     }
 

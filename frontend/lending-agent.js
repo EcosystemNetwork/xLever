@@ -28,6 +28,12 @@ const LendingAgent = (() => {
   const MAX_TICKS_PER_MIN = 6
   let _tickTimestamps = []
 
+  // Validates that a value is a finite number, returning the fallback if not
+  function _safeNum(val, fallback = 0) {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // ADAPTER ACCESS — lazy reference to the registry singleton
   // ═══════════════════════════════════════════════════════════════
@@ -174,8 +180,9 @@ const LendingAgent = (() => {
     const perms = PERMISSIONS.yield
 
     // Auto-supply idle stablecoin if above threshold
-    if (perms.canSupply && state.idleBalance > (config.minIdleThreshold || 100)) {
-      const supplyAmount = state.idleBalance - (config.reserveBalance || 50)
+    const idleBalance = _safeNum(state.idleBalance, 0)
+    if (perms.canSupply && idleBalance > _safeNum(config.minIdleThreshold, 100)) {
+      const supplyAmount = idleBalance - _safeNum(config.reserveBalance, 50)
       if (supplyAmount > 0) {
         // Find best APY market on current chain
         let bestMarket = null
@@ -242,40 +249,42 @@ const LendingAgent = (() => {
     const actions = []
     const perms = PERMISSIONS.leverage
 
-    const targetHF = config.targetHealthFactor || 1.8
-    const minHF = config.minHealthFactor || 1.3
-    const maxLoops = config.maxLeverageLoops || 3
+    const targetHF = _safeNum(config.targetHealthFactor, 1.8)
+    const minHF = _safeNum(config.minHealthFactor, 1.3)
+    const maxLoops = _safeNum(config.maxLeverageLoops, 3)
+    const healthFactor = state.healthFactor !== null && Number.isFinite(Number(state.healthFactor)) ? Number(state.healthFactor) : null
 
     // Auto-repay if health factor is dangerously low
-    if (perms.canRepay && state.healthFactor !== null && state.healthFactor < minHF) {
-      const urgency = state.healthFactor < 1.1 ? 'CRITICAL' : 'WARNING'
+    if (perms.canRepay && healthFactor !== null && healthFactor < minHF) {
+      const urgency = healthFactor < 1.1 ? 'CRITICAL' : 'WARNING'
       actions.push({
         type: 'REPAY',
         urgency,
         chain: state.chain,
-        reason: `Health factor ${state.healthFactor.toFixed(2)} below minimum ${minHF} on ${state.protocol}. ${urgency}: auto-repaying.`,
+        reason: `Health factor ${healthFactor.toFixed(2)} below minimum ${minHF} on ${state.protocol}. ${urgency}: auto-repaying.`,
       })
       return actions
     }
 
     // Supply collateral if we have idle balance
-    if (perms.canSupply && state.idleBalance > (config.minCollateral || 200)) {
+    const idleBalance = _safeNum(state.idleBalance, 0)
+    if (perms.canSupply && idleBalance > _safeNum(config.minCollateral, 200)) {
       // Determine best collateral asset for this chain
       const collateralAsset = config.collateralAsset || _defaultStable(state.chain)
       actions.push({
         type: 'SUPPLY',
         asset: collateralAsset,
-        amount: state.idleBalance.toFixed(2),
+        amount: idleBalance.toFixed(2),
         chain: state.chain,
-        reason: `Supplying ${state.idleBalance.toFixed(2)} ${collateralAsset} as collateral on ${state.protocol}.`,
+        reason: `Supplying ${idleBalance.toFixed(2)} ${collateralAsset} as collateral on ${state.protocol}.`,
       })
     }
 
     // Borrow against collateral if health factor allows
-    if (perms.canBorrow && state.healthFactor !== null && state.healthFactor > targetHF) {
+    if (perms.canBorrow && healthFactor !== null && healthFactor > targetHF) {
       const existingBorrows = state.userBorrows?.length || 0
       if (existingBorrows < maxLoops) {
-        const borrowRoom = (state.healthFactor - targetHF) / state.healthFactor
+        const borrowRoom = healthFactor > 0 ? (healthFactor - targetHF) / healthFactor : 0
         const borrowAsset = config.borrowAsset || _defaultStable(state.chain)
         const collateralUsd = state.userSupplies?.reduce((sum, s) => sum + (s.valueUsd || 0), 0) || 0
         const estimatedBorrow = collateralUsd * borrowRoom
@@ -284,7 +293,7 @@ const LendingAgent = (() => {
           asset: borrowAsset,
           amount: estimatedBorrow > 0 ? estimatedBorrow.toFixed(2) : '0',
           chain: state.chain,
-          reason: `Health factor ${state.healthFactor.toFixed(2)} above target ${targetHF} on ${state.protocol}. Room: ${(borrowRoom * 100).toFixed(1)}%. Loop ${existingBorrows + 1}/${maxLoops}.`,
+          reason: `Health factor ${healthFactor.toFixed(2)} above target ${targetHF} on ${state.protocol}. Room: ${(borrowRoom * 100).toFixed(1)}%. Loop ${existingBorrows + 1}/${maxLoops}.`,
         })
       }
     }
@@ -302,9 +311,10 @@ const LendingAgent = (() => {
       return actions
     }
 
-    const hedgeRatio = config.hedgeRatio || 0.5
-    const depositUsd = parseFloat(pos.deposit) || 0
-    const hedgeAmount = (depositUsd * Math.abs(pos.leverage) * hedgeRatio).toFixed(2)
+    const hedgeRatio = _safeNum(config.hedgeRatio, 0.5)
+    const depositUsd = _safeNum(parseFloat(pos.deposit), 0)
+    const leverage = _safeNum(pos.leverage, 0)
+    const hedgeAmount = (depositUsd * Math.abs(leverage) * hedgeRatio).toFixed(2)
 
     if (pos.isLong && perms.canBorrow) {
       const hedgeAsset = config.hedgeAsset || 'wQQQx'
@@ -318,7 +328,7 @@ const LendingAgent = (() => {
       })
     }
 
-    if (pos.isShort && perms.canSupply && state.idleBalance > 0) {
+    if (pos.isShort && perms.canSupply && _safeNum(state.idleBalance, 0) > 0) {
       const stableAsset = _defaultStable(state.chain)
       const supplyAmount = Math.min(state.idleBalance, depositUsd).toFixed(2)
       actions.push({
@@ -330,12 +340,13 @@ const LendingAgent = (() => {
       })
     }
 
-    if (perms.canRepay && state.healthFactor !== null && state.healthFactor < (config.hedgeMinHF || 1.5)) {
+    const hf = state.healthFactor !== null && Number.isFinite(Number(state.healthFactor)) ? Number(state.healthFactor) : null
+    if (perms.canRepay && hf !== null && hf < _safeNum(config.hedgeMinHF, 1.5)) {
       actions.push({
         type: 'REPAY',
         urgency: 'WARNING',
         chain: state.chain,
-        reason: `Hedge health factor ${state.healthFactor.toFixed(2)} dropping on ${state.protocol} — reducing borrow.`,
+        reason: `Hedge health factor ${hf.toFixed(2)} dropping on ${state.protocol} — reducing borrow.`,
       })
     }
 

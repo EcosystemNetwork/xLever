@@ -1,3 +1,10 @@
+// Sanitize strings before interpolation into innerHTML to prevent XSS
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
 // ═══════════════════════════════════════════════════════════
 // WALLET CONNECTION (Reown AppKit)
 // Reown (formerly WalletConnect) provides wallet connectivity
@@ -1090,11 +1097,11 @@ function updateAll() { // Master render function — called on every user intera
       : '0'; // Zero leverage shown as plain "0"
 
   if (absMag === 0) { // Cash position (0x leverage) — special label indicating no market exposure
-    document.getElementById('overlayLabel').innerHTML = `${currentTicker} — <span style="color:#555970">CASH</span> 0× (No exposure)`;
+    document.getElementById('overlayLabel').innerHTML = `${escapeHTML(currentTicker)} — <span style="color:#555970">CASH</span> 0× (No exposure)`;
   } else if (absMag < 0.5 && absMag > 0) { // Sub-0.5x leverage — warn user this provides minimal exposure (unusual use case)
-    document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
+    document.getElementById('overlayLabel').innerHTML = `Leveraged ${escapeHTML(currentTicker)} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
   } else { // Normal leverage range (0.5x to 4x) — standard label with ticker, direction, and magnitude
-    document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
+    document.getElementById('overlayLabel').innerHTML = `Leveraged ${escapeHTML(currentTicker)} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
   }
   const pct = levStats.totalReturn * 100; // Convert decimal return to percentage for display (e.g., 0.15 -> 15.00%)
   const chEl = document.getElementById('overlayChange'); // Percentage change element below the price overlay

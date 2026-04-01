@@ -155,6 +155,9 @@ contract PositionModule {
         // Read current TWAP for comparison against entry price
         uint128 currentTWAP = oracle.getTWAP();
 
+        // Guard against division by zero if entry TWAP was never properly set
+        require(pos.entryTWAP > 0, "Invalid entry TWAP");
+
         // Calculate price change as a percentage in basis points since entry
         int256 priceChangeBps;
         if (currentTWAP > pos.entryTWAP) {

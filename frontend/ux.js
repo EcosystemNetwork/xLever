@@ -4,6 +4,13 @@
  */
 // This file provides polished UX primitives so the trading interface feels like a fintech app, not a raw dApp
 
+// Sanitize strings before interpolation into innerHTML to prevent XSS
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TOAST NOTIFICATION SYSTEM
 // ═══════════════════════════════════════════════════════════════
@@ -66,7 +73,7 @@ const XToast = (() => {
     // flex:1 on the message span lets it fill remaining space and wrap text naturally
     toast.innerHTML = `
       <span class="material-symbols-outlined" style="font-size:18px;${type === 'pending' ? 'animation:spin 1s linear infinite;' : ''}">${c.icon}</span>
-      <span style="flex:1">${message}</span>
+      <span style="flex:1">${escapeHTML(message)}</span>
     `;
     // Add to DOM before animating so the browser can compute the initial off-screen position
     container.appendChild(toast);
@@ -193,7 +200,7 @@ const XModal = (() => {
           </div>
           <div>
             <!-- Asset ticker (e.g., QQQ, SPY) as the primary identifier -->
-            <div style="font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; color:#e3e2e6;">${details.asset}</div>
+            <div style="font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; color:#e3e2e6;">${escapeHTML(details.asset)}</div>
             <div style="display:flex; gap:8px; align-items:center; margin-top:2px;">
               <!-- Color-coded LONG/SHORT badge so direction is unmistakable -->
               <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:${sideColor}; background:${sideColor}15; padding:2px 8px; border-radius:3px;">${sideLabel}</span>
@@ -339,7 +346,7 @@ const XModal = (() => {
             </div>
             <div style="font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:#ff5252;">Transaction Failed</div>
             <!-- Show the specific error so users (or support) can diagnose the issue -->
-            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px; max-width:340px; word-break:break-all;">${err.shortMessage || err.message}</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px; max-width:340px; word-break:break-all;">${escapeHTML(err.shortMessage || err.message)}</div>
             <!-- Close button lets user dismiss the error and try again -->
             <button id="x-modal-done" style="display:block; width:100%; margin-top:16px; padding:12px; border-radius:6px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; background:#1f1f23; border:1px solid #252833; color:#e3e2e6;">Close</button>
           </div>
@@ -390,7 +397,7 @@ const XModal = (() => {
         <div style="font-family:'DM Sans',sans-serif; font-size:16px; font-weight:700; color:#e3e2e6;">Position Opened</div>
         <!-- Recap the position details so user can verify what was executed -->
         <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa3; margin-top:4px;">
-          ${details.asset} ${sideLabel} ${Math.abs(details.leverage).toFixed(1)}x &middot; $${details.size.toLocaleString()}
+          ${escapeHTML(details.asset)} ${sideLabel} ${Math.abs(details.leverage).toFixed(1)}x &middot; $${details.size.toLocaleString()}
         </div>
         <!-- Transaction hash in a pill for quick copy/reference -->
         <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:8px; background:#0d0e11; padding:6px 12px; border-radius:4px; display:inline-block;">
@@ -410,7 +417,7 @@ const XModal = (() => {
     // Wire up the done button to close the modal
     document.getElementById('x-modal-done')?.addEventListener('click', close);
     // Show a success toast so the notification persists even after the modal is closed
-    XToast.show(`${details.asset} ${sideLabel} position opened successfully`, 'success');
+    XToast.show(`${escapeHTML(details.asset)} ${sideLabel} position opened successfully`, 'success');
   }
 
   // Generates a short random hex string to simulate a transaction hash in demo mode

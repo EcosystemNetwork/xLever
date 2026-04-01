@@ -22,4 +22,6 @@ interface ITWAPOracle {
     function getDivergence() external view returns (uint256 divergenceBps);
     // Check if the oracle has not been updated within the staleness threshold
     function isStale() external view returns (bool);
+    // Check if oracle has received enough updates for reliable TWAP pricing
+    function hasSufficientUpdates() external view returns (bool);
 }

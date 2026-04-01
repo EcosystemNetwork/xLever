@@ -5,6 +5,9 @@ from sqlalchemy import select
 # AsyncSession type for the injected DB session
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Wallet address format validation
+# TODO: Replace with full SIWE (Sign-In with Ethereum) to verify wallet ownership
+from ..auth import validate_wallet_address
 # get_db yields a scoped async DB session per request
 from ..database import get_db
 # User ORM model for DB operations
@@ -54,8 +57,8 @@ async def create_or_get_user(body: UserCreate, db: AsyncSession = Depends(get_db
 # GET /api/users/{wallet_address} — look up a user by wallet address
 @router.get("/{wallet_address}", response_model=UserOut)
 async def get_user(wallet_address: str, db: AsyncSession = Depends(get_db)):
-    # Normalize to lowercase for consistent DB lookups
-    addr = wallet_address.lower()
+    # Validate wallet address format (TODO: replace with SIWE ownership verification)
+    addr = validate_wallet_address(wallet_address)
     # Query for the user by their wallet address
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()
@@ -70,8 +73,8 @@ async def get_user(wallet_address: str, db: AsyncSession = Depends(get_db)):
 async def update_preferences(
     wallet_address: str, prefs: UserPreferences, db: AsyncSession = Depends(get_db)
 ):
-    # Normalize to lowercase for consistent DB lookups
-    addr = wallet_address.lower()
+    # Validate wallet address format (TODO: replace with SIWE ownership verification)
+    addr = validate_wallet_address(wallet_address)
     # Look up the user to update
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()

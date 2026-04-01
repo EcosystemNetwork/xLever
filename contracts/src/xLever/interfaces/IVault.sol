@@ -28,7 +28,7 @@ interface IVault {
     // Open a leveraged position by depositing USDC — returns net position value after fees
     function deposit(uint256 amount, int32 leverageBps, bytes[] calldata priceUpdateData) external payable returns (uint256 positionValue);
     // Close position and withdraw USDC — returns net amount received after exit fees
-    function withdraw(uint256 amount, bytes[] calldata priceUpdateData) external payable returns (uint256 received);
+    function withdraw(uint256 amount, uint256 minReceived, bytes[] calldata priceUpdateData) external payable returns (uint256 received);
     // Change leverage on an existing position without depositing or withdrawing
     function adjustLeverage(int32 newLeverageBps, bytes[] calldata priceUpdateData) external payable;
     // Read a user's full position struct — used by UI and other contracts

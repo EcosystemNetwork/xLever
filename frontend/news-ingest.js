@@ -249,9 +249,13 @@ const NewsIngest = (() => {
         try {
           const data = JSON.parse(event.data)
           if (Array.isArray(data)) {
-            ingestBatch(data)
-          } else {
+            // Validate each item is a non-null object before ingesting
+            const validItems = data.filter(item => item && typeof item === 'object' && typeof item.headline === 'string')
+            if (validItems.length > 0) ingestBatch(validItems)
+          } else if (data && typeof data === 'object' && typeof data.headline === 'string') {
             ingest(data)
+          } else {
+            _log('INGEST', 'SSE message missing required "headline" field. Skipping.', 'yellow-500')
           }
         } catch (e) {
           _log('INGEST', `SSE parse error: ${e.message}`, 'error')

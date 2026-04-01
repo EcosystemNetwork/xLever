@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select, func, case, cast, Date
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..auth import admin_api_key
 from ..database import get_db
 from ..models import (
     User, Position, AgentRun, Alert, UserSession,
@@ -15,7 +16,7 @@ from ..schemas import (
     DailyActivity, HourlyActivity,
 )
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(admin_api_key)])
 
 
 # ─── Platform Overview ──────────────────────────────────────────
@@ -54,7 +55,7 @@ async def get_platform_stats(db: AsyncSession = Depends(get_db)):
 
 @router.get("/users", response_model=list[UserDetail])
 async def list_users(
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     sort: str = Query("last_seen", pattern=r"^(last_seen|created_at|wallet_address)$"),
     db: AsyncSession = Depends(get_db),
@@ -156,7 +157,7 @@ async def hourly_activity(db: AsyncSession = Depends(get_db)):
 
 @router.get("/sessions", response_model=list[SessionOut])
 async def list_sessions(
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):

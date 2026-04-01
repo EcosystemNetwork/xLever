@@ -25,9 +25,17 @@ PORT = 8000
 class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Override end_headers to inject CORS headers into every response —
     # the browser blocks cross-origin requests from the frontend without these
+    # Allowed origins for CORS — restrict to known local dev servers
+    ALLOWED_ORIGINS = {'http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000'}
+
     def end_headers(self):
-        # Allow any origin because the backtester frontend may run on different ports
-        self.send_header('Access-Control-Allow-Origin', '*')
+        # Only allow requests from known frontend dev server origins
+        origin = self.headers.get('Origin', '')
+        if origin in self.ALLOWED_ORIGINS:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            # Default to primary dev server if no matching origin
+            self.send_header('Access-Control-Allow-Origin', 'http://localhost:5173')
         # Whitelist the HTTP methods the frontend needs for fetching price data
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         # Allow Content-Type header so the frontend can send JSON requests
@@ -42,7 +50,11 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         # 200 tells the browser the preflight passed
         self.send_response(200)
         # Repeat CORS headers here because preflight responses need them independently
-        self.send_header('Access-Control-Allow-Origin', '*')
+        origin = self.headers.get('Origin', '')
+        if origin in self.ALLOWED_ORIGINS:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', 'http://localhost:5173')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         # Finalize headers (also injects our CORS additions via end_headers override)

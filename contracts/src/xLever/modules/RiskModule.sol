@@ -31,6 +31,10 @@ contract RiskModule {
     event CircuitBreakerTriggered(uint8 reason, uint256 value);
     // Emitted on protocol state transitions — for governance monitoring
     event ProtocolStateChanged(uint8 oldState, uint8 newState);
+    // Emitted when daily volume is updated — for off-chain volume tracking
+    event VolumeUpdated(uint256 volumeDelta, uint256 newDailyVolume);
+    // Emitted when circuit breaker is manually reset — for governance audit trail
+    event CircuitBreakerReset(uint64 timestamp);
 
     // Only the parent vault can call risk-state-changing functions
     modifier onlyVault() {
@@ -104,6 +108,11 @@ contract RiskModule {
     /// @return newMaxLeverage Reduced leverage cap
     /// @return shouldDeleverage Whether to trigger ADL
     // Pure function — vault calls this to decide if forced deleveraging is needed
+    // NOTE: This function does not factor in individual position PnL when determining
+    // deleverage targets. In production, positions with the largest unrealized losses
+    // should be deleveraged first to maximize risk reduction per unit of disruption.
+    // This is a known limitation — the current implementation uses a blanket leverage
+    // cap reduction that affects all positions equally regardless of PnL.
     function calculateAutoDeleverage(
         uint256 currentHealth,
         int32 currentMaxLeverage
@@ -198,6 +207,8 @@ contract RiskModule {
     function updateVolume(uint256 volumeDelta) external onlyVault {
         // Add this trade's notional to the running daily total
         circuitBreaker.dailyVolume += volumeDelta;
+        // Emit event for off-chain volume monitoring and alerting
+        emit VolumeUpdated(volumeDelta, circuitBreaker.dailyVolume);
     }
 
     /// @notice Calculate dynamic max leverage based on junior ratio
@@ -222,6 +233,8 @@ contract RiskModule {
         circuitBreaker.state = 0;
         // Reset daily volume counter so the breaker doesn't immediately re-trip
         circuitBreaker.dailyVolume = 0;
+        // Emit event for governance audit trail of manual resets
+        emit CircuitBreakerReset(uint64(block.timestamp));
     }
 
     /// @notice Update circuit breaker limits

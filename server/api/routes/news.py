@@ -17,9 +17,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from ..auth import admin_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -383,8 +385,8 @@ async def news_poll(since: int = Query(0, description="Unix timestamp ms — ret
 
 
 @router.post("/inject")
-async def news_inject(body: NewsInject):
-    """Manually inject news items (for webhooks or testing)."""
+async def news_inject(body: NewsInject, _key: str = Depends(admin_api_key)):
+    """Manually inject news items (for webhooks or testing). Requires admin API key."""
     published = 0
     for item in body.items:
         d = item.model_dump()

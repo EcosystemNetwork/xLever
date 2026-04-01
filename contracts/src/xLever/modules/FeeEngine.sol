@@ -93,7 +93,8 @@ contract FeeEngine {
         uint256 multiplier = 10000 + (divergenceBps * 50);
 
         // Final fee = notional * base rate * multiplier, normalized by two layers of basis points
-        feeAmount = notionalDelta * baseBps * multiplier / (10000 * 10000);
+        // Reorder operations to reduce intermediate overflow risk: divide between multiplications
+        feeAmount = (notionalDelta * baseBps / 10000) * multiplier / 10000;
     }
 
     /// @notice Calculate continuous carry fee based on Euler borrow rate
@@ -181,6 +182,12 @@ contract FeeEngine {
             "Invalid fee split"
         );
 
+        // Enforce max fee caps to prevent admin from setting abusive fee levels
+        require(newConfig.baseEntryFeeBps <= 500, "Entry fee too high");
+        require(newConfig.baseExitFeeBps <= 500, "Exit fee too high");
+        require(newConfig.protocolSpreadBps <= 200, "Spread too high");
+        require(newConfig.maxFundingRateBps <= 100, "Funding rate too high");
+
         // Replace the entire fee config struct
         feeConfig = newConfig;
         // Emit event for transparency and off-chain config tracking
@@ -198,7 +205,7 @@ contract FeeEngine {
         juniorAmount = totalFees * feeConfig.juniorFeeSplit / 10000;
         // Insurance share — typically 20%, builds a backstop reserve for extreme events
         insuranceAmount = totalFees * feeConfig.insuranceFeeSplit / 10000;
-        // Treasury share — typically 10%, funds protocol development and operations
-        treasuryAmount = totalFees * feeConfig.treasuryFeeSplit / 10000;
+        // Treasury gets the remainder to absorb any rounding dust — prevents fee loss
+        treasuryAmount = totalFees - juniorAmount - insuranceAmount;
     }
 }

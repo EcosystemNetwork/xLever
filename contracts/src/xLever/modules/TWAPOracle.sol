@@ -27,6 +27,8 @@ contract TWAPOracle is ITWAPOracle {
     address public updater;
     // Vault address — also authorized to push updates as part of deposit/withdraw flows
     address public vault;
+    // Number of price updates received — used to enforce minimum updates before trading
+    uint8 public updateCount;
 
     // Only the designated updater or vault can push new prices — prevents unauthorized manipulation
     modifier onlyUpdater() {
@@ -69,6 +71,11 @@ contract TWAPOracle is ITWAPOracle {
         buffer.lastUpdateTime = uint64(block.timestamp);
         // Cache the latest spot price for divergence calculation
         buffer.lastSpotPrice = spotPrice;
+
+        // Increment update count (cap at 255 to prevent uint8 overflow)
+        if (updateCount < 255) {
+            updateCount++;
+        }
 
         // Compute current TWAP as simple average of all samples in the buffer
         uint128 currentTWAP = buffer.runningSum / uint128(BUFFER_SIZE);
@@ -121,6 +128,15 @@ contract TWAPOracle is ITWAPOracle {
         uint128 twap = twapBuffer.runningSum / uint128(BUFFER_SIZE);
         // Calculate and return divergence between cached spot and fresh TWAP
         return _calculateDivergence(twapBuffer.lastSpotPrice, twap);
+    }
+
+    /// @notice Minimum number of price updates required before TWAP is considered reliable
+    uint8 constant MIN_UPDATE_COUNT = 5;
+
+    /// @notice Check if oracle has received enough updates for reliable TWAP
+    // Returns true if at least MIN_UPDATE_COUNT prices have been pushed — prevents trading on sparse data
+    function hasSufficientUpdates() external view returns (bool) {
+        return updateCount >= MIN_UPDATE_COUNT;
     }
 
     /// @notice Check if oracle is stale

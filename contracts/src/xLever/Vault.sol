@@ -37,6 +37,16 @@ interface IERC20 {
 ///      reads the fresh price, then updates the internal TWAP buffer.
 // Inherit IVault so the compiler enforces we implement all required functions and events
 contract Vault is IVault {
+    // Reentrancy lock: 1 = unlocked, 2 = locked
+    uint256 private _reentrancyStatus = 1;
+
+    // Reentrancy guard modifier to prevent reentrant calls during ETH refunds
+    modifier nonReentrant() {
+        require(_reentrancyStatus != 2, "ReentrancyGuard: reentrant call");
+        _reentrancyStatus = 2;
+        _;
+        _reentrancyStatus = 1;
+    }
     // Immutable USDC token — all deposits, withdrawals, and fees are denominated in USDC
     IERC20 public immutable usdc;
     // Immutable tokenized asset address (e.g. xQQQ) — identifies which asset this vault tracks
@@ -128,7 +138,7 @@ contract Vault is IVault {
     /// @param leverageBps Leverage in basis points (-40000 to +40000)
     /// @param priceUpdateData Pyth Hermes price update bytes — pass msg.value for the update fee
     // payable because callers must send ETH to cover Pyth oracle update fees
-    function deposit(uint256 amount, int32 leverageBps, bytes[] calldata priceUpdateData) external payable whenActive returns (uint256 positionValue) {
+    function deposit(uint256 amount, int32 leverageBps, bytes[] calldata priceUpdateData) external payable whenActive nonReentrant returns (uint256 positionValue) {
         // Reject zero deposits to prevent empty positions cluttering state
         require(amount > 0, "Zero deposit");
         // Enforce leverage bounds: -4x to +4x as per xLever's fixed-entry design
@@ -138,6 +148,10 @@ contract Vault is IVault {
 
         // Pull-oracle pattern: update Pyth price, read it, and push into TWAP buffer
         _updateOracleFromPyth(priceUpdateData);
+        // Ensure oracle data is fresh after update — reject stale prices
+        require(!oracle.isStale(), "Oracle stale");
+        // Ensure TWAP has enough data points to be reliable before allowing deposits
+        require(oracle.hasSufficientUpdates(), "Insufficient oracle updates");
 
         // Transfer USDC from user to vault — must have prior approval
         require(usdc.transferFrom(msg.sender, address(this), amount), "Transfer failed");
@@ -179,11 +193,14 @@ contract Vault is IVault {
 
     /// @notice Withdraw position
     /// @param amount Amount to withdraw (6 decimals)
+    /// @param minReceived Minimum USDC to receive after fees — slippage protection
     /// @param priceUpdateData Pyth Hermes price update bytes
     // payable because callers must send ETH to cover Pyth oracle update fees
-    function withdraw(uint256 amount, bytes[] calldata priceUpdateData) external payable returns (uint256 received) {
+    function withdraw(uint256 amount, uint256 minReceived, bytes[] calldata priceUpdateData) external payable nonReentrant returns (uint256 received) {
         // Update oracle before reading prices to ensure PnL is calculated on fresh data
         _updateOracleFromPyth(priceUpdateData);
+        // Ensure oracle data is fresh after update — reject stale prices
+        require(!oracle.isStale(), "Oracle stale");
         // Fetch user's position to validate and calculate withdrawal
         DataTypes.Position memory pos = positionModule.getPosition(msg.sender);
         // Ensure user actually has an open position to withdraw from
@@ -222,6 +239,9 @@ contract Vault is IVault {
         // Split and distribute exit fee to junior tranche, insurance, and treasury
         _distributeFees(exitFee);
 
+        // Enforce slippage protection — revert if net amount is below caller's minimum
+        require(received >= minReceived, "Slippage exceeded");
+
         // Send net USDC to the user after deducting fees
         require(usdc.transfer(msg.sender, received), "Transfer failed");
 
@@ -233,9 +253,11 @@ contract Vault is IVault {
     /// @param newLeverageBps New leverage in basis points
     /// @param priceUpdateData Pyth Hermes price update bytes
     // payable because callers must send ETH to cover Pyth oracle update fees
-    function adjustLeverage(int32 newLeverageBps, bytes[] calldata priceUpdateData) external payable whenActive {
+    function adjustLeverage(int32 newLeverageBps, bytes[] calldata priceUpdateData) external payable whenActive nonReentrant {
         // Update oracle first so leverage adjustment uses fresh pricing
         _updateOracleFromPyth(priceUpdateData);
+        // Ensure oracle data is fresh after update — reject stale prices
+        require(!oracle.isStale(), "Oracle stale");
         // Enforce leverage bounds on the new value
         require(newLeverageBps >= -40000 && newLeverageBps <= 40000, "Invalid leverage");
         // Enforce dynamic leverage cap based on current junior tranche ratio
@@ -419,7 +441,7 @@ contract Vault is IVault {
     /// @notice Update oracle from Pyth price data (can be called standalone by keeper)
     /// @param priceUpdateData Pyth Hermes price update bytes
     // Public entry point so off-chain keepers can push fresh prices without a trade
-    function updateOracle(bytes[] calldata priceUpdateData) external payable {
+    function updateOracle(bytes[] calldata priceUpdateData) external payable nonReentrant {
         // Delegate to internal helper that handles Pyth fee payment, price read, and TWAP push
         _updateOracleFromPyth(priceUpdateData);
     }
@@ -468,7 +490,7 @@ contract Vault is IVault {
         // Send treasury's share of fees to the treasury address
         if (treasuryAmount > 0) {
             // Only transfer if non-zero to save gas on zero-amount transfers
-            usdc.transfer(treasury, treasuryAmount);
+            require(usdc.transfer(treasury, treasuryAmount), "Treasury transfer failed");
         }
     }
 

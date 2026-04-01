@@ -261,23 +261,19 @@
 </div>
 
 <!-- Landing Page -->
-<div class="landing" style="padding-top:90px;">
-  <section class="hero">
+<div class="landing" id="landingPage" style="padding-top:90px;">
+  <div class="hero">
     <div class="hero-badge">
       <div class="hero-badge-dot"></div>
-      <span>Live on Ink Sepolia</span>
+      <span>Live on Testnet</span>
     </div>
-    <h1>Leveraged Exposure.<br>No Liquidation.</h1>
-    <p>
-      xLever delivers constant-leverage tokenized positions on any asset —
-      powered by Euler V2 vaults, Pyth oracles, and an auto-deleverage engine
-      that protects you from blowups.
-    </p>
+    <h1>Leveraged Exposure.<br>No Liquidations.</h1>
+    <p>Get up to ±4× constant leverage on tokenized assets like QQQ and SPY — on-chain, without daily rebalancing or liquidation risk. Powered by Euler V2 EVK.</p>
     <div class="hero-actions">
-      <a href="01-dashboard.html" class="btn-primary">Launch App &rarr;</a>
-      <a href="02-trading-terminal.html" class="btn-secondary">Explore Backtest</a>
+      <a href="#" class="btn-primary" id="launchAppBtn">Launch App <span style="font-size:18px">→</span></a>
+      <a href="#" class="btn-secondary" id="learnMoreBtn">How It Works</a>
     </div>
-  </section>
+  </div>
 
   <div class="stats-strip">
     <div class="stat-block"><div class="stat-num">&plusmn;4&times;</div><div class="stat-desc">Max Leverage</div></div>
@@ -286,47 +282,32 @@
     <div class="stat-block"><div class="stat-num">4</div><div class="stat-desc">Target Chains</div></div>
   </div>
 
-  <section class="features">
+  <div class="features">
     <div class="feature-card">
-      <div class="feature-icon">Lx</div>
+      <div class="feature-icon">×</div>
       <h3>Constant Leverage</h3>
-      <p>Pick your leverage once — xLever maintains it from entry. No daily resets, no compounding drag, no TQQQ-style decay.</p>
+      <p>Your leverage is fixed from entry — no daily resets, no volatility decay. Unlike TQQQ, you get exactly the multiple you chose.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">Ad</div>
-      <h3>Auto-Deleverage</h3>
-      <p>A 5-level cascade smoothly reduces exposure during drawdowns and re-levers on recovery. You stay in the game.</p>
+      <div class="feature-icon">⛑</div>
+      <h3>No Liquidation</h3>
+      <p>A two-tranche system absorbs losses. Auto-deleverage cascades protect everyone — your max loss is your deposit, never more.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">Ev</div>
-      <h3>Euler V2 Vaults</h3>
-      <p>Built on the Euler Vault Kit — battle-tested, modular, and composable. Your collateral earns yield while leveraged.</p>
+      <div class="feature-icon">⚡</div>
+      <h3>On-Chain & Permissionless</h3>
+      <p>Built on Euler V2 EVK with Pyth oracles. No middlemen, no KYC. Connect your wallet and trade.</p>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">Py</div>
-      <h3>Pyth Oracle TWAP</h3>
-      <p>15-minute TWAP pricing from Pyth Network prevents manipulation and gives the deleverage engine clean signals.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">Jt</div>
-      <h3>Junior Tranche</h3>
-      <p>Buffer capital absorbs first-loss. Junior LPs earn leveraged fees while cushioning senior positions.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">Ai</div>
-      <h3>AI Agent Layer</h3>
-      <p>Autonomous agents manage rebalancing, risk monitoring, and strategy execution — so you don't have to watch 24/7.</p>
-    </div>
-  </section>
+  </div>
 
-  <footer class="landing-footer">
-    <span>xLever Protocol &mdash; Peace, Love, Unity &amp; Respect</span>
+  <div class="landing-footer">
+    <span>© 2025 xLever Protocol</span>
     <div class="footer-links">
-      <a href="06-analytics-backtesting.html">Analytics</a>
-      <a href="05-risk-management.html">Risk</a>
-      <a href="08-admin-dashboard.html">Admin</a>
+      <a href="#">Docs</a>
+      <a href="#">GitHub</a>
+      <a href="#">Discord</a>
     </div>
-  </footer>
+  </div>
 </div>
 
 <script>
@@ -339,10 +320,23 @@
     document.addEventListener('mouseleave', () => fl.style.opacity = '0');
     document.addEventListener('mouseenter', () => fl.style.opacity = '1');
   })();
+
+  // Landing page navigation
+  document.getElementById('launchAppBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+  });
+  document.getElementById('learnMoreBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('landingPage').style.display = 'none';
+    document.getElementById('howItWorksPage').style.display = 'block';
+    window.scrollTo(0, 0);
+  });
 </script>
 
 <!-- Main App Container -->
-<div id="mainApp" class="main-app">
+<div id="mainApp" class="main-app" style="display:none;">
 <div class="header">
   <div class="header-left">
     <div class="logo">x<span>Lever</span></div>

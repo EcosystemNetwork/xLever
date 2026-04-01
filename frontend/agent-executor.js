@@ -26,7 +26,16 @@ const AgentExecutor = (() => {
   let _actionCount = 0      // Running total of actions taken this session, for stats display
   let _lastCheckTime = 0    // Timestamp of last action — used by accumulate mode to enforce DCA intervals
 
+  // Validates that a value is a finite number, returning the fallback if not
+  function _safeNum(val, fallback = 0) {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   // Permission boundaries — enforced in code, not just UI, so a compromised UI cannot bypass them
+  // NOTE: These permissions are client-side only and MUST be enforced server-side for production.
+  // A compromised or modified frontend can bypass these checks. Server-side validation is being
+  // added separately and is required before any mainnet deployment.
   const PERMISSIONS = {
     // Safe mode: can only reduce risk or exit — never increase exposure
     safe: {
@@ -209,7 +218,7 @@ const AgentExecutor = (() => {
     // Check daily move from OpenBB context — high intraday volatility triggers preventive deleverage
     if (state.marketContext) {
       // Use absolute value because both up and down moves create risk for leveraged positions
-      const dailyMove = Math.abs(state.marketContext.regularMarketChangePercent || 0)
+      const dailyMove = Math.abs(_safeNum(state.marketContext.regularMarketChangePercent, 0))
       // Log the comparison so users can see how close the market is to the trigger
       _log('WATCHER', `Daily QQQ move: ${dailyMove.toFixed(2)}%. Trigger: ${policy.volTrigger}%.`, 'on-surface-variant')
 
@@ -227,9 +236,10 @@ const AgentExecutor = (() => {
     // Check position drawdown — if unrealized loss exceeds the user's max drawdown, close to prevent further loss
     if (state.positionValue && state.position && state.position.isActive) {
       // Calculate deposit basis to measure drawdown as a percentage of invested capital
-      const deposit = parseFloat(state.position.deposit)
+      const deposit = _safeNum(parseFloat(state.position.deposit), 0)
       // PnL as percentage of deposit — negative means the position is underwater
-      const pnlPct = deposit > 0 ? (state.positionValue.pnl / deposit) * 100 : 0
+      const pnl = _safeNum(state.positionValue.pnl, 0)
+      const pnlPct = deposit > 0 ? (pnl / deposit) * 100 : 0
       // If drawdown exceeds the policy limit, close the position to stop the bleeding
       if (pnlPct < -policy.maxDrawdown) {
         actions.push({
@@ -260,10 +270,13 @@ const AgentExecutor = (() => {
     }
 
     // Read current leverage from the on-chain position data
-    const currentLev = state.position.leverage
+    const currentLev = _safeNum(state.position.leverage, 0)
+    // Validate policy bounds before use
+    const targetLev = _safeNum(policy.targetLev, 1)
+    const band = _safeNum(policy.band, 0.5)
     // Calculate the allowed band: target +/- tolerance (e.g. 2.0x +/- 0.5 = [1.5, 2.5])
-    const lo = policy.targetLev - policy.band   // Lower bound: below this means leverage drifted too low
-    const hi = policy.targetLev + policy.band   // Upper bound: above this means leverage drifted too high
+    const lo = targetLev - band   // Lower bound: below this means leverage drifted too low
+    const hi = targetLev + band   // Upper bound: above this means leverage drifted too high
 
     // Log current state so the user can see where leverage sits relative to the band
     _log('WATCHER', `Leverage: ${currentLev.toFixed(2)}x. Band: [${lo.toFixed(2)}x - ${hi.toFixed(2)}x].`, 'on-surface-variant')
@@ -273,7 +286,7 @@ const AgentExecutor = (() => {
       actions.push({
         type: 'adjust',
         reason: `Leverage ${currentLev.toFixed(2)}x below ${lo.toFixed(2)}x floor`,
-        targetLeverage: policy.targetLev,   // Rebalance to the center of the band, not the edge
+        targetLeverage: targetLev,   // Rebalance to the center of the band, not the edge
         severity: 'secondary',
       })
     } else if (currentLev > hi) {
@@ -281,7 +294,7 @@ const AgentExecutor = (() => {
       actions.push({
         type: 'adjust',
         reason: `Leverage ${currentLev.toFixed(2)}x above ${hi.toFixed(2)}x ceiling`,
-        targetLeverage: policy.targetLev,   // Rebalance to center, not the edge
+        targetLeverage: targetLev,   // Rebalance to center, not the edge
         severity: 'secondary',
       })
     }
@@ -297,9 +310,10 @@ const AgentExecutor = (() => {
     // Check profit-take first — taking profit has priority over buying more
     if (policy.profitTake && state.positionValue && state.position && state.position.isActive) {
       // Calculate deposit basis to measure gain as a percentage
-      const deposit = parseFloat(state.position.deposit)
+      const deposit = _safeNum(parseFloat(state.position.deposit), 0)
       // Unrealized gain as percentage of deposit
-      const pnlPct = deposit > 0 ? (state.positionValue.pnl / deposit) * 100 : 0
+      const pnl = _safeNum(state.positionValue.pnl, 0)
+      const pnlPct = deposit > 0 ? (pnl / deposit) * 100 : 0
       // If gain exceeds the user's profit threshold, take partial profit
       if (pnlPct > policy.profitThreshold) {
         actions.push({
@@ -320,12 +334,19 @@ const AgentExecutor = (() => {
 
     // Buy if enough time has elapsed since last action, or if this is the very first tick (_actionCount === 0)
     if (now - _lastCheckTime >= minWait || _actionCount === 0) {
+      // Validate buy amount and leverage before creating the action
+      const buyAmount = _safeNum(policy.buyAmount, 0)
+      const leverage = _safeNum(policy.leverage, 1)
+      if (buyAmount <= 0 || leverage <= 0) {
+        _log('POLICY', `Invalid DCA params: amount=${policy.buyAmount}, leverage=${policy.leverage}. Skipping.`, 'error')
+        return actions
+      }
       actions.push({
         type: 'buy',
         // Log the DCA parameters so the user sees exactly what will be purchased
-        reason: `DCA: $${policy.buyAmount} at ${policy.leverage}x (${policy.interval} interval)`,
-        amount: policy.buyAmount,       // USD amount to invest in this DCA tranche
-        leverage: policy.leverage,      // Leverage to apply to this purchase
+        reason: `DCA: $${buyAmount} at ${leverage}x (${policy.interval} interval)`,
+        amount: buyAmount,       // USD amount to invest in this DCA tranche
+        leverage: leverage,      // Leverage to apply to this purchase
         severity: 'secondary',
       })
     } else {
@@ -348,6 +369,11 @@ const AgentExecutor = (() => {
 
     // Handle leverage adjustment actions (deleverage or rebalance)
     if (action.type === 'deleverage' || action.type === 'adjust') {
+      // Validate target leverage is a finite number before proceeding
+      if (!Number.isFinite(action.targetLeverage)) {
+        _log('POLICY', `BLOCKED: invalid targetLeverage value (${action.targetLeverage}). Skipping.`, 'error')
+        return false
+      }
       // Block leverage reduction if the policy mode doesn't allow it
       if (!perms.canReduceLeverage && action.targetLeverage < (_policy.targetLev || 0)) {
         _log('POLICY', `BLOCKED: ${action.type} not permitted by ${_policy.mode} policy.`, 'error')
