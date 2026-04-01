@@ -4,39 +4,24 @@
  * Include this script on every page and call XNav.init('pageName').
  */
 const XNav = (() => {
-  // Pages are tagged with a mode so the nav shows only relevant links.
-  // mode: 'trade' = live wallet actions, 'research' = simulations/education, null = both modes
   const PAGES = [
-    { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html',              mode: 'trade' },
-    { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html',       mode: 'trade' },
-    { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html',       mode: 'trade' },
-    { id: 'risk',       label: 'Risk',        href: '05-risk-management.html',        mode: 'trade' },
-    { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html',      mode: 'trade' },
-    { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html',  mode: 'research' },
-    { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html',    mode: 'research' },
-    { id: 'operations', label: 'Operations',  href: '07-operations-control.html',     mode: null },
-    { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html',        mode: null },
+    { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html' },
+    { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html' },
+    { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html' },
+    { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html' },
+    { id: 'risk',       label: 'Risk',        href: '05-risk-management.html' },
+    { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html' },
+    { id: 'operations', label: 'Operations',  href: '07-operations-control.html' },
+    { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html' },
+    { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html' },
   ];
 
-  function getMode() {
-    return localStorage.getItem('xlever-mode') || 'trade';
-  }
-
-  function pagesForMode(mode) {
-    return PAGES.filter(p => p.mode === mode || p.mode === null);
-  }
-
   function init(activePageId) {
-    // Apply mode class to body immediately so CSS visibility rules work on all pages
-    const mode = getMode();
-    document.body.classList.add(`mode-${mode}`);
-
     renderNav(activePageId);
     renderMobileDrawer(activePageId);
 
     wireUpMobileMenu();
     wireUpNetworkSwitcher();
-    wireUpModeToggle(activePageId);
   }
 
   function navLink(page, isActive) {
@@ -54,8 +39,6 @@ const XNav = (() => {
   }
 
   function renderNav(activeId) {
-    const mode = getMode();
-    const visiblePages = pagesForMode(mode);
     const nav = document.createElement('nav');
     nav.id = 'xnav';
     nav.className = 'bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50';
@@ -64,14 +47,8 @@ const XNav = (() => {
         <a href="index.html" class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter no-underline">
           <span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span>
         </a>
-        <div class="mode-toggle" style="display:flex;gap:2px;background:#0a0b0e;border:1px solid #252833;border-radius:8px;padding:2px;">
-          <button class="nav-mode-btn${mode === 'trade' ? ' active' : ''}" data-mode="trade"
-            style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;${mode === 'trade' ? 'background:#00e676;color:#0a0b0e;' : 'background:transparent;color:#555970;'}">Trade</button>
-          <button class="nav-mode-btn${mode === 'research' ? ' active' : ''}" data-mode="research"
-            style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;${mode === 'research' ? 'background:#7c4dff;color:#fff;' : 'background:transparent;color:#555970;'}">Research</button>
-        </div>
-        <div class="hidden md:flex gap-1 items-center" id="navLinks">
-          ${visiblePages.map(p => navLink(p, p.id === activeId)).join('\n          ')}
+        <div class="hidden md:flex gap-1 items-center">
+          ${PAGES.map(p => navLink(p, p.id === activeId)).join('\n          ')}
         </div>
       </div>
       <div class="flex items-center gap-3">
@@ -89,15 +66,13 @@ const XNav = (() => {
   }
 
   function renderMobileDrawer(activeId) {
-    const mode = getMode();
-    const visiblePages = pagesForMode(mode);
     const drawer = document.createElement('div');
     drawer.id = 'mobileNav';
     drawer.className = 'md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden';
     drawer.style.transition = 'all 0.25s ease';
     drawer.innerHTML = `
-      <div class="flex flex-col p-3 gap-1" id="mobileNavLinks">
-        ${visiblePages.map(p => mobileLink(p, p.id === activeId)).join('\n        ')}
+      <div class="flex flex-col p-3 gap-1">
+        ${PAGES.map(p => mobileLink(p, p.id === activeId)).join('\n        ')}
         <div class="flex items-center gap-2 mt-2 px-4 py-2">
           <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
           <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span>
@@ -152,50 +127,6 @@ const XNav = (() => {
         }
       });
     }
-  }
-
-  function wireUpModeToggle(activeId) {
-    document.querySelectorAll('.nav-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const newMode = btn.dataset.mode;
-        localStorage.setItem('xlever-mode', newMode);
-
-        // Update button styles
-        document.querySelectorAll('.nav-mode-btn').forEach(b => {
-          b.classList.remove('active');
-          if (b.dataset.mode === 'trade') {
-            b.style.background = 'transparent'; b.style.color = '#555970';
-          } else {
-            b.style.background = 'transparent'; b.style.color = '#555970';
-          }
-        });
-        btn.classList.add('active');
-        if (newMode === 'trade') {
-          btn.style.background = '#00e676'; btn.style.color = '#0a0b0e';
-        } else {
-          btn.style.background = '#7c4dff'; btn.style.color = '#fff';
-        }
-
-        // Update nav links
-        const visiblePages = pagesForMode(newMode);
-        const navLinks = document.getElementById('navLinks');
-        if (navLinks) {
-          navLinks.innerHTML = visiblePages.map(p => navLink(p, p.id === activeId)).join('\n');
-        }
-        const mobileNavLinks = document.getElementById('mobileNavLinks');
-        if (mobileNavLinks) {
-          const networkBadge = `<div class="flex items-center gap-2 mt-2 px-4 py-2"><div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div><span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span></div>`;
-          mobileNavLinks.innerHTML = visiblePages.map(p => mobileLink(p, p.id === activeId)).join('\n') + networkBadge;
-        }
-
-        // Notify mode-switch.js on the landing page (if present)
-        if (window.XMode) window.XMode.set(newMode);
-
-        // Apply mode class to body for pages that don't have mode-switch.js
-        document.body.classList.remove('mode-trade', 'mode-research');
-        document.body.classList.add(`mode-${newMode}`);
-      });
-    });
   }
 
   function wireUpMobileMenu() {
