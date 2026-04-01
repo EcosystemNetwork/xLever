@@ -46,10 +46,10 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 ## Deployed Contracts (Ink Sepolia)
 
 ### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅
-- **wSPYx Vault**: [`0x8D7DD0A1FD26A2602837B028afB7A1f1b21DA9E7`](https://explorer-sepolia.inkonchain.com/address/0x8D7DD0A1FD26A2602837B028afB7A1f1b21DA9E7)
-- **wQQQx Vault**: [`0xAc8a09e63FC010C5968e34135a7Dc34D4a9448ab`](https://explorer-sepolia.inkonchain.com/address/0xAc8a09e63FC010C5968e34135a7Dc34D4a9448ab)
+- **wSPYx Vault**: [`0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd`](https://explorer-sepolia.inkonchain.com/address/0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd)
+- **wQQQx Vault**: [`0xd76378af8494eafa6251d13dcbcaa4f39e70b90b`](https://explorer-sepolia.inkonchain.com/address/0xd76378af8494eafa6251d13dcbcaa4f39e70b90b)
 
-**Status:** ✅ **FULLY FUNCTIONAL** - Contracts deployed and integrated with UI. Complete position management working on-chain!
+**Status:** ✅ **FULLY FUNCTIONAL WITH JUNIOR TRANCHE** - Full vault contracts with junior liquidity provider support deployed and integrated!
 
 **Features:**
 - ✅ Open positions with USDC deposit and leverage selection (-4x to +4x)
@@ -57,6 +57,9 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 - ✅ Asset selection (SPY/QQQ)
 - ✅ Real-time position tracking
 - ✅ Balance updates
+- ✅ **Junior tranche deposits and withdrawals**
+- ✅ **First-loss capital pool for LPs**
+- ✅ **Fee distribution to junior LPs**
 - ✅ Fully integrated frontend UI with chart visualization
 
 **How to Use:**
