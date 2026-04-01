@@ -994,6 +994,10 @@ const XAuthGate = (() => {
   return { init };
 })();
 
+if (typeof window !== 'undefined') {
+  window.XAuthGate = XAuthGate;
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // AUTO-INIT

@@ -203,7 +203,7 @@ class MarketIntelligence:
                 else None
             )
             if not price_data:
-                raise price_data
+                raise RuntimeError("Failed to fetch price data and no cached price available")
 
         if isinstance(pool_state, Exception):
             logger.warning(f"Failed to fetch pool state: {pool_state}")

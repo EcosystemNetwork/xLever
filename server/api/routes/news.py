@@ -12,7 +12,7 @@ import asyncio
 import hashlib
 import logging
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -52,7 +52,7 @@ class NewsInject(BaseModel):
 MAX_BUFFER = 500
 _news_buffer: deque[dict[str, Any]] = deque(maxlen=MAX_BUFFER)
 _subscribers: list[asyncio.Queue] = []
-_seen_hashes: set[str] = set()
+_seen_hashes: OrderedDict[str, None] = OrderedDict()
 MAX_SEEN = 2000
 
 
@@ -65,12 +65,9 @@ def _publish(item: dict[str, Any]) -> bool:
     h = _hash_headline(item["headline"])
     if h in _seen_hashes:
         return False
-    _seen_hashes.add(h)
-    if len(_seen_hashes) > MAX_SEEN:
-        # Evict oldest half
-        keep = list(_seen_hashes)[-MAX_SEEN // 2 :]
-        _seen_hashes.clear()
-        _seen_hashes.update(keep)
+    _seen_hashes[h] = None
+    while len(_seen_hashes) > MAX_SEEN:
+        _seen_hashes.popitem(last=False)  # FIFO: evict oldest entry
 
     item["id"] = f"{item.get('timestamp', int(time.time() * 1000))}-{h}"
     item.setdefault("timestamp", int(time.time() * 1000))

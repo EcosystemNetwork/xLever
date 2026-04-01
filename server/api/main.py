@@ -95,7 +95,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     # yield separates startup from shutdown — FastAPI runs the app between these points
     yield
-    # Shutdown: no cleanup needed yet (connection pool is handled by SQLAlchemy engine disposal)
+    # Shutdown: close shared HTTP clients to release connections
+    from .routes.lending import _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
 
 
 # Instantiate the FastAPI app with metadata used in the auto-generated OpenAPI docs

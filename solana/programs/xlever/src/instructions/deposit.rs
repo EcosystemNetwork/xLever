@@ -41,9 +41,9 @@ pub fn handler(
     // Pro-rated entry fee: charge 1 day's worth as upfront cost.
     let entry_fee = (amount as u128)
         .checked_mul(fee as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(10_000 * 365)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
     let net_deposit = amount.checked_sub(entry_fee).ok_or(XLeverError::MathOverflow)?;
 
     // --- Transfer USDC from user to vault ------------------------------
@@ -63,16 +63,17 @@ pub fn handler(
         // Adding to existing position — blend entry price.
         let old_notional = (position.deposit_amount as u128)
             .checked_mul(position.entry_price as u128)
-            .unwrap();
+            .ok_or(XLeverError::MathOverflow)?;
         let new_notional = (net_deposit as u128)
             .checked_mul(current_price as u128)
-            .unwrap();
+            .ok_or(XLeverError::MathOverflow)?;
         let total_deposit = position.deposit_amount as u128 + net_deposit as u128;
+        require!(total_deposit > 0, XLeverError::MathOverflow);
         let blended_price = old_notional
             .checked_add(new_notional)
-            .unwrap()
+            .ok_or(XLeverError::MathOverflow)?
             .checked_div(total_deposit)
-            .unwrap();
+            .ok_or(XLeverError::MathOverflow)?;
 
         position.deposit_amount = total_deposit as u64;
         position.entry_price = blended_price as u64;

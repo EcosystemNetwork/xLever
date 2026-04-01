@@ -469,3 +469,6 @@ const RiskEngine = (() => {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = RiskEngine; // Node/CommonJS export for the test harness
 }
+if (typeof window !== 'undefined') {
+  window.RiskEngine = RiskEngine;
+}

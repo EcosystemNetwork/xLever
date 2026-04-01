@@ -69,7 +69,7 @@ const metadata = {
   // Dynamic origin ensures metadata works across localhost, staging, and production deployments
   url: window.location.origin,
   // App icon shown in wallet UIs — reinforces brand trust during connection approval
-  icons: ['https://xlever.io/icon.png']
+  icons: ['https://xlever.markets/icon.png']
 }
 
 // Initialize the Reown AppKit modal — this is the central wallet connection manager for the entire xLever frontend

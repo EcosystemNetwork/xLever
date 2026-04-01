@@ -3,7 +3,7 @@
 import json
 import re
 from typing import Optional, Dict, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from loguru import logger
 
@@ -49,7 +49,7 @@ class TradingDecision:
     # Validation flags
     blocked: bool = False
     block_reason: Optional[str] = None
-    rule_violations: list[str] = None
+    rule_violations: list[str] = field(default_factory=list)
 
     # Metadata
     raw_response: str = ""

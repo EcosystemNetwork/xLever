@@ -155,7 +155,8 @@ class WebSocketManager:
         Args:
             websocket: WebSocket connection
         """
-        client_id = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
+        addr = websocket.remote_address or ("unknown", 0)
+        client_id = f"{addr[0]}:{addr[1]}" if len(addr) >= 2 else str(addr)
         logger.info(f"New WebSocket connection: {client_id}")
 
         # Add to connections

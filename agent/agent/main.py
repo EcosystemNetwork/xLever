@@ -65,6 +65,7 @@ class TradingAgent:
         # Agent state
         self._current_position: Optional[Position] = None
         self._shutdown_requested = False
+        self._available_capital_usdc: float = 10000.0  # Updated from wallet balance when available
 
         logger.info(
             f"Trading agent created (mode: {'PAPER' if paper_mode else 'LIVE'})"
@@ -196,7 +197,7 @@ class TradingAgent:
         decision = await self.llm_strategy.decide(
             market_state=market_state,
             current_position=self._current_position,
-            available_capital_usdc=10000.0,  # TODO: Track actual capital
+            available_capital_usdc=self._available_capital_usdc,
             max_leverage_bps=self.settings.risk.max_leverage_bps,
         )
 

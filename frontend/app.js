@@ -718,7 +718,8 @@ async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenB
 async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo Finance is free and widely available when OpenBB is down
   const endDate = Math.floor(Date.now() / 1000); // Yahoo uses Unix timestamps (seconds since epoch), not ISO dates
   const startDate = endDate - (years * 365 * 24 * 60 * 60); // Approximate years in seconds — close enough for historical data range requests
-  const API_BASE_URL = window.location.hostname === 'localhost' ? '' : 'https://api.xlever.markets'; // Use local proxy in dev, xlever API in production
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+  const API_BASE_URL = isLocal ? '' : 'https://api.xlever.markets'; // Use local proxy in dev, xlever API in production
   const url = `${API_BASE_URL}/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`; // Proxied through our Express server to avoid CORS and rate-limiting
 
   const resp = await fetch(url); // Fetch from our Yahoo proxy endpoint

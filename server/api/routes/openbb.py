@@ -9,6 +9,7 @@ Falls back gracefully if OpenBB is not installed or a provider is unavailable.
 # logging for recording OpenBB initialization status and errors
 import logging
 import re
+from datetime import datetime as _dt
 # Optional type hint for nullable query parameters
 from typing import Optional
 
@@ -130,6 +131,15 @@ async def get_historical(
     """Historical OHLCV data via OpenBB."""
     symbol = _validate_symbol(symbol)
     provider = _validate_provider(provider)
+    # Validate date formats if provided
+    for label, val in [("start_date", start_date), ("end_date", end_date)]:
+        if val:
+            try:
+                _dt.strptime(val, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid {label} format. Use YYYY-MM-DD.")
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=400, detail="start_date must be before end_date")
     obb = get_obb()
     try:
         kwargs = {"symbol": symbol, "provider": provider, "interval": interval}

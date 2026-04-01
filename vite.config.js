@@ -11,6 +11,13 @@ export default defineConfig({
   // Set the project root to the frontend directory so Vite resolves HTML and assets from there
   root: 'frontend',
   envDir: resolve(__dirname),
+  resolve: {
+    alias: {
+      // Stub out @base-org/account — wagmi bundles a Coinbase Smart Wallet connector that imports it,
+      // but xLever only supports mainnet, Ink Sepolia, Solana, and TON. This silences the resolve error.
+      '@base-org/account': resolve(__dirname, 'frontend/stubs/base-org-account.js'),
+    }
+  },
   // Build configuration controls how Rollup bundles the production output
   build: {
     // Output the production build one level up into /dist (relative to root, so project-root/dist)
@@ -56,7 +63,7 @@ export default defineConfig({
     proxy: {
       // Any request starting with /api is forwarded to the FastAPI server
       '/api': {
-        target: 'http://localhost:8001',
+        target: 'http://localhost:8000',
         // changeOrigin rewrites the Host header so FastAPI sees localhost:8000, not localhost:3000
         changeOrigin: true,
       }

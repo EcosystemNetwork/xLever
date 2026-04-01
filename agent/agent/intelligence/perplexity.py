@@ -295,7 +295,10 @@ class PerplexityClient:
             Parsed PerplexityResponse
         """
         try:
-            content = response_data["choices"][0]["message"]["content"]
+            choices = response_data.get("choices", [])
+            if not choices:
+                raise ValueError("No choices in Perplexity response")
+            content = choices[0]["message"]["content"]
             model = response_data.get("model", self.model)
             usage = response_data.get("usage", {})
             citations = response_data.get("citations", [])
