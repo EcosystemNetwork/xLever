@@ -68,6 +68,8 @@ interface IVault {
     function getFundingRate() external view returns (int256 rateBps);
     // Read annualized carry rate passed through from Euler borrowing costs
     function getCarryRate() external view returns (uint256 annualBps);
+    // Read fee configuration (entry/exit fee rates, fee splits, funding params)
+    function getFeeConfig() external view returns (DataTypes.FeeConfig memory);
 
     // Admin functions — restricted to vault admin
     // Emergency pause — stops deposits and leverage adjustments

@@ -204,6 +204,29 @@ const XNav = (() => {
     }
 
     document.body.prepend(nav);
+
+    // Hide the Reown AppKit loading spinner inside shadow DOM
+    killAppkitSpinner();
+  }
+
+  function killAppkitSpinner() {
+    const css = `wui-loading-spinner { display: none !important; }
+      wui-loading-hexagon { display: none !important; }`;
+    const poll = setInterval(() => {
+      document.querySelectorAll('appkit-button, appkit-connect-button, w3m-button').forEach(el => {
+        const roots = [el.shadowRoot];
+        while (roots.length) {
+          const root = roots.pop();
+          if (!root || root.querySelector('[data-xlever-no-spin]')) continue;
+          const s = document.createElement('style');
+          s.textContent = css;
+          s.setAttribute('data-xlever-no-spin', '');
+          root.appendChild(s);
+          root.querySelectorAll('*').forEach(child => { if (child.shadowRoot) roots.push(child.shadowRoot); });
+        }
+      });
+    }, 500);
+    setTimeout(() => clearInterval(poll), 15000);
   }
 
   /**

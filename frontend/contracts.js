@@ -10,6 +10,7 @@
 import { createPublicClient, createWalletClient, http, custom, parseUnits, formatUnits, encodeFunctionData, parseEther } from 'viem'
 import { getPriceForFeed } from './pyth.js'
 import { PYTH_FEEDS, ASSET_FEED_MAP } from './assets.js'
+import { CONTRACT_ADDRESSES, VAULT_REGISTRY_CONFIG, RPC_URLS, CHAIN_ID } from './config.js'
 
 // ═══════════════════════════════════════════════════════════════
 // CHAIN CONFIG
@@ -20,7 +21,7 @@ export const inkSepolia = {
   name: 'Ink Sepolia',
   nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://rpc-gel-sepolia.inkonchain.com'] },
+    default: { http: [RPC_URLS[763373]] },
   },
   blockExplorers: {
     default: { name: 'Ink Explorer', url: 'https://explorer-sepolia.inkonchain.com' },
@@ -32,7 +33,7 @@ export const ethSepolia = {
   name: 'Ethereum Sepolia',
   nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://ethereum-sepolia-rpc.publicnode.com'] },
+    default: { http: [RPC_URLS[11155111]] },
   },
   blockExplorers: {
     default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' },
@@ -90,74 +91,16 @@ export function getActiveChainConfig() { return CHAIN_CONFIGS[activeChainId] }
 // ═══════════════════════════════════════════════════════════════
 
 export const ADDRESSES = {
-  evc: '0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c',
-  vault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',  // Active vault (switches with asset)
-  usdc: '0x6b57475467cd854d36Be7FB614caDa5207838943',
-  wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e',
-  wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
-  spyVault: '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
-  qqqVault: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
-  pyth: '0x2880aB155794e7179c9eE2e38200202908C17B43',
-  pythAdapter: '0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f',
-  euler: {
-    evc: '0x0C9a3dd6b8F28529d72d7f9cE918D493519EE383',        // Euler's canonical EVC on Ink Sepolia
-    eVaultFactory: '0x29a56a1b8214D9Cf7c5561811750D5cBDb45CC8e',
-    protocolConfig: '0x4cD6BF1D183264c02Be7748Cb5cd3A47d013351b',
-    permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
-  },
-  xstocks: {
-    QQQx: '0xa753a7395cae905cd615da0b82a53e0560f250af',
-    SPYx: '0x90a2a4c76b5d8c0bc892a69ea28aa775a8f2dd48',
-  },
+  ...CONTRACT_ADDRESSES,
+  vault: CONTRACT_ADDRESSES.qqqVault || '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',  // Active vault (switches with asset)
 }
 
 // ═══════════════════════════════════════════════════════════════
-// VAULT REGISTRY — maps ticker symbol → deployed vault address
-// Add new vault addresses here after deploying via VaultFactory
+// VAULT REGISTRY — sourced from config.js (env-overridable)
+// To override in production, inject window.__XLEVER_CONFIG__.vaultRegistry
 // ═══════════════════════════════════════════════════════════════
 
-export const VAULT_REGISTRY = {
-  // ── Index ETFs ──
-  QQQ:  '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
-  SPY:  '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
-  VUG:  '0x09F7D7717a67783298d5Ca6C0fe036C39951D337',
-  VGK:  '0x5a446C69c8C635ae473Ed859b1853Bd580F671B7',
-  VXUS: '0x5FA09F20C04533a8564F280A9127Cf63aDE08621',
-  SGOV: '0x445B9A6B774E42BeF772671D2eEA6529bc28bC26',
-  // ── Sector ETFs ──
-  SMH:  '0x30A37d04aFa2648FA4427b13c7ca380490F46BaD',
-  XLE:  '0x6F5C1fB59C4887dD3938fAF19D46C21d1dFF8cF6',
-  XOP:  '0x73ad91867737622971D9f928AD65f2078efe6B0ec',
-  ITA:  '0xD4F23c93237D9594b13662D1Ce7B2078efe6B0ec',
-  // ── Mega-cap Tech ──
-  AAPL: '0x7D2C5FA48954F601faF30ed4A1611150E7CA72b8',
-  NVDA: '0x31026d0de55Eb7523EeADeBB58fec60876235f09',
-  TSLA: '0xe212D68B4e18747b2bAb256090c1d09Ab9A5371a',
-  DELL: '0x5b493Fc8B66A6827f7A1658BFcFA01693534326e',
-  SMCI: '0xab455997817026cCf4791Bb565189Dd873ECE675',
-  ANET: '0x28AFF61B3801eE173CAfaeCdD5Ff78D65B478b3E',
-  VRT:  '0x63b25f2d081e02475F5B4F99f0966EA2e7a3C54a',
-  SNDK: '0x4D1785862e24C9fC719B0C2ff3749C67fD315562',
-  // ── Semiconductors ──
-  KLAC: '0xf8D8c163e8B36799e4C719384AE20DD7873A5DfE',
-  LRCX: '0xb4288Ba6B4C61b64cc2d5d3Da1466dE6Cd904398',
-  AMAT: '0x83B11A1A46182B933674607B10643Ac97D104247',
-  TER:  '0x2d3b2B1F563b7552f2aB24250164C4a7379a4c33',
-  // ── Energy & Infrastructure ──
-  CEG:  '0xCFd3631169Ba659744A55904774B03346795e1F1',
-  GEV:  '0x3Ac370b7617350f3C7eff089541dd7F0E886f7e5',
-  SMR:  '0x184D592eAf314c81877532CBda6Dc1fB8A74Ed68',
-  ETN:  '0xc235cC4efCf42E98385A9132dac093d1426a5ED2',
-  PWR:  '0xacF8600BCBfde39Fc5aF017E7d9009310bEC0D6B',
-  APLD: '0xCd258E69A5Cc4A7E6D6Ea7219355CeB0a3153472',
-  // ── Commodities ──
-  SLV:  '0x594332f239Fe809Ccf6B3Dd791Eb8252A3efA38c',
-  PPLT: '0x46ce7cd72763B784977349686AEA72B84d3F86B6',
-  PALL: '0xEC9455F29A5a7A2a5F496bB7D4B428A1df3850dF',
-  // ── Crypto-adjacent ──
-  STRK: '0x5fcAbBc1e9ab0bEca3d6cd9EF0257F2369230D12',
-  BTGO: '0x0a66152096f37F83D41c56534022e746B159b052',
-}
+export const VAULT_REGISTRY = VAULT_REGISTRY_CONFIG
 
 // Backfill: Ink Sepolia uses VAULT_REGISTRY as its vault map
 CHAIN_CONFIGS[763373].vaults = VAULT_REGISTRY
@@ -249,6 +192,18 @@ export const VAULT_ABI = [
   { type: 'function', name: 'getMaxLeverage', inputs: [], outputs: [{ name: 'maxLeverageBps', type: 'int32' }], stateMutability: 'view' },
   { type: 'function', name: 'getFundingRate', inputs: [], outputs: [{ name: 'rateBps', type: 'int256' }], stateMutability: 'view' },
   { type: 'function', name: 'getCarryRate', inputs: [], outputs: [{ name: 'annualBps', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getFeeConfig', inputs: [], outputs: [{
+    name: '', type: 'tuple', components: [
+      { name: 'baseEntryFeeBps', type: 'uint16' },
+      { name: 'baseExitFeeBps', type: 'uint16' },
+      { name: 'protocolSpreadBps', type: 'uint16' },
+      { name: 'maxFundingRateBps', type: 'uint16' },
+      { name: 'fundingInterval', type: 'uint32' },
+      { name: 'juniorFeeSplit', type: 'uint16' },
+      { name: 'insuranceFeeSplit', type: 'uint16' },
+      { name: 'treasuryFeeSplit', type: 'uint16' },
+    ]
+  }], stateMutability: 'view' },
   { type: 'function', name: 'getJuniorValue', inputs: [], outputs: [{ name: 'totalValue', type: 'uint256' }, { name: 'sharePrice', type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'getOracleState', inputs: [], outputs: [{
     name: '', type: 'tuple', components: [
@@ -526,6 +481,17 @@ export async function getFundingRate() {
 export async function getJuniorValue() {
   if (!ADDRESSES.vault) return { totalValue: 0n, sharePrice: 0n }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getJuniorValue' })
+}
+
+/**
+ * Read the fee configuration from the vault's FeeEngine contract.
+ * Returns entry/exit fee rates, fee splits, and funding parameters.
+ *
+ * @returns {Promise<Object>} Fee config with fields in basis points
+ */
+export async function readFeeConfig() {
+  if (!ADDRESSES.vault) return null
+  return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getFeeConfig' })
 }
 
 // ═══════════════════════════════════════════════════════════════

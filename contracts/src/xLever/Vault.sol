@@ -62,6 +62,12 @@ contract Vault is IVault {
         _;
     }
 
+    /// @notice Allow when protocol is not in emergency (state 3). Permits paused-state withdrawals.
+    modifier whenNotEmergency() {
+        require(poolState.protocolState != 3, "Protocol in emergency");
+        _;
+    }
+
     modifier onlyAgentOrAdmin() {
         require(msg.sender == agentOperator || msg.sender == admin, "Only agent or admin");
         _;
@@ -218,6 +224,7 @@ contract Vault is IVault {
         // Enforce oracle freshness for withdrawal settlement
         require(!oracle.isStale(), "Oracle stale");
         require(!oracle.isCircuitBroken(), "Circuit breaker tripped");
+        require(oracle.hasSufficientUpdates(), "Insufficient oracle updates");
 
         (uint256 positionValue, ) = positionModule.calculatePositionValue(msg.sender);
         require(amount <= positionValue, "Insufficient balance");
@@ -275,6 +282,7 @@ contract Vault is IVault {
         // Enforce oracle freshness for leverage adjustment
         require(!oracle.isStale(), "Oracle stale");
         require(!oracle.isCircuitBroken(), "Circuit breaker tripped");
+        require(oracle.hasSufficientUpdates(), "Insufficient oracle updates");
 
         // Update position (resets entry TWAP to current oracle-backed price)
         positionModule.adjustLeverage(msg.sender, newLeverageBps);
@@ -326,8 +334,8 @@ contract Vault is IVault {
         emit Deposit(msg.sender, amount, 0, false);
     }
 
-    /// @notice Withdraw from junior tranche
-    function withdrawJunior(uint256 shares) external returns (uint256 amount) {
+    /// @notice Withdraw from junior tranche (blocked during emergency to protect first-loss capital)
+    function withdrawJunior(uint256 shares) external whenNotEmergency returns (uint256 amount) {
         amount = juniorTranche.withdraw(shares);
         poolState.totalJuniorDeposits -= uint128(amount);
 
@@ -471,6 +479,11 @@ contract Vault is IVault {
             poolState.netExposure,
             poolState.grossLongExposure + poolState.grossShortExposure
         );
+    }
+
+    /// @notice Get fee configuration (entry/exit fees, splits, funding params)
+    function getFeeConfig() external view returns (DataTypes.FeeConfig memory) {
+        return feeEngine.getFeeConfig();
     }
 
     /// @notice Get carry rate

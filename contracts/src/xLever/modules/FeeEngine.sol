@@ -194,6 +194,11 @@ contract FeeEngine {
         emit FeeConfigUpdated(newConfig);
     }
 
+    /// @notice Get fee configuration as a struct (for frontend reads)
+    function getFeeConfig() external view returns (DataTypes.FeeConfig memory) {
+        return feeConfig;
+    }
+
     /// @notice Distribute collected fees
     // Pure calculation — splits total fees according to configured ratios
     function distributeFees(uint256 totalFees) external view returns (

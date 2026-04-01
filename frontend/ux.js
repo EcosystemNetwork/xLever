@@ -905,6 +905,10 @@ const XAuthGate = (() => {
     _pollWallet();
   }
 
+  /**
+   * Initialize block mode: hide the main content and show a wallet-connect gate overlay.
+   * @private
+   */
   function _initBlockMode() {
     if (!_mainEl) return;
     _mainEl.style.display = 'none';
@@ -924,6 +928,11 @@ const XAuthGate = (() => {
     _mainEl.parentNode.insertBefore(_gateEl, _mainEl);
   }
 
+  /**
+   * Initialize disable mode: dim and disable action buttons until wallet connects.
+   * @param {string[]} actionSelectors - CSS selectors for buttons to disable
+   * @private
+   */
   function _initDisableMode(actionSelectors) {
     if (!actionSelectors.length) return;
     _disabledEls = [];
@@ -935,6 +944,11 @@ const XAuthGate = (() => {
     if (!_isConnected()) _setActionsDisabled(true);
   }
 
+  /**
+   * Enable or disable the tracked action buttons with visual feedback.
+   * @param {boolean} disabled - True to disable (dim + not-allowed cursor), false to restore
+   * @private
+   */
   function _setActionsDisabled(disabled) {
     _disabledEls.forEach(({ el, origTitle }) => {
       el.disabled = disabled;
@@ -950,6 +964,11 @@ const XAuthGate = (() => {
     });
   }
 
+  /**
+   * Check if a wallet is currently connected via Reown AppKit.
+   * @returns {boolean} True if a wallet is connected
+   * @private
+   */
   function _isConnected() {
     var w = window.xLeverWallet;
     if (!w) return false;
@@ -958,6 +977,13 @@ const XAuthGate = (() => {
     return false;
   }
 
+  /**
+   * Apply the current wallet connection state to the UI.
+   * In block mode: show/hide the gate overlay and main content.
+   * In disable mode: enable/disable action buttons.
+   * Fires the onConnect callback once when first connected.
+   * @private
+   */
   function _applyState() {
     var connected = _isConnected();
     if (_mode === 'block') {
@@ -972,6 +998,11 @@ const XAuthGate = (() => {
     }
   }
 
+  /**
+   * Poll for the Reown AppKit wallet instance and subscribe to connection state changes.
+   * Retries every 300ms until the wallet module is available, then subscribes to state/events.
+   * @private
+   */
   function _pollWallet() {
     var check = () => {
       var w = window.xLeverWallet;
@@ -1008,9 +1039,16 @@ if (typeof window !== 'undefined') {
 // ═══════════════════════════════════════════════════════════════
 
 const XPreflight = (() => {
+  /** @type {HTMLElement|null} The preflight panel DOM element */
   let panelEl = null;
+  /** @type {boolean} Guard against concurrent preflight runs */
   let isRunning = false;
 
+  /**
+   * Mount the preflight check panel into a container element.
+   * Creates the panel UI with a "Run Check" button and collapsible results.
+   * @param {string} containerSelector - CSS selector for the container to prepend the panel into
+   */
   function init(containerSelector) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
@@ -1062,6 +1100,12 @@ const XPreflight = (() => {
     });
   }
 
+  /**
+   * Run all preflight checks via contracts.js and render the results.
+   * Checks include: wallet connection, contract deployment, oracle freshness,
+   * USDC balance, and pool state. Displays pass/fail for each check.
+   * @returns {Promise<void>}
+   */
   async function run() {
     if (isRunning) return;
     isRunning = true;
@@ -1120,6 +1164,11 @@ const XPreflight = (() => {
 // ═══════════════════════════════════════════════════════════════
 
 const XDemoReset = (() => {
+  /**
+   * Mount the demo reset button into a container element.
+   * The button clears session storage and hard-reloads the page.
+   * @param {string} containerSelector - CSS selector for the container to prepend the button into
+   */
   function init(containerSelector) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
@@ -1142,6 +1191,10 @@ const XDemoReset = (() => {
     container.prepend(btn);
   }
 
+  /**
+   * Reset demo state: prompt for confirmation, clear session storage,
+   * and hard-reload the page to reset all JavaScript state.
+   */
   function reset() {
     if (!confirm('Reset demo state? This will reload the page and clear session data.')) return;
     // Clear any cached state
@@ -1160,7 +1213,13 @@ const XDemoReset = (() => {
 // TRANSACTION LIFECYCLE PANEL — shows tx states in the UI
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Transaction lifecycle tracker that subscribes to contracts.js tx events
+ * and displays toast notifications with explorer links for each state transition
+ * (submitted, pending, confirmed, failed, rejected).
+ */
 const XTxTracker = (() => {
+  /** @type {Object<string, {icon: string, color: string, label: string}>} Visual config per tx state */
   const STATE_STYLES = {
     submitted: { icon: 'send', color: '#7c4dff', label: 'Submitted' },
     pending:   { icon: 'hourglass_top', color: '#ffd740', label: 'Pending' },
@@ -1169,6 +1228,10 @@ const XTxTracker = (() => {
     rejected:  { icon: 'block', color: '#ffd740', label: 'Rejected' },
   };
 
+  /**
+   * Initialize the transaction tracker by subscribing to contracts.js tx lifecycle events.
+   * Shows toast notifications for submitted, confirmed, and failed transactions.
+   */
   function init() {
     const contracts = window.xLeverContracts;
     if (!contracts) return;
@@ -1185,6 +1248,15 @@ const XTxTracker = (() => {
     });
   }
 
+  /**
+   * Display a toast notification for a transaction lifecycle state change.
+   * Includes a shortened hash and explorer link when available.
+   * @param {string} state - Transaction state ('submitted'|'confirmed'|'failed'|'rejected')
+   * @param {string} hash - Transaction hash (shortened for display)
+   * @param {string} explorerUrl - Full URL to block explorer for the transaction
+   * @param {Object} [error] - Error details from classifyTxError (for failed state)
+   * @private
+   */
   function showTxToast(state, hash, explorerUrl, error) {
     const s = STATE_STYLES[state];
     const shortHash = hash ? `${hash.slice(0, 8)}...${hash.slice(-4)}` : '';

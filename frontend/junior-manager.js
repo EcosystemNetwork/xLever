@@ -57,7 +57,7 @@ async function fetchJuniorData() {
       return null;
     }
 
-    // Fetch all data in parallel
+    // Fetch all data in parallel (including fee config from contract)
     const [
       poolState,
       juniorValue,
@@ -65,7 +65,8 @@ async function fetchJuniorData() {
       totalSharesValue,
       fundingRate,
       maxLeverage,
-      twapData
+      twapData,
+      feeConfig
     ] = await Promise.all([
       publicClient.readContract({
         address: vaultAddress,
@@ -102,7 +103,12 @@ async function fetchJuniorData() {
         address: vaultAddress,
         abi: VAULT_ABI,
         functionName: 'getCurrentTWAP'
-      }).catch(() => [0n, 0n])
+      }).catch(() => [0n, 0n]),
+      publicClient.readContract({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName: 'getFeeConfig'
+      }).catch(() => null)
     ]);
 
     const { formatUnits } = window.viem;
@@ -133,13 +139,23 @@ async function fetchJuniorData() {
       console.log(`Debug avgLeverage: totalExposure=${totalExposureValue}, seniorTVL=${totalSeniorTVL}, raw=${rawLeverage}, final=${avgLeverage}`);
     }
     
-    const baseFeeRate = 0.02; // 2% base annual fee
+    // Fee rates from on-chain FeeEngine (fall back to defaults if contract read failed)
+    const entryFeeBps = feeConfig ? Number(feeConfig.baseEntryFeeBps) : 8;
+    const exitFeeBps = feeConfig ? Number(feeConfig.baseExitFeeBps) : 4;
+    const juniorSplitBps = feeConfig ? Number(feeConfig.juniorFeeSplit) : 7000;
+    const insuranceSplitBps = feeConfig ? Number(feeConfig.insuranceFeeSplit) : 2000;
+    const treasurySplitBps = feeConfig ? Number(feeConfig.treasuryFeeSplit) : 1000;
+    // Approximate annual fee rate from entry+exit fee average (both are per-trade bps)
+    // Combined with protocol spread for carry
+    const protocolSpreadBps = feeConfig ? Number(feeConfig.protocolSpreadBps) : 10;
+    const baseFeeRate = (entryFeeBps + exitFeeBps + protocolSpreadBps) / 10000;
     const annualFees = totalSeniorTVL * avgLeverage * baseFeeRate;
-    
+    const juniorSplitFraction = juniorSplitBps / 10000;
+
     // Cap APY to reasonable maximum (1000%) and require minimum TVL threshold
     let juniorAPY = 0;
     if (totalJuniorTVL > 0.01) { // Require at least $0.01 junior TVL
-      juniorAPY = Math.min((annualFees * 0.7 / totalJuniorTVL) * 100, 1000);
+      juniorAPY = Math.min((annualFees * juniorSplitFraction / totalJuniorTVL) * 100, 1000);
     }
 
     // Net exposure
@@ -173,7 +189,9 @@ async function fetchJuniorData() {
       maxLeverage: Number(maxLeverage) / 10000,
       fundingRate: Number(fundingRate) / 100,
       twap: Number(formatUnits(twapData[0], 8)),
-      spread: Number(twapData[1])
+      spread: Number(twapData[1]),
+      feeSplits: { juniorSplitBps, insuranceSplitBps, treasurySplitBps },
+      baseFeeRate,
     };
   } catch (error) {
     console.error('Error fetching junior data:', error);
@@ -246,11 +264,11 @@ async function updateJuniorPageUI() {
       : 'var(--yellow)';
   }
 
-  // Fee breakdown - calculate real monthly fees
-  const monthlyFees = (data.totalSeniorTVL * data.avgLeverage * 0.02) / 12;
-  const juniorShare = monthlyFees * 0.7;
-  const insuranceShare = monthlyFees * 0.2;
-  const protocolShare = monthlyFees * 0.1;
+  // Fee breakdown - calculate monthly fees from on-chain fee config
+  const monthlyFees = (data.totalSeniorTVL * data.avgLeverage * data.baseFeeRate) / 12;
+  const juniorShare = monthlyFees * (data.feeSplits.juniorSplitBps / 10000);
+  const insuranceShare = monthlyFees * (data.feeSplits.insuranceSplitBps / 10000);
+  const protocolShare = monthlyFees * (data.feeSplits.treasurySplitBps / 10000);
 
   const feeItems = document.querySelectorAll('.fee-breakdown .fee-item span:last-child');
   if (feeItems.length >= 6) {

@@ -126,7 +126,18 @@ EULER_VAULT_CONFIG = {
     },
 }
 
-# ─── Fallback Data (original hardcoded values) ───────────────
+# ─── Fallback Data (used when live fetches fail) ─────────────
+# IMPORTANT: These are stale placeholder values, not live data.
+# Every market returned from fallback is tagged with "source": "fallback"
+# so the frontend can distinguish live vs stale data.
+
+
+def _tag_fallback(markets: dict[str, dict]) -> dict[str, dict]:
+    """Tag all markets in a dict with source=fallback."""
+    for m in markets.values():
+        m["source"] = "fallback"
+    return markets
+
 
 FALLBACK_EULER_MARKETS = {
     "ink-sepolia": {
@@ -329,7 +340,8 @@ async def _fetch_euler_chain(chain: str) -> dict[str, dict]:
     rpc_url = CHAIN_RPC.get(chain)
 
     if not vaults or not rpc_url:
-        return fallback
+        logger.warning("Euler %s: no vault config or RPC, using fallback", chain)
+        return _tag_fallback(dict(fallback))
 
     markets: dict[str, dict] = {}
     had_failure = False
@@ -339,7 +351,7 @@ async def _fetch_euler_chain(chain: str) -> dict[str, dict]:
         if not vault_addr:
             # No vault deployed for this asset — use fallback
             if symbol in fallback:
-                markets[symbol] = fallback[symbol]
+                markets[symbol] = {**fallback[symbol], "source": "fallback"}
             continue
         # Issue three eth_calls in parallel-ish (sequential for simplicity, httpx
         # connection pooling helps). For true parallelism we could use asyncio.gather
@@ -356,7 +368,7 @@ async def _fetch_euler_chain(chain: str) -> dict[str, dict]:
         if total_supply is None or total_borrows is None:
             fb = fallback.get(symbol)
             if fb:
-                markets[symbol] = fb
+                markets[symbol] = {**fb, "source": "fallback"}
             had_failure = True
             continue
 
@@ -375,6 +387,7 @@ async def _fetch_euler_chain(chain: str) -> dict[str, dict]:
             supply_apy = borrow_apy * utilization * (1 - cfg["reserveFactor"])
         else:
             # Fallback to stored rates if interest rate call failed
+            logger.warning("Euler %s/%s: interest rate call failed, using fallback rates", chain, symbol)
             fb = fallback.get(symbol, {})
             borrow_apy = fb.get("borrowApy", 0)
             supply_apy = fb.get("supplyApy", 0)
@@ -392,17 +405,18 @@ async def _fetch_euler_chain(chain: str) -> dict[str, dict]:
             "decimals": decimals,
             "protocol": "euler-v2",
             "chain": chain,
+            "source": "live",
         }
 
     # If we got no data at all, return entire fallback
     if not markets:
         logger.warning("Euler %s: no data fetched, using full fallback", chain)
-        return fallback
+        return _tag_fallback(dict(fallback))
 
     # Fill in any missing symbols from fallback
     for symbol in fallback:
         if symbol not in markets:
-            markets[symbol] = fallback[symbol]
+            markets[symbol] = {**fallback[symbol], "source": "fallback"}
 
     if not had_failure:
         _cache_set(cache_key, markets)
@@ -435,11 +449,11 @@ async def _fetch_kamino_markets() -> dict[str, dict]:
         reserves = resp.json()
     except Exception as exc:
         logger.warning("Kamino API fetch failed: %s", exc)
-        return FALLBACK_KAMINO_MARKETS
+        return _tag_fallback(dict(FALLBACK_KAMINO_MARKETS))
 
     if not isinstance(reserves, list) or len(reserves) == 0:
         logger.warning("Kamino API returned empty or unexpected data")
-        return FALLBACK_KAMINO_MARKETS
+        return _tag_fallback(dict(FALLBACK_KAMINO_MARKETS))
 
     markets: dict[str, dict] = {}
 
@@ -479,15 +493,16 @@ async def _fetch_kamino_markets() -> dict[str, dict]:
                 "decimals": fb["decimals"],
                 "protocol": "kamino",
                 "chain": "solana",
+                "source": "live",
             }
         except (ValueError, TypeError, KeyError) as exc:
             logger.warning("Kamino: failed to parse reserve %s: %s", symbol, exc)
-            markets[symbol] = fb
+            markets[symbol] = {**fb, "source": "fallback"}
 
     # Fill in any missing symbols from fallback
     for symbol in FALLBACK_KAMINO_MARKETS:
         if symbol not in markets:
-            markets[symbol] = FALLBACK_KAMINO_MARKETS[symbol]
+            markets[symbol] = {**FALLBACK_KAMINO_MARKETS[symbol], "source": "fallback"}
 
     _cache_set(cache_key, markets)
     return markets
@@ -511,14 +526,14 @@ async def _fetch_evaa_markets() -> dict[str, dict]:
         data = resp.json()
     except Exception as exc:
         logger.warning("EVAA API fetch failed: %s", exc)
-        return FALLBACK_EVAA_MARKETS
+        return _tag_fallback(dict(FALLBACK_EVAA_MARKETS))
 
     # data may be a list of markets or an object with a "markets" key
     market_list = data if isinstance(data, list) else data.get("markets", [])
 
     if not isinstance(market_list, list) or len(market_list) == 0:
         logger.warning("EVAA API returned empty or unexpected data")
-        return FALLBACK_EVAA_MARKETS
+        return _tag_fallback(dict(FALLBACK_EVAA_MARKETS))
 
     markets: dict[str, dict] = {}
 
@@ -560,14 +575,15 @@ async def _fetch_evaa_markets() -> dict[str, dict]:
                 "decimals": fb["decimals"],
                 "protocol": "evaa",
                 "chain": "ton",
+                "source": "live",
             }
         except (ValueError, TypeError, KeyError) as exc:
             logger.warning("EVAA: failed to parse market %s: %s", symbol, exc)
-            markets[symbol] = fb
+            markets[symbol] = {**fb, "source": "fallback"}
 
     for symbol in FALLBACK_EVAA_MARKETS:
         if symbol not in markets:
-            markets[symbol] = FALLBACK_EVAA_MARKETS[symbol]
+            markets[symbol] = {**FALLBACK_EVAA_MARKETS[symbol], "source": "fallback"}
 
     _cache_set(cache_key, markets)
     return markets
