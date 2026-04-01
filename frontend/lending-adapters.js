@@ -10,6 +10,10 @@
  * LendingAgent can operate identically across all chains.
  */
 
+import { Connection, PublicKey } from '@solana/web3.js'
+import { Address } from '@ton/core'
+import { TonClient } from '@ton/ton'
+
 // ═══════════════════════════════════════════════════════════════
 // CHAIN REGISTRY — canonical chain IDs used throughout the system
 // ═══════════════════════════════════════════════════════════════
@@ -504,12 +508,7 @@ class KaminoAdapter extends ILendingAdapter {
 
   _getConnection() {
     if (!this._connection) {
-      // Dynamic import check — @solana/web3.js must be available
-      if (!window.solanaWeb3) {
-        console.warn('[Kamino] @solana/web3.js not loaded — install with: npm i @solana/web3.js')
-        return null
-      }
-      this._connection = new window.solanaWeb3.Connection(this.config.rpc, 'confirmed')
+      this._connection = new Connection(this.config.rpc, 'confirmed')
     }
     return this._connection
   }
@@ -578,12 +577,8 @@ class KaminoAdapter extends ILendingAdapter {
     if (!conn || !address) return 0
 
     try {
-      // USDC balance via SPL token account
-      const { PublicKey } = window.solanaWeb3
       const usdcMint = new PublicKey(KAMINO_CONFIG.markets.USDC.mint)
       const ownerPk = new PublicKey(address)
-
-      // Find associated token account
       const tokenAccounts = await conn.getParsedTokenAccountsByOwner(ownerPk, { mint: usdcMint })
       if (tokenAccounts.value.length > 0) {
         return tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount || 0
@@ -723,8 +718,8 @@ class EvaaAdapter extends ILendingAdapter {
   }
 
   _getTonClient() {
-    if (!this._client && window.TonClient) {
-      this._client = new window.TonClient({ endpoint: this.config.rpc })
+    if (!this._client) {
+      this._client = new TonClient({ endpoint: this.config.rpc })
     }
     return this._client
   }
@@ -795,12 +790,9 @@ class EvaaAdapter extends ILendingAdapter {
     if (!client || !address) return 0
 
     try {
-      // Native TON balance
-      if (window.TonAddress) {
-        const addr = window.TonAddress.parse(address)
-        const balance = await client.getBalance(addr)
-        return Number(balance) / 1e9
-      }
+      const addr = Address.parse(address)
+      const balance = await client.getBalance(addr)
+      return Number(balance) / 1e9
     } catch { /* degrade */ }
     return 0
   }

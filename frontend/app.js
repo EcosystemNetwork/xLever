@@ -662,13 +662,11 @@ function initWalletListeners() {
       updateWalletUI(); // Show wallet panel immediately on page load if session persists
       fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
 
-      // Skip landing page — user already has an active wallet session, go straight to the app
-      const landing = document.getElementById('landingPage');
-      const navContainer = document.getElementById('xnavContainer');
-      const mainApp = document.getElementById('mainApp');
-      if (landing) landing.style.display = 'none';
-      if (navContainer) navContainer.style.display = 'block';
-      if (mainApp) mainApp.style.display = 'block';
+      // Skip landing page — user already has an active wallet session, go straight to dashboard
+      if (document.getElementById('landingPage')) {
+        window.location.href = '01-dashboard.html';
+        return;
+      }
     }
   } catch (e) {
     console.warn('Wallet reconnect check skipped:', e.message); // Non-fatal: user can manually reconnect via the AppKit button

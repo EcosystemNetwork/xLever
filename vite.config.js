@@ -13,28 +13,30 @@ export default defineConfig({
     outDir: '../dist',
     // Clear the dist folder before each build to avoid stale files from previous builds
     emptyOutDir: true,
+    // Warn only for chunks above 1MB (wallet SDK bundles are large by nature)
+    chunkSizeWarningLimit: 2000,
     // Rollup-specific options for the multi-page app entry points
     rollupOptions: {
-      // Each key-value pair defines a named entry point so Rollup builds all 8 HTML pages
       input: {
-        // Landing page / main entry — the default route users see first
         main: resolve(__dirname, 'frontend/index.html'),
-        // Dashboard screen showing portfolio overview and aggregate metrics
         dashboard: resolve(__dirname, 'frontend/01-dashboard.html'),
-        // Trading terminal with TradingView chart and leverage controls
         trading: resolve(__dirname, 'frontend/02-trading-terminal.html'),
-        // AI agent operations screen for automated trading strategies
         agents: resolve(__dirname, 'frontend/03-ai-agent-operations.html'),
-        // Vault management screen for depositing/withdrawing collateral
         vaults: resolve(__dirname, 'frontend/04-vault-management.html'),
-        // Risk management screen showing liquidation thresholds and exposure
         risk: resolve(__dirname, 'frontend/05-risk-management.html'),
-        // Analytics and backtesting screen for strategy performance review
         analytics: resolve(__dirname, 'frontend/06-analytics-backtesting.html'),
-        // Operations control panel for protocol admin and monitoring
         operations: resolve(__dirname, 'frontend/07-operations-control.html'),
         admin: resolve(__dirname, 'frontend/08-admin-dashboard.html'),
         lending: resolve(__dirname, 'frontend/09-lending-borrowing.html')
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('@reown/appkit')) return 'wallet-sdk'
+          if (id.includes('wagmi') || id.includes('@wagmi')) return 'wagmi'
+          if (id.includes('viem')) return 'viem'
+          if (id.includes('@solana')) return 'solana'
+          if (id.includes('@ton/')) return 'ton'
+        }
       }
     }
   },
@@ -48,8 +50,7 @@ export default defineConfig({
     proxy: {
       // Any request starting with /api is forwarded to the FastAPI server
       '/api': {
-        // FastAPI backend runs on port 8000 during local development
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         // changeOrigin rewrites the Host header so FastAPI sees localhost:8000, not localhost:3000
         changeOrigin: true,
       }
