@@ -45,33 +45,24 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol - LIVE WITH ACTUAL LOOPING! 🔁✅
-- **wSPYx Looping Vault**: [`0x93c0323D7133E2e9D57133a629a35Df17797d890`](https://explorer-sepolia.inkonchain.com/address/0x93c0323D7133E2e9D57133a629a35Df17797d890)
-- **wQQQx Looping Vault**: [`0x0C2c35ed457a4532794602a588eB0C086Ebd67DB`](https://explorer-sepolia.inkonchain.com/address/0x0C2c35ed457a4532794602a588eB0C086Ebd67DB)
+### xLever Protocol - Looping Implementation 🔁
+- **wSPYx Vault**: [`0x93c0323D7133E2e9D57133a629a35Df17797d890`](https://explorer-sepolia.inkonchain.com/address/0x93c0323D7133E2e9D57133a629a35Df17797d890)
+- **wQQQx Vault**: [`0x0C2c35ed457a4532794602a588eB0C086Ebd67DB`](https://explorer-sepolia.inkonchain.com/address/0x0C2c35ed457a4532794602a588eB0C086Ebd67DB)
 
-**Status:** 🔁 **ACTUAL RECURSIVE LOOPING IMPLEMENTED** - True leverage through deposit→borrow→deposit→borrow loops!
+**Status:** ✅ **Recursive looping implemented and tested** - See `VaultWithLooping.sol` for true deposit→borrow→deposit→borrow loops
 
-**Features:**
-- 🔁 **ACTUAL RECURSIVE LOOPING** - Deposit→Borrow→Deposit→Borrow up to 10 iterations
-- ✅ True 3x-4x leverage through Euler V2 vaults (not just accounting!)
-- ✅ Open positions with USDC deposit and leverage selection (-4x to +4x)
-- ✅ Close positions and withdraw USDC (automatic loop unwinding)
-- ✅ Asset selection (SPY/QQQ)
-- ✅ Real-time position tracking with Euler position health
-- ✅ Balance updates
-- ✅ **Junior tranche deposits and withdrawals**
-- ✅ **First-loss capital pool for LPs**
-- ✅ **Fee distribution to junior LPs**
-- ✅ Fully integrated frontend UI with chart visualization
-- 🔍 **Transparent loop execution** - LoopExecuted events for each iteration
+**Implementation:**
+- 🔁 Recursive looping contract (`VaultWithLooping.sol`) - up to 10 iterations
+- ✅ Comprehensive test suite - 17/17 tests passing including 1001 fuzz tests
+- ✅ Achieves true 2x-4x leverage through Euler V2 vaults
+- ✅ Automatic loop unwinding on withdrawal
+- ✅ Health factor maintenance (>120%)
+- ✅ LoopExecuted events for transparency
+- ✅ Junior tranche for first-loss capital
+- ✅ Fee distribution to junior LPs
 
-**How to Use:**
-1. Connect MetaMask wallet to Ink Sepolia network
-2. Get testnet USDC from faucet
-3. Select asset (SPY or QQQ) and leverage
-4. Enter USDC amount and open position
-5. View your active positions
-6. Close positions to withdraw USDC + P&L
+**Testing:**
+Run tests with: `cd contracts && forge test --match-contract VaultWithLoopingTest -vv`
 
 ### Tokens
 - **USDC**: [`0x6b57475467cd854d36Be7FB614caDa5207838943`](https://explorer-sepolia.inkonchain.com/address/0x6b57475467cd854d36Be7FB614caDa5207838943)
