@@ -13,10 +13,10 @@ const TOKEN_ADDRESSES = {
   wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
 };
 
-// Vault contract addresses (DEPLOYED - Full Vault with Junior Tranche)
+// Vault contract addresses (DEPLOYED - Fixed Vault with initialized TWAP)
 const VAULT_ADDRESSES = {
-  wSPYx: '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd',
-  wQQQx: '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b'
+  wSPYx: '0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d',
+  wQQQx: '0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955'
 };
 
 // Minimal ERC-20 ABI for balanceOf
@@ -64,7 +64,7 @@ const VAULT_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'amount', type: 'uint256' }],
-    outputs: [{ name: 'received', type: 'uint256' }]
+    outputs: [{ name: '', type: 'uint256' }]
   },
   {
     name: 'depositJunior',
@@ -552,6 +552,7 @@ async function connectWallet() {
     updateWalletUI();
     await fetchBalances();
     await updateJuniorUI();
+    await loadUserPositions();
     
     localStorage.setItem('walletConnected', 'true');
     console.log('✓ Wallet connected:', connectedAddress);
@@ -587,12 +588,14 @@ function updateWalletUI() {
 
 // Listen for account changes
 if (window.ethereum) {
-  window.ethereum.on('accountsChanged', (accounts) => {
+  window.ethereum.on('accountsChanged', async (accounts) => {
     if (accounts.length === 0) {
       disconnectWallet();
     } else {
       connectedAddress = accounts[0];
       updateWalletUI();
+      await fetchBalances();
+      await loadUserPositions();
       console.log('✓ Account changed:', connectedAddress);
     }
   });

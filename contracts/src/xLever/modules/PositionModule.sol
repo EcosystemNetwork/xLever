@@ -103,6 +103,11 @@ contract PositionModule {
         
         uint128 currentTWAP = oracle.getTWAP();
         
+        // If entryTWAP is zero (shouldn't happen with fixed contract), return deposit amount
+        if (pos.entryTWAP == 0) {
+            return (uint256(pos.depositAmount), 0);
+        }
+        
         // Calculate price change percentage (in basis points)
         int256 priceChangeBps;
         if (currentTWAP > pos.entryTWAP) {

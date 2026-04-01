@@ -45,9 +45,9 @@ See [`contracts/QUICKSTART.md`](contracts/QUICKSTART.md) for deployment instruct
 
 ## Deployed Contracts (Ink Sepolia)
 
-### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅
-- **wSPYx Vault**: [`0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd`](https://explorer-sepolia.inkonchain.com/address/0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd)
-- **wQQQx Vault**: [`0xd76378af8494eafa6251d13dcbcaa4f39e70b90b`](https://explorer-sepolia.inkonchain.com/address/0xd76378af8494eafa6251d13dcbcaa4f39e70b90b)
+### xLever Protocol - LIVE & FULLY FUNCTIONAL ✅ (FIXED - Initialized TWAP)
+- **wSPYx Vault**: [`0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d`](https://explorer-sepolia.inkonchain.com/address/0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d)
+- **wQQQx Vault**: [`0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955`](https://explorer-sepolia.inkonchain.com/address/0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955)
 
 **Status:** ✅ **FULLY FUNCTIONAL WITH JUNIOR TRANCHE** - Full vault contracts with junior liquidity provider support deployed and integrated!
 
