@@ -45,6 +45,7 @@ dev = [
 [project.scripts]
 xlever-agent = "agent.main:main_sync"
 xlever-api = "agent.api.server:run_server"
+xlever-run = "run:main"
 xlever-backtest = "agent.backtest:run_backtest"
 
 [tool.setuptools]

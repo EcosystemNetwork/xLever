@@ -5,16 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp frontend/*.js frontend/*.css dist/ 2>/dev/null; true",
     "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@base-org/account": "^2.5.3",
+    "@evaafi/sdk": "^0.9.5",
+    "@kamino-finance/klend-sdk": "^7.3.22",
     "@reown/appkit": "^1.8.19",
     "@reown/appkit-adapter-wagmi": "^1.8.19",
+    "@solana-program/compute-budget": "^0.15.0",
     "@solana/web3.js": "^1.98.4",
     "@tanstack/query-core": "^5.96.0",
     "@ton/core": "^0.63.1",
@@ -22,9 +24,13 @@
     "@ton/ton": "^16.2.3",
     "viem": "^2.47.6",
     "vite": "^8.0.3",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0",
     "wagmi": "^3.6.0"
   },
   "devDependencies": {
-    "vite-plugin-static-copy": "^4.0.0"
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/vite": "^4.2.2",
+    "tailwindcss": "^4.2.2"
   }
 }

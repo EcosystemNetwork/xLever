@@ -1,15 +1,28 @@
 /**
- * xLever News Verification Agent
- * ────────────────────────────────
+ * @file news-verifier.js
+ * @module NewsVerifier
+ * @description
+ * xLever News Verification Agent — Source credibility and claim verification.
  * Sits between NewsIngest and NewsAnalysts to verify claims before trading.
  *
- * Four verification layers:
- *  1. Price-verify   — Does the claimed move match live Pyth/OpenBB data?
- *  2. Source-verify   — Is anyone else reporting this? (corroboration check)
- *  3. Calendar-verify — Is this a scheduled event (Fed, CPI, earnings)?
- *  4. Staleness-check — Is the news actually fresh or recycled?
+ * Four verification layers (run in parallel):
+ *  1. Price-verify    — Does the claimed % move match live Pyth/OpenBB data?
+ *  2. Source-verify    — Is anyone else reporting this? (corroboration via backend poll)
+ *  3. Calendar-verify  — Is this a scheduled event (Fed, CPI, earnings) on the right day?
+ *  4. Staleness-check  — Is the news actually fresh or recycled/repackaged?
  *
- * Output: enriched news item with verification metadata + adjusted priority
+ * Output: enriched verification result with composite confidence score,
+ *         adjusted priority (can upgrade or downgrade), and warning flags.
+ *
+ * Scoring weights: price=0.35, source=0.25, calendar=0.15, staleness=0.25
+ *
+ * @exports {Object} NewsVerifier - Frozen singleton exposed on window.NewsVerifier
+ *
+ * @dependencies
+ *  - window.xLeverPyth   — Pyth oracle for price verification
+ *  - window.xLeverOpenBB — OpenBB for daily change comparison
+ *  - window.xLeverAssets — Asset feed ID mapping
+ *  - window.NewsIngest   — News pipeline for source corroboration buffer
  */
 
 const NewsVerifier = (() => {
@@ -18,6 +31,12 @@ const NewsVerifier = (() => {
   // VERIFICATION RESULT SCHEMA
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Create a fresh verification result object with all checks in 'pending' state.
+   *
+   * @param {Object} newsItem - The news item being verified
+   * @returns {Object} Verification result with checks map, confidence, flags, and adjustedPriority
+   */
   function makeVerification(newsItem) {
     return {
       newsItem,
@@ -50,6 +69,17 @@ const NewsVerifier = (() => {
 
   const DIRECTION_BEARISH = /crash|plunge|plummet|drop|fall|fell|decline|tumble|sink|slide|down|loss/i
 
+  /**
+   * Price verification — extract claimed % moves from headlines and compare
+   * against live market data from Pyth oracle and OpenBB.
+   *
+   * Uses 50% tolerance (or 1% minimum) when comparing claimed vs actual moves.
+   * A price mismatch is a hard verification failure that causes news rejection.
+   *
+   * @param {Object} newsItem - News item with headline, body, and symbols
+   * @param {Object} check - Mutable check result object (status, passed, detail, data)
+   * @returns {Promise<void>} Modifies check in place
+   */
   async function verifyPrice(newsItem, check) {
     const text = `${newsItem.headline} ${newsItem.body}`
     const symbols = newsItem.symbols || []
@@ -138,6 +168,18 @@ const NewsVerifier = (() => {
   // ═══════════════════════════════════════════════════════════════
   // Check if other sources are reporting the same story
 
+  /**
+   * Source corroboration — check if other news sources are reporting the same story.
+   * Extracts key terms from the headline and searches recent backend items for
+   * overlapping coverage from different sources.
+   *
+   * Corroboration threshold: 40% key term overlap from a different source.
+   * 2+ corroborating sources = fully verified; 1 = partially; 0 = single-source flag.
+   *
+   * @param {Object} newsItem - News item to verify
+   * @param {Object} check - Mutable check result object
+   * @returns {Promise<void>} Modifies check in place
+   */
   async function verifySource(newsItem, check) {
     // Check the news buffer for corroborating headlines
     const ingest = window.NewsIngest
@@ -205,6 +247,13 @@ const NewsVerifier = (() => {
     }
   }
 
+  /**
+   * Extract meaningful key terms from a headline for fuzzy matching.
+   * Strips stop words, punctuation, and short words (<=2 chars).
+   *
+   * @param {string} headline - News headline
+   * @returns {string[]} Array of lowercase key terms
+   */
   function extractKeyTerms(headline) {
     const stopWords = new Set([
       'the','a','an','is','are','was','were','be','been','being','have','has','had',

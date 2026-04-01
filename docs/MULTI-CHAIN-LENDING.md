@@ -33,7 +33,7 @@ LendingAgent (chain-agnostic tick loop)
 | Chain | Protocol | Markets | Status |
 |-------|----------|---------|--------|
 | Ink Sepolia | Euler V2 EVK | USDC, wQQQx, wSPYx, WETH | Live (on-chain reads) |
-| Ethereum | Euler V2 EVK | USDC, WETH, wstETH, USDT | Ready (pending deployment) |
+| Ethereum | Euler V2 EVK | USDC, WETH, wstETH, USDT | Deployed on Sepolia (33 vaults mirrored) |
 | Solana | Kamino Finance | USDC, SOL, USDT, JitoSOL | Adapter live (SDK integration needed) |
 | TON | EVAA Protocol | TON, USDT, USDC, stTON | Adapter live (TL-B encoding needed) |
 
@@ -46,6 +46,7 @@ LendingAgent (chain-agnostic tick loop)
 | `lending-adapters.js` | Adapter interface, Euler/Kamino/EVAA implementations, registry |
 | `lending-agent.js` | Chain-agnostic lending automation (4 policy modes) |
 | `nav.js` | Chain switcher syncs registry + hot-swaps agent |
+| `09-lending-borrowing.html` | Cross-chain lending UI — markets, positions, yield comparison |
 
 ---
 
@@ -111,10 +112,10 @@ The agent's Yield mode compares APY across all chains and logs cross-chain oppor
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `@solana/web3.js` | latest | Solana RPC, transaction building, wallet signing |
-| `@ton/ton` | latest | TON client, contract interaction |
-| `@ton/core` | latest | Cell/BOC serialization for TON messages |
-| `@ton/crypto` | latest | TON cryptographic primitives |
+| `@solana/web3.js` | ^1.98.4 | Solana RPC, transaction building, wallet signing |
+| `@ton/ton` | ^15.3.0 | TON client, contract interaction |
+| `@ton/core` | ^0.59.1 | Cell/BOC serialization for TON messages |
+| `@ton/crypto` | ^3.3.0 | TON cryptographic primitives |
 | `viem` | ^2.47.6 | EVM contract reads/writes (Euler V2) |
 
 ---

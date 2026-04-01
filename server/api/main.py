@@ -22,7 +22,7 @@ from .config import get_settings
 # init_db creates tables on startup — avoids manual migration steps during early development
 from .database import init_db
 # Import all route modules to register their endpoints with the app
-from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending
+from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending, auth_routes
 
 # Cache the settings singleton so we don't re-parse env vars on every access
 settings = get_settings()
@@ -95,7 +95,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     # yield separates startup from shutdown — FastAPI runs the app between these points
     yield
-    # Shutdown: no cleanup needed yet (connection pool is handled by SQLAlchemy engine disposal)
+    # Shutdown: close shared HTTP clients to release connections
+    from .routes.lending import _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
 
 
 # Instantiate the FastAPI app with metadata used in the auto-generated OpenAPI docs
@@ -127,6 +130,8 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Rate limiting middleware — 60 req/min general, 10 req/min admin endpoints
 app.add_middleware(RateLimitMiddleware)
 
+# SIWE authentication routes (nonce, verify, logout, me)
+app.include_router(auth_routes.router, prefix="/api")
 # Mount each route module under /api prefix to namespace API endpoints away from static files
 # Users route handles wallet registration and preference management
 app.include_router(users.router, prefix="/api")

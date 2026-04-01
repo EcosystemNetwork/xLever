@@ -1,8 +1,34 @@
+/**
+ * @file position-manager.js — Position Tracking and PnL Management
+ *
+ * Manages the lifecycle of leveraged positions on xLever vaults:
+ *   - Asset selection (wSPYx/wQQQx) with synced ticker buttons
+ *   - Network validation (Ink Sepolia chain ID 763373)
+ *   - Opening positions via contracts.js with real-time tx status updates
+ *   - Loading and displaying active positions from on-chain state
+ *   - Closing positions with Pyth oracle integration
+ *
+ * All transaction flows are receipt-driven (no hardcoded waits for correctness).
+ * Button state transitions track the full tx lifecycle: approving -> submitted -> pending -> confirmed/failed.
+ *
+ * @module position-manager
+ *
+ * @dependencies
+ *   - window.xLeverContracts (contracts.js) for on-chain operations
+ *   - window.showToast or XToast for user notifications
+ *   - window.viem for formatUnits
+ *   - Global vars: connectedAddress, publicClient, currentLeverage, VAULT_ADDRESSES, VAULT_ABI
+ *   - Functions: fetchBalances (from app.js)
+ */
+
 // ═══════════════════════════════════════════════════════════
-// POSITION MANAGEMENT
+// POSITION MANAGEMENT — receipt-driven, no hardcoded waits
 // ═══════════════════════════════════════════════════════════
 
-// Update current leverage display
+/**
+ * Update the leverage display element with the current leverage value.
+ * Reads from the global `currentLeverage` variable set by the leverage slider.
+ */
 function updateCurrentLevDisplay() {
   const display = document.getElementById('currentLevDisplay');
   if (display) {
@@ -14,7 +40,7 @@ function updateCurrentLevDisplay() {
 document.addEventListener('DOMContentLoaded', () => {
   const assetButtons = document.querySelectorAll('.asset-btn');
   const tickerButtons = document.querySelectorAll('.ticker-select-btn');
-  
+
   // Function to update asset selection
   function selectAsset(assetCode) {
     // Update asset buttons
@@ -25,28 +51,28 @@ document.addEventListener('DOMContentLoaded', () => {
       b.style.borderColor = isActive ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255,255,255,0.1)';
       b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
     });
-    
+
     // Update ticker buttons (top left)
     const ticker = assetCode === 'wSPYx' ? 'SPY' : 'QQQ';
     tickerButtons.forEach(b => {
       b.classList.toggle('active', b.dataset.ticker === ticker);
     });
-    
+
     console.log('Selected asset:', assetCode);
   }
-  
+
   // Asset button click handlers
   assetButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const assetCode = btn.dataset.asset;
       const ticker = assetCode === 'wSPYx' ? 'SPY' : 'QQQ';
-      
+
       // Find and click the corresponding ticker button to trigger chart update
       const tickerBtn = Array.from(tickerButtons).find(b => b.dataset.ticker === ticker);
       if (tickerBtn && !tickerBtn.classList.contains('active')) {
         tickerBtn.click(); // This will trigger app.js's chart update
       }
-      
+
       // Update asset buttons
       assetButtons.forEach(b => {
         const isActive = b.dataset.asset === assetCode;
@@ -55,17 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
         b.style.borderColor = isActive ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255,255,255,0.1)';
         b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
       });
-      
+
       console.log('Selected asset:', assetCode);
     });
   });
-  
+
   // When ticker buttons are clicked, also update asset buttons
   // Note: app.js already handles the chart update for ticker buttons
   tickerButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const assetCode = btn.dataset.ticker === 'SPY' ? 'wSPYx' : 'wQQQx';
-      
+
       // Update asset buttons to match
       assetButtons.forEach(b => {
         const isActive = b.dataset.asset === assetCode;
@@ -74,18 +100,22 @@ document.addEventListener('DOMContentLoaded', () => {
         b.style.borderColor = isActive ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255,255,255,0.1)';
         b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
       });
-      
+
       console.log('Selected asset from ticker:', assetCode);
     });
   });
 });
 
-// Check if user is on correct network
+/**
+ * Check if the user's wallet is connected to Ink Sepolia (chain ID 763373).
+ * Shows a warning toast if on the wrong network.
+ * @returns {Promise<boolean>} True if on the correct network
+ */
 async function ensureCorrectNetwork() {
   try {
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
     const currentChainId = parseInt(chainId, 16);
-    
+
     if (currentChainId !== 763373) {
       showToast(`Wrong Network!\n\nPlease switch to Ink Sepolia in MetaMask.\n\nChain ID: 763373\nCurrent: ${currentChainId}`, 'warning', 6000);
       return false;
@@ -97,115 +127,120 @@ async function ensureCorrectNetwork() {
   }
 }
 
-// Open position button handler
+// ═══════════════════════════════════════════════════════════
+// TX STATUS HELPER — updates button text with lifecycle state
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Update a button's text to reflect the current transaction lifecycle state.
+ * @param {HTMLButtonElement} btn - The button element to update
+ * @param {string} state - Lifecycle state: 'approving'|'submitted'|'pending'|'confirmed'|'failed'|'rejected'|'depositing'|'withdrawing'
+ * @param {Object} [extra] - Additional context (e.g., {attempt, maxRetries} for pending state)
+ */
+function setButtonState(btn, state, extra) {
+  if (!btn) return;
+  const labels = {
+    approving:  'Approving USDC...',
+    submitted:  'Tx Submitted...',
+    pending:    extra ? `Confirming (${extra.attempt + 1}/${extra.maxRetries + 1})...` : 'Confirming...',
+    confirmed:  'Confirmed!',
+    failed:     'Transaction Failed',
+    rejected:   'Rejected by Wallet',
+    depositing: 'Depositing...',
+    withdrawing:'Withdrawing...',
+  };
+  btn.textContent = labels[state] || state;
+}
+
+// ═══════════════════════════════════════════════════════════
+// OPEN POSITION — receipt-driven via contracts.js API
+// ═══════════════════════════════════════════════════════════
+
 document.getElementById('openPositionBtn')?.addEventListener('click', async () => {
   const amountInput = document.getElementById('positionAmountInput');
   const amount = amountInput?.value;
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
-  
+
   if (!connectedAddress) {
     showToast('Please connect your wallet first', 'warning');
     return;
   }
-  
+
   if (!amount || parseFloat(amount) <= 0) {
     showToast('Please enter a valid USDC amount', 'warning');
     return;
   }
 
-  const leverageBps = Math.round(currentLeverage * 10000);
+  const contracts = window.xLeverContracts;
+  if (!contracts) {
+    showToast('Contracts not loaded', 'error');
+    return;
+  }
+
   const btn = document.getElementById('openPositionBtn');
+  const leverageBps = Math.round(currentLeverage * 10000);
+
+  // Subscribe to tx lifecycle events for real-time button updates
+  const unsubs = [];
+  unsubs.push(contracts.txEvents.on('submitted', ({ hash, explorerUrl }) => {
+    setButtonState(btn, 'submitted');
+    showToast(`Tx submitted — ${hash.slice(0, 10)}...`, 'pending', 0);
+  }));
+  unsubs.push(contracts.txEvents.on('pending', (data) => {
+    setButtonState(btn, 'pending', data);
+  }));
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Opening...';
-    
+    setButtonState(btn, 'approving');
+
+    // Set the active asset so contracts.js uses the correct vault
+    const ticker = selectedAsset === 'wSPYx' ? 'SPY' : 'QQQ';
+    contracts.setActiveAsset(ticker);
+
     console.log(`Opening position: ${amount} USDC @ ${currentLeverage}x on ${selectedAsset}`);
 
-    const { parseUnits } = window.viem;
-    const amountParsed = parseUnits(amount.toString(), 6);
-    const vaultAddress = VAULT_ADDRESSES[selectedAsset];
+    // contracts.openPosition handles: allowance check → approve → deposit → waitForTx
+    // All receipt polling and retry logic is in contracts.js
+    const result = await contracts.openPosition(amount.toString(), currentLeverage);
 
-    // Step 1: Check and approve USDC if needed
-    const currentAllowance = await publicClient.readContract({
-      address: TOKEN_ADDRESSES.USDC,
-      abi: ERC20_ABI,
-      functionName: 'allowance',
-      args: [connectedAddress, vaultAddress]
-    });
+    setButtonState(btn, 'confirmed');
 
-    if (currentAllowance < amountParsed) {
-      console.log('Approving USDC (infinite approval)...');
-      btn.textContent = 'Approving USDC...';
-      
-      const MAX_UINT256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
-      
-      let approveTx;
-      try {
-        approveTx = await walletClient.writeContract({
-          address: TOKEN_ADDRESSES.USDC,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [vaultAddress, MAX_UINT256],
-          account: connectedAddress,
-          gas: 100000n,
-          maxFeePerGas: 2000000000n,
-          maxPriorityFeePerGas: 1000000000n
-        });
-        console.log('✓ Approval tx sent:', approveTx);
-      } catch (approveError) {
-        console.log('Approval sent (RPC error ignored):', approveError.message);
-      }
-      
-      btn.textContent = 'Approval pending...';
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    } else {
-      console.log('✓ USDC already approved, skipping...');
-    }
-
-    // Step 2: Deposit to vault
-    console.log('Opening position...');
-    btn.textContent = 'Depositing...';
-    
-    let depositTx;
-    try {
-      depositTx = await walletClient.writeContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: 'deposit',
-        args: [amountParsed, leverageBps],
-        account: connectedAddress,
-        gas: 800000n,
-        maxFeePerGas: 2000000000n, // 2 gwei
-        maxPriorityFeePerGas: 1000000000n // 1 gwei
-      });
-      console.log('✓ Deposit tx sent:', depositTx);
-    } catch (depositError) {
-      // Transaction was sent but RPC returned error - continue anyway
-      console.log('Deposit sent (RPC error ignored):', depositError.message);
-    }
-    
-    btn.textContent = 'Position opening...';
-    
-    // Wait for deposit to be mined
-    await new Promise(resolve => setTimeout(resolve, 8000));
-
-    // Refresh data
+    // Refresh from confirmed chain state (not polling)
     await fetchBalances();
     await loadUserPositions();
-    
-    showToast(`Position opened successfully!\n${amount} USDC @ ${currentLeverage}x leverage`, 'success');
+    contracts.txEvents.emit('synced', { hash: result.hash, explorerUrl: result.explorerUrl, state: 'synced' });
+
+    const explorerLink = result.explorerUrl || contracts.getExplorerUrl(result.hash);
+    showToast(`Position opened! ${amount} USDC @ ${currentLeverage}x\nTx: ${result.hash.slice(0, 10)}...`, 'success', 6000);
     amountInput.value = '';
   } catch (error) {
     console.error('Failed to open position:', error);
-    showToast(`Failed to open position: ${error.message}`, 'error');
+    const classified = contracts.classifyTxError(error);
+    if (classified.type === 'wallet_rejected') {
+      setButtonState(btn, 'rejected');
+      showToast('Transaction rejected in wallet', 'warning');
+    } else {
+      setButtonState(btn, 'failed');
+      showToast(`${classified.label}: ${classified.detail}`, 'error', 8000);
+    }
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Open Position';
+    // Cleanup lifecycle listeners
+    unsubs.forEach(fn => fn());
+    // Reset button after brief delay so user sees the final state
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Open Position';
+    }, 1500);
   }
 });
 
-// Load user positions
+/**
+ * Load all active user positions from both vault contracts (wSPYx, wQQQx).
+ * Renders position cards with deposit amount, leverage, direction, and close button.
+ * Shows "no positions" placeholder if the user has no active positions.
+ * @returns {Promise<void>}
+ */
 async function loadUserPositions() {
   if (!connectedAddress || !publicClient) {
     document.getElementById('noPositions').style.display = 'block';
@@ -215,7 +250,7 @@ async function loadUserPositions() {
 
   try {
     const positions = [];
-    
+
     // Check positions in both vaults
     for (const [asset, vaultAddress] of Object.entries(VAULT_ADDRESSES)) {
       try {
@@ -247,19 +282,19 @@ async function loadUserPositions() {
     // Display positions
     document.getElementById('noPositions').style.display = 'none';
     document.getElementById('positionsList').style.display = 'block';
-    
+
     const { formatUnits } = window.viem;
     const positionsList = document.getElementById('positionsList');
-    
+
     positionsList.innerHTML = positions.map(pos => {
       const depositAmount = formatUnits(pos.depositAmount, 6);
       const leverage = (pos.leverageBps / 10000).toFixed(2);
       const isLong = pos.leverageBps > 0;
       const isShort = pos.leverageBps < 0;
-      
+
       // Convert wSPYx/wQQQx to SPY/QQQ for display
       const displayName = pos.asset === 'wSPYx' ? 'SPY' : pos.asset === 'wQQQx' ? 'QQQ' : pos.asset;
-      
+
       return `
         <div class="position-card" style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.08);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -278,7 +313,7 @@ async function loadUserPositions() {
               </div>
             </div>
           </div>
-          <button onclick="closePosition('${pos.asset}', '${pos.vaultAddress}')" 
+          <button onclick="closePosition('${pos.asset}', '${pos.vaultAddress}')"
                   style="width: 100%; padding: 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: #ef4444; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s;">
             Close Position
           </button>
@@ -291,84 +326,90 @@ async function loadUserPositions() {
   }
 }
 
-// Close position function
+// ═══════════════════════════════════════════════════════════
+// CLOSE POSITION — receipt-driven via contracts.js API
+// ═══════════════════════════════════════════════════════════
+
 window.closePosition = async function(asset, vaultAddress) {
   if (!confirm(`Are you sure you want to close your ${asset} position?`)) {
     return;
   }
 
+  const contracts = window.xLeverContracts;
+  if (!contracts) {
+    showToast('Contracts not loaded', 'error');
+    return;
+  }
+
+  // Show pending toast that persists until we dismiss it
+  const pendingToast = showToast('Closing position...', 'pending', 0);
+
   try {
     console.log(`Closing ${asset} position...`);
 
-    // First, verify the position exists and get the amount
+    // Read position to get the amount
     const position = await publicClient.readContract({
       address: vaultAddress,
       abi: VAULT_ABI,
       functionName: 'getPosition',
       args: [connectedAddress]
     });
-    
-    console.log('Position details:', position);
-    console.log('Deposit amount:', position.depositAmount.toString());
-    console.log('Leverage BPS:', position.leverageBps);
-    console.log('Entry TWAP:', position.entryTWAP.toString());
-    console.log('Is active:', position.isActive);
-    
+
     if (!position.isActive || position.depositAmount === 0n) {
+      if (pendingToast) XToast.dismiss(pendingToast);
       showToast('No active position to close', 'warning');
       return;
     }
 
-    // Withdraw entire position using the deposit amount
-    const withdrawAmount = position.depositAmount;
-    console.log('Withdrawing amount:', withdrawAmount.toString());
-    
-    // First simulate the transaction to get the actual error
-    try {
-      await publicClient.simulateContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: 'withdraw',
-        args: [withdrawAmount],
-        account: connectedAddress
-      });
-      console.log('✓ Simulation passed');
-    } catch (simError) {
-      console.error('Simulation failed:', simError);
-      const errorMsg = simError.message || simError.toString();
-      showToast(`Cannot withdraw: ${errorMsg.substring(0, 100)}`, 'error', 8000);
-      throw simError;
-    }
-    
-    let withdrawTx;
-    try {
-      withdrawTx = await walletClient.writeContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: 'withdraw',
-        args: [withdrawAmount],
-        account: connectedAddress,
-        gas: 500000n,
-        maxFeePerGas: 2000000000n, // 2 gwei
-        maxPriorityFeePerGas: 1000000000n // 1 gwei
-      });
-      console.log('✓ Withdraw tx sent:', withdrawTx);
-    } catch (withdrawError) {
-      console.error('Withdraw error details:', withdrawError);
-      throw withdrawError;
-    }
-    
-    // Wait for transaction to be mined
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    // Set the correct asset so contracts.js uses the right vault
+    const ticker = asset === 'wSPYx' ? 'SPY' : asset === 'wQQQx' ? 'QQQ' : asset;
+    contracts.setActiveAsset(ticker);
 
-    // Refresh data
+    // Listen for tx events to update the pending toast
+    const unsubs = [];
+    unsubs.push(contracts.txEvents.on('submitted', ({ hash, explorerUrl }) => {
+      if (pendingToast) {
+        const statusEl = pendingToast.querySelector('span:last-child');
+        if (statusEl) statusEl.textContent = `Tx submitted: ${hash.slice(0, 10)}...`;
+      }
+    }));
+    unsubs.push(contracts.txEvents.on('pending', ({ attempt, maxRetries }) => {
+      if (pendingToast) {
+        const statusEl = pendingToast.querySelector('span:last-child');
+        if (statusEl) statusEl.textContent = `Confirming (${attempt + 1}/${maxRetries + 1})...`;
+      }
+    }));
+
+    // Simulation skipped — canonical Vault requires Pyth priceUpdateData + msg.value
+    // which can't be reliably simulated client-side. contracts.closePosition handles
+    // Pyth update, slippage (minReceived=0), and error classification.
+
+    // Use formatUnits to get the USDC string for contracts.closePosition
+    const { formatUnits } = window.viem;
+    const amountStr = formatUnits(position.depositAmount, 6);
+
+    // contracts.closePosition handles: Pyth update → writeContract → waitForTx with retries
+    const result = await contracts.closePosition(amountStr);
+
+    unsubs.forEach(fn => fn());
+    if (pendingToast) XToast.dismiss(pendingToast);
+
+    // Refresh from confirmed chain state
     await fetchBalances();
     await loadUserPositions();
-    
-    showToast('Position closed successfully!', 'success');
+    contracts.txEvents.emit('synced', { hash: result.hash, explorerUrl: result.explorerUrl, state: 'synced' });
+
+    const explorerLink = result.explorerUrl || contracts.getExplorerUrl(result.hash);
+    showToast(`Position closed! Tx: ${result.hash.slice(0, 10)}...`, 'success', 6000);
   } catch (error) {
+    if (pendingToast) XToast.dismiss(pendingToast);
     console.error('Failed to close position:', error);
-    showToast(`Failed to close position: ${error.message}`, 'error');
+    const classified = contracts.classifyTxError(error);
+    if (classified.type === 'wallet_rejected') {
+      showToast('Close rejected in wallet', 'warning');
+    } else {
+      showToast(`${classified.label}: ${classified.detail}`, 'error', 8000);
+    }
   }
 };
 
@@ -381,12 +422,18 @@ if (window.ethereum) {
   });
 }
 
-// Load positions on page load if wallet is connected
-window.addEventListener('load', async () => {
-  // Wait a bit for wallet to connect
-  setTimeout(async () => {
-    if (connectedAddress) {
-      await loadUserPositions();
-    }
-  }, 1000);
+// Load positions when wallet connects (event-driven, no fixed delay)
+// connectedAddress is set by app.js after wallet init completes.
+// The 'appkit:connected' custom event (or accountsChanged above) fires
+// when the wallet is ready — no setTimeout needed.
+window.addEventListener('appkit:connected', async () => {
+  if (connectedAddress) {
+    await loadUserPositions();
+  }
+});
+// Fallback: if wallet was already connected before this script loaded
+window.addEventListener('load', () => {
+  if (connectedAddress) {
+    loadUserPositions();
+  }
 });

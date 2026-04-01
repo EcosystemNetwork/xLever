@@ -1,6 +1,6 @@
 # Frontend Guide
 
-xLever's frontend is a Vite-bundled multi-page app with 8 screens, Bloomberg Terminal aesthetic, and real-time blockchain interaction.
+xLever's frontend is a Vite-bundled multi-page app with 10 screens, Bloomberg Terminal aesthetic, and real-time blockchain interaction.
 
 ---
 
@@ -30,6 +30,8 @@ xLever's frontend is a Vite-bundled multi-page app with 8 screens, Bloomberg Ter
 | 5 | `05-risk-management.html` | Risk Management | Risk sentinel state display, circuit breakers, auto-deleverage triggers, oracle staleness |
 | 6 | `06-analytics-backtesting.html` | Backtesting | LTAP simulations (1M-25Y), fixed-entry vs daily-reset comparison, fee drag, drawdown analysis |
 | 7 | `07-operations-control.html` | Operations Control | System health, transaction history, protocol state, emergency controls |
+| 8 | `08-admin-dashboard.html` | Admin Dashboard | Platform stats, activity charts, user management, API monitoring |
+| 9 | `09-lending-borrowing.html` | Lending & Borrowing | Cross-chain lending markets, Euler V2/Kamino/EVAA adapters, agentic lending automation |
 
 **Navigation:** Top nav bar across all pages. Current active page is highlighted.
 
@@ -129,6 +131,66 @@ Shared UI utilities:
 - **Toast notifications** — Bottom-right popups (success, error, warning, pending)
 - **Modal system** — Transaction confirmations, settings dialogs
 - **Skeleton loading** — Placeholder animations while data loads
+
+### nav.js — Navigation System
+Unified navigation component (`XNav`) with two modes: landing (minimal bar with logo and CTA) and app (full bar with Trade/Research mode toggle, page links, network badge, wallet connector). Includes Judge Mode for demo walkthroughs.
+
+### agent-coordinator.js — Multi-Agent Orchestrator
+Coordinates multiple AI agent subsystems: trading agent, lending agent, and risk monitoring. Manages agent lifecycle, inter-agent communication, and execution priorities.
+
+### news-ingest.js — News Pipeline
+SSE streaming news ingestion with priority classification. Feeds into the multi-analyst scoring system for real-time market intelligence.
+
+### news-analysts.js — Multi-Analyst Sentiment
+Multiple analyst personas score news items independently. Produces weighted sentiment signals for the signal aggregator.
+
+### news-verifier.js — Source Credibility
+Verifies news source credibility and cross-references claims. Filters unreliable signals before they reach the trading agent.
+
+### signal-aggregator.js — Signal Generation
+Aggregates weighted signals from news analysts, market data, and risk metrics into actionable trading signals for the agent executor.
+
+### llm-analyst.js — LLM Market Analysis
+LLM-powered market analysis providing qualitative insights, pattern recognition, and narrative interpretation for agent decisions.
+
+### position-manager.js — Position Tracking
+Tracks open positions, calculates PnL, manages position lifecycle (open, adjust, close). Syncs with on-chain state.
+
+### lending-adapters.js — Multi-Chain Lending
+Adapter interface + implementations for Euler V2 (EVM), Kamino Finance (Solana), and EVAA Protocol (TON). Registry pattern for chain-agnostic lending operations.
+
+### lending-agent.js — Lending Automation
+Chain-agnostic lending automation with 4 policy modes: Yield (auto-supply), Leverage (collateral management), Hedge (risk offset), Monitor (read-only alerts).
+
+### risk-live.js — Live Risk Monitoring
+Real-time risk metric streaming and monitoring. Feeds live data into the risk sentinel FSM for continuous evaluation.
+
+### oracle-health.js — Oracle Health Monitor
+Monitors Pyth oracle freshness, divergence, and reliability across all registered price feeds.
+
+### assets.js — Asset Registry
+Registry of all 33 supported assets with Pyth feed IDs, symbol mappings, and vault address lookups.
+
+### vault-functions.js — Vault Interactions
+High-level vault interaction helpers: deposit, withdraw, adjust leverage, approve tokens. Wraps raw viem contract calls with Pyth price update bundling.
+
+### toast.js — Toast Notifications
+Standalone toast notification system for transaction confirmations, errors, and status updates.
+
+### chart-strategy-tools.js — Chart Strategy Tools
+TradingView chart overlay tools for visualizing trading strategies, entry/exit points, and leverage bands.
+
+### chart-triggers.js — Chart Event Triggers
+Price-based event triggers for automated chart annotations and agent notifications.
+
+### live-state.js — Live State Manager
+Manages live application state: positions, balances, oracle prices, risk metrics. Provides reactive updates to UI components.
+
+### ws-broadcast.js — WebSocket Broadcast
+WebSocket client for real-time event broadcasting from the backend agent system.
+
+### judge-mode.js — Demo Walkthrough
+Guided demo mode that overrides navigation to show a curated numbered-step flow for reviewers and judges.
 
 ---
 
@@ -245,6 +307,6 @@ npm run preview
 
 - **Root:** `frontend/`
 - **Output:** `dist/`
-- **Entries:** All 8 HTML screens as separate entry points
+- **Entries:** All 10 HTML screens as separate entry points
 - **Dev proxy:** `/api/*` -> `http://localhost:8000` (data server)
 - **Dev port:** 3000

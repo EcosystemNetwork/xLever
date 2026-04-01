@@ -174,6 +174,14 @@ const context = await getDashboardContext()  // Aggregated market snapshot
 
 ---
 
+## Tavily AI (Market Intelligence)
+
+Real-time market intelligence for the autonomous agent system. Provides news search, market analysis, and event detection.
+
+**Integration:** Used by the backend Python agent (`agent/`) for market context and trading signal generation.
+
+---
+
 ## FastAPI Backend
 
 `server/api/main.py` — Full API backend with database and caching.
@@ -189,6 +197,8 @@ const context = await getDashboardContext()  // Aggregated market snapshot
 | `/api/alerts` | `routes/alerts.py` | Risk alert management |
 | `/api/openbb` | `routes/openbb.py` | Market intelligence proxy |
 | `/api/lending` | `routes/lending.py` | Multi-chain lending markets, positions, rates (Euler V2 + Kamino + EVAA) |
+| `/api/news` | `routes/news.py` | SSE streaming news, trending topics, sentiment |
+| `/api/admin` | `routes/admin.py` | Platform stats, activity charts, user management |
 
 ### Authentication
 
@@ -209,7 +219,7 @@ Uses **SIWE** (Sign-In with Ethereum) — wallet-based authentication. No tradit
 ```bash
 cd server
 pip install -r requirements.txt
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+uvicorn api.main:app --host 0.0.0.0 --port 8080
 ```
 
 ### Dependencies (requirements.txt)

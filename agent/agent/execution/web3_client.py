@@ -304,7 +304,7 @@ class Web3Client:
                 if asyncio.iscoroutinefunction(func):
                     return await func(*args, **kwargs)
                 else:
-                    return await func
+                    return func(*args, **kwargs)
 
             except Exception as e:
                 last_exception = e

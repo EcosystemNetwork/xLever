@@ -137,28 +137,29 @@ const AgentExecutor = (() => {
       _log('WATCHER', 'Contract state fetch failed: ' + e.message, 'on-surface-variant')
     }
 
-    // 3. Risk engine evaluation — feeds live data into the deterministic risk state machine
+    // 3. Risk engine evaluation — prefer real on-chain state via fromContract(), fallback to local
     try {
-      // Only run if the risk engine is loaded and we have oracle data to feed it
-      if (window.RiskEngine && state.oracleAge !== null) {
-        // Build the risk engine input object from the gathered live state
-        const riskInputs = {
-          oracleAgeSec: state.oracleAge,  // Direct passthrough of oracle staleness
-          // Approximate oracle divergence using confidence/price ratio (single-feed proxy since we lack a second feed here)
-          oracleDivergence: state.oracleConf && state.oraclePrice ? state.oracleConf / state.oraclePrice : 0,
-          drawdown: 0,  // Drawdown requires peak tracking not implemented here — default to 0
-          // Derive a health factor proxy from pool composition: higher senior ratio = lower health
-          healthFactor: state.poolState ? (1 / (parseFloat(state.poolState.seniorTVL) / (parseFloat(state.poolState.seniorTVL) + parseFloat(state.poolState.juniorTVL) || 1))) : 2.0,
-          // Approximate volatility from oracle confidence: wider confidence = higher vol; scale by 50x and cap at 150%
-          volatility: state.oracleConf && state.oraclePrice ? Math.min((state.oracleConf / state.oraclePrice) * 50, 1.5) : 0.2,
-          // Derive utilization from junior ratio: less junior capital = higher utilization pressure
-          utilization: state.poolState ? (1 - state.poolState.juniorRatio) : 0.3,
+      if (window.RiskEngine) {
+        // Try to read real risk state from on-chain getRiskState() first
+        const contractRisk = await window.RiskEngine.fromContract()
+        if (contractRisk) {
+          state.riskState = contractRisk
+          _log('WATCHER', `Risk state from contract: ${contractRisk.state} (health: ${contractRisk.healthFactor?.toFixed(2)}, cap: ${contractRisk.leverageCap}x)`, 'on-surface-variant')
+        } else if (state.oracleAge !== null) {
+          // Fallback: build local risk evaluation from gathered data
+          const riskInputs = {
+            oracleAgeSec: state.oracleAge,
+            oracleDivergence: state.oracleConf && state.oraclePrice ? state.oracleConf / state.oraclePrice : 0,
+            drawdown: 0,
+            healthFactor: state.poolState ? (1 / (parseFloat(state.poolState.seniorTVL) / (parseFloat(state.poolState.seniorTVL) + parseFloat(state.poolState.juniorTVL) || 1))) : 2.0,
+            volatility: state.oracleConf && state.oraclePrice ? Math.min((state.oracleConf / state.oraclePrice) * 50, 1.5) : 0.2,
+            utilization: state.poolState ? (1 - state.poolState.juniorRatio) : 0.3,
+          }
+          state.riskState = window.RiskEngine.evaluate(riskInputs)
         }
-        // Run the evaluation and store the result for decision functions to consume
-        state.riskState = window.RiskEngine.evaluate(riskInputs)
       }
     } catch (e) {
-      // Silently swallow — risk engine evaluation is best-effort; agent can still act on raw data
+      // Silently swallow — risk engine evaluation is best-effort
     }
 
     // 4. OpenBB market context (non-blocking) — enriches decisions with traditional market data
@@ -391,14 +392,31 @@ const AgentExecutor = (() => {
         return true  // Return true so the action counts as "handled" for stats
       }
 
-      // Live execution: log intent, then submit the transaction
-      _log('EXECUTOR', `Adjusting leverage to ${action.targetLeverage}x. Reason: ${action.reason}`, action.severity)
+      // Live execution: use bounded agentDeleverage contract method
+      _log('EXECUTOR', `Agent deleverage to ${action.targetLeverage}x. Reason: ${action.reason}`, action.severity)
       try {
-        const result = await contracts.adjustLeverage(action.targetLeverage)
-        const url = contracts.getExplorerUrl(result.hash)
-        _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
-        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
-        _log('AGENT', `Leverage adjusted to ${action.targetLeverage}x.`, 'secondary')
+        const wc = contracts.getWalletClient()
+        const [addr] = await wc.getAddresses()
+        const targetBps = Math.round(action.targetLeverage * 10000)
+        const result = await wc.writeContract({
+          address: contracts.ADDRESSES.vault,
+          abi: [{
+            name: 'agentDeleverage',
+            type: 'function',
+            stateMutability: 'nonpayable',
+            inputs: [
+              { name: 'user', type: 'address' },
+              { name: 'newLeverageBps', type: 'int32' },
+              { name: 'reason', type: 'string' },
+            ],
+            outputs: [],
+          }],
+          functionName: 'agentDeleverage',
+          args: [addr, targetBps, action.reason],
+          account: addr,
+        })
+        _log('SYSTEM', `TX submitted: ${result}`, 'primary')
+        _log('AGENT', `Agent deleverage to ${action.targetLeverage}x confirmed.`, 'secondary')
         return true
       } catch (e) {
         const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }
@@ -421,14 +439,29 @@ const AgentExecutor = (() => {
         return true
       }
 
-      // Live execution: close the entire position
-      _log('EXECUTOR', `Closing position. Reason: ${action.reason}`, action.severity)
+      // Live execution: use bounded agentClose contract method
+      _log('EXECUTOR', `Agent closing position. Reason: ${action.reason}`, action.severity)
       try {
-        const result = await contracts.closePosition('999999999')
-        const url = contracts.getExplorerUrl(result.hash)
-        _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
-        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
-        _log('AGENT', 'Position closed. Manual control restored.', 'secondary')
+        const wc = contracts.getWalletClient()
+        const [addr] = await wc.getAddresses()
+        const result = await wc.writeContract({
+          address: contracts.ADDRESSES.vault,
+          abi: [{
+            name: 'agentClose',
+            type: 'function',
+            stateMutability: 'nonpayable',
+            inputs: [
+              { name: 'user', type: 'address' },
+              { name: 'reason', type: 'string' },
+            ],
+            outputs: [],
+          }],
+          functionName: 'agentClose',
+          args: [addr, action.reason],
+          account: addr,
+        })
+        _log('SYSTEM', `TX submitted: ${result}`, 'primary')
+        _log('AGENT', 'Position closed via agentClose. Manual control restored.', 'secondary')
         return true
       } catch (e) {
         const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }

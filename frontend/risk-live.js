@@ -17,6 +17,7 @@ const RiskLive = (() => {
   let _onChainOracle = null // Latest on-chain oracle state (separated prices)
   let _listeners = []      // Callbacks notified on every update
   let _peakPrice = 0       // Tracks peak QQQ price for drawdown calc
+  let _oracleWarnLogged = false // Suppress repeated oracle warnings
 
   /**
    * Gather all live inputs, evaluate risk, and notify listeners.
@@ -109,7 +110,10 @@ const RiskLive = (() => {
         }
       }
     } catch (e) {
-      console.warn('RiskLive: On-chain oracle state fetch failed:', e.message)
+      if (!_oracleWarnLogged) {
+        console.warn('RiskLive: On-chain oracle state fetch failed:', e.message)
+        _oracleWarnLogged = true
+      }
     }
 
     // 3. OpenBB market context (non-blocking enrichment)

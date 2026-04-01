@@ -59,6 +59,13 @@ export const CHAIN_CONFIGS = {
 
 let activeChainId = 763373 // default to Ink Sepolia
 
+/**
+ * Switch the active chain and re-create viem clients for the new chain.
+ * Also re-resolves the vault address for the current active asset on the new chain.
+ *
+ * @param {number} chainId — EVM chain ID (e.g., 763373 for Ink Sepolia, 11155111 for Eth Sepolia)
+ * @throws {Error} If the chainId is not in CHAIN_CONFIGS
+ */
 export function switchChain(chainId) {
   const config = CHAIN_CONFIGS[chainId]
   if (!config) throw new Error(`Unsupported chain: ${chainId}`)
@@ -72,7 +79,10 @@ export function switchChain(chainId) {
   setActiveAsset(activeAsset)
 }
 
+/** @returns {number} The currently active EVM chain ID */
 export function getActiveChainId() { return activeChainId }
+
+/** @returns {Object} The CHAIN_CONFIGS entry for the active chain (includes chain def and vault map) */
 export function getActiveChainConfig() { return CHAIN_CONFIGS[activeChainId] }
 
 // ═══════════════════════════════════════════════════════════════
@@ -152,16 +162,36 @@ export const VAULT_REGISTRY = {
 // Backfill: Ink Sepolia uses VAULT_REGISTRY as its vault map
 CHAIN_CONFIGS[763373].vaults = VAULT_REGISTRY
 
+/**
+ * Look up the deployed vault address for a given asset symbol on the active chain.
+ * Falls back to the default VAULT_REGISTRY if the active chain has no vault map.
+ *
+ * @param {string} symbol — Bare ticker symbol (e.g., 'QQQ', 'SPY')
+ * @returns {string|null} Vault contract address, or null if no vault is deployed for this asset
+ */
 export function getVaultForAsset(symbol) {
   const config = CHAIN_CONFIGS[activeChainId]
   const vaults = config?.vaults || VAULT_REGISTRY
   return vaults[symbol] || null
 }
 
+/**
+ * Check whether a vault has been deployed for the given asset on the active chain.
+ *
+ * @param {string} symbol — Bare ticker symbol (e.g., 'QQQ')
+ * @returns {boolean} True if a vault address exists for this symbol
+ */
 export function isVaultDeployed(symbol) {
   return !!getVaultForAsset(symbol)
 }
 
+/**
+ * Override a contract address at runtime. Used for dynamic configuration
+ * when deploying new contracts or switching environments.
+ *
+ * @param {string} key — Address key in the ADDRESSES object (e.g., 'vault', 'usdc')
+ * @param {string} address — New Ethereum address (0x-prefixed, checksummed)
+ */
 export function setAddress(key, address) {
   ADDRESSES[key] = address
 }
@@ -182,7 +212,7 @@ export const ERC20_ABI = [
 export const VAULT_ABI = [
   // Write functions (Pyth pull-oracle: all accept priceUpdateData + msg.value for fee)
   { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'positionValue', type: 'uint256' }], stateMutability: 'payable' },
-  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'payable' },
+  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'minReceived', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'payable' },
   { type: 'function', name: 'adjustLeverage', inputs: [{ name: 'newLeverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
   { type: 'function', name: 'depositJunior', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'shares', type: 'uint256' }], stateMutability: 'nonpayable' },
   { type: 'function', name: 'withdrawJunior', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ name: 'amount', type: 'uint256' }], stateMutability: 'nonpayable' },
@@ -252,6 +282,12 @@ export { ASSET_FEED_MAP }
 
 let activeAsset = 'QQQ'
 
+/**
+ * Set the active asset for all vault operations. Updates ADDRESSES.vault
+ * to point to the correct vault contract for the selected symbol.
+ *
+ * @param {string} symbol — Bare ticker symbol (e.g., 'QQQ', 'SPY')
+ */
 export function setActiveAsset(symbol) {
   activeAsset = symbol
   // Switch vault address to match the selected asset
@@ -264,10 +300,17 @@ export function setActiveAsset(symbol) {
   }
 }
 
+/** @returns {string} The currently active asset symbol (e.g., 'QQQ') */
 export function getActiveAsset() {
   return activeAsset
 }
 
+/**
+ * Get the Pyth feed ID for the currently active asset.
+ * Falls back to QQQ/USD if the active asset has no registered feed.
+ *
+ * @returns {string} Hex-encoded Pyth feed ID (0x-prefixed)
+ */
 export function getActiveFeedId() {
   return ASSET_FEED_MAP[activeAsset] || PYTH_FEEDS['QQQ/USD']
 }
@@ -279,6 +322,12 @@ export function getActiveFeedId() {
 let publicClient = null
 let walletClient = null
 
+/**
+ * Get or create the viem public client for read-only RPC calls.
+ * Lazily initializes on first call using the active chain's RPC URL.
+ *
+ * @returns {import('viem').PublicClient} viem public client instance
+ */
 export function getPublicClient() {
   if (!publicClient) {
     publicClient = createPublicClient({ chain: inkSepolia, transport: http() })
@@ -286,6 +335,12 @@ export function getPublicClient() {
   return publicClient
 }
 
+/**
+ * Get or create the viem wallet client for write transactions.
+ * Requires window.ethereum (MetaMask/injected provider). Returns null if unavailable.
+ *
+ * @returns {import('viem').WalletClient|null} viem wallet client, or null if no provider
+ */
 export function getWalletClient() {
   if (!walletClient && window.ethereum) {
     walletClient = createWalletClient({ chain: inkSepolia, transport: custom(window.ethereum) })
@@ -293,6 +348,12 @@ export function getWalletClient() {
   return walletClient
 }
 
+/**
+ * Get the first connected wallet address from the wallet client.
+ *
+ * @returns {Promise<string>} Checksummed Ethereum address
+ * @throws {Error} If no wallet is connected or no account is found
+ */
 async function getAccount() {
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
@@ -305,6 +366,13 @@ async function getAccount() {
 // ERC-20 READS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Read the ERC-20 token balance for a user, returning both raw and formatted values.
+ *
+ * @param {string} tokenAddress — ERC-20 token contract address
+ * @param {string} userAddress — Wallet address to query
+ * @returns {Promise<{raw: bigint, formatted: string, decimals: number}>} Balance data
+ */
 export async function getBalance(tokenAddress, userAddress) {
   try {
     const pc = getPublicClient()
@@ -317,6 +385,14 @@ export async function getBalance(tokenAddress, userAddress) {
   }
 }
 
+/**
+ * Read the ERC-20 allowance granted by an owner to a spender.
+ *
+ * @param {string} tokenAddress — ERC-20 token contract address
+ * @param {string} ownerAddress — Token holder's address
+ * @param {string} spenderAddress — Address authorized to spend tokens (typically the vault)
+ * @returns {Promise<bigint>} Remaining allowance in token base units
+ */
 export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
   return getPublicClient().readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'allowance', args: [ownerAddress, spenderAddress] })
 }
@@ -325,6 +401,15 @@ export async function getAllowance(tokenAddress, ownerAddress, spenderAddress) {
 // ERC-20 WRITES
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Approve a spender (typically the vault) to transfer tokens on behalf of the user.
+ * Uses max uint256 (infinite approval) to avoid repeated approval popups.
+ *
+ * @param {string} tokenAddress — ERC-20 token to approve
+ * @param {string} spenderAddress — Address receiving the approval (typically vault)
+ * @param {string} _amount — Unused (infinite approval is always granted)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ */
 export async function approveToken(tokenAddress, spenderAddress, _amount) {
   const account = await getAccount()
   const wc = getWalletClient()
@@ -342,21 +427,44 @@ export async function approveToken(tokenAddress, spenderAddress, _amount) {
 // VAULT READS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Read a user's leveraged position from the active vault contract.
+ *
+ * @param {string} userAddress — Wallet address to query
+ * @returns {Promise<Object|null>} Raw position tuple (depositAmount, leverageBps, entryTWAP, etc.), or null if no vault
+ */
 export async function getPosition(userAddress) {
   if (!ADDRESSES.vault) return null
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPosition', args: [userAddress] })
 }
 
+/**
+ * Read the current USD value and unrealized P&L for a user's position.
+ *
+ * @param {string} userAddress — Wallet address to query
+ * @returns {Promise<{value: bigint, pnl: bigint}>} Position value and P&L in USDC base units (6 decimals)
+ */
 export async function getPositionValue(userAddress) {
   if (!ADDRESSES.vault) return { value: 0n, pnl: 0n }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPositionValue', args: [userAddress] })
 }
 
+/**
+ * Read the vault's pool-level state (TVL, exposure, utilization, protocol state).
+ * Not user-specific — returns aggregate vault metrics.
+ *
+ * @returns {Promise<Object|null>} Raw pool state tuple, or null if no vault
+ */
 export async function getPoolState() {
   if (!ADDRESSES.vault) return null
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPoolState' })
 }
 
+/**
+ * Read the current time-weighted average price (TWAP) and spread from the vault.
+ *
+ * @returns {Promise<{twap: bigint, spreadBps: number}>} TWAP in 8-decimal fixed-point, spread in basis points
+ */
 export async function getTWAP() {
   if (!ADDRESSES.vault) return { twap: 0n, spreadBps: 0 }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getCurrentTWAP' })
@@ -369,19 +477,23 @@ export async function getTWAP() {
  */
 export async function getOnChainOracleState() {
   if (!ADDRESSES.vault) return null
-  const raw = await getPublicClient().readContract({
-    address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState',
-  })
-  return {
-    executionPrice: Number(raw.executionPrice) / 1e8,
-    displayPrice: Number(raw.displayPrice) / 1e8,
-    riskPrice: Number(raw.riskPrice) / 1e8,
-    divergenceBps: Number(raw.divergenceBps),
-    spreadBps: Number(raw.spreadBps),
-    isFresh: raw.isFresh,
-    isCircuitBroken: raw.isCircuitBroken,
-    lastUpdateTime: Number(raw.lastUpdateTime),
-    updateCount: Number(raw.updateCount),
+  try {
+    const raw = await getPublicClient().readContract({
+      address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState',
+    })
+    return {
+      executionPrice: Number(raw.executionPrice) / 1e8,
+      displayPrice: Number(raw.displayPrice) / 1e8,
+      riskPrice: Number(raw.riskPrice) / 1e8,
+      divergenceBps: Number(raw.divergenceBps),
+      spreadBps: Number(raw.spreadBps),
+      isFresh: raw.isFresh,
+      isCircuitBroken: raw.isCircuitBroken,
+      lastUpdateTime: Number(raw.lastUpdateTime),
+      updateCount: Number(raw.updateCount),
+    }
+  } catch {
+    return null
   }
 }
 
@@ -455,17 +567,19 @@ export async function openPosition(amountUsdc, leverage) {
   return waitForTx(hash)
 }
 
-export async function closePosition(amountUsdc) {
+export async function closePosition(amountUsdc, slippageBps = 50) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
   const amount = parseUnits(amountUsdc, 6)
+  // minReceived = amount * (1 - slippage%), default 0.5% slippage tolerance
+  const minReceived = amount - (amount * BigInt(slippageBps) / 10000n)
   const { updateData, fee } = await fetchPythUpdate()
 
   const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'withdraw',
-    args: [amount, updateData], value: fee, account, chain: getActiveChainConfig().chain,
+    args: [amount, minReceived, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -556,6 +670,29 @@ export async function readOnChainPrice(feedId, maxAgeSec = 300) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TRANSACTION LIFECYCLE STATES
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Every transaction goes through these states in order:
+ *   submitted → pending → confirmed | failed | rejected
+ *
+ * `submitted`  – hash returned by wallet, tx is in mempool
+ * `pending`    – receipt polling in progress (with retry count)
+ * `confirmed`  – receipt received, status === 'success'
+ * `failed`     – receipt received but status === 'reverted', or RPC error after retries
+ * `rejected`   – user rejected in wallet (never reaches chain)
+ */
+export const TX_STATES = Object.freeze({
+  SUBMITTED: 'submitted',
+  PENDING:   'pending',
+  CONFIRMED: 'confirmed',
+  FAILED:    'failed',
+  REJECTED:  'rejected',
+  SYNCED:    'synced',     // UI state refreshed from confirmed chain reads
+})
+
+// ═══════════════════════════════════════════════════════════════
 // TRANSACTION EVENT SYSTEM
 // ═══════════════════════════════════════════════════════════════
 
@@ -607,24 +744,59 @@ export function classifyTxError(err) {
 // TX HELPERS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Wait for a transaction receipt with exponential backoff retry.
+ * Emits lifecycle events: submitted → pending → confirmed | failed
+ * Callers should emit 'synced' after refreshing UI from confirmed chain state.
+ *
+ * Retry strategy: up to 5 attempts with 2/4/8/16/32s backoff.
+ * This survives transient RPC hiccups during a live demo.
+ */
 async function waitForTx(hash) {
-  // Emit submitted event as soon as the hash exists — the tx is in the mempool
-  txEvents.emit('submitted', { hash, explorerUrl: getExplorerUrl(hash) })
+  const explorerUrl = getExplorerUrl(hash)
+  // submitted — hash is in the mempool
+  txEvents.emit('submitted', { hash, explorerUrl, state: TX_STATES.SUBMITTED })
 
-  const receipt = await getPublicClient().waitForTransactionReceipt({ hash })
+  const MAX_RETRIES = 5
+  let receipt = null
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // pending — polling in progress
+    txEvents.emit('pending', { hash, explorerUrl, state: TX_STATES.PENDING, attempt, maxRetries: MAX_RETRIES })
+
+    try {
+      receipt = await getPublicClient().waitForTransactionReceipt({
+        hash,
+        timeout: 30_000,        // 30s per attempt (viem default is 60s)
+        pollingInterval: 2_000, // check every 2s
+      })
+      break // got a receipt
+    } catch (pollErr) {
+      console.warn(`[waitForTx] attempt ${attempt + 1}/${MAX_RETRIES + 1} failed:`, pollErr.message)
+      if (attempt === MAX_RETRIES) {
+        // All retries exhausted — emit failed and throw
+        const classified = classifyTxError(pollErr)
+        txEvents.emit('failed', { hash, explorerUrl, state: TX_STATES.FAILED, error: classified })
+        pollErr.shortMessage = pollErr.shortMessage || `Receipt polling failed after ${MAX_RETRIES + 1} attempts. Check the explorer for status.`
+        throw pollErr
+      }
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+      await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)))
+    }
+  }
 
   // Check receipt status — 'reverted' means the tx was mined but failed on-chain
   if (receipt.status === 'reverted') {
     const err = new Error(`Transaction reverted (tx: ${hash})`)
     err._txReverted = true
     err.shortMessage = 'Transaction was mined but reverted on-chain.'
-    txEvents.emit('failed', { hash, receipt, error: classifyTxError(err) })
+    txEvents.emit('failed', { hash, explorerUrl, receipt, state: TX_STATES.FAILED, error: classifyTxError(err) })
     throw err
   }
 
-  // Success — emit confirmed so listeners can reload balances from chain state
-  txEvents.emit('confirmed', { hash, receipt })
-  return { hash, receipt }
+  // confirmed — receipt received, tx succeeded
+  txEvents.emit('confirmed', { hash, explorerUrl, receipt, state: TX_STATES.CONFIRMED })
+  return { hash, receipt, explorerUrl }
 }
 
 export function getExplorerUrl(hash) {
@@ -673,6 +845,64 @@ export function formatPoolState(pool) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PRE-DEMO HEALTH CHECK (PREFLIGHT)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Runs a comprehensive preflight check for demo readiness.
+ * Returns an array of { key, label, ok, detail } items.
+ */
+export async function runPreflight() {
+  const checks = []
+
+  // 1. Wallet connected
+  let account = null
+  try {
+    account = await getAccount()
+    checks.push({ key: 'wallet', label: 'Wallet Connected', ok: true, detail: account.slice(0, 6) + '...' + account.slice(-4) })
+  } catch {
+    checks.push({ key: 'wallet', label: 'Wallet Connected', ok: false, detail: 'No wallet connected' })
+  }
+
+  // 2. Correct chain
+  try {
+    const chainId = await window.ethereum?.request({ method: 'eth_chainId' })
+    const current = parseInt(chainId, 16)
+    const expected = getActiveChainId()
+    checks.push({ key: 'chain', label: 'Correct Chain', ok: current === expected, detail: current === expected ? getActiveChainConfig().chain.name : `Expected ${expected}, got ${current}` })
+  } catch {
+    checks.push({ key: 'chain', label: 'Correct Chain', ok: false, detail: 'Cannot read chain ID' })
+  }
+
+  // 3. USDC balance
+  if (account) {
+    try {
+      const bal = await getBalance(ADDRESSES.usdc, account)
+      const hasBalance = parseFloat(bal.formatted) > 0
+      checks.push({ key: 'balance', label: 'USDC Balance', ok: hasBalance, detail: hasBalance ? `${parseFloat(bal.formatted).toFixed(2)} USDC` : '0 USDC' })
+    } catch {
+      checks.push({ key: 'balance', label: 'USDC Balance', ok: false, detail: 'Failed to read balance' })
+    }
+  } else {
+    checks.push({ key: 'balance', label: 'USDC Balance', ok: false, detail: 'Connect wallet first' })
+  }
+
+  // 4. Vault address loaded
+  const vaultAddr = ADDRESSES.vault
+  checks.push({ key: 'vault', label: 'Vault Address Loaded', ok: !!vaultAddr, detail: vaultAddr ? vaultAddr.slice(0, 10) + '...' : 'No vault set' })
+
+  // 5. RPC reachable
+  try {
+    const block = await getPublicClient().getBlockNumber()
+    checks.push({ key: 'rpc', label: 'RPC Reachable', ok: true, detail: `Block #${block.toLocaleString()}` })
+  } catch {
+    checks.push({ key: 'rpc', label: 'RPC Reachable', ok: false, detail: 'RPC request failed' })
+  }
+
+  return checks
+}
+
 // Expose globally for non-module scripts
 window.xLeverContracts = {
   ADDRESSES, setAddress, VAULT_REGISTRY, CHAIN_CONFIGS,
@@ -686,5 +916,6 @@ window.xLeverContracts = {
   getExplorerUrl, getAddressExplorerUrl,
   formatPosition, formatPoolState,
   getPublicClient, getWalletClient,
-  txEvents, classifyTxError,
+  txEvents, classifyTxError, TX_STATES,
+  runPreflight,
 }

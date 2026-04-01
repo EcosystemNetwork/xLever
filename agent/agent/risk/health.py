@@ -8,6 +8,7 @@ from loguru import logger
 
 from agent.execution.web3_client import Web3Client
 from agent.contracts.addresses import CONTRACTS
+from agent.contracts.abi_loader import HEDGING_VAULT_ABI
 
 
 # Health Score Thresholds
@@ -92,26 +93,32 @@ class HealthMonitor:
 
         Raises:
             Exception: If unable to fetch health score
-
-        Note:
-            In production, this would call the vault's getHealthScore() method.
-            For now, returns a mock value for testing.
         """
-        # TODO: Implement actual vault contract call
-        # from agent.contracts.abis import VAULT_ABI
-        # health_score = await self.web3.call_contract_function(
-        #     contract_address=self.vault_address,
-        #     abi=VAULT_ABI,
-        #     function_name="getHealthScore",
-        # )
-
         logger.debug(f"Fetching health score from vault {self.vault_address}")
 
-        # Mock implementation - replace with actual contract call
-        mock_health_score = 1.6  # Safe level
-        logger.debug(f"Health score: {mock_health_score:.3f}")
+        try:
+            # Call getHealthScore(account) on the hedging vault
+            account = self.web3.account.address
+            raw_score = await self.web3.call_contract_function(
+                self.vault_address,
+                HEDGING_VAULT_ABI,
+                "getHealthScore",
+                account,
+            )
 
-        return mock_health_score
+            # Contract returns uint256 scaled by 1e18
+            health_score = float(raw_score) / 1e18
+            logger.debug(f"Health score: {health_score:.3f}")
+            return health_score
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch on-chain health score: {e}")
+            # Fall back to safe default if no position exists or contract call fails
+            if self._last_health_score is not None:
+                logger.debug(f"Using cached health score: {self._last_health_score:.3f}")
+                return self._last_health_score
+            # No position likely means healthy
+            return 2.0
 
     def get_action_for_health_score(self, health_score: float) -> HealthCheckResult:
         """Determine recommended action based on health score level.

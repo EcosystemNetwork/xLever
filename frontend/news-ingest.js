@@ -1,19 +1,26 @@
 /**
- * xLever News Ingestion Pipeline + Priority Queue
- * ─────────────────────────────────────────────────
+ * @file news-ingest.js
+ * @module NewsIngest
+ * @description
+ * xLever News Ingestion Pipeline + Priority Queue.
  * Streams news from multiple sources, classifies priority,
- * and routes to analyst agents via the coordinator.
+ * deduplicates, and routes to analyst agents via the coordinator.
  *
  * Sources:
- *  1. Backend /api/news/stream (SSE) — aggregated feed
- *  2. Backend /api/news/poll — fallback polling
- *  3. Manual inject via ingest()
+ *  1. Backend /api/news/stream (SSE) — primary real-time aggregated feed
+ *  2. Backend /api/news/poll — fallback polling (30s interval)
+ *  3. Manual inject via ingest() — programmatic or testing input
  *
- * Priority levels:
- *  CRITICAL (0) — Fed decisions, circuit breakers, black swan
+ * Priority levels (lower number = higher urgency):
+ *  CRITICAL (0) — Fed decisions, circuit breakers, black swan events
  *  HIGH (1)     — Earnings beats/misses, sector rotation, macro data
  *  MEDIUM (2)   — Analyst upgrades/downgrades, options flow
  *  LOW (3)      — General market commentary, sector news
+ *
+ * @exports {Object} NewsIngest - Frozen singleton exposed on window.NewsIngest
+ *
+ * @dependencies
+ *  - window.xLeverAssets — Asset registry for symbol tracking (optional)
  */
 
 const NewsIngest = (() => {
@@ -22,16 +29,30 @@ const NewsIngest = (() => {
   // PRIORITY QUEUE — min-heap ordered by (priority, timestamp)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Min-heap priority queue ordered by (priority, timestamp).
+   * Lower priority numbers surface first; ties broken by earlier timestamps.
+   * Used to ensure CRITICAL news is always processed before lower-priority items.
+   */
   class PriorityQueue {
     constructor() { this._heap = [] }
 
+    /** @returns {number} Number of items currently in the queue */
     get size() { return this._heap.length }
 
+    /**
+     * Add an item to the queue and re-heapify upward.
+     * @param {Object} item - News item with at least { priority, timestamp }
+     */
     enqueue(item) {
       this._heap.push(item)
       this._bubbleUp(this._heap.length - 1)
     }
 
+    /**
+     * Remove and return the highest-priority (lowest number) item.
+     * @returns {Object|null} The top-priority news item, or null if empty
+     */
     dequeue() {
       if (this._heap.length === 0) return null
       const top = this._heap[0]
@@ -43,8 +64,14 @@ const NewsIngest = (() => {
       return top
     }
 
+    /** @returns {Object|null} The top-priority item without removing it */
     peek() { return this._heap[0] || null }
 
+    /**
+     * Remove and return up to `max` items from the queue in priority order.
+     * @param {number} [max=Infinity] - Maximum number of items to drain
+     * @returns {Object[]} Array of dequeued news items
+     */
     drain(max = Infinity) {
       const items = []
       while (this._heap.length > 0 && items.length < max) {
@@ -53,6 +80,7 @@ const NewsIngest = (() => {
       return items
     }
 
+    /** @param {number} i - Index to bubble up from */
     _bubbleUp(i) {
       while (i > 0) {
         const parent = (i - 1) >> 1
@@ -63,6 +91,7 @@ const NewsIngest = (() => {
       }
     }
 
+    /** @param {number} i - Index to sink down from */
     _sinkDown(i) {
       const n = this._heap.length
       while (true) {
@@ -149,6 +178,14 @@ const NewsIngest = (() => {
   // CLASSIFICATION
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Classify the priority of a news item by matching headline + body text
+   * against keyword patterns for each priority tier.
+   *
+   * @param {string} headline - News headline
+   * @param {string} [body=''] - Optional article body text
+   * @returns {number} Priority level: 0 (CRITICAL), 1 (HIGH), 2 (MEDIUM), or 3 (LOW)
+   */
   function classifyPriority(headline, body = '') {
     const text = `${headline} ${body}`
     if (CRITICAL_PATTERNS.some(p => p.test(text))) return PRIORITY.CRITICAL
@@ -157,6 +194,14 @@ const NewsIngest = (() => {
     return PRIORITY.LOW
   }
 
+  /**
+   * Extract tracked ticker symbols mentioned in the headline and body.
+   * Uses whole-word matching to avoid false positives (e.g., "IT" inside "it").
+   *
+   * @param {string} headline - News headline
+   * @param {string} [body=''] - Optional article body text
+   * @returns {string[]} Array of matched ticker symbols (uppercase)
+   */
   function extractSymbols(headline, body = '') {
     const text = `${headline} ${body}`.toUpperCase()
     const found = []
@@ -168,6 +213,13 @@ const NewsIngest = (() => {
     return found
   }
 
+  /**
+   * Generate a fast 32-bit hash of a headline string for deduplication.
+   * Uses the djb2-like hash algorithm (shift-and-subtract variant).
+   *
+   * @param {string} s - Headline string to hash
+   * @returns {number} 32-bit integer hash
+   */
   function hashHeadline(s) {
     let h = 0
     for (let i = 0; i < s.length; i++) {
@@ -180,8 +232,21 @@ const NewsIngest = (() => {
   // INGESTION
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Ingest a single news item into the priority queue.
+   * Performs deduplication, priority classification, symbol extraction,
+   * and notifies subscribers immediately for CRITICAL items.
+   *
+   * @param {Object} item - Raw news item
+   * @param {string} item.headline - News headline (required)
+   * @param {string} [item.body] - Full article body
+   * @param {string} [item.source] - Source identifier
+   * @param {number} [item.timestamp] - Unix timestamp (defaults to now)
+   * @param {string[]} [item.symbols] - Pre-extracted ticker symbols
+   * @param {number} [item.priority] - Pre-classified priority (skips auto-classification)
+   * @returns {Object|null} The enriched news item added to the queue, or null if duplicate/empty
+   */
   function ingest(item) {
-    // item: { headline, body?, source?, timestamp?, symbols?, priority? }
     const headline = item.headline || ''
     if (!headline) return null
 
@@ -224,7 +289,13 @@ const NewsIngest = (() => {
     return newsItem
   }
 
-  // Batch ingest from API response
+  /**
+   * Batch-ingest multiple news items from an API response.
+   * Notifies subscribers once after all items are processed.
+   *
+   * @param {Object[]} items - Array of raw news items (same shape as ingest() input)
+   * @returns {Object[]} Array of successfully ingested news items (excludes duplicates)
+   */
   function ingestBatch(items) {
     const results = []
     for (const item of items) {
@@ -239,6 +310,11 @@ const NewsIngest = (() => {
   // SSE STREAMING (primary)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Establish an SSE (Server-Sent Events) connection to the backend news stream.
+   * On connection loss, automatically falls back to polling mode.
+   * Incoming messages are expected as JSON: either a single item or an array of items.
+   */
   function connectSSE() {
     if (_eventSource) _eventSource.close()
 
@@ -283,6 +359,11 @@ const NewsIngest = (() => {
 
   let _lastPollTs = 0
 
+  /**
+   * Poll the backend for new news items since the last poll timestamp.
+   * Failures are silently ignored since polling is a fallback mechanism.
+   * @returns {Promise<void>}
+   */
   async function poll() {
     try {
       const resp = await fetch(`/api/news/poll?since=${_lastPollTs}`)
@@ -297,12 +378,17 @@ const NewsIngest = (() => {
     }
   }
 
+  /**
+   * Start the fallback polling timer. Triggers an immediate first poll.
+   * @param {number} [intervalMs=30000] - Polling interval in milliseconds
+   */
   function startPolling(intervalMs = 30000) {
     if (_pollInterval) clearInterval(_pollInterval)
     _pollInterval = setInterval(poll, intervalMs)
     poll() // Immediate first poll
   }
 
+  /** Stop the fallback polling timer. */
   function stopPolling() {
     if (_pollInterval) clearInterval(_pollInterval)
     _pollInterval = null
@@ -312,12 +398,21 @@ const NewsIngest = (() => {
   // SUBSCRIBER NOTIFICATION
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Notify all registered subscribers with the current queue reference.
+   * Subscriber errors are silently caught to prevent crashing the ingest pipeline.
+   */
   function _notifySubscribers() {
     for (const cb of _subscribers) {
       try { cb(_queue) } catch (e) { /* subscriber error shouldn't crash ingest */ }
     }
   }
 
+  /**
+   * Register a callback to be notified when new items enter the queue.
+   * @param {Function} callback - Called with the PriorityQueue instance
+   * @returns {Function} Unsubscribe function — call to remove the callback
+   */
   function subscribe(callback) {
     _subscribers.push(callback)
     return () => {
@@ -329,6 +424,13 @@ const NewsIngest = (() => {
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Start the news ingestion pipeline.
+   * Populates tracked symbols from the asset registry and connects via SSE.
+   *
+   * @param {Object} [opts={}] - Configuration options
+   * @param {Function} [opts.log] - Logging callback with signature (label, message, color)
+   */
   function start(opts = {}) {
     if (_running) return
     _running = true
@@ -349,6 +451,7 @@ const NewsIngest = (() => {
     connectSSE()
   }
 
+  /** Stop the news ingestion pipeline — closes SSE and polling connections. */
   function stop() {
     _running = false
     if (_eventSource) { _eventSource.close(); _eventSource = null }

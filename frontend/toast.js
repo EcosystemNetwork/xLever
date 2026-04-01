@@ -1,4 +1,25 @@
-// Toast notification system
+/**
+ * @file toast.js — Simple Toast Notification System
+ *
+ * Provides slide-in/slide-out toast notifications with four severity types:
+ * success, error, warning, and info. Each toast includes a colored icon,
+ * message text, and a close button.
+ *
+ * This is the standalone toast system used on pages that don't load ux.js
+ * (which provides the more feature-rich XToast module). For app pages,
+ * prefer XToast from ux.js instead.
+ *
+ * @module toast
+ * @exports {Function} window.showToast - Show a toast notification
+ *
+ * @dependencies None (self-contained DOM manipulation)
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST CONTAINER SETUP
+// ═══════════════════════════════════════════════════════════════
+
+/** @type {HTMLDivElement} Fixed-position container for all active toasts */
 const toastContainer = document.createElement('div');
 toastContainer.id = 'toast-container';
 toastContainer.style.cssText = `
@@ -13,6 +34,13 @@ toastContainer.style.cssText = `
 `;
 document.body.appendChild(toastContainer);
 
+/**
+ * Display a toast notification with an icon, message, and auto-dismiss timer.
+ * @param {string} message - The notification text to display
+ * @param {'success'|'error'|'warning'|'info'} [type='info'] - Toast severity/style
+ * @param {number} [duration=4000] - Auto-dismiss delay in ms; 0 = persist until manually closed
+ * @returns {HTMLDivElement} The toast DOM element (for manual dismissal via removeToast)
+ */
 function showToast(message, type = 'info', duration = 4000) {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
@@ -106,6 +134,10 @@ function showToast(message, type = 'info', duration = 4000) {
   return toast;
 }
 
+/**
+ * Animate a toast off-screen and remove it from the DOM.
+ * @param {HTMLDivElement} toast - The toast element to remove
+ */
 function removeToast(toast) {
   toast.style.animation = 'slideOut 0.3s ease-in';
   setTimeout(() => {
@@ -115,7 +147,11 @@ function removeToast(toast) {
   }, 300);
 }
 
-// Add animations
+// ═══════════════════════════════════════════════════════════════
+// CSS ANIMATIONS
+// ═══════════════════════════════════════════════════════════════
+
+/** Inject slide-in/slide-out keyframe animations used by toast transitions */
 const style = document.createElement('style');
 style.textContent = `
   @keyframes slideIn {

@@ -123,14 +123,16 @@ class TransactionBuilder:
         )
 
         # Build transaction to open long position
-        # Function signature: openLongPosition(uint256 initialCollateral, uint256 targetLeverage)
+        # Function signature: openLongPosition(uint256 collateralAmount, uint256 borrowAmount, bytes pythUpdateData)
+        borrow_amount = int(collateral_amount * (decision.leverage_bps / 10000 - 1))
         tx_hash = await self.web3.send_contract_transaction(
-            contract_address=hedging_vault,
-            abi=self.hedging_abi,
-            function_name="openLongPosition",
+            hedging_vault,
+            self.hedging_abi,
+            "openLongPosition",
             collateral_amount,
-            decision.leverage_bps,
-            gas_limit=350000,  # Estimated gas for opening position
+            borrow_amount,
+            b"",  # pythUpdateData - populated by contract from on-chain oracle
+            gas_limit=350000,
         )
 
         logger.success(f"Long position opened: {tx_hash}")
@@ -173,14 +175,16 @@ class TransactionBuilder:
         )
 
         # Build transaction to open short position
-        # Function signature: openShortPosition(uint256 initialCollateral, uint256 targetLeverage)
+        # Function signature: openShortPosition(uint256 collateralAmount, uint256 borrowAmount, bytes pythUpdateData)
+        borrow_amount = int(collateral_amount * (decision.leverage_bps / 10000 - 1))
         tx_hash = await self.web3.send_contract_transaction(
-            contract_address=hedging_vault,
-            abi=self.hedging_abi,
-            function_name="openShortPosition",
+            hedging_vault,
+            self.hedging_abi,
+            "openShortPosition",
             collateral_amount,
-            decision.leverage_bps,
-            gas_limit=350000,  # Estimated gas for opening position
+            borrow_amount,
+            b"",  # pythUpdateData
+            gas_limit=350000,
         )
 
         logger.success(f"Short position opened: {tx_hash}")
@@ -207,13 +211,15 @@ class TransactionBuilder:
 
         logger.info(f"Closing position: {decision.asset}")
 
-        # Build transaction to close position
-        # Function signature: closePosition()
+        # Close position - determine direction from on-chain state
+        # For now, close long by default (agent tracks direction separately)
         tx_hash = await self.web3.send_contract_transaction(
-            contract_address=hedging_vault,
-            abi=self.hedging_abi,
-            function_name="closePosition",
-            gas_limit=300000,  # Estimated gas for closing
+            hedging_vault,
+            self.hedging_abi,
+            "closeLongPosition",
+            0,  # repayAmount (0 = repay all)
+            b"",  # pythUpdateData
+            gas_limit=300000,
         )
 
         logger.success(f"Position closed: {tx_hash}")
@@ -270,11 +276,12 @@ class TransactionBuilder:
         logger.debug(f"Approving {amount} tokens for {spender}")
 
         # Check current allowance
+        account = self.web3.account.address
         current_allowance = await self.web3.call_contract_function(
-            contract_address=token_address,
-            abi=self.erc20_abi,
-            function_name="allowance",
-            self.web3.account.address,
+            token_address,
+            self.erc20_abi,
+            "allowance",
+            account,
             spender,
         )
 
@@ -284,9 +291,9 @@ class TransactionBuilder:
 
         # Approve spending
         tx_hash = await self.web3.send_contract_transaction(
-            contract_address=token_address,
-            abi=self.erc20_abi,
-            function_name="approve",
+            token_address,
+            self.erc20_abi,
+            "approve",
             spender,
             amount,
             gas_limit=100000,

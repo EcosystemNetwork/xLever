@@ -13,13 +13,11 @@ settings = get_settings()
 # Create the async engine — this manages the connection pool to PostgreSQL
 # echo=DEBUG logs all SQL statements, helpful for debugging queries during development
 # Pool settings tuned for Neon serverless pooler (PgBouncer in transaction mode)
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,  # verify connections are alive before use (Neon can idle-disconnect)
-)
+_engine_kwargs = dict(echo=settings.DEBUG)
+# pool_size/max_overflow/pool_pre_ping are PostgreSQL-specific; skip for SQLite (tests)
+if "sqlite" not in settings.DATABASE_URL:
+    _engine_kwargs.update(pool_size=5, max_overflow=10, pool_pre_ping=True)
+engine = create_async_engine(settings.DATABASE_URL, **_engine_kwargs)
 # Session factory configured with expire_on_commit=False so ORM objects remain usable
 # after commit without triggering lazy loads (which would fail outside an async context)
 async_session = async_sessionmaker(engine, expire_on_commit=False)

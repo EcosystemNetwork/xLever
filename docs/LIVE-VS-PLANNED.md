@@ -12,7 +12,8 @@ Quick reference for reviewers and contributors.
 | **VaultFactory** | `contracts/src/xLever/VaultFactory.sol` | Ink Sepolia | Deploys and registers VaultSimple instances |
 | **PythOracleAdapter** | `contracts/src/xLever/experimental/modules/PythOracleAdapter.sol` | Ink Sepolia | Pyth pull-oracle adapter for price updates |
 | **EVC** | Euler V2 core | Ink Sepolia | Ethereum Vault Connector for atomic operations |
-| **Frontend** | `frontend/` (9 screens) | xlever.markets | Vite SPA, Bloomberg Terminal aesthetic |
+| **Ethereum Sepolia Mirror** | Euler V2 core + 33 VaultSimple | Ethereum Sepolia | Full mirror of Ink Sepolia deployment (Chain ID 11155111) |
+| **Frontend** | `frontend/` (10 screens) | xlever.markets | Vite SPA, Bloomberg Terminal aesthetic |
 | **Wallet** | `frontend/wallet.js` | — | Reown AppKit — Ethereum, Ink Sepolia, Solana, TON |
 | **Pyth Oracle** | `frontend/pyth.js` | — | Hermes price feeds for 30+ assets |
 | **Risk Sentinel** | `frontend/risk-engine.js` | — | Client-side 4-state FSM (NORMAL/WARNING/RESTRICTED/EMERGENCY) |
@@ -39,8 +40,8 @@ Full address list in `deployment.json` and `frontend/contracts.js`.
 | **RiskModule** | `experimental/modules/RiskModule.sol` | Designed | Needs modular Vault deployment |
 | **TWAPOracle** | `experimental/modules/TWAPOracle.sol` | Designed | Needs modular Vault deployment |
 | **JuniorTranche** | `experimental/modules/JuniorTranche.sol` | Designed | Needs modular Vault deployment |
-| **Kamino adapter** (Solana) | `docs/MULTI-CHAIN-LENDING.md` | Roadmap | SDK integration pending |
-| **EVAA adapter** (TON) | `docs/MULTI-CHAIN-LENDING.md` | Roadmap | TL-B encoding pending |
+| **Kamino adapter** (Solana) | `frontend/lending-adapters.js` | Code written | SDK installed, needs full integration testing |
+| **EVAA adapter** (TON) | `frontend/lending-adapters.js` | Code written | SDK installed, TL-B encoding needs verification |
 
 ### What the modular Vault adds over VaultSimple
 

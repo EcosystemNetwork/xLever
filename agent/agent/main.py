@@ -9,6 +9,7 @@ from loguru import logger
 
 from agent.config import Settings, get_settings
 from agent.execution.web3_client import Web3Client
+from agent.execution.tx_builder import TransactionBuilder
 from agent.intelligence.tavily import TavilyClient
 from agent.intelligence.market import MarketIntelligence, MarketState
 from agent.strategy.llm_strategy import LLMStrategy, TradingDecision
@@ -65,10 +66,37 @@ class TradingAgent:
         # Agent state
         self._current_position: Optional[Position] = None
         self._shutdown_requested = False
+        self._available_capital_usdc: float = 10000.0  # Updated from wallet balance when available
+
+        # Tracking (used by API routes)
+        self.start_time: Optional[datetime] = None
+        self.last_decision_at: Optional[datetime] = None
+        self.total_decisions: int = 0
+        self.total_trades: int = 0
+
+        # Transaction builder (initialized in initialize())
+        self.tx_builder = None
 
         logger.info(
             f"Trading agent created (mode: {'PAPER' if paper_mode else 'LIVE'})"
         )
+
+    @property
+    def hitl(self):
+        """Alias for hitl_controller (used by API routes)."""
+        return self.hitl_controller
+
+    @property
+    def current_position(self):
+        """Current position (used by API routes)."""
+        return self._current_position
+
+    @property
+    def last_health_score(self):
+        """Last health score (used by API routes)."""
+        if self.health_monitor:
+            return self.health_monitor.last_health_score
+        return None
 
     async def initialize(self) -> None:
         """Initialize all agent components."""
@@ -103,6 +131,12 @@ class TradingAgent:
             if not await self.web3.is_connected():
                 raise Exception("Failed to connect to blockchain")
 
+            # 3b. Transaction builder
+            self.tx_builder = TransactionBuilder(
+                web3_client=self.web3,
+                max_gas_gwei=100,
+            )
+
             # 4. Tavily client (for AI market intelligence)
             self.tavily = TavilyClient(
                 api_key=self.settings.apis.tavily_api_key,
@@ -134,9 +168,8 @@ class TradingAgent:
             )
 
             # 9. Health monitor
-            # TODO: Use actual vault address from config
             from agent.contracts.addresses import CONTRACTS
-            vault_address = CONTRACTS.get("wSPYx_vault", "0x0")
+            vault_address = CONTRACTS["wSPYx_HEDGING"]
 
             self.health_monitor = HealthMonitor(
                 web3_client=self.web3,
@@ -196,7 +229,7 @@ class TradingAgent:
         decision = await self.llm_strategy.decide(
             market_state=market_state,
             current_position=self._current_position,
-            available_capital_usdc=10000.0,  # TODO: Track actual capital
+            available_capital_usdc=self._available_capital_usdc,
             max_leverage_bps=self.settings.risk.max_leverage_bps,
         )
 
@@ -286,21 +319,49 @@ class TradingAgent:
         """
         logger.info(f"[LIVE MODE] Executing on-chain: {decision.action.value}")
 
-        # TODO: Implement actual contract interactions
-        # This would involve:
-        # 1. Prepare transaction data
-        # 2. Sign and send transaction
-        # 3. Wait for confirmation
-        # 4. Update position tracking
+        try:
+            tx_hash = await self.tx_builder.execute_decision(
+                decision=decision,
+                slippage_bps=50,
+            )
 
-        await self.alert_manager.critical(
-            title="Live Execution",
-            message=f"Executed {decision.action.value} on-chain",
-            decision=decision.to_dict(),
-        )
+            if tx_hash:
+                self.total_trades += 1
+
+                # Broadcast via WebSocket
+                if self.ws_manager:
+                    from agent.websocket.server import EventType, Severity
+                    await self.ws_manager.broadcast(
+                        event_type=EventType.POSITION_OPENED if decision.action.value in ("OPEN_LONG", "OPEN_SHORT") else EventType.POSITION_CLOSED,
+                        data={"tx_hash": tx_hash, **decision.to_dict()},
+                        message=f"Executed {decision.action.value} on-chain: {tx_hash}",
+                        severity=Severity.INFO,
+                    )
+
+                await self.alert_manager.info(
+                    title="Live Execution",
+                    message=f"Executed {decision.action.value} on-chain: {tx_hash}",
+                    tx_hash=tx_hash,
+                    decision=decision.to_dict(),
+                )
+            else:
+                logger.warning("Transaction builder returned no tx_hash")
+
+        except Exception as e:
+            logger.error(f"On-chain execution failed: {e}")
+            await self.alert_manager.critical(
+                title="Execution Failed",
+                message=f"Failed to execute {decision.action.value}: {str(e)}",
+                decision=decision.to_dict(),
+            )
 
     async def execute_health_action(self, action: HealthAction) -> None:
-        """Execute health score remediation action.
+        """Execute health score remediation action via bounded on-chain calls.
+
+        Uses agentDeleverage/agentClose contract methods which enforce:
+        - Agent can only REDUCE leverage, never increase
+        - Agent cannot flip position direction
+        - All actions are logged on-chain via AgentAction events
 
         Args:
             action: Health action to execute
@@ -313,11 +374,88 @@ class TradingAgent:
             action=action.value,
         )
 
-        # TODO: Implement specific health actions
-        # - REDUCE_25_PERCENT: Reduce position by 25%
-        # - REDUCE_50_PERCENT: Reduce position by 50%
-        # - REDUCE_TO_1_5X: Reduce leverage to 1.5x
-        # - EMERGENCY_EXIT: Close all positions
+        if not self._current_position or not self._current_position.is_active:
+            logger.warning("No active position to apply health action to")
+            return
+
+        if self.paper_mode:
+            logger.info(f"[PAPER MODE] Would execute health action: {action.value}")
+            await self.alert_manager.info(
+                title="Paper Health Action",
+                message=f"Simulated {action.value}",
+                action=action.value,
+            )
+            return
+
+        try:
+            current_leverage_bps = self._current_position.leverage_bps
+            abs_leverage = abs(current_leverage_bps)
+            sign = 1 if current_leverage_bps >= 0 else -1
+
+            from agent.contracts.addresses import CONTRACTS
+
+            if action == HealthAction.EMERGENCY_EXIT:
+                # Full position close via agentClose
+                reason = "Health score critical — emergency exit"
+                tx_hash = await self.tx_builder.web3.call_contract(
+                    contract_address=CONTRACTS["wQQQx_HEDGING"],
+                    function_name="agentClose",
+                    args=[self._current_position.user_address, reason],
+                )
+                logger.info(f"agentClose TX: {tx_hash}")
+                self._current_position = None
+
+            elif action == HealthAction.REDUCE_TO_1_5X:
+                target_bps = sign * 15000
+                if abs_leverage > 15000:
+                    reason = "Health score low — reducing to 1.5x"
+                    tx_hash = await self.tx_builder.web3.call_contract(
+                        contract_address=CONTRACTS["wQQQx_HEDGING"],
+                        function_name="agentDeleverage",
+                        args=[self._current_position.user_address, target_bps, reason],
+                    )
+                    logger.info(f"agentDeleverage to 1.5x TX: {tx_hash}")
+
+            elif action == HealthAction.REDUCE_50_PERCENT:
+                target_bps = sign * (abs_leverage // 2)
+                if target_bps != current_leverage_bps:
+                    reason = "Health score declining — reducing leverage by 50%"
+                    tx_hash = await self.tx_builder.web3.call_contract(
+                        contract_address=CONTRACTS["wQQQx_HEDGING"],
+                        function_name="agentDeleverage",
+                        args=[self._current_position.user_address, target_bps, reason],
+                    )
+                    logger.info(f"agentDeleverage 50% TX: {tx_hash}")
+
+            elif action == HealthAction.REDUCE_25_PERCENT:
+                target_bps = sign * (abs_leverage * 3 // 4)
+                if target_bps != current_leverage_bps:
+                    reason = "Health score warning — reducing leverage by 25%"
+                    tx_hash = await self.tx_builder.web3.call_contract(
+                        contract_address=CONTRACTS["wQQQx_HEDGING"],
+                        function_name="agentDeleverage",
+                        args=[self._current_position.user_address, target_bps, reason],
+                    )
+                    logger.info(f"agentDeleverage 25% TX: {tx_hash}")
+
+            self.total_trades += 1
+
+            if self.ws_manager:
+                from agent.websocket.server import EventType, Severity
+                await self.ws_manager.broadcast(
+                    event_type=EventType.POSITION_CLOSED if action == HealthAction.EMERGENCY_EXIT else EventType.DECISION_MADE,
+                    data={"action": action.value, "reason": reason},
+                    message=f"Health action executed: {action.value}",
+                    severity=Severity.CRITICAL,
+                )
+
+        except Exception as e:
+            logger.error(f"Health action execution failed: {e}")
+            await self.alert_manager.critical(
+                title="Health Action Failed",
+                message=f"Failed to execute {action.value}: {str(e)}",
+                action=action.value,
+            )
 
     async def handle_error(self, error: Exception) -> None:
         """Handle errors in the main loop.
@@ -343,6 +481,7 @@ class TradingAgent:
             await self.initialize()
 
         self.running = True
+        self.start_time = datetime.now()
 
         await self.alert_manager.info(
             title="Agent Started",
@@ -393,11 +532,49 @@ class TradingAgent:
                 # 4. Generate and validate decision
                 logger.info("Generating trading decision...")
                 decision = await self.make_decision(market_state)
+                self.total_decisions += 1
+                self.last_decision_at = datetime.now()
+
+                # Broadcast decision via WebSocket
+                if self.ws_manager:
+                    from agent.websocket.server import EventType, Severity
+                    await self.ws_manager.broadcast(
+                        event_type=EventType.DECISION_MADE,
+                        data=decision.to_dict(),
+                        message=f"Decision: {decision.action.value} (confidence: {decision.confidence}%)",
+                        severity=Severity.INFO,
+                    )
+
+                # Store decision in decisions_db
+                from agent.api.routes.decisions import get_decisions_db
+                decisions_db = get_decisions_db()
+                decision_record = {
+                    "id": str(self.total_decisions),
+                    "created_at": datetime.now(),
+                    **decision.to_dict(),
+                    "market_price": market_state.spot_price,
+                    "market_sentiment": market_state.sentiment,
+                    "health_score": health_result.health_score,
+                    "executed": False,
+                    "execution_tx": None,
+                    "execution_error": None,
+                    "required_approval": False,
+                    "approved": None,
+                    "approved_by": None,
+                    "approval_note": None,
+                    "executed_at": None,
+                    "rules_applied": [],
+                    "rules_passed": [],
+                    "rules_failed": decision.rule_violations,
+                }
+                decisions_db[str(self.total_decisions)] = decision_record
 
                 # 5. Execute if approved and not blocked
                 if decision.requires_execution:
                     logger.info(f"Executing decision: {decision.action.value}")
                     await self.execute(decision)
+                    decision_record["executed"] = True
+                    decision_record["executed_at"] = datetime.now()
                 else:
                     logger.debug(
                         f"Decision does not require execution: {decision.action.value}"

@@ -2,46 +2,43 @@
 import { defineConfig } from 'vite'
 // resolve constructs absolute paths for the multi-page entry points below
 import { resolve } from 'path'
-// viteStaticCopy copies non-bundled files to the dist folder
-import { viteStaticCopy } from 'vite-plugin-static-copy'
+import tailwindcss from '@tailwindcss/vite'
+import wasm from 'vite-plugin-wasm'
 
 // Export the Vite config so the dev server and build process both use these settings
 export default defineConfig({
+  plugins: [tailwindcss(), wasm()],
+  // Set the project root to the frontend directory so Vite resolves HTML and assets from there
   root: 'frontend',
-  // Plugins to extend Vite functionality
-  plugins: [
-    viteStaticCopy({
-      targets: [
-        {
-          src: '*.js',
-          dest: '.'
-        },
-        {
-          src: '*.css',
-          dest: '.'
-        }
-      ]
-    })
-  ],
-  // Public directory for assets that should be copied as-is
-  publicDir: 'public',
+  envDir: resolve(__dirname),
+  resolve: {
+    alias: {
+      // Stub out @base-org/account — wagmi bundles a Coinbase Smart Wallet connector that imports it,
+      // but xLever only supports mainnet, Ink Sepolia, Solana, and TON. This silences the resolve error.
+      '@base-org/account': resolve(__dirname, 'frontend/stubs/base-org-account.js'),
+    }
+  },
   // Build configuration controls how Rollup bundles the production output
   build: {
-    // Output the production build to dist folder at project root (absolute path for Vercel)
-    outDir: resolve(__dirname, 'dist'),
+    // Output the production build one level up into /dist (relative to root, so project-root/dist)
+    outDir: '../dist',
     // Clear the dist folder before each build to avoid stale files from previous builds
     emptyOutDir: true,
-    // Copy public directory files to dist
-    copyPublicDir: true,
     // Warn only for chunks above 1MB (wallet SDK bundles are large by nature)
     chunkSizeWarningLimit: 2000,
     // Rollup-specific options for the multi-page app entry points
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'frontend/index.html'),
-        trading: resolve(__dirname, 'frontend/trading.html'),
         dashboard: resolve(__dirname, 'frontend/01-dashboard.html'),
-        agents: resolve(__dirname, 'frontend/03-ai-agent-operations.html')
+        trading: resolve(__dirname, 'frontend/02-trading-terminal.html'),
+        agents: resolve(__dirname, 'frontend/03-ai-agent-operations.html'),
+        vaults: resolve(__dirname, 'frontend/04-vault-management.html'),
+        risk: resolve(__dirname, 'frontend/05-risk-management.html'),
+        analytics: resolve(__dirname, 'frontend/06-analytics-backtesting.html'),
+        operations: resolve(__dirname, 'frontend/07-operations-control.html'),
+        admin: resolve(__dirname, 'frontend/08-admin-dashboard.html'),
+        lending: resolve(__dirname, 'frontend/09-lending-borrowing.html')
       },
       output: {
         manualChunks(id) {
@@ -49,7 +46,9 @@ export default defineConfig({
           if (id.includes('wagmi') || id.includes('@wagmi')) return 'wagmi'
           if (id.includes('viem')) return 'viem'
           if (id.includes('@solana')) return 'solana'
+          if (id.includes('@kamino-finance') || id.includes('@orca-so')) return 'kamino'
           if (id.includes('@ton/')) return 'ton'
+          if (id.includes('@evaafi')) return 'evaa'
         }
       }
     }
@@ -64,7 +63,7 @@ export default defineConfig({
     proxy: {
       // Any request starting with /api is forwarded to the FastAPI server
       '/api': {
-        target: 'http://localhost:8001',
+        target: 'http://localhost:8000',
         // changeOrigin rewrites the Host header so FastAPI sees localhost:8000, not localhost:3000
         changeOrigin: true,
       }

@@ -1,12 +1,26 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     01-dashboard.html — Portfolio Dashboard
 
+     Primary dashboard view after wallet connection. Displays:
+     - KPI strip: portfolio value, 24h PnL, total ROI, positions, active agents
+     - Performance chart with timeframe toggles (1D/1W/1M/1Y/ALL)
+     - Live operations feed (recent trades table)
+     - Asset allocation donut chart with percentage breakdown
+     - Protocol health metrics (TVL, senior/junior splits, liquidity buffer)
+     - Market sentiment gauge (fear/greed indicator)
+     - Footer status bar with gas, block, connection status, UTC clock
+
+     Data is populated from on-chain reads via contracts.js (Euler V2 pool state,
+     position values, max leverage). Requires wallet connection for user-specific data.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="stylesheet" href="tailwind.css">
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -87,10 +101,15 @@
     </style>
 </head>
 <body class="text-on-surface overflow-x-hidden pb-12">
+<!-- ===== SCRIPTS: Judge mode and navigation bar initialization ===== -->
+<script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('dashboard');</script>
+<!-- ===== MAIN CONTENT ===== -->
 <main class="pt-28 px-6 max-w-[1600px] mx-auto space-y-6">
-<!-- Portfolio Summary Strip -->
+<!-- ===== SECTION: Portfolio KPI Summary Strip =====
+     Five cards: Total Portfolio Value, 24h PnL, Total ROI, Active Positions, Active AI Agents.
+     Values populated by loadUserData() and loadAgentCount() in the page script. -->
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
 <!-- Total Portfolio Value -->
 <div class="bg-surface-container-low p-4 border border-outline-variant/10 rounded-lg">
@@ -121,11 +140,13 @@
 <p class="font-mono text-2xl font-semibold text-primary" id="kpiAgents">0</p>
 </div>
 </div>
-<!-- Main Dashboard Grid -->
+<!-- ===== MAIN DASHBOARD GRID: 2-column layout (8/4 on large screens) ===== -->
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-<!-- Left Column: Performance & Trades (2/3) -->
+<!-- ===== LEFT COLUMN: Performance Chart & Live Trades (2/3 width) ===== -->
 <div class="lg:col-span-8 space-y-6">
-<!-- Portfolio Performance Chart -->
+<!-- ===== SECTION: Portfolio Performance Chart =====
+     CSS-rendered area chart with SVG overlay line. Timeframe toggle buttons
+     (1D/1W/1M/1Y/ALL) switch active view. Y-axis labels on right side. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <div class="flex justify-between items-center mb-8">
 <div>
@@ -166,7 +187,9 @@
 </div>
 </div>
 </section>
-<!-- Recent Trades Feed -->
+<!-- ===== SECTION: Live Operations Feed =====
+     Table showing recent trades: time, asset, side, size, price, PnL, status.
+     "VIEW FULL LOGS" links to 07-operations-control.html. -->
 <section class="bg-surface-container border border-outline-variant/15 rounded-lg overflow-hidden">
 <div class="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Live Operations</h2>
@@ -196,9 +219,11 @@
 </div>
 </section>
 </div>
-<!-- Right Column: Allocation & Health (1/3) -->
+<!-- ===== RIGHT COLUMN: Allocation, Protocol Health, Sentiment (1/3 width) ===== -->
 <div class="lg:col-span-4 space-y-6">
-<!-- Asset Allocation -->
+<!-- ===== SECTION: Asset Allocation Donut Chart =====
+     SVG donut chart showing portfolio breakdown by asset (NVDAx, SPYx, QQQx, etc.)
+     with percentage legend. Center displays total value. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-6">Asset Allocation</h2>
 <div class="flex items-center gap-6">
@@ -255,7 +280,9 @@
 </div>
 </div>
 </section>
-<!-- Protocol Health -->
+<!-- ===== SECTION: Protocol Health =====
+     Displays TVL (total, senior, junior), max leverage, and liquidity buffer bar.
+     Data from getPoolState() and getMaxLeverage() contract reads. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-6">Protocol Health</h2>
 <div class="grid grid-cols-2 gap-y-6 gap-x-4">
@@ -286,7 +313,9 @@
 </div>
 </div>
 </section>
-<!-- Market Sentiment -->
+<!-- ===== SECTION: Market Sentiment Gauge =====
+     Semi-circle gauge showing fear/greed score (0-100).
+     Styled with CSS border-radius trick for the arc. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-4">Market Sentiment</h2>
 <div class="flex flex-col items-center">
@@ -308,7 +337,9 @@
 </div>
 </div>
 </main>
-<!-- Bottom Status Bar -->
+<!-- ===== FOOTER: Bottom Status Bar =====
+     Fixed bar showing gas price, block number, connection status, UTC clock.
+     Updated live by loadBlockAndGas() and setInterval clock. -->
 <footer class="fixed bottom-0 left-0 w-full h-8 bg-[#0d0e11] flex items-center justify-start px-6 gap-8 border-t border-[#494455]/15 z-50">
 <div class="flex items-center gap-2 text-[#00e475]">
 <span class="material-symbols-outlined text-sm">local_gas_station</span>
@@ -327,6 +358,14 @@
 <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest">14:02:45 UTC</span>
 </div>
 </footer>
+<!-- ===== SCRIPTS: Core modules =====
+     wallet.js    — Reown wallet provider (connect/disconnect/state)
+     pyth.js      — Pyth oracle price feeds
+     contracts.js — Euler V2 contract reads (pool state, positions, leverage)
+     openbb.js    — OpenBB market data integration
+     risk-engine.js — Client-side risk state machine
+     risk-live.js — Live risk banner updates
+     ux.js        — Shared UX utilities (XAuthGate, XToast, XPreflight, etc.) -->
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
@@ -334,6 +373,7 @@
 <script src="risk-engine.js"></script>
 <script src="risk-live.js"></script>
 <script src="ux.js"></script>
+<!-- ===== SCRIPTS: Initialize page — staggered reveal animation, live clock, timeframe toggles ===== -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // Staggered reveal animation
@@ -375,12 +415,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+<!-- ===== SCRIPTS: Dashboard KPI wiring — reads on-chain data for all dashboard metrics =====
+     Loads protocol health (TVL, buffer), max leverage, block/gas info,
+     user position value/PnL/ROI, and active agent count.
+     Uses XAuthGate to gate data loading behind wallet connection. -->
 <script type="module">
 // ─── Dashboard: wire all KPIs to real on-chain data ───
 import { getPoolState, getPublicClient, getPosition, getPositionValue, getMaxLeverage, VAULT_REGISTRY } from './contracts.js';
 
 function $(id) { return document.getElementById(id); }
-function fmt(n) { return n >= 1e6 ? '$' + (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n/1e3).toFixed(1) + 'K' : '$' + n.toFixed(2); }
+function fmt(n) { if (isNaN(n) || n == null) return '$0.00'; return n >= 1e6 ? '$' + (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n/1e3).toFixed(1) + 'K' : '$' + n.toFixed(2); }
 
 async function loadProtocolHealth() {
   try {
@@ -426,18 +470,57 @@ async function loadUserData() {
   if (!wallet) return;
   var addr;
   try {
-    var isConnected = typeof wallet.getIsConnected === 'function' ? wallet.getIsConnected() : wallet.getIsConnectedState?.();
+    var isConnected = typeof wallet.getIsConnectedState === 'function' ? wallet.getIsConnectedState() : wallet.getIsConnected?.();
     if (!isConnected) return;
     addr = wallet.getAddress();
   } catch(e) { return; }
   if (!addr) return;
 
   try {
-    var posValue = await getPositionValue(addr);
-    var val = Number(posValue || 0n) / 1e6;
+    var result = await getPositionValue(addr);
+    // getPositionValue returns [value, pnl] or { value, pnl }
+    var rawVal = Array.isArray(result) ? result[0] : (result && result.value != null ? result.value : 0n);
+    var rawPnl = Array.isArray(result) ? result[1] : (result && result.pnl != null ? result.pnl : 0n);
+    var val = Number(rawVal) / 1e6;
+    var pnl = Number(rawPnl) / 1e6;
+    if (isNaN(val)) val = 0;
+    if (isNaN(pnl)) pnl = 0;
     $('kpiPortfolioValue').textContent = fmt(val);
-    if (val > 0) $('kpiPositions').textContent = '1';
+    if (val > 0) {
+      $('kpiPositions').textContent = '1';
+      // 24h PnL from contract
+      $('kpiPnl').textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+      $('kpiPnl').className = 'font-mono text-2xl font-semibold ' + (pnl >= 0 ? 'text-tertiary' : 'text-error');
+      var pnlPct = val > 0 ? (pnl / (val - pnl)) * 100 : 0;
+      if (!isFinite(pnlPct)) pnlPct = 0;
+      $('kpiPnlPct').textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+      $('kpiPnlPct').className = 'text-[10px] font-mono mb-1.5 ' + (pnlPct >= 0 ? 'text-tertiary' : 'text-error');
+    }
   } catch(e) { console.warn('Dashboard: position value failed', e); }
+
+  // Total ROI: compare current value to initial deposit from getPosition
+  try {
+    var pos = await getPosition(addr);
+    if (pos && pos.isActive) {
+      var deposit = Number(pos.depositAmount || 0n) / 1e6;
+      if (deposit > 0) {
+        var roi = ((val - deposit) / deposit) * 100;
+        if (!isFinite(roi)) roi = 0;
+        $('kpiROI').textContent = (roi >= 0 ? '+' : '') + roi.toFixed(2) + '%';
+        $('kpiROI').className = 'font-mono text-2xl font-semibold ' + (roi >= 0 ? 'text-tertiary' : 'text-error');
+      }
+    }
+  } catch(e) { console.warn('Dashboard: ROI calc failed', e); }
+}
+
+function loadAgentCount() {
+  var count = 0;
+  // AgentExecutor: the main trading agent
+  if (window.AgentExecutor && window.AgentExecutor.isRunning) count++;
+  // AgentCoordinator: the news-to-trade pipeline
+  if (window.AgentCoordinator && window.AgentCoordinator.isRunning) count++;
+  $('kpiAgents').textContent = count.toString();
+  if (count > 0) $('kpiAgents').className = 'font-mono text-2xl font-semibold text-primary';
 }
 
 // ─── Auth gate: use shared XAuthGate from ux.js ───
@@ -445,7 +528,9 @@ XAuthGate.init({
   mode: 'block',
   onConnect: function() {
     Promise.allSettled([loadProtocolHealth(), loadMaxLeverage(), loadBlockAndGas(), loadUserData()])
-      .then(() => console.log('Dashboard data loaded'));
+      .then(() => { loadAgentCount(); console.log('Dashboard data loaded'); });
+    // Re-check agent count periodically since agents can start/stop anytime
+    setInterval(loadAgentCount, 5000);
   }
 });
 

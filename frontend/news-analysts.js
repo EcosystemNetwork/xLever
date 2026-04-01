@@ -1,16 +1,28 @@
 /**
- * xLever Parallel Analyst Agents
- * ───────────────────────────────
- * Three specialized agents that process news items concurrently:
+ * @file news-analysts.js
+ * @module NewsAnalysts
+ * @description
+ * xLever Parallel Analyst Agents — Multi-analyst sentiment scoring system.
+ * Three (optionally four) specialized agents that process news items concurrently:
  *
- *  1. SentimentAnalyst  — NLP-style sentiment extraction from headlines/body
- *  2. TechnicalAnalyst  — Correlates news with price action & technicals
- *  3. MacroAnalyst      — Evaluates macro/fundamental impact on portfolio
+ *  1. SentimentAnalyst  — Keyword-weight NLP sentiment extraction from headlines/body
+ *  2. TechnicalAnalyst  — Correlates news with live Pyth oracle prices and OpenBB technicals
+ *  3. MacroAnalyst      — Evaluates macro/fundamental impact using event pattern matching
+ *  4. LLMAnalyst        — AI-powered analysis via Perplexity/Groq/etc. (optional, via window.LLMAnalyst)
  *
  * Each agent:
- *  - Accepts a news item + market context
- *  - Returns a typed signal { direction, confidence, reasoning, ... }
+ *  - Accepts a news item and returns a typed signal { direction, confidence, reasoning, ... }
  *  - Runs independently (designed for Promise.all parallelism)
+ *  - Degrades gracefully when external data sources are unavailable
+ *
+ * @exports {Object} NewsAnalysts - Frozen singleton exposed on window.NewsAnalysts
+ *
+ * @dependencies
+ *  - window.xLeverPyth    — Pyth oracle for live price feeds (used by TechnicalAnalyst)
+ *  - window.xLeverOpenBB  — OpenBB market data (used by TechnicalAnalyst)
+ *  - window.xLeverAssets  — Asset registry and feed ID mapping
+ *  - window.RiskLive      — Live risk engine state (used by MacroAnalyst)
+ *  - window.LLMAnalyst    — LLM-based analyst (optional fourth analyst)
  */
 
 const NewsAnalysts = (() => {
@@ -24,6 +36,20 @@ const NewsAnalysts = (() => {
   // urgency: 'immediate' | 'short-term' | 'long-term'
   // action: 'increase' | 'decrease' | 'close' | 'hold' | 'open'
 
+  /**
+   * Create a signal object with sensible defaults, then apply overrides.
+   * All analyst agents use this factory to ensure consistent signal structure.
+   *
+   * @param {string} analyst - Analyst identifier ('sentiment', 'technical', 'macro', 'llm')
+   * @param {Object} [overrides={}] - Properties to override on the default signal
+   * @param {'bullish'|'bearish'|'neutral'} [overrides.direction] - Market direction
+   * @param {number} [overrides.confidence] - Confidence 0..1 (0 = no signal, 1 = max conviction)
+   * @param {'immediate'|'short-term'|'long-term'} [overrides.urgency] - Time horizon
+   * @param {'increase'|'decrease'|'close'|'hold'|'open'} [overrides.action] - Recommended action
+   * @param {string} [overrides.reasoning] - Human-readable explanation
+   * @param {string[]} [overrides.affectedAssets] - Ticker symbols affected
+   * @returns {Object} Complete signal object
+   */
   function makeSignal(analyst, overrides = {}) {
     return {
       analyst,
@@ -64,6 +90,20 @@ const NewsAnalysts = (() => {
   const AMPLIFIERS = /\b(very|extremely|significantly|massively|sharply|dramatically)\b/gi
   const NEGATORS = /\b(not|no|never|unlikely|despite|although|however)\b/gi
 
+  /**
+   * Sentiment Analyst — keyword-weight scoring without LLM dependency.
+   * Scores headline + body text against bullish/bearish word dictionaries,
+   * applies amplifier/negator modifiers, and normalizes to a 0..1 confidence.
+   *
+   * Scoring formula:
+   *  - Each word has a weight (1-2 points)
+   *  - Amplifiers ("extremely", "sharply") boost all scores by 20% each
+   *  - Negators ("not", "despite") dampen the dominant signal by 15% each (min 30%)
+   *  - Net score normalized by dividing by ~8 (expected max), capped at 1.0
+   *
+   * @param {Object} newsItem - News item with headline, body, priority, and symbols
+   * @returns {Object} Signal with direction, confidence (0..1), action, and reasoning
+   */
   function analyzeSentiment(newsItem) {
     const text = `${newsItem.headline} ${newsItem.body}`.toLowerCase()
     const words = text.split(/\W+/)
@@ -123,7 +163,20 @@ const NewsAnalysts = (() => {
   // 2. TECHNICAL ANALYST
   // ═══════════════════════════════════════════════════════════════
 
-  // Correlates news with current price state from Pyth + OpenBB
+  /**
+   * Technical Analyst — correlates news with current price state from Pyth oracle + OpenBB.
+   *
+   * Technical signals evaluated:
+   *  1. Volatility spike detection (oracle confidence/price ratio > 0.5%)
+   *  2. Daily momentum alignment (daily % change from OpenBB)
+   *  3. Trend context from 50-day moving average
+   *  4. Oracle staleness check (>300s halves confidence)
+   *
+   * Falls back gracefully when Pyth or OpenBB are unavailable.
+   *
+   * @param {Object} newsItem - News item with symbols for asset targeting
+   * @returns {Promise<Object>} Signal with direction, confidence, and technical metadata
+   */
   async function analyzeTechnical(newsItem) {
     const pyth = window.xLeverPyth
     const openbb = window.xLeverOpenBB
@@ -232,9 +285,12 @@ const NewsAnalysts = (() => {
   // 3. MACRO ANALYST
   // ═══════════════════════════════════════════════════════════════
 
-  // Evaluates macro/fundamental impact on portfolio-level risk
-
-  // Macro event categories and their typical impact directions
+  /**
+   * Macro event categories and their typical market impact directions.
+   * Each entry contains regex patterns, expected direction, and a weight (0..1)
+   * indicating the typical magnitude of market impact.
+   * @type {Object.<string, {patterns: RegExp[], direction: string, weight: number}>}
+   */
   const MACRO_EVENTS = {
     // Fed & monetary policy
     fedHawkish:    { patterns: [/\b(rate\s+hike|hawkish|tighter|tapering)\b/i],           direction: 'bearish', weight: 0.8 },
@@ -257,6 +313,17 @@ const NewsAnalysts = (() => {
     liquidityCrisis:  { patterns: [/\b(liquidity\s+crisis|bank\s+run|systemic\s+risk|contagion|credit\s+crunch)\b/i], direction: 'bearish', weight: 0.95 },
   }
 
+  /**
+   * Macro Analyst — evaluates macro/fundamental impact on portfolio-level risk.
+   *
+   * Pattern-matches news text against known macro event categories (Fed policy,
+   * economic indicators, geopolitical events, etc.) and computes a directional
+   * signal. Confidence is amplified when the market is already in a stressed
+   * state (RESTRICTED/EMERGENCY) and scaled by the news item's priority level.
+   *
+   * @param {Object} newsItem - News item with headline, body, priority, and symbols
+   * @returns {Promise<Object>} Signal with direction, confidence, matched events, and risk context
+   */
   async function analyzeMacro(newsItem) {
     const text = `${newsItem.headline} ${newsItem.body}`
     const matchedEvents = []
@@ -328,8 +395,18 @@ const NewsAnalysts = (() => {
   // PARALLEL EXECUTION
   // ═══════════════════════════════════════════════════════════════
 
-  // Run all analysts in parallel on a single news item
-  // Includes LLM analyst (Perplexity AI) when API key is configured
+  /**
+   * Run all analyst agents in parallel on a single news item.
+   * Always runs the three core heuristic analysts (sentiment, technical, macro).
+   * Includes the LLM analyst (Perplexity AI / Groq / etc.) when its API key is configured.
+   *
+   * @param {Object} newsItem - News item to analyze
+   * @returns {Promise<Object>} Analysis result containing:
+   *   @property {Object} newsItem - The original news item
+   *   @property {Object[]} signals - Array of signals from each analyst
+   *   @property {number} analysisTime - Total wall-clock time in milliseconds
+   *   @property {number} timestamp - Unix timestamp of analysis completion
+   */
   async function analyzeAll(newsItem) {
     const startTime = performance.now()
 

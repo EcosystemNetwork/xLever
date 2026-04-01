@@ -36,21 +36,32 @@ contract DeployPythAndVault is Script { // Foundry script that wires up Pyth ora
         console.log("SPY Vault:", address(spyVault)); // log SPY vault address for downstream script references
 
         adapter.setVault(address(qqqVault)); // register QQQ vault in the adapter so it can pull prices autonomously
-        // Note: adapter only stores one vault address. For multi-vault, // design limitation -- adapter.setVault overwrites the stored vault
-        // the adapter's onlyVaultOrAdmin modifier already allows admin. // admin (deployer) can still call adapter functions for the SPY vault
-        // Both vaults can call via the deployer (admin) as fallback. // workaround until adapter supports multiple vault registrations
+        // Note: adapter only stores one vault address. For multi-vault,
+        // the adapter's onlyVaultOrAdmin modifier already allows admin.
+        // Both vaults can call via the deployer (admin) as fallback.
 
-        vm.stopBroadcast(); // end transaction broadcasting -- all deployments and configs are submitted
+        // Initialize TWAP buffers with starting prices so oracle reads are valid immediately
+        // QQQ ~$480, SPY ~$530 (8 decimals)
+        uint128 QQQ_START_PRICE = 48000000000; // $480.00
+        uint128 SPY_START_PRICE = 53000000000; // $530.00
+        qqqVault.initializeOracle(QQQ_START_PRICE);
+        spyVault.initializeOracle(SPY_START_PRICE);
 
-        console.log(""); // blank line for readability in console output
-        console.log("=== DEPLOYMENT COMPLETE ==="); // visual confirmation that the script ran to completion
-        console.log("PythOracleAdapter:", address(adapter)); // summary log of all deployed addresses for operator reference
-        console.log("QQQ Vault:        ", address(qqqVault)); // summary log of QQQ vault address
-        console.log("SPY Vault:        ", address(spyVault)); // summary log of SPY vault address
-        console.log(""); // blank line separator
-        console.log("Next steps:"); // guide operator through mandatory post-deployment steps
-        console.log("1. Update .env with these addresses"); // addresses must be saved so other scripts can reference them
-        console.log("2. Update frontend/contracts.js ADDRESSES"); // frontend needs new addresses to talk to the right contracts
-        console.log("3. Initialize TWAP buffers via updateOracle()"); // TWAP buffers must be seeded before price queries will work
+        vm.stopBroadcast();
+
+        console.log("");
+        console.log("=== DEPLOYMENT COMPLETE ===");
+        console.log("PythOracleAdapter:", address(adapter));
+        console.log("QQQ Vault:        ", address(qqqVault));
+        console.log("SPY Vault:        ", address(spyVault));
+        console.log("");
+        console.log("TWAP buffers initialized:");
+        console.log("  QQQ start price: $480.00");
+        console.log("  SPY start price: $530.00");
+        console.log("");
+        console.log("Next steps:");
+        console.log("1. Update .env with these addresses");
+        console.log("2. Update frontend/contracts.js ADDRESSES");
+        console.log("3. Send first updateOracle() tx with live Pyth data to begin real price tracking");
     }
 }

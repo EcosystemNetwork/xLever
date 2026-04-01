@@ -1,291 +1,485 @@
+/* Root CSS custom properties define the Bloomberg Terminal color palette globally */
 :root {
+  /* Darkest background for the main canvas, near-black to reduce eye strain on trading screens */
   --bg-primary: #0a0b0e;
+  /* Slightly lighter background for header/panel chrome to create depth hierarchy */
   --bg-secondary: #12141a;
+  /* Third-tier background for interactive elements like buttons and inputs */
   --bg-tertiary: #1a1d26;
+  /* Card surfaces sit between secondary and tertiary to visually group content */
   --bg-card: #161922;
+  /* Default border color, subtle enough to separate sections without visual noise */
   --border: #252833;
+  /* Brighter border for hover/focus states so users see interactive feedback */
   --border-active: #3a3f50;
+  /* Primary text is off-white to avoid harsh pure-white on dark backgrounds */
   --text-primary: #e8eaed;
+  /* Secondary text for labels and less important info, dimmed for visual hierarchy */
   --text-secondary: #8b8fa3;
+  /* Muted text for captions and tertiary info, barely visible to avoid clutter */
   --text-muted: #555970;
+  /* Bright green signals profit, long positions, and healthy status throughout the UI */
   --green: #00e676;
+  /* Low-opacity green for background fills behind green text (e.g., long button) */
   --green-dim: #00e67622;
+  /* Green with more opacity for box-shadow glow effects on status indicators */
   --green-glow: #00e67640;
+  /* Red signals loss, short positions, and warnings — standard trading color */
   --red: #ff5252;
+  /* Purple accent for branding and primary actions, distinguishes xLever from generic terminals */
   --accent: #7c4dff;
+  /* Low-opacity accent for subtle background fills behind accent-colored text */
   --accent-dim: #7c4dff22;
+  /* Yellow for alerts and cautionary indicators like moderate risk levels */
   --yellow: #ffd740;
 }
+/* Universal reset removes browser default spacing and uses border-box for predictable sizing */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+/* Body sets the global dark canvas, default font, and prevents horizontal scroll from chart overflow */
 body {
+  /* Dark canvas matches Bloomberg Terminal aesthetic */
   background: var(--bg-primary);
+  /* Off-white text readable against the dark background */
   color: var(--text-primary);
+  /* DM Sans is the default UI font — clean and modern for non-data text */
   font-family: 'DM Sans', sans-serif;
+  /* Prevents horizontal scrollbar from chart components that may slightly overflow */
   overflow-x: hidden;
+  /* Ensures the body fills the viewport so grid layouts can use full height */
   min-height: 100vh;
 }
+/* Utility class to switch to monospace font wherever data/numbers are displayed */
 .mono { font-family: 'JetBrains Mono', monospace; }
 
-.header {
+/* Toolbar — page-specific controls strip below XNav */
+.toolbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+  padding: 8px 24px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+  margin-top: 56px; /* offset for fixed XNav height */
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; letter-spacing: -0.5px; }
-.logo span { color: var(--accent); }
+.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.toolbar-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+/* Ticker selector container groups asset buttons in a pill-shaped row */
 .ticker-selector {
+  /* Row layout with small gap between ticker buttons */
   display: flex; gap: 6px; background: var(--bg-tertiary);
+  /* Border + radius creates the pill container look */
   border: 1px solid var(--border); border-radius: 6px; padding: 4px;
 }
+/* Individual ticker button — transparent by default, monospace for asset symbols */
 .ticker-select-btn {
+  /* Transparent background lets container color show through */
   background: transparent; border: none; color: var(--text-secondary);
+  /* Monospace for ticker symbols (ETH, BTC, etc.) so they align uniformly */
   font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+  /* Compact padding keeps buttons small; radius for rounded corners */
   padding: 4px 12px; border-radius: 4px; cursor: pointer;
+  /* Smooth transition on hover/active state changes */
   transition: all 0.2s ease;
 }
+/* Hovered ticker button gets a darker bg and brighter text to indicate interactivity */
 .ticker-select-btn:hover {
   background: var(--bg-primary); color: var(--text-primary);
 }
+/* Active/selected ticker is accent-colored with dark text for maximum contrast */
 .ticker-select-btn.active {
   background: var(--accent); color: #000;
 }
+/* Live ticker badge shows the currently selected asset with a status dot */
 .ticker-badge {
+  /* Flex row aligns the green dot next to the ticker symbol */
   display: flex; align-items: center; gap: 8px; background: var(--bg-tertiary);
+  /* Border + radius matches the ticker selector pill style */
   border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;
+  /* Monospace for the ticker symbol display */
   font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
 }
+/* Small green dot indicates live data feed status — glows to draw attention */
 .ticker-dot {
+  /* Small circle shape */
   width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  /* Green glow effect makes the dot look like an active LED indicator */
   box-shadow: 0 0 8px var(--green-glow); animation: pulse 2s ease-in-out infinite;
 }
+/* Pulse animation fades the status dot in and out to signal live data streaming */
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 @keyframes liquidation-pulse {
   0%, 100% { transform: scale(1); box-shadow: 0 0 20px #ff0000; }
   50% { transform: scale(1.05); box-shadow: 0 0 30px #ff0000, 0 0 40px #ff0000; }
 }
-.header-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+/* Primary CTA button for connecting wallet — accent-colored to stand out */
 .connect-wallet-btn {
+  /* Accent background with dark text for high contrast on the main action */
   background: var(--accent); color: #000; border: none; padding: 8px 16px;
+  /* Rounded corners and monospace match the terminal design language */
   border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  /* Bold weight and pointer cursor signal this is the primary interactive element */
   font-weight: 600; cursor: pointer; transition: all 0.2s ease;
 }
+/* Hover lightens the accent and lifts the button slightly for tactile feedback */
 .connect-wallet-btn:hover {
-  background: #9575ff; transform: translateY(-1px);
+  /* Lighter purple on hover */
+  background: #9575ff;
+  /* Slight upward shift creates a "lift" effect suggesting the button is pressable */
+  transform: translateY(-1px);
 }
+/* Connected wallet info container groups balances and address together */
 .wallet-info {
+  /* Flex row keeps all wallet data on one line */
   display: flex; align-items: center; gap: 12px; background: var(--bg-tertiary);
+  /* Bordered pill matches the header component style */
   border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;
 }
+/* Horizontal row of balance items (ETH, USDC, etc.) */
 .wallet-balances {
   display: flex; gap: 12px; align-items: center;
 }
+/* Single balance display (e.g., "ETH: 1.234") — compact monospace for data density */
 .balance-item {
   display: flex; align-items: center; gap: 4px;
+  /* Monospace for numerical balance values so digits align */
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
 }
+/* "ETH:" or "USDC:" label is dimmed so the value stands out more */
 .balance-label {
   color: var(--text-muted); font-weight: 500;
 }
+/* Actual balance number is brighter and bolder for quick scanning */
 .balance-value {
   color: var(--text-primary); font-weight: 600;
 }
+/* Truncated wallet address (e.g., "0x1234...5678") separated by a left border */
 .wallet-address {
+  /* Monospace ensures hex characters align properly */
   font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-primary);
+  /* Bold for readability; left border visually separates address from balances */
   font-weight: 600; padding-left: 12px; border-left: 1px solid var(--border);
 }
+/* Small disconnect button — subdued to prevent accidental clicks */
 .disconnect-btn {
+  /* Transparent bg with border makes it a ghost button, visually secondary */
   background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
+  /* Very small to avoid accidentally disconnecting wallet */
   padding: 4px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;
   font-size: 10px; cursor: pointer; transition: all 0.2s ease;
 }
+/* Hover brightens disconnect button to confirm it is interactive */
 .disconnect-btn:hover {
   background: var(--bg-primary); color: var(--text-primary); border-color: var(--text-muted);
 }
+/* Small badge showing protocol version/status (e.g., "V1 TESTNET") */
 .protocol-tag {
+  /* Dim accent background with accent text for subtle branding */
   background: var(--accent-dim); border: 1px solid #7c4dff44; color: var(--accent);
+  /* Small uppercase text reads like a status badge */
   padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500;
   letter-spacing: 0.5px; text-transform: uppercase;
 }
 
-.main-layout { display: grid; grid-template-columns: 1fr 320px; height: calc(100vh - 49px); }
+/* Main two-column layout: chart takes remaining space, right panel is fixed 320px */
+/* Height accounts for fixed XNav (56px) + toolbar strip (~41px) */
+.main-layout { display: grid; grid-template-columns: 1fr 320px; height: calc(100vh - 97px); }
 
-/* Mobile Responsive Styles */
-/* Mobile Leverage Control */
+/* --- Mobile Responsive Styles --- */
+
+/* Fixed bottom bar on mobile for quick leverage adjustment without scrolling */
 .mobile-leverage-control {
+  /* Hidden by default on desktop; shown via media query on mobile */
   display: none;
+  /* Fixed to bottom of viewport so it is always accessible while scrolling */
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  /* Matches header background for visual consistency */
   background: var(--bg-secondary);
+  /* Top border separates the control from the chart above */
   border-top: 1px solid var(--border);
+  /* Padding gives the slider and value room to breathe */
   padding: 16px;
+  /* High z-index ensures it floats above chart and other content */
   z-index: 1000;
 }
 
+/* Centers the leverage multiplier value in the mobile bottom bar */
 .mobile-lev-display {
   text-align: center;
+  /* Space below separates the value from the slider control */
   margin-bottom: 12px;
 }
 
+/* Large leverage number (e.g., "5.0x") for easy reading on small screens */
 .mobile-lev-value {
+  /* Monospace for the numeric display */
   font-family: 'JetBrains Mono', monospace;
+  /* Extra large so traders can see current leverage at a glance */
   font-size: 32px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
+/* "LEVERAGE" label below the number — tiny uppercase for terminal aesthetic */
 .mobile-lev-label {
   font-size: 10px;
   color: var(--text-muted);
+  /* Uppercase with letter-spacing matches the panel title style */
   text-transform: uppercase;
   letter-spacing: 1px;
+  /* Small gap above separates label from value */
   margin-top: 4px;
 }
 
+/* Mobile breakpoint at 768px: collapses to single-column, hides right panel */
 @media (max-width: 768px) {
-  .main-layout { grid-template-columns: 1fr; height: calc(100vh - 41px); }
+  /* Single column layout since right panel is hidden on mobile; toolbar-right hidden so less offset */
+  .main-layout { grid-template-columns: 1fr; height: calc(100vh - 89px); }
+  /* Right panel (leverage/strategy controls) hidden on mobile — replaced by bottom bar */
   .right-panel { display: none !important; }
+  /* Chart fills screen minus header and mobile bottom bar heights */
   .chart-area { border-right: none; height: calc(100vh - 41px - 140px); }
+  /* Chart container fills remaining space after toolbar */
   .chart-container { height: calc(100% - 45px); }
+  /* TradingView chart fills its container completely */
   #tv-chart { height: 100%; }
+  /* Bottom stats bar hidden on mobile to save vertical space for the chart */
   .chart-bottom { display: none; }
-  .header-right { display: none; }
-  .header { padding: 8px 12px; }
-  .logo { font-size: 13px; }
+  /* Toolbar right-side items hidden on mobile — accessed via separate wallet screen */
+  .toolbar-right { display: none; }
+  /* Tighter toolbar padding on mobile */
+  .toolbar { padding: 6px 12px; }
+  /* Smaller ticker badge on mobile */
   .ticker-badge { font-size: 11px; padding: 4px 8px; }
+  /* Toolbar wraps on mobile since all buttons may not fit in one row */
   .chart-toolbar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; }
+  /* Timeframe buttons can wrap to a second line on narrow screens */
   .toolbar-left { flex-wrap: wrap; }
+  /* Smaller timeframe buttons on mobile for touch targets */
   .tf-btn { font-size: 10px; padding: 3px 8px; }
+  /* Smaller chart type buttons on mobile */
   .chart-type-btn { font-size: 10px; padding: 3px 8px; }
+  /* Tighter price overlay padding on mobile */
   .price-overlay { padding: 12px; }
+  /* Smaller leverage label in the price overlay on mobile */
   .leverage-label { font-size: 9px; }
+  /* Smaller price display on mobile to fit within the chart area */
   .price-big { font-size: 20px; }
+  /* Smaller price change text on mobile */
   .price-change { font-size: 11px; }
+  /* Tighter gap between legend items on mobile */
   .legend-row { gap: 10px; }
+  /* Smaller legend items on mobile */
   .legend-item { font-size: 9px; }
+  /* Show the fixed bottom leverage control only on mobile */
   .mobile-leverage-control { display: block; }
 }
 
+/* Chart area fills the left column; flex column stacks toolbar, chart, and stats */
 .chart-area { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+/* Toolbar above the chart with timeframe and chart-type buttons */
 .chart-toolbar {
+  /* Flex row with items spread between left (timeframes) and right (chart types) */
   display: flex; align-items: center; justify-content: space-between;
+  /* Padding and bottom border separate toolbar from the chart canvas */
   padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
 }
+/* Left group holds timeframe buttons in a horizontal row */
 .toolbar-left { display: flex; align-items: center; gap: 6px; }
+/* Timeframe button (1m, 5m, 1h, etc.) — muted by default, monospace for alignment */
 .tf-btn {
+  /* Transparent with no visible border until hovered/selected */
   background: transparent; border: 1px solid transparent; color: var(--text-muted);
+  /* Monospace for uniform width across different timeframe labels */
   font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 4px 10px;
+  /* Rounded corners and fast transition for snappy interactions */
   border-radius: 4px; cursor: pointer; transition: all 0.15s;
 }
+/* Hovered timeframe button gets a subtle background to show interactivity */
 .tf-btn:hover { color: var(--text-secondary); background: var(--bg-tertiary); }
+/* Active timeframe button has visible border and brighter text to show selection */
 .tf-btn.active { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border); }
 
+/* Container for chart type buttons (Candle, Line, etc.) */
 .chart-type-btns { display: flex; gap: 4px; }
+/* Chart type toggle button — similar to timeframe buttons but accent-colored when active */
 .chart-type-btn {
+  /* Ghost button style: transparent until interacted with */
   background: transparent; border: 1px solid transparent; color: var(--text-muted);
+  /* Monospace matches the toolbar design language */
   font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 4px 8px;
   border-radius: 4px; cursor: pointer; transition: all 0.15s;
 }
+/* Hover brightens text to signal the button is clickable */
 .chart-type-btn:hover { color: var(--text-secondary); }
+/* Active chart type uses accent color to distinguish from timeframe selection */
 .chart-type-btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
 
+/* Flex-growing container for the TradingView chart; relative positioning for overlays */
 .chart-container { flex: 1; position: relative; background: var(--bg-primary); }
+/* TradingView chart iframe/canvas fills the entire container */
 #tv-chart { width: 100%; height: 100%; }
 
+/* Price overlay floats above the chart to show current price without obscuring candles */
 .price-overlay {
-  position: absolute; top: 12px; left: 16px; z-index: 10; pointer-events: none;
+  /* Absolute positioning in top-left corner of chart container */
+  position: absolute; top: 12px; left: 16px; z-index: 10;
+  /* pointer-events: none lets clicks pass through to the chart beneath */
+  pointer-events: none;
 }
+/* Small label above the price (e.g., "ETH/USD 3X LONG") in muted uppercase */
 .price-overlay .leverage-label {
   font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);
+  /* Uppercase with letter-spacing matches Bloomberg Terminal labeling convention */
   letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px;
 }
+/* Large price number (e.g., "$3,456.78") — the most prominent element on screen */
 .price-overlay .price-big {
+  /* Large bold monospace for the primary price display, tight letter-spacing for density */
   font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; letter-spacing: -1px;
 }
+/* Price change percentage (e.g., "+2.34%") shown below the price */
 .price-overlay .price-change { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-top: 1px; }
+/* Row of chart legend items (MA lines, volume, etc.) below the price */
 .legend-row { display: flex; gap: 16px; margin-top: 6px; }
+/* Individual legend item with a colored dot and label */
 .legend-item { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-secondary); }
+/* Colored rectangle dot next to each legend label to identify the indicator line */
 .legend-dot { width: 8px; height: 3px; border-radius: 1px; }
+/* Utility class for green-colored positive values (profit, gains) */
 .positive { color: var(--green); }
+/* Utility class for red-colored negative values (loss, drops) */
 .negative { color: var(--red); }
 
+/* Bottom stats bar below the chart showing OHLCV data and market metrics */
 .chart-bottom {
+  /* Padding and top border separate stats from the chart canvas */
   padding: 12px 20px; border-top: 1px solid var(--border); background: var(--bg-secondary);
+  /* Flex row with wrapping so stats reflow on narrower screens */
   display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
 }
+/* Each stat (Open, High, Low, Vol, etc.) stacked vertically: label on top, value below */
 .stat-item { display: flex; flex-direction: column; gap: 2px; }
+/* Tiny uppercase label for each stat — matches Bloomberg Terminal data label style */
 .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-family: 'JetBrains Mono', monospace; }
+/* Stat value is larger and bold for quick scanning of market data */
 .stat-value { font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 
+/* Right panel contains leverage controls, strategy info, and risk metrics */
 .right-panel { background: var(--bg-secondary); display: flex; flex-direction: column; overflow-y: auto; }
+/* Each section in the right panel separated by a bottom border */
 .panel-section { padding: 20px; border-bottom: 1px solid var(--border); }
+/* Section titles in the right panel — tiny uppercase monospace, Bloomberg style */
 .panel-title {
   font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+  /* Muted color and uppercase with wide letter-spacing for a terminal section header look */
   color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px;
 }
 
+/* Centers the big leverage multiplier number in the right panel */
 .leverage-display { text-align: center; margin-bottom: 20px; }
+/* Large gradient-text leverage value (e.g., "5.0") — the hero element of the right panel */
 .leverage-value {
   font-family: 'JetBrains Mono', monospace; font-size: 48px; font-weight: 700;
+  /* Negative letter-spacing tightens the large number for visual impact */
   letter-spacing: -2px; line-height: 1;
+  /* Gradient from white to accent purple makes the number visually striking */
   background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+  /* Background-clip: text makes the gradient fill the text instead of the element */
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
+/* "x LEVERAGE" suffix below the big number */
 .leverage-suffix { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
+/* LONG / SHORT direction toggle buttons row */
 .direction-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+/* Direction button base style — each takes equal space (flex: 1) */
 .dir-btn {
+  /* Equal width buttons side by side */
   flex: 1; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary);
+  /* Monospace uppercase for terminal-style "LONG" / "SHORT" labels */
   font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; padding: 8px;
   border-radius: 6px; cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.5px;
 }
+/* Hover brightens the border to show interactivity */
 .dir-btn:hover { border-color: var(--border-active); }
+/* Active LONG button: green border and text on dim green background — signals bullish */
 .dir-btn.active-long { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+/* Active SHORT button: red border and text on dim red background — signals bearish */
 .dir-btn.active-short { background: #ff525222; border-color: var(--red); color: var(--red); }
 
+/* Wrapper for the custom leverage slider component */
 .slider-container { position: relative; padding: 12px 0; }
+/* The background track of the slider — dark bar that the fill sits on top of */
 .slider-track { position: relative; height: 12px; background: var(--bg-primary); border-radius: 6px; cursor: pointer; }
+/* Colored portion of the slider track showing current leverage position */
 .slider-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 6px; transition: width 0.05s; }
+/* Draggable circle thumb on the slider — white with glow for visibility */
 .slider-thumb {
+  /* Centered vertically on the track via transform */
   position: absolute; top: 50%; transform: translate(-50%, -50%);
+  /* Circular white thumb large enough for mouse and touch interaction */
   width: 28px; height: 28px; background: var(--text-primary); border-radius: 50%;
-  cursor: pointer; box-shadow: 0 0 12px rgba(0,0,0,0.5), 0 0 20px var(--accent-dim); z-index: 2;
+  /* Grab cursor indicates draggable; shadow and glow provide depth and visibility */
+  cursor: grab; box-shadow: 0 0 12px rgba(0,0,0,0.5), 0 0 20px var(--accent-dim); z-index: 2;
 }
-.slider-thumb:active { cursor: pointer; }
+/* Active/dragging state changes cursor to grabbing for UX feedback */
+.slider-thumb:active { cursor: grabbing; }
 .slider-labels { display: flex; justify-content: space-between; margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+/* Row of preset leverage notch buttons (2x, 5x, 10x, etc.) */
 .slider-notches { display: flex; justify-content: space-between; margin-top: 6px; }
+/* Individual notch/preset button for quick leverage selection */
 .notch-btn {
+  /* Ghost button style matching the overall terminal aesthetic */
   background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary);
   font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 4px 8px;
   border-radius: 3px; cursor: pointer; transition: all 0.15s;
 }
+/* Hover highlights border in accent color to show the button is selectable */
 .notch-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+/* Active notch matches the chart-type-btn active style with accent coloring */
 .notch-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
+/* Card showing strategy details (entry, liquidation, funding rate, etc.) */
 .strategy-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+/* Each row in the strategy card is a key-value pair spread to opposite edges */
 .strategy-card .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+/* Faint separator between rows except the last one — avoids trailing border */
 .strategy-card .row:not(:last-child) { border-bottom: 1px solid #ffffff08; }
+/* Row label (left side) is secondary color for visual hierarchy */
 .strategy-card .row-label { font-size: 12px; color: var(--text-secondary); }
+/* Row value (right side) is monospace and slightly bolder for data readability */
 .strategy-card .row-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
 
+/* 2x2 grid comparing xLever returns against spot/competitors */
 .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Each comparison badge is a centered card showing a ticker and its return */
 .comp-badge { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; text-align: center; }
+/* Active comparison badge highlighted with accent border to show it is xLever's product */
 .comp-badge.active-comp { border-color: var(--accent); }
+/* Ticker symbol inside comparison badge */
 .comp-ticker { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+/* Large return percentage number — the key metric for comparison */
 .comp-return { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; }
+/* Small label below return (e.g., "30d Return") */
 .comp-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
 
+/* Thin horizontal bar showing liquidation risk level */
 .risk-meter { height: 4px; background: var(--bg-primary); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+/* Colored fill inside risk meter — width and color change with risk level (green/yellow/red) */
 .risk-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
+/* "LOW" and "HIGH" labels at opposite ends of the risk meter */
 .risk-label { display: flex; justify-content: space-between; margin-top: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+/* Text showing required collateral buffer, centered below the risk meter */
 .buffer-req { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-secondary); text-align: center; }
 
+/* Notice box for API status or data source info — dashed border signals informational */
 .api-notice {
+  /* Dashed border distinguishes this from interactive cards */
   background: var(--bg-primary); border: 1px dashed var(--border); border-radius: 6px;
   padding: 12px; font-size: 11px; color: var(--text-muted); line-height: 1.5;
 }
+/* Inline code snippets within the API notice (e.g., endpoint URLs) */
 .api-notice code {
+  /* Slightly lighter background highlights the code fragment */
   background: var(--bg-tertiary); padding: 1px 5px; border-radius: 3px;
   font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-secondary);
 }
@@ -354,7 +548,7 @@ body.degen-mode {
   50% { filter: hue-rotate(20deg); }
 }
 
-body.degen-mode .header {
+body.degen-mode .toolbar {
   background: linear-gradient(90deg, #ff0080, #7928ca, #ff0080);
   background-size: 200% 100%;
   animation: gradient-slide 3s ease infinite;
@@ -521,11 +715,228 @@ body.degen-mode * {
 }
 
 
+/* Custom scrollbar styling for Webkit browsers to match the dark theme */
 ::-webkit-scrollbar { width: 6px; }
+/* Transparent track so the scrollbar blends with the panel background */
 ::-webkit-scrollbar-track { background: transparent; }
+/* Scrollbar thumb uses border color for a subtle, non-distracting appearance */
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* Tablet breakpoint: collapses to single column but keeps right panel visible (scrollable) */
 @media (max-width: 900px) {
+  /* Single column so right panel stacks below the chart */
   .main-layout { grid-template-columns: 1fr; }
+  /* Cap right panel height so users can still see the chart above */
   .right-panel { max-height: 400px; }
+}
+
+/* ═══════════════════════════════════════════════════
+   MODE TOGGLE (Trade / Research)
+   ═══════════════════════════════════════════════════ */
+
+.mode-toggle {
+  display: flex; gap: 2px; background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px; margin-right: 8px;
+}
+.mode-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  transition: all 0.2s; color: var(--text-muted); background: transparent;
+}
+.mode-btn:hover { color: var(--text-secondary); }
+.mode-btn.active[data-mode="trade"] {
+  background: var(--green); color: #0a0b0e; box-shadow: 0 0 12px var(--green-glow);
+}
+.mode-btn.active[data-mode="research"] {
+  background: var(--accent); color: #fff; box-shadow: 0 0 12px var(--accent-dim);
+}
+
+/* Mode banner — persistent strip below the header */
+.mode-banner {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500;
+}
+.mode-banner-trade {
+  background: rgba(0, 230, 118, 0.08); color: var(--green);
+  border-bottom: 1px solid rgba(0, 230, 118, 0.15);
+}
+.mode-banner-research {
+  background: rgba(124, 77, 255, 0.08); color: var(--accent);
+  border-bottom: 1px solid rgba(124, 77, 255, 0.15);
+}
+
+/* Mode-based visibility — elements with data-mode are hidden when the other mode is active */
+body.mode-trade [data-mode="research"] { display: none !important; }
+body.mode-research [data-mode="trade"] { display: none !important; }
+/* Mode toggle itself is always visible regardless of mode */
+.mode-toggle[data-mode] { display: flex !important; }
+.mode-banner { display: flex !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   Landing Page
+   ═══════════════════════════════════════════════════════════ */
+.landing { min-height: 100vh; display: flex; flex-direction: column; }
+
+.hero {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 80px 24px 60px; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 800px; border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 20px;
+  padding: 6px 16px; margin-bottom: 32px; position: relative;
+}
+.hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+.hero-badge span {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.hero h1 {
+  font-family: 'DM Sans', sans-serif; font-size: clamp(40px, 6vw, 72px); font-weight: 700;
+  line-height: 1.1; margin-bottom: 24px; position: relative;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: clamp(16px, 2vw, 20px); color: var(--text-secondary); max-width: 600px;
+  line-height: 1.6; margin-bottom: 48px; position: relative;
+}
+
+.hero-actions { display: flex; gap: 16px; position: relative; flex-wrap: wrap; justify-content: center; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600;
+  cursor: pointer; text-decoration: none; transition: all 0.2s;
+}
+.btn-primary:hover { background: #6a3de8; transform: translateY(-1px); box-shadow: 0 8px 32px var(--accent-dim); }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 16px;
+  font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--border-active); background: var(--bg-card); }
+
+.features {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px; padding: 60px 40px 80px; max-width: 1200px; margin: 0 auto; width: 100%;
+}
+.feature-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 32px; transition: border-color 0.2s;
+}
+.feature-card:hover { border-color: var(--border-active); }
+.feature-icon {
+  width: 40px; height: 40px; border-radius: 10px; background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+  font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent);
+}
+.feature-card h3 {
+  font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 600;
+  margin-bottom: 8px; color: var(--text-primary);
+}
+.feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+.stats-strip {
+  display: flex; justify-content: center; gap: 48px; padding: 40px 24px;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary); flex-wrap: wrap;
+}
+.stat-block { text-align: center; }
+.stat-block .stat-num {
+  font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--accent);
+}
+.stat-block .stat-desc {
+  font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase;
+  letter-spacing: 1px; font-family: 'JetBrains Mono', monospace;
+}
+
+.landing-footer {
+  display: flex; align-items: center; justify-content: space-between; padding: 24px 40px;
+  border-top: 1px solid var(--border); background: var(--bg-secondary);
+}
+.landing-footer span { font-size: 13px; color: var(--text-muted); }
+.landing-footer .footer-links { display: flex; gap: 20px; }
+.landing-footer .footer-links a { font-size: 13px; color: var(--text-secondary); text-decoration: none; }
+.landing-footer .footer-links a:hover { color: var(--text-primary); }
+
+@media (max-width: 640px) {
+  .features { padding: 40px 20px 60px; }
+  .stats-strip { gap: 32px; padding: 32px 20px; }
+  .landing-footer { flex-direction: column; gap: 12px; text-align: center; padding: 20px; }
+}
+
+/* ═══════════════════════════════════════════════════
+   LIVE / RESEARCH MODE TOGGLE
+   ═══════════════════════════════════════════════════ */
+
+.mode-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mode-btn:hover {
+  color: var(--text-secondary);
+}
+
+.mode-btn.active[data-mode="live"] {
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--green);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.2);
+}
+
+.mode-btn.active[data-mode="research"] {
+  background: rgba(124, 77, 255, 0.15);
+  color: var(--accent);
+  box-shadow: 0 0 8px rgba(124, 77, 255, 0.2);
+}
+
+/* Source badges on panel titles */
+.source-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--green);
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.source-badge.sim {
+  background: rgba(124, 77, 255, 0.15);
+  color: var(--accent);
 }

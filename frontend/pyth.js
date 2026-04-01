@@ -73,10 +73,26 @@ export async function getAllPrices() {
   return getLatestPriceUpdate(Object.values(PYTH_FEEDS))
 }
 
+/**
+ * Calculate how many seconds have elapsed since a Pyth price was published.
+ * Used to detect stale oracle data — a core risk input for the risk engine.
+ *
+ * @param {number} publishTime — Unix epoch seconds from the Pyth price feed
+ * @returns {number} Age in seconds (0 = just published, >300 = stale)
+ */
 export function oracleAge(publishTime) {
   return Math.floor(Date.now() / 1000) - publishTime
 }
 
+/**
+ * Calculate the relative divergence between two price feeds.
+ * Returns a ratio between 0 (identical) and 1 (one feed is at zero).
+ * Used by the risk engine to detect oracle manipulation or stale secondary feeds.
+ *
+ * @param {number} priceA — First price feed value
+ * @param {number} priceB — Second price feed value
+ * @returns {number} Divergence ratio in [0, 1] (e.g., 0.01 = 1% divergence)
+ */
 export function priceDivergence(priceA, priceB) {
   if (!priceA || !priceB) return 0
   return Math.abs(priceA - priceB) / Math.max(priceA, priceB)

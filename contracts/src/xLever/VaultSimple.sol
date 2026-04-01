@@ -41,6 +41,15 @@ contract VaultSimple {
         _;
     }
 
+    // Reentrancy guard — prevents nested calls from re-entering deposit/withdraw
+    uint256 private _locked;
+    modifier nonReentrant() {
+        require(_locked == 0, "Reentrancy");
+        _locked = 1;
+        _;
+        _locked = 0;
+    }
+
     // Deploy simple vault with minimal configuration — no modules needed
     constructor(address _usdc, address _asset, address _admin) {
         // Store USDC reference as immutable to save gas on repeated access
@@ -57,7 +66,7 @@ contract VaultSimple {
 
     /// @notice Deposit USDC (simplified - no fees, no hedging)
     // No payable — simplified vault doesn't need Pyth oracle updates
-    function deposit(uint256 amount, int32 leverageBps) external returns (uint256) {
+    function deposit(uint256 amount, int32 leverageBps) external nonReentrant returns (uint256) {
         // Reject zero deposits to prevent empty positions
         require(amount > 0, "Zero deposit");
         // Enforce leverage bounds: -3.5x to +3.5x matching the deployed vault configuration
@@ -90,7 +99,7 @@ contract VaultSimple {
 
     /// @notice Withdraw (simplified)
     // No oracle update needed — simplified vault uses deposit-amount-based withdrawal only
-    function withdraw(uint256 amount) external returns (uint256) {
+    function withdraw(uint256 amount) external nonReentrant returns (uint256) {
         // Get storage pointer to user's position for efficient reads and writes
         DataTypes.Position storage pos = positions[msg.sender];
         // Ensure user has an active position to withdraw from

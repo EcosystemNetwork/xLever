@@ -24,9 +24,9 @@ pub fn handler(ctx: Context<WithdrawJunior>, shares: u64) -> Result<()> {
     // --- Calculate USDC to return --------------------------------------
     let usdc_amount = (shares as u128)
         .checked_mul(vault.total_junior_deposits as u128)
-        .unwrap()
+        .ok_or(XLeverError::MathOverflow)?
         .checked_div(vault.total_junior_shares as u128)
-        .unwrap() as u64;
+        .ok_or(XLeverError::MathOverflow)? as u64;
     require!(usdc_amount > 0, XLeverError::ZeroAmount);
 
     // --- Transfer USDC from vault to LP (PDA signer) -------------------

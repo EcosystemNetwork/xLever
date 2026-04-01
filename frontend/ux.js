@@ -1,10 +1,40 @@
 /**
- * xLever Consumer-Grade UX Layer
- * Transaction modals, toast notifications, skeleton loading, interactive controls
+ * @file ux.js — xLever Consumer-Grade UX Layer
+ *
+ * Provides polished UX primitives so the trading interface feels like a fintech app:
+ *   - XToast: Slide-in toast notifications with five severity types
+ *   - XModal: Trade confirmation modal with real-time transaction progress
+ *   - XWallet: Wallet connection state wrapper (delegates to Reown AppKit)
+ *   - XLeverage: Interactive -4x to +4x leverage slider with drag/click/preset controls
+ *   - XSkeleton: Animated loading placeholders for data-dependent sections
+ *   - XAuthGate: Wallet connection gate (blocks or disables page content)
+ *   - XPreflight: Pre-demo health check panel for verifying system readiness
+ *   - XDemoReset: One-click page reset for demo scenarios
+ *   - XTxTracker: Transaction lifecycle toast notifications via contracts.js events
+ *
+ * @module ux
+ * @exports {Object} XToast - window.XToast (via DOMContentLoaded auto-init)
+ * @exports {Object} XModal - Accessible as XModal.confirmTrade(details)
+ * @exports {Object} XWallet - window.XWallet (via auto-init)
+ * @exports {Object} XLeverage - window.XLeverage (via auto-init)
+ * @exports {Object} XSkeleton - window.XSkeleton
+ * @exports {Object} XAuthGate - window.XAuthGate
+ * @exports {Object} XPreflight - window.XPreflight
+ * @exports {Object} XDemoReset - window.XDemoReset
+ * @exports {Object} XTxTracker - window.XTxTracker
+ *
+ * @dependencies
+ *   - Google Material Symbols (icon font)
+ *   - window.xLeverContracts (optional) for live transaction path
+ *   - window.xLeverWallet (optional, Reown AppKit) for wallet state
  */
-// This file provides polished UX primitives so the trading interface feels like a fintech app, not a raw dApp
 
-// Sanitize strings before interpolation into innerHTML to prevent XSS
+/**
+ * Sanitize a string for safe interpolation into innerHTML.
+ * Prevents XSS by converting special chars to HTML entities.
+ * @param {string} str - The raw string to escape
+ * @returns {string} HTML-safe escaped string
+ */
 function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = String(str);
@@ -320,14 +350,18 @@ const XModal = (() => {
 
     if (isLive) {
       // ─── REAL TRANSACTION PATH ───
-      // Listen for the 'submitted' event from contracts.js to update UI as soon
-      // as the tx hash is known (before waiting for receipt).
-      const unsub = contracts.txEvents.on('submitted', ({ hash, explorerUrl: url }) => {
+      // Listen for lifecycle events from contracts.js to update UI through
+      // submitted → pending → confirmed/failed states.
+      const unsub = [];
+      unsub.push(contracts.txEvents.on('submitted', ({ hash, explorerUrl: url }) => {
         txHash = hash;
         explorerUrl = url;
         updateStatus('Transaction Submitted', 'Waiting for on-chain confirmation...');
         showExplorerLink(hash, url);
-      });
+      }));
+      unsub.push(contracts.txEvents.on('pending', ({ attempt, maxRetries }) => {
+        updateStatus('Confirming on Chain...', `Receipt polling attempt ${attempt + 1}/${maxRetries + 1}`);
+      }));
 
       try {
         updateStatus('Approving USDC...', 'Approve the spend in your wallet');
@@ -338,9 +372,9 @@ const XModal = (() => {
         // If the submitted event didn't fire (shouldn't happen), capture hash here
         txHash = result.hash;
         explorerUrl = explorerUrl || contracts.getExplorerUrl(txHash);
-        unsub(); // clean up listener
+        unsub.forEach(fn => fn()); // clean up listeners
       } catch (err) {
-        unsub();
+        unsub.forEach(fn => fn());
         // ─── CLASSIFIED ERROR STATE ───
         const classified = contracts.classifyTxError(err);
         // Build explorer link for the error UI if we got a hash before failure
@@ -428,46 +462,9 @@ const XModal = (() => {
 
 // IIFE module for wallet connection state; delegates actual wallet management to Reown AppKit
 const XWallet = (() => {
-  // Sets up event listeners for wallet connect/disconnect to show toast notifications
-  function init() {
-    // Reown AppKit is initialized via wallet.js ES module (loaded separately)
-    // The <appkit-button /> web component handles the connect/disconnect UI natively
-    // This module only listens for events to provide toast feedback
-    const checkModal = () => {
-      // xLeverWallet is set on window by wallet.js once Reown AppKit is ready
-      const modal = window.xLeverWallet;
-      // Retry with polling because wallet.js loads asynchronously and may not be ready yet
-      if (!modal) return setTimeout(checkModal, 200);
-
-      // Subscribe to Reown AppKit events to show user-friendly toast notifications
-      // Track whether wallet was already connected on page load to avoid
-      // showing the toast for automatic session restoration
-      let wasConnectedOnInit = typeof modal.getIsConnected === 'function'
-        ? modal.getIsConnected()
-        : modal.getIsConnectedState?.() ?? false;
-      let lastConnectShown = 0;
-      modal.subscribeEvents((event) => {
-        // Notify user on successful wallet connection (debounce to avoid repeated toasts)
-        if (event?.data?.event === 'CONNECT_SUCCESS') {
-          if (wasConnectedOnInit) {
-            wasConnectedOnInit = false;
-            return;
-          }
-          const now = Date.now();
-          if (now - lastConnectShown > 5000) {
-            lastConnectShown = now;
-            XToast.show('Wallet connected successfully', 'success');
-          }
-        }
-        // Notify user when wallet is disconnected
-        if (event?.data?.event === 'DISCONNECT_SUCCESS') {
-          XToast.show('Wallet disconnected', 'info');
-        }
-      });
-    };
-    // Start the polling loop to find the wallet modal
-    checkModal();
-  }
+  // No-op — toast notifications for connect/disconnect are handled by app.js
+  // which is the single source of truth for wallet events.
+  function init() {}
 
   // Returns whether a wallet is currently connected, used by UI to gate trade actions
   function isConnected() {
@@ -475,9 +472,9 @@ const XWallet = (() => {
     const modal = window.xLeverWallet;
     // Return false if AppKit hasn't loaded yet to prevent premature trade attempts
     if (!modal) return false;
-    return typeof modal.getIsConnected === 'function'
-      ? modal.getIsConnected()
-      : modal.getIsConnectedState?.() ?? false;
+    return typeof modal.getIsConnectedState === 'function'
+      ? modal.getIsConnectedState()
+      : modal.getIsConnected?.() ?? false;
   }
 
   // Returns the connected wallet address, used to query on-chain position data
@@ -956,13 +953,8 @@ const XAuthGate = (() => {
   function _isConnected() {
     var w = window.xLeverWallet;
     if (!w) return false;
-    // Primary check: use getIsConnected if available
-    if (typeof w.getIsConnected === 'function' && w.getIsConnected()) return true;
-    // Fallback: check if we have an address (means wallet is connected)
-    if (typeof w.getAddress === 'function') {
-      var addr = w.getAddress();
-      return addr && addr !== '' && addr !== null;
-    }
+    if (typeof w.getIsConnectedState === 'function') return w.getIsConnectedState();
+    if (typeof w.getIsConnected === 'function') return w.getIsConnected();
     return false;
   }
 
@@ -985,7 +977,13 @@ const XAuthGate = (() => {
       var w = window.xLeverWallet;
       if (!w) return setTimeout(check, 300);
       _applyState();
-      if (typeof w.subscribeEvents === 'function') {
+      // Subscribe once to connection state changes (not raw events) to toggle UI
+      if (typeof w.subscribeState === 'function') {
+        w.subscribeState((state) => {
+          _applyState();
+        });
+      } else if (typeof w.subscribeEvents === 'function') {
+        // Fallback for older Reown versions without subscribeState
         w.subscribeEvents((event) => {
           var evt = event?.data?.event;
           if (evt === 'CONNECT_SUCCESS' || evt === 'DISCONNECT_SUCCESS') {
@@ -993,10 +991,211 @@ const XAuthGate = (() => {
           }
         });
       }
-      setTimeout(() => _applyState(), 2000);
-      setTimeout(() => _applyState(), 5000);
     };
     check();
+  }
+
+  return { init };
+})();
+
+if (typeof window !== 'undefined') {
+  window.XAuthGate = XAuthGate;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// PRE-DEMO HEALTH CHECK PANEL
+// ═══════════════════════════════════════════════════════════════
+
+const XPreflight = (() => {
+  let panelEl = null;
+  let isRunning = false;
+
+  function init(containerSelector) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    panelEl = document.createElement('div');
+    panelEl.id = 'x-preflight-panel';
+    panelEl.style.cssText = `
+      background: #12141a; border: 1px solid #252833; border-radius: 8px;
+      padding: 16px 20px; margin-bottom: 16px; font-family: 'DM Sans', sans-serif;
+    `;
+    panelEl.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:#7c4dff;">preflight</span>
+          <span style="font-size:13px; font-weight:700; color:#e3e2e6; text-transform:uppercase; letter-spacing:1px;">Preflight Check</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="x-preflight-run" style="
+            padding:6px 14px; border-radius:4px; font-size:11px; font-weight:700;
+            background:#7c4dff; border:none; color:#fff; cursor:pointer;
+            text-transform:uppercase; letter-spacing:0.5px;
+          ">Run Check</button>
+          <button id="x-preflight-toggle" style="
+            padding:6px 8px; border-radius:4px; font-size:11px;
+            background:none; border:1px solid #252833; color:#8b8fa3; cursor:pointer;
+          ">
+            <span class="material-symbols-outlined" style="font-size:14px;">expand_more</span>
+          </button>
+        </div>
+      </div>
+      <div id="x-preflight-results" style="display:none;"></div>
+      <div id="x-preflight-summary" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#555970;">
+        Click "Run Check" to verify demo readiness
+      </div>
+    `;
+    container.prepend(panelEl);
+
+    panelEl.querySelector('#x-preflight-run').addEventListener('click', run);
+    panelEl.querySelector('#x-preflight-toggle').addEventListener('click', () => {
+      const results = panelEl.querySelector('#x-preflight-results');
+      const icon = panelEl.querySelector('#x-preflight-toggle .material-symbols-outlined');
+      if (results.style.display === 'none') {
+        results.style.display = 'block';
+        icon.textContent = 'expand_less';
+      } else {
+        results.style.display = 'none';
+        icon.textContent = 'expand_more';
+      }
+    });
+  }
+
+  async function run() {
+    if (isRunning) return;
+    isRunning = true;
+
+    const contracts = window.xLeverContracts;
+    if (!contracts || !contracts.runPreflight) {
+      XToast.show('Contracts module not loaded', 'error');
+      isRunning = false;
+      return;
+    }
+
+    const runBtn = panelEl.querySelector('#x-preflight-run');
+    const resultsEl = panelEl.querySelector('#x-preflight-results');
+    const summaryEl = panelEl.querySelector('#x-preflight-summary');
+
+    runBtn.textContent = 'Checking...';
+    runBtn.disabled = true;
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="color:#555970; font-size:11px;">Running checks...</div>';
+
+    try {
+      const checks = await contracts.runPreflight();
+      const allOk = checks.every(c => c.ok);
+      const passCount = checks.filter(c => c.ok).length;
+
+      resultsEl.innerHTML = checks.map(c => `
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #1a1c22;">
+          <span class="material-symbols-outlined" style="font-size:16px; color:${c.ok ? '#00e676' : '#ff5252'}; font-variation-settings:'FILL' 1;">
+            ${c.ok ? 'check_circle' : 'cancel'}
+          </span>
+          <span style="font-family:'DM Sans',sans-serif; font-size:12px; color:#e3e2e6; flex:1;">${escapeHTML(c.label)}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:${c.ok ? '#8b8fa3' : '#ff5252'};">${escapeHTML(c.detail)}</span>
+        </div>
+      `).join('');
+
+      summaryEl.innerHTML = allOk
+        ? '<span style="color:#00e676; font-weight:600;">All checks passed — ready for demo</span>'
+        : `<span style="color:#ffd740; font-weight:600;">${passCount}/${checks.length} checks passed</span>`;
+
+    } catch (err) {
+      resultsEl.innerHTML = `<div style="color:#ff5252; font-size:11px;">Preflight error: ${escapeHTML(err.message)}</div>`;
+      summaryEl.textContent = 'Preflight failed';
+    } finally {
+      runBtn.textContent = 'Run Check';
+      runBtn.disabled = false;
+      isRunning = false;
+    }
+  }
+
+  return { init, run };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// ONE-CLICK DEMO RESET / RELOAD
+// ═══════════════════════════════════════════════════════════════
+
+const XDemoReset = (() => {
+  function init(containerSelector) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'x-demo-reset';
+    btn.style.cssText = `
+      display:flex; align-items:center; gap:6px; padding:8px 16px;
+      border-radius:6px; font-family:'DM Sans',sans-serif; font-size:12px;
+      font-weight:700; cursor:pointer; transition:all 0.2s;
+      background:rgba(255,82,82,0.08); border:1px solid rgba(255,82,82,0.2);
+      color:#ff5252; text-transform:uppercase; letter-spacing:0.5px;
+      margin-bottom:12px; width:100%;
+    `;
+    btn.innerHTML = `
+      <span class="material-symbols-outlined" style="font-size:16px;">restart_alt</span>
+      Demo Reset
+    `;
+    btn.addEventListener('click', reset);
+    container.prepend(btn);
+  }
+
+  function reset() {
+    if (!confirm('Reset demo state? This will reload the page and clear session data.')) return;
+    // Clear any cached state
+    try {
+      sessionStorage.clear();
+    } catch {}
+    // Hard reload to reset all JS state
+    window.location.reload();
+  }
+
+  return { init, reset };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// TRANSACTION LIFECYCLE PANEL — shows tx states in the UI
+// ═══════════════════════════════════════════════════════════════
+
+const XTxTracker = (() => {
+  const STATE_STYLES = {
+    submitted: { icon: 'send', color: '#7c4dff', label: 'Submitted' },
+    pending:   { icon: 'hourglass_top', color: '#ffd740', label: 'Pending' },
+    confirmed: { icon: 'check_circle', color: '#00e676', label: 'Confirmed' },
+    failed:    { icon: 'cancel', color: '#ff5252', label: 'Failed' },
+    rejected:  { icon: 'block', color: '#ffd740', label: 'Rejected' },
+  };
+
+  function init() {
+    const contracts = window.xLeverContracts;
+    if (!contracts) return;
+
+    // Subscribe to all tx events and show inline toasts with explorer links
+    contracts.txEvents.on('submitted', ({ hash, explorerUrl }) => {
+      showTxToast('submitted', hash, explorerUrl);
+    });
+    contracts.txEvents.on('confirmed', ({ hash, explorerUrl }) => {
+      showTxToast('confirmed', hash, explorerUrl);
+    });
+    contracts.txEvents.on('failed', ({ hash, explorerUrl, error }) => {
+      showTxToast('failed', hash, explorerUrl, error);
+    });
+  }
+
+  function showTxToast(state, hash, explorerUrl, error) {
+    const s = STATE_STYLES[state];
+    const shortHash = hash ? `${hash.slice(0, 8)}...${hash.slice(-4)}` : '';
+    const link = (hash && explorerUrl) ? ` <a href="${explorerUrl}" target="_blank" rel="noopener" style="color:#7c4dff; text-decoration:underline;">View tx</a>` : '';
+
+    let msg = `${s.label}`;
+    if (shortHash) msg += `: ${shortHash}`;
+    if (error?.detail) msg += ` — ${error.detail}`;
+
+    const type = state === 'confirmed' ? 'success' : state === 'failed' ? 'error' : state === 'rejected' ? 'warning' : 'info';
+    XToast.show(msg, type, state === 'confirmed' || state === 'failed' ? 5000 : 3000);
   }
 
   return { init };
@@ -1015,4 +1214,9 @@ document.addEventListener('DOMContentLoaded', () => {
   XWallet.init();
   // Wire up the leverage slider, quick-select buttons, and drag handlers
   XLeverage.init();
+
+  // Init tx lifecycle tracker after a brief delay to ensure contracts.js is loaded
+  setTimeout(() => {
+    XTxTracker.init();
+  }, 500);
 });

@@ -5,9 +5,8 @@ from sqlalchemy import select
 # AsyncSession type for the injected DB session
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Wallet address format validation
-# TODO: Replace with full SIWE (Sign-In with Ethereum) to verify wallet ownership
-from ..auth import validate_wallet_address
+# Wallet address format validation and SIWE session auth
+from ..auth import validate_wallet_address, require_auth, require_wallet_owner
 # get_db yields a scoped async DB session per request
 from ..database import get_db
 # User ORM model for DB operations
@@ -56,9 +55,12 @@ async def create_or_get_user(body: UserCreate, db: AsyncSession = Depends(get_db
 
 # GET /api/users/{wallet_address} — look up a user by wallet address
 @router.get("/{wallet_address}", response_model=UserOut)
-async def get_user(wallet_address: str, db: AsyncSession = Depends(get_db)):
-    # Validate wallet address format (TODO: replace with SIWE ownership verification)
-    addr = validate_wallet_address(wallet_address)
+async def get_user(
+    wallet_address: str,
+    db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
+):
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Query for the user by their wallet address
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()
@@ -71,10 +73,12 @@ async def get_user(wallet_address: str, db: AsyncSession = Depends(get_db)):
 # PATCH /api/users/{wallet_address}/preferences — partial update of user preferences
 @router.patch("/{wallet_address}/preferences", response_model=UserOut)
 async def update_preferences(
-    wallet_address: str, prefs: UserPreferences, db: AsyncSession = Depends(get_db)
+    wallet_address: str,
+    prefs: UserPreferences,
+    db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
 ):
-    # Validate wallet address format (TODO: replace with SIWE ownership verification)
-    addr = validate_wallet_address(wallet_address)
+    addr = require_wallet_owner(wallet_address, authenticated_wallet)
     # Look up the user to update
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()

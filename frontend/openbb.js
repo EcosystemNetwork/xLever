@@ -17,20 +17,35 @@ const API_BASE = '/api/openbb'
 // CORE FETCHER
 // ═══════════════════════════════════════════════════════════════
 
+let _unavailableUntil = 0 // Backoff timestamp — stops hammering a down backend
+
 // Centralized fetch wrapper — all OpenBB calls route through here to ensure consistent error handling and URL construction
 async function fetchOBB(path, params = {}) {
+  if (Date.now() < _unavailableUntil) return null
   // Build full URL from relative path — using window.location.origin ensures it works across dev/staging/production environments
   const url = new URL(API_BASE + path, window.location.origin)
   // Append only defined params to the query string — skipping null/undefined prevents sending "?key=undefined" to the backend
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, v)
   }
-  // Execute the HTTP request — goes through Vite proxy in dev, direct to FastAPI in production
-  const resp = await fetch(url)
+  // Execute the HTTP request — goes through Vite proxy in dev, Vercel rewrite in production
+  let resp
+  try {
+    resp = await fetch(url)
+  } catch (e) {
+    // Network error (backend unreachable) — back off and return null so callers degrade gracefully
+    _unavailableUntil = Date.now() + 5 * 60_000
+    return null
+  }
   // Throw on non-2xx responses with the response body for debugging — OpenBB errors often include useful detail in the body
   if (!resp.ok) {
     // Attempt to read error body for diagnostic context; gracefully handle cases where body is unreadable
     const body = await resp.text().catch(() => '')
+    // Back off on 503 (backend down) or 502/504 (proxy errors) to avoid hammering
+    if (resp.status >= 502 && resp.status <= 504) {
+      _unavailableUntil = Date.now() + 5 * 60_000
+      return null
+    }
     // Include the path and status in the error so callers can identify which endpoint failed without a stack trace
     throw new Error(`OpenBB ${path}: ${resp.status} ${body}`)
   }

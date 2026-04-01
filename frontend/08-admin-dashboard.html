@@ -5,7 +5,7 @@
 <title>xLever | Admin Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="stylesheet" href="tailwind.css">
 <script id="tailwind-config">
     tailwind.config = {
         darkMode: "class",
@@ -86,11 +86,54 @@
     .bar { transition: height 0.4s ease; }
     .stat-card { transition: border-color 0.2s ease; }
     .stat-card:hover { border-color: #7c4dff40; }
+    .admin-tab {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: #555970;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .admin-tab:hover { color: #e3e2e6; }
+    .admin-tab.active {
+      color: #7c4dff;
+      border-bottom-color: #7c4dff;
+    }
+    .admin-tab-panel.hidden { display: none; }
+    .admin-iframe {
+      width: 100%;
+      height: calc(100vh - 200px);
+      min-height: 600px;
+      border: none;
+      border-radius: 8px;
+      background: #0a0b0e;
+    }
 </style>
 </head>
 <body class="text-on-surface overflow-x-hidden pb-12">
+<script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('admin');</script>
+
+<!-- Auth Overlay -->
+<div id="authOverlay" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center hidden">
+  <div class="bg-surface-container-low border border-outline-variant/20 rounded-lg p-6 max-w-sm w-full mx-4">
+    <h2 class="text-sm font-semibold text-on-surface mb-1">Admin Authentication</h2>
+    <p class="text-[10px] text-on-surface-variant mb-4">Enter your admin API key to access the dashboard</p>
+    <input id="adminKeyInput" type="password" placeholder="Admin API key"
+      onkeydown="handleKeySubmit(event)"
+      class="w-full bg-[#12141a] border border-[#252833] rounded px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-primary font-mono" />
+    <button onclick="setAdminKey(document.getElementById('adminKeyInput').value.trim())"
+      class="mt-3 w-full py-2 bg-primary-container text-on-primary-container text-xs font-semibold rounded hover:opacity-90 transition-opacity">
+      Authenticate
+    </button>
+  </div>
+</div>
 
 <main class="pt-28 px-6 max-w-[1600px] mx-auto space-y-6">
 
@@ -111,6 +154,19 @@
     </div>
   </div>
 </div>
+
+<!-- Sub-Tab Navigation -->
+<div class="flex gap-1 overflow-x-auto border-b border-[#252833] pb-0 -mb-px" id="adminTabs">
+  <button class="admin-tab active" data-tab="overview">Overview</button>
+  <button class="admin-tab" data-tab="analytics">Analytics</button>
+  <button class="admin-tab" data-tab="operations">Operations</button>
+  <button class="admin-tab" data-tab="vaults">Vaults</button>
+  <button class="admin-tab" data-tab="risk">Risk</button>
+  <button class="admin-tab" data-tab="lending">Lending</button>
+</div>
+
+<!-- Tab Panel: Overview (existing admin content) -->
+<div class="admin-tab-panel" id="panel-overview">
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="statsGrid">
@@ -263,10 +319,165 @@
   </div>
 </div>
 
+<!-- System Health -->
+<div class="bg-surface-container-low border border-outline-variant/10 rounded-lg p-5">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-sm font-semibold text-on-surface">System Health</h2>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Backend services, database, and API status</p>
+    </div>
+    <button onclick="loadHealth()" class="text-[10px] text-on-surface-variant hover:text-on-surface transition-colors">Refresh</button>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="healthGrid">
+    <div class="flex items-center gap-2 p-3 bg-[#12141a] rounded border border-[#252833]">
+      <div class="w-2 h-2 rounded-full bg-on-surface-variant/30" id="healthApi"></div>
+      <div><p class="text-[10px] text-on-surface-variant">API Server</p><p class="font-mono text-[10px] text-on-surface" id="healthApiText">--</p></div>
+    </div>
+    <div class="flex items-center gap-2 p-3 bg-[#12141a] rounded border border-[#252833]">
+      <div class="w-2 h-2 rounded-full bg-on-surface-variant/30" id="healthDb"></div>
+      <div><p class="text-[10px] text-on-surface-variant">Database</p><p class="font-mono text-[10px] text-on-surface" id="healthDbText">--</p></div>
+    </div>
+    <div class="flex items-center gap-2 p-3 bg-[#12141a] rounded border border-[#252833]">
+      <div class="w-2 h-2 rounded-full bg-on-surface-variant/30" id="healthRpc"></div>
+      <div><p class="text-[10px] text-on-surface-variant">RPC Node</p><p class="font-mono text-[10px] text-on-surface" id="healthRpcText">--</p></div>
+    </div>
+    <div class="flex items-center gap-2 p-3 bg-[#12141a] rounded border border-[#252833]">
+      <div class="w-2 h-2 rounded-full bg-on-surface-variant/30" id="healthUptime"></div>
+      <div><p class="text-[10px] text-on-surface-variant">Uptime</p><p class="font-mono text-[10px] text-on-surface" id="healthUptimeText">--</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Debug Console -->
+<div class="bg-surface-container-low border border-outline-variant/10 rounded-lg">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant/10">
+    <div>
+      <h2 class="text-sm font-semibold text-on-surface">Debug Console</h2>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">API requests, errors, and system events</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select id="debugFilter" onchange="renderDebugConsole()" class="bg-[#12141a] border border-[#252833] rounded text-[10px] text-on-surface-variant px-2 py-1 focus:outline-none focus:border-primary">
+        <option value="ALL">All</option>
+        <option value="ERROR">Errors</option>
+        <option value="WARN">Warnings</option>
+        <option value="INFO">Info</option>
+        <option value="DEBUG">Debug</option>
+      </select>
+      <button onclick="clearDebugLogs()" class="text-[10px] text-on-surface-variant hover:text-on-surface transition-colors px-2 py-1 bg-[#12141a] border border-[#252833] rounded">Clear</button>
+      <button onclick="runDiagnostics()" class="text-[10px] text-primary hover:text-primary-fixed transition-colors px-2 py-1 bg-[#12141a] border border-[#252833] rounded">Run Diagnostics</button>
+    </div>
+  </div>
+  <div id="debugOutput" class="px-5 py-3 font-mono text-[11px] max-h-[300px] overflow-y-auto">
+    <div class="text-on-surface-variant/40 py-2">No logs yet</div>
+  </div>
+</div>
+
+</div><!-- end panel-overview -->
+
+<!-- Tab Panel: Analytics -->
+<div class="admin-tab-panel hidden" id="panel-analytics">
+  <iframe src="06-analytics-backtesting.html" class="admin-iframe" id="iframe-analytics"></iframe>
+</div>
+
+<!-- Tab Panel: Operations -->
+<div class="admin-tab-panel hidden" id="panel-operations">
+  <iframe src="07-operations-control.html" class="admin-iframe" id="iframe-operations"></iframe>
+</div>
+
+<!-- Tab Panel: Vaults -->
+<div class="admin-tab-panel hidden" id="panel-vaults">
+  <iframe src="04-vault-management.html" class="admin-iframe" id="iframe-vaults"></iframe>
+</div>
+
+<!-- Tab Panel: Risk -->
+<div class="admin-tab-panel hidden" id="panel-risk">
+  <iframe src="05-risk-management.html" class="admin-iframe" id="iframe-risk"></iframe>
+</div>
+
+<!-- Tab Panel: Lending -->
+<div class="admin-tab-panel hidden" id="panel-lending">
+  <iframe src="09-lending-borrowing.html" class="admin-iframe" id="iframe-lending"></iframe>
+</div>
+
 </main>
 
 <script>
 const API = '/api/admin';
+
+// ─── Admin API Key Management ──────────────────────────────────
+let _adminKey = localStorage.getItem('xlever_admin_key') || '';
+
+function getAdminHeaders() {
+  return { 'X-Admin-Key': _adminKey, 'Content-Type': 'application/json' };
+}
+
+async function adminFetch(url, opts = {}) {
+  opts.headers = { ...getAdminHeaders(), ...(opts.headers || {}) };
+  const res = await fetch(url, opts);
+  if (res.status === 403) {
+    logDebug('ERROR', `Auth failed for ${url} — check admin key`);
+    showAuthPrompt();
+    throw new Error('Invalid admin key');
+  }
+  if (res.status === 503) {
+    logDebug('ERROR', 'ADMIN_API_KEY not configured on server');
+    throw new Error('Admin key not configured on server');
+  }
+  if (!res.ok) {
+    logDebug('ERROR', `${url} returned HTTP ${res.status}`);
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res;
+}
+
+function setAdminKey(key) {
+  _adminKey = key;
+  localStorage.setItem('xlever_admin_key', key);
+  document.getElementById('authOverlay').classList.add('hidden');
+  logDebug('INFO', 'Admin key updated');
+  refreshAll();
+}
+
+function showAuthPrompt() {
+  document.getElementById('authOverlay').classList.remove('hidden');
+  document.getElementById('adminKeyInput').focus();
+}
+
+function handleKeySubmit(e) {
+  if (e.key === 'Enter') setAdminKey(e.target.value.trim());
+}
+
+// ─── Debug Console ─────────────────────────────────────────────
+const _debugLogs = [];
+const MAX_DEBUG_LOGS = 200;
+
+function logDebug(level, msg, data = null) {
+  const entry = {
+    ts: new Date().toISOString().slice(11, 23),
+    level,
+    msg,
+    data,
+  };
+  _debugLogs.unshift(entry);
+  if (_debugLogs.length > MAX_DEBUG_LOGS) _debugLogs.pop();
+  renderDebugConsole();
+}
+
+function renderDebugConsole() {
+  const el = document.getElementById('debugOutput');
+  if (!el) return;
+  const filter = document.getElementById('debugFilter')?.value || 'ALL';
+  const filtered = filter === 'ALL' ? _debugLogs : _debugLogs.filter(l => l.level === filter);
+  el.innerHTML = filtered.slice(0, 50).map(l => {
+    const color = l.level === 'ERROR' ? 'text-error' : l.level === 'WARN' ? 'text-[#ffd740]' : l.level === 'INFO' ? 'text-tertiary' : 'text-on-surface-variant';
+    return `<div class="flex gap-2 py-0.5 border-b border-outline-variant/5"><span class="text-on-surface-variant/50 flex-shrink-0">${l.ts}</span><span class="${color} font-bold flex-shrink-0 w-12">${l.level}</span><span class="text-on-surface-variant break-all">${l.msg}${l.data ? ' <span class="text-on-surface-variant/40">' + JSON.stringify(l.data) + '</span>' : ''}</span></div>`;
+  }).join('') || '<div class="text-on-surface-variant/40 py-2">No logs yet</div>';
+}
+
+function clearDebugLogs() {
+  _debugLogs.length = 0;
+  renderDebugConsole();
+}
 
 function fmt(n) {
   if (n === null || n === undefined) return '--';
@@ -305,7 +516,7 @@ function fmtDuration(seconds) {
 // ─── Load Platform Stats ────────────────────────────────────────
 async function loadStats() {
   try {
-    const res = await fetch(API + '/stats');
+    const res = await adminFetch(API + '/stats');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const s = await res.json();
     document.getElementById('statTotalUsers').textContent = fmt(s.total_users);
@@ -324,7 +535,7 @@ async function loadStats() {
 // ─── Daily Activity Chart ───────────────────────────────────────
 async function loadDailyChart() {
   try {
-    const res = await fetch(API + '/activity/daily?days=30');
+    const res = await adminFetch(API + '/activity/daily?days=30');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const container = document.getElementById('dailyChart');
@@ -362,7 +573,7 @@ async function loadDailyChart() {
 // ─── Hourly Distribution Chart ──────────────────────────────────
 async function loadHourlyChart() {
   try {
-    const res = await fetch(API + '/activity/hourly');
+    const res = await adminFetch(API + '/activity/hourly');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const container = document.getElementById('hourlyChart');
@@ -393,7 +604,7 @@ async function loadHourlyChart() {
 async function loadUsers() {
   try {
     const sort = document.getElementById('userSort').value;
-    const res = await fetch(API + '/users?limit=50&sort=' + sort);
+    const res = await adminFetch(API + '/users?limit=50&sort=' + sort);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const users = await res.json();
     const tbody = document.getElementById('usersTableBody');
@@ -430,7 +641,7 @@ async function loadUsers() {
 // ─── Recent Sessions ────────────────────────────────────────────
 async function loadSessions() {
   try {
-    const res = await fetch(API + '/sessions?limit=20');
+    const res = await adminFetch(API + '/sessions?limit=20');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const sessions = await res.json();
     const container = document.getElementById('sessionsList');
@@ -461,16 +672,87 @@ async function loadSessions() {
   }
 }
 
+// ─── System Health ──────────────────────────────────────────────
+async function loadHealth() {
+  // API health
+  try {
+    const start = performance.now();
+    const res = await adminFetch(API + '/health');
+    const ms = Math.round(performance.now() - start);
+    const data = await res.json();
+    document.getElementById('healthApi').className = 'w-2 h-2 rounded-full bg-[#00e676]';
+    document.getElementById('healthApiText').textContent = `OK (${ms}ms)`;
+    document.getElementById('healthDb').className = `w-2 h-2 rounded-full ${data.database === 'connected' ? 'bg-[#00e676]' : 'bg-error'}`;
+    document.getElementById('healthDbText').textContent = data.database || '--';
+    document.getElementById('healthRpc').className = `w-2 h-2 rounded-full ${data.rpc === 'connected' ? 'bg-[#00e676]' : 'bg-[#ffd740]'}`;
+    document.getElementById('healthRpcText').textContent = data.rpc || '--';
+    document.getElementById('healthUptime').className = 'w-2 h-2 rounded-full bg-[#00e676]';
+    document.getElementById('healthUptimeText').textContent = data.uptime || '--';
+    logDebug('INFO', `Health check OK (${ms}ms)`, { db: data.database, rpc: data.rpc });
+  } catch (e) {
+    document.getElementById('healthApi').className = 'w-2 h-2 rounded-full bg-error';
+    document.getElementById('healthApiText').textContent = 'ERROR';
+    logDebug('ERROR', 'Health check failed: ' + e.message);
+  }
+}
+
+// ─── Diagnostics ────────────────────────────────────────────────
+async function runDiagnostics() {
+  logDebug('INFO', '=== Starting diagnostics ===');
+
+  // Test API connectivity
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    logDebug('INFO', 'API health: ' + JSON.stringify(data));
+  } catch (e) {
+    logDebug('ERROR', 'API unreachable: ' + e.message);
+  }
+
+  // Test admin auth
+  try {
+    const res = await fetch(API + '/stats', { headers: getAdminHeaders() });
+    if (res.ok) {
+      logDebug('INFO', 'Admin auth: valid key');
+    } else {
+      logDebug('ERROR', 'Admin auth: HTTP ' + res.status);
+    }
+  } catch (e) {
+    logDebug('ERROR', 'Admin auth test failed: ' + e.message);
+  }
+
+  // Test admin endpoints
+  const endpoints = ['/stats', '/users?limit=1', '/activity/daily?days=1', '/activity/hourly', '/sessions?limit=1', '/health'];
+  for (const ep of endpoints) {
+    try {
+      const start = performance.now();
+      const res = await fetch(API + ep, { headers: getAdminHeaders() });
+      const ms = Math.round(performance.now() - start);
+      logDebug(res.ok ? 'INFO' : 'WARN', `${ep} → ${res.status} (${ms}ms)`);
+    } catch (e) {
+      logDebug('ERROR', `${ep} → ${e.message}`);
+    }
+  }
+
+  logDebug('INFO', '=== Diagnostics complete ===');
+}
+
 // ─── Refresh All ────────────────────────────────────────────────
 async function refreshAll() {
   const icon = document.getElementById('refreshIcon');
   icon.style.animation = 'spin 0.6s linear';
   setTimeout(() => icon.style.animation = '', 600);
-  await Promise.all([loadStats(), loadDailyChart(), loadHourlyChart(), loadUsers(), loadSessions()]);
+  logDebug('DEBUG', 'Refreshing all panels');
+  await Promise.all([loadStats(), loadDailyChart(), loadHourlyChart(), loadUsers(), loadSessions(), loadHealth()]);
+  logDebug('DEBUG', 'Refresh complete');
 }
 
-// Initial load
-refreshAll();
+// Initial load — check for admin key first
+if (!_adminKey) {
+  showAuthPrompt();
+} else {
+  refreshAll();
+}
 
 // Auto-refresh every 30 seconds
 setInterval(refreshAll, 30000);
@@ -479,6 +761,39 @@ setInterval(refreshAll, 30000);
 <style>
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
+
+<script>
+// ─── Admin Sub-Tab Switching ───────────────────────────────────
+(function() {
+  const tabs = document.querySelectorAll('.admin-tab');
+  const panels = document.querySelectorAll('.admin-tab-panel');
+  const loadedIframes = new Set();
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      panels.forEach(p => {
+        if (p.id === 'panel-' + target) {
+          p.classList.remove('hidden');
+        } else {
+          p.classList.add('hidden');
+        }
+      });
+
+      // Lazy-load iframes: only set src when tab is first opened
+      const iframe = document.getElementById('iframe-' + target);
+      if (iframe && !loadedIframes.has(target)) {
+        loadedIframes.add(target);
+        // src is already set in HTML, browser loads on display
+      }
+    });
+  });
+})();
+</script>
 
 <script type="module" src="wallet.js"></script>
 <script src="ux.js"></script>
