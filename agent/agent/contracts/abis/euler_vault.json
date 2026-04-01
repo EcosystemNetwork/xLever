@@ -1,0 +1,56 @@
+[
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "address", "name": "receiver", "type": "address"}
+    ],
+    "name": "deposit",
+    "outputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "address", "name": "receiver", "type": "address"}
+    ],
+    "name": "withdraw",
+    "outputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "address", "name": "receiver", "type": "address"}
+    ],
+    "name": "borrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "address", "name": "receiver", "type": "address"}
+    ],
+    "name": "repay",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "balanceOf",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "asset",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
