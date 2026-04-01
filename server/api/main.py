@@ -22,7 +22,7 @@ from .config import get_settings
 # init_db creates tables on startup — avoids manual migration steps during early development
 from .database import init_db
 # Import all route modules to register their endpoints with the app
-from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending, auth_routes
+from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending, auth_routes, live
 
 # Cache the settings singleton so we don't re-parse env vars on every access
 settings = get_settings()
@@ -93,8 +93,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     # Startup: auto-create all ORM tables (avoids needing Alembic during prototyping)
     await init_db()
+    # Start background on-chain polling for live data cache
+    from .routes.live import start_cache, stop_cache
+    await start_cache()
     # yield separates startup from shutdown — FastAPI runs the app between these points
     yield
+    # Shutdown: stop live cache poller
+    await stop_cache()
     # Shutdown: close shared HTTP clients to release connections
     from .routes.lending import _http_client
     if _http_client is not None:
@@ -151,6 +156,8 @@ app.include_router(news.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 # Lending route serves Euler V2 lending market data and user lending positions
 app.include_router(lending.router, prefix="/api")
+# Live on-chain data — pool state, oracle, junior tranche, fees, positions, Pyth prices
+app.include_router(live.router, prefix="/api")
 
 
 # Health check endpoint for Docker/k8s readiness probes and frontend connectivity tests

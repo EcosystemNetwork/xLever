@@ -43,6 +43,12 @@ contract RiskModule {
         _;
     }
 
+    /// @notice Transfer vault ownership (one-time, called during modular deployment)
+    function setVault(address _newVault) external onlyVault {
+        require(_newVault != address(0), "Zero address");
+        vault = _newVault;
+    }
+
     // Initialize risk module with vault reference and default circuit breaker parameters
     constructor(address _vault) {
         // Store vault address for access control

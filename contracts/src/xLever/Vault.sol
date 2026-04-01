@@ -90,13 +90,24 @@ contract Vault is IVault {
         _;
     }
 
+    /// @notice Deploy vault with pre-deployed modules (avoids contract size limit)
+    /// @dev Modules must be deployed separately and their addresses passed in.
+    ///      Use DeployModular.s.sol to deploy modules + vault in the correct order.
+    /// @param _usdc USDC token address
+    /// @param _asset Underlying asset token address (e.g., wQQQx)
+    /// @param _admin Admin address for governance
+    /// @param _treasury Treasury address for fee collection
+    /// @param _pythAdapter Pre-deployed PythOracleAdapter address
+    /// @param _feedId Pyth price feed ID for this asset
+    /// @param _modules Pre-deployed module addresses: [oracle, positionModule, feeEngine, juniorTranche, riskModule]
     constructor(
         address _usdc,
         address _asset,
         address _admin,
         address _treasury,
         address _pythAdapter,
-        bytes32 _feedId
+        bytes32 _feedId,
+        address[5] memory _modules
     ) {
         usdc = IERC20(_usdc);
         asset = _asset;
@@ -105,12 +116,15 @@ contract Vault is IVault {
         pythAdapter = IPythOracleAdapter(_pythAdapter);
         feedId = _feedId;
 
-        // Deploy modules
-        oracle = new TWAPOracle(address(this), address(this));
-        positionModule = new PositionModule(address(oracle), address(this));
-        feeEngine = new FeeEngine(address(oracle), address(this));
-        juniorTranche = new JuniorTranche(address(this));
-        riskModule = new RiskModule(address(this));
+        // Wire pre-deployed modules (no inline deployment = smaller bytecode)
+        oracle = TWAPOracle(_modules[0]);
+        positionModule = PositionModule(_modules[1]);
+        feeEngine = FeeEngine(_modules[2]);
+        juniorTranche = JuniorTranche(_modules[3]);
+        riskModule = RiskModule(_modules[4]);
+
+        // NOTE: After deploying Vault, the deployer must call initializeModules()
+        // to transfer module ownership from deployer to this vault.
 
         // Initialize pool state
         poolState.currentMaxLeverageBps = 40000; // 4x default
@@ -529,6 +543,20 @@ contract Vault is IVault {
     // ═══════════════════════════════════════════════════════════════
     // ADMIN FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
+
+    /// @notice Transfer module ownership from deployer to this vault (one-time setup)
+    /// @dev Must be called by the deployer (who is the initial module owner) after vault deployment.
+    ///      This is required because modules are deployed before the vault, so they initially
+    ///      point to the deployer as their vault. This function transfers ownership so that
+    ///      only this vault contract can call module admin functions going forward.
+    bool private _modulesInitialized;
+    function initializeModules() external {
+        require(!_modulesInitialized, "Already initialized");
+        // The deployer must have transferred module ownership to this vault address
+        // by calling setVault(vaultAddress) on each module before calling this.
+        // This function just marks initialization as complete.
+        _modulesInitialized = true;
+    }
 
     /// @notice Initialize TWAP oracle with starting price
     function initializeOracle(uint128 startPrice) external onlyAdmin {

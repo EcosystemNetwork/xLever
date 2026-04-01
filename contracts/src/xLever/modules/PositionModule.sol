@@ -10,7 +10,7 @@ contract PositionModule {
     mapping(address => DataTypes.Position) public positions;
     
     ITWAPOracle public immutable oracle;
-    address public immutable vault;
+    address public vault;
     
     uint256 constant LEVERAGE_INCREASE_DELAY = 1 hours;
     uint256 constant LEVERAGE_FLIP_DELAY = 4 hours;
@@ -24,6 +24,13 @@ contract PositionModule {
         _;
     }
     
+    /// @notice Transfer vault ownership (one-time, called during modular deployment)
+    function setVault(address _newVault) external {
+        require(msg.sender == vault, "Only vault");
+        require(_newVault != address(0), "Zero address");
+        vault = _newVault;
+    }
+
     constructor(address _oracle, address _vault) {
         oracle = ITWAPOracle(_oracle);
         vault = _vault;

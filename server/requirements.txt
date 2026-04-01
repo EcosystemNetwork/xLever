@@ -19,5 +19,8 @@ pydantic[email]==2.9.2
 # CORS
 python-multipart==0.0.12
 
+# Web3 for on-chain reads
+web3>=7.0
+
 # OpenBB intelligence layer
 openbb[all]>=4.0

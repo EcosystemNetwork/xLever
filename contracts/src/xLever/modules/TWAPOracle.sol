@@ -47,6 +47,14 @@ contract TWAPOracle is ITWAPOracle {
         _;
     }
 
+    /// @notice Transfer vault ownership (one-time, called during modular deployment)
+    function setVault(address _newVault) external {
+        require(msg.sender == vault || msg.sender == updater, "Not authorized");
+        require(_newVault != address(0), "Zero address");
+        vault = _newVault;
+        updater = _newVault;
+    }
+
     // Initialize oracle with authorized update addresses and set initial timestamp
     constructor(address _updater, address _vault) {
         // Store the updater address (keeper or vault) for access control

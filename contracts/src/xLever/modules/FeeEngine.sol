@@ -37,6 +37,12 @@ contract FeeEngine {
         _;
     }
 
+    /// @notice Transfer vault ownership (one-time, called during modular deployment)
+    function setVault(address _newVault) external onlyVault {
+        require(_newVault != address(0), "Zero address");
+        vault = _newVault;
+    }
+
     // Initialize fee engine with oracle reference and default fee parameters
     constructor(address _oracle, address _vault) {
         // Store oracle for reading divergence during fee calculation

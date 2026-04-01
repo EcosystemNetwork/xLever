@@ -17,7 +17,7 @@ contract JuniorTranche {
     mapping(address => uint256) public shares;
 
     // Vault address — only the vault can call deposit/withdraw/loss/fee functions
-    address public immutable vault;
+    address public vault;
 
     // Emitted on junior deposit — tracks assets deposited and shares issued
     event Deposit(address indexed user, uint256 assets, uint256 shares);
@@ -33,6 +33,13 @@ contract JuniorTranche {
         require(msg.sender == vault, "Only vault");
         // Continue executing the function body after the check passes
         _;
+    }
+
+    /// @notice Transfer vault ownership (one-time, called during modular deployment)
+    function setVault(address _newVault) external {
+        require(msg.sender == vault, "Only vault");
+        require(_newVault != address(0), "Zero address");
+        vault = _newVault;
     }
 
     // Initialize with vault reference for access control
