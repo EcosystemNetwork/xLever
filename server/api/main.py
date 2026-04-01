@@ -17,7 +17,7 @@ from .config import get_settings
 # init_db creates tables on startup — avoids manual migration steps during early development
 from .database import init_db
 # Import all route modules to register their endpoints with the app
-from .routes import users, positions, agents, prices, alerts, openbb
+from .routes import users, positions, agents, prices, alerts, openbb, news
 
 # Cache the settings singleton so we don't re-parse env vars on every access
 settings = get_settings()
@@ -69,6 +69,8 @@ app.include_router(prices.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 # OpenBB route provides rich market intelligence (quotes, historical, options, snapshots)
 app.include_router(openbb.router, prefix="/api")
+# News route aggregates and streams market news for the agent swarm pipeline
+app.include_router(news.router, prefix="/api")
 
 
 # Health check endpoint for Docker/k8s readiness probes and frontend connectivity tests

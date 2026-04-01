@@ -102,52 +102,8 @@ tailwind.config = {
 </head>
 <body class="bg-surface font-body text-on-surface antialiased">
 
-<!-- TopNavBar -->
-<nav class="bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50">
-  <div class="flex items-center gap-10">
-    <span class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter"><span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span></span>
-    <div class="hidden md:flex gap-1 items-center">
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="01-dashboard.html">Dashboard</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="02-trading-terminal.html">Trading</a>
-      <a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="03-ai-agent-operations.html">AI Agents</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="04-vault-management.html">Vaults</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="05-risk-management.html">Risk</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="06-analytics-backtesting.html">Analytics</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="07-operations-control.html">Operations</a>
-    </div>
-  </div>
-  <div class="flex items-center gap-3">
-    <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
-      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeText">Ink Sepolia</span>
-    </div>
-    <appkit-button size="sm" />
-    <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
-      <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
-    </button>
-  </div>
-</nav>
-<div id="mobileNav" class="md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden" style="transition:all 0.25s ease">
-  <div class="flex flex-col p-3 gap-1">
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="01-dashboard.html">Dashboard</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="02-trading-terminal.html">Trading</a>
-    <a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="03-ai-agent-operations.html">AI Agents</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="04-vault-management.html">Vaults</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="05-risk-management.html">Risk</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="06-analytics-backtesting.html">Analytics</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="07-operations-control.html">Operations</a>
-    <div class="flex items-center gap-2 mt-2 px-4 py-2">
-      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ink Sepolia</span>
-    </div>
-  </div>
-</div>
-<script>
-(function(){
-  var btn=document.getElementById('mobileMenuBtn'),nav=document.getElementById('mobileNav'),icon=document.getElementById('mobileMenuIcon');
-  if(btn&&nav){btn.addEventListener('click',function(){var open=nav.classList.toggle('hidden');icon.textContent=open?'menu':'close';});}
-})();
-</script>
+<script src="nav.js"></script>
+<script>XNav.init('agents');</script>
 
 <main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
 
@@ -198,7 +154,7 @@ tailwind.config = {
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
   <!-- LEFT COLUMN: Strategy Modes + Config -->
-  <div class="lg:col-span-8 space-y-6">
+  <div class="lg:col-span-5 space-y-6">
 
     <!-- Strategy Mode Selector -->
     <section>
@@ -480,8 +436,107 @@ tailwind.config = {
 
   </div>
 
+  <!-- MIDDLE: News Swarm Panel -->
+  <section class="lg:col-span-4 flex flex-col gap-4">
+
+    <!-- News Swarm Control -->
+    <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl">
+      <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/20 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-base">hub</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">News Swarm</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" id="swarmStatusDot" style="background:#948ea1"></span>
+          <span class="font-mono text-[10px] uppercase" id="swarmStatusLabel">Idle</span>
+        </div>
+      </div>
+      <div class="p-5 space-y-4">
+        <!-- Swarm Stats -->
+        <div class="grid grid-cols-4 gap-3">
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Queue</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="swarmQueue">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Ingested</p>
+            <p class="font-mono text-sm text-on-surface font-bold" id="swarmIngested">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Signals</p>
+            <p class="font-mono text-sm text-tertiary font-bold" id="swarmSignals">0</p>
+          </div>
+          <div class="bg-surface-container-highest/30 rounded p-2 text-center">
+            <p class="font-mono text-[9px] text-on-surface-variant uppercase">Executed</p>
+            <p class="font-mono text-sm text-secondary font-bold" id="swarmExecuted">0</p>
+          </div>
+        </div>
+
+        <!-- Analyst Weights -->
+        <div class="bg-surface-container-highest/30 rounded-lg p-3">
+          <h4 class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider mb-2">Analyst Weights</h4>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] text-on-surface w-20">Sentiment</span>
+              <input type="range" min="0" max="100" value="30" class="flex-1 accent-primary h-1" id="wSentiment" oninput="updateSwarmWeights()">
+              <span class="font-mono text-[10px] text-primary w-8 text-right" id="wSentimentVal">30%</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] text-on-surface w-20">Technical</span>
+              <input type="range" min="0" max="100" value="40" class="flex-1 accent-tertiary h-1" id="wTechnical" oninput="updateSwarmWeights()">
+              <span class="font-mono text-[10px] text-tertiary w-8 text-right" id="wTechnicalVal">40%</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-[10px] text-on-surface w-20">Macro</span>
+              <input type="range" min="0" max="100" value="30" class="flex-1 accent-secondary h-1" id="wMacro" oninput="updateSwarmWeights()">
+              <span class="font-mono text-[10px] text-secondary w-8 text-right" id="wMacroVal">30%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trend Indicator -->
+        <div class="flex items-center justify-between bg-surface-container-highest/30 rounded-lg p-3">
+          <div>
+            <span class="font-mono text-[9px] text-on-surface-variant uppercase">5min Trend</span>
+            <p class="font-mono text-sm font-bold" id="swarmTrend">—</p>
+          </div>
+          <div class="text-right">
+            <span class="font-mono text-[9px] text-on-surface-variant uppercase">Consensus</span>
+            <p class="font-mono text-sm font-bold" id="swarmConsensus">—</p>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-3">
+          <button class="flex-1 py-2 rounded-lg bg-tertiary-container text-on-tertiary-container text-sm font-bold uppercase transition-colors flex items-center justify-center gap-2 hover:opacity-90" onclick="toggleSwarm()" id="swarmToggleBtn">
+            <span class="material-symbols-outlined text-base">play_arrow</span>
+            <span id="swarmToggleLabel">Start Swarm</span>
+          </button>
+          <button class="py-2 px-4 rounded-lg bg-surface-container-highest hover:bg-surface-bright text-sm font-bold uppercase transition-colors" onclick="testInjectNews()" title="Inject test news">
+            <span class="material-symbols-outlined text-base">science</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Signals Feed -->
+    <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 shadow-2xl flex flex-col" style="min-height: 300px;">
+      <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-sm">ssid_chart</span>
+          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Signal Feed</span>
+        </div>
+        <span class="font-mono text-[9px] text-on-surface-variant" id="signalCount">0 signals</span>
+      </div>
+      <div class="p-3 font-mono text-[11px] leading-relaxed flex-1 terminal-scroll overflow-y-auto space-y-1" id="signalFeed">
+        <p class="text-on-surface-variant opacity-60">[--:--:--] Waiting for news swarm...</p>
+      </div>
+    </div>
+
+  </section>
+
   <!-- RIGHT COLUMN: Execution Log -->
-  <section class="lg:col-span-4 flex flex-col h-full" style="min-height: 680px;">
+  <section class="lg:col-span-3 flex flex-col h-full" style="min-height: 680px;">
     <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 flex flex-col shadow-2xl">
       <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -520,6 +575,10 @@ tailwind.config = {
 
 <script src="risk-engine.js"></script>
 <script src="agent-executor.js"></script>
+<script src="news-ingest.js"></script>
+<script src="news-analysts.js"></script>
+<script src="signal-aggregator.js"></script>
+<script src="agent-coordinator.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SMART AGENT — xLever Automation Layer
@@ -843,8 +902,145 @@ setInterval(updateStats, 1000);
 // Initialize master toggle label color
 document.getElementById('masterLabel').className = 'font-mono text-[11px] font-bold uppercase tracking-wider text-secondary';
 
+// ═══════════════════════════════════════════════════════════
+// NEWS SWARM CONTROLS
+// ═══════════════════════════════════════════════════════════
+
+let swarmRunning = false;
+let swarmStatsInterval = null;
+
+function toggleSwarm() {
+  if (swarmRunning) {
+    stopSwarm();
+  } else {
+    startSwarm();
+  }
+}
+
+function startSwarm() {
+  swarmRunning = true;
+  document.getElementById('swarmToggleLabel').textContent = 'Stop Swarm';
+  document.getElementById('swarmToggleBtn').querySelector('.material-symbols-outlined').textContent = 'stop';
+  document.getElementById('swarmStatusDot').style.background = '#05e777';
+  document.getElementById('swarmStatusLabel').textContent = 'Active';
+  document.getElementById('swarmStatusLabel').className = 'font-mono text-[10px] uppercase text-secondary';
+
+  window.AgentCoordinator.start({
+    log: logAction,
+    onDecision: onSwarmDecision,
+    batchSize: 5,
+    processIntervalMs: 3000,
+  });
+
+  // Update swarm stats every 2s
+  swarmStatsInterval = setInterval(updateSwarmStats, 2000);
+  updateSwarmStats();
+}
+
+function stopSwarm() {
+  swarmRunning = false;
+  document.getElementById('swarmToggleLabel').textContent = 'Start Swarm';
+  document.getElementById('swarmToggleBtn').querySelector('.material-symbols-outlined').textContent = 'play_arrow';
+  document.getElementById('swarmStatusDot').style.background = '#948ea1';
+  document.getElementById('swarmStatusLabel').textContent = 'Idle';
+  document.getElementById('swarmStatusLabel').className = 'font-mono text-[10px] uppercase text-on-surface-variant';
+
+  window.AgentCoordinator.stop();
+  if (swarmStatsInterval) { clearInterval(swarmStatsInterval); swarmStatsInterval = null; }
+}
+
+function updateSwarmStats() {
+  const coord = window.AgentCoordinator;
+  const ingest = window.NewsIngest;
+  if (!coord || !ingest) return;
+
+  const stats = coord.stats;
+  document.getElementById('swarmQueue').textContent = ingest.queueSize;
+  document.getElementById('swarmIngested').textContent = ingest.stats.ingested;
+  document.getElementById('swarmSignals').textContent = stats.signalsGenerated;
+  document.getElementById('swarmExecuted').textContent = stats.actionsExecuted;
+  document.getElementById('signalCount').textContent = `${window.SignalAggregator.historySize} signals`;
+
+  // Trend
+  const trend = coord.recentTrend;
+  if (trend && trend.count > 0) {
+    const trendEl = document.getElementById('swarmTrend');
+    const scoreStr = trend.avgScore > 0 ? `+${trend.avgScore.toFixed(2)}` : trend.avgScore.toFixed(2);
+    trendEl.textContent = `${trend.direction.toUpperCase()} (${scoreStr})`;
+    trendEl.className = `font-mono text-sm font-bold ${trend.direction === 'bullish' ? 'text-secondary' : trend.direction === 'bearish' ? 'text-error' : 'text-on-surface-variant'}`;
+    document.getElementById('swarmConsensus').textContent = `${trend.consensus}/${trend.count} unanimous`;
+  }
+}
+
+function onSwarmDecision(recommendation, audit) {
+  const feed = document.getElementById('signalFeed');
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const priorityLabels = ['CRIT', 'HIGH', 'MED', 'LOW'];
+  const priorityColors = ['text-error', 'text-yellow-500', 'text-tertiary', 'text-on-surface-variant'];
+  const pLabel = priorityLabels[recommendation.newsItem.priority] || 'LOW';
+  const pColor = priorityColors[recommendation.newsItem.priority] || 'text-on-surface-variant';
+
+  const dirColor = recommendation.direction === 'bullish' ? 'text-secondary' : recommendation.direction === 'bearish' ? 'text-error' : 'text-on-surface-variant';
+  const scoreStr = recommendation.score > 0 ? `+${recommendation.score.toFixed(2)}` : recommendation.score.toFixed(2);
+
+  const line = document.createElement('div');
+  line.className = 'flex flex-col gap-0.5 py-1 border-b border-outline-variant/10';
+  line.innerHTML = `
+    <div class="flex items-center gap-2">
+      <span class="text-on-surface-variant opacity-60">[${ts}]</span>
+      <span class="${pColor} font-bold">${pLabel}</span>
+      <span class="text-on-surface truncate flex-1">${recommendation.newsItem.headline.slice(0, 60)}...</span>
+    </div>
+    <div class="flex items-center gap-3 pl-16">
+      <span class="${dirColor} font-bold">${recommendation.action.toUpperCase()}</span>
+      <span class="text-on-surface-variant">score: <span class="${dirColor}">${scoreStr}</span></span>
+      <span class="text-on-surface-variant">consensus: ${recommendation.consensus}</span>
+      ${audit.executed ? '<span class="text-secondary font-bold">EXEC</span>' : '<span class="text-on-surface-variant">skip</span>'}
+    </div>`;
+
+  // Remove placeholder
+  const placeholder = feed.querySelector('p');
+  if (placeholder && placeholder.textContent.includes('Waiting')) placeholder.remove();
+
+  feed.prepend(line);
+
+  // Trim old entries
+  while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+}
+
+function updateSwarmWeights() {
+  const s = parseInt(document.getElementById('wSentiment').value);
+  const t = parseInt(document.getElementById('wTechnical').value);
+  const m = parseInt(document.getElementById('wMacro').value);
+  const total = s + t + m || 1;
+  const weights = { sentiment: s / total, technical: t / total, macro: m / total };
+  document.getElementById('wSentimentVal').textContent = `${Math.round(weights.sentiment * 100)}%`;
+  document.getElementById('wTechnicalVal').textContent = `${Math.round(weights.technical * 100)}%`;
+  document.getElementById('wMacroVal').textContent = `${Math.round(weights.macro * 100)}%`;
+  if (window.SignalAggregator) window.SignalAggregator.setWeights(weights);
+}
+
+function testInjectNews() {
+  const testHeadlines = [
+    { headline: 'Fed announces emergency rate cut of 50bps amid market turmoil', body: 'The Federal Reserve made an unscheduled rate cut decision today as market volatility surged.', source: 'test' },
+    { headline: 'NVDA earnings beat expectations, guidance raised for AI chips', body: 'NVIDIA reported Q4 earnings of $5.16 per share, beating estimates by 12%. Revenue guidance raised to $24B.', source: 'test' },
+    { headline: 'China announces new tariffs on US semiconductor exports', body: 'Beijing imposed 25% tariffs on imported chips, escalating trade tensions in the tech sector.', source: 'test' },
+    { headline: 'QQQ breaks above 50-day moving average on strong tech rally', body: 'The Nasdaq-100 ETF surged 2.3% as mega-cap tech stocks led a broad market recovery.', source: 'test' },
+    { headline: 'Oil prices crash 8% on OPEC supply increase announcement', body: 'Crude oil futures plunged after OPEC+ agreed to increase production by 2 million barrels per day.', source: 'test' },
+  ];
+  const item = testHeadlines[Math.floor(Math.random() * testHeadlines.length)];
+  if (window.AgentCoordinator && window.AgentCoordinator.isRunning) {
+    window.AgentCoordinator.injectNews(item.headline, item.body, item.source);
+  } else {
+    logAction('SYSTEM', 'Start the swarm first to inject test news.', 'yellow-500');
+  }
+}
+
 </script>
 
+<script type="module" src="assets.js"></script>
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>

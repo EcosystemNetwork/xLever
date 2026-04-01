@@ -113,6 +113,7 @@ class User(Base):
     positions = relationship("Position", back_populates="user")
     agent_runs = relationship("AgentRun", back_populates="user")
     alerts = relationship("Alert", back_populates="user")
+    sessions = relationship("UserSession", back_populates="user")
 
 
 # ─── Positions ──────────────────────────────────────────────────
@@ -314,3 +315,32 @@ class Alert(Base):
 
     # Back-reference to User for ORM navigation (alert.user)
     user = relationship("User", back_populates="alerts")
+
+
+# ─── User Sessions ─────────────────────────────────────────────
+
+# UserSession tracks each wallet connection event for admin analytics
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    wallet_address = Column(String(42), nullable=False, index=True)
+
+    # When the session started (wallet connected)
+    connected_at = Column(DateTime, server_default=func.now())
+    # When the session ended (wallet disconnected or tab closed) — null if still active
+    disconnected_at = Column(DateTime)
+    # Duration in seconds — computed on disconnect for fast aggregation queries
+    duration_seconds = Column(Integer)
+
+    # Client metadata for analytics
+    ip_address = Column(String(45))  # IPv6 max length
+    user_agent = Column(Text)
+    referrer = Column(Text)
+    # Page the user was on when they connected
+    page = Column(String(100))
+    # Country/region derived from IP (populated by backend)
+    country = Column(String(100))
+
+    user = relationship("User", back_populates="sessions")

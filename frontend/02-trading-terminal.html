@@ -5,7 +5,8 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>xLever Terminal | Institutional DeFi</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
         tailwind.config = {
@@ -62,9 +63,9 @@
                 "surface-container-lowest": "#0d0e11"
               },
               fontFamily: {
-                "headline": ["Space Grotesk"],
-                "body": ["Inter"],
-                "label": ["Inter"],
+                "headline": ["DM Sans"],
+                "body": ["DM Sans"],
+                "label": ["DM Sans"],
                 "mono": ["JetBrains Mono"]
               },
               borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
@@ -73,6 +74,7 @@
         }
     </script>
 <style>
+        body { font-family: 'DM Sans', sans-serif; }
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
             font-size: 1.25rem;
@@ -83,164 +85,72 @@
         ::-webkit-scrollbar-thumb { background: #343538; border-radius: 2px; }
         .etched-border { border: 1px solid rgba(73, 68, 85, 0.15); }
         .leverage-grid { grid-template-columns: repeat(7, 1fr); }
+
+        /* Ticker Search Dropdown */
+        .ticker-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 60; max-height: 420px; overflow-y: auto; display: none; }
+        .ticker-dropdown.open { display: block; }
+        .ticker-dropdown .cat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; padding: 8px 12px 4px; color: #948ea1; }
+        .ticker-dropdown .ticker-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; cursor: pointer; transition: background 0.1s; }
+        .ticker-dropdown .ticker-row:hover { background: #292a2d; }
+        .ticker-dropdown .ticker-row.active { background: rgba(124,77,255,0.12); }
+        .ticker-dropdown .ticker-sym { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+        .ticker-dropdown .ticker-name { font-size: 11px; color: #8b8fa3; }
+        .ticker-dropdown .ticker-price { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #e3e2e6; }
+
+        /* Skeleton pulse */
+        @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+        .skeleton { background: linear-gradient(90deg, #1f1f23 25%, #292a2d 50%, #1f1f23 75%); background-size: 400px 100%; animation: shimmer 1.5s infinite; border-radius: 2px; }
     </style>
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-white">
-<!-- Top Ticker Strip -->
+<!-- Top Ticker Strip (live prices populated by JS) -->
 <div class="w-full h-10 bg-surface-container-lowest etched-border flex items-center overflow-hidden z-50">
-<div class="flex whitespace-nowrap animate-marquee px-4 gap-8" id="tickerMarquee">
+<div class="flex whitespace-nowrap px-4 gap-8" id="tickerMarquee">
 <div class="flex items-center space-x-3">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">QQQx</span>
-<span class="mono text-sm font-semibold">487.23</span>
-<span class="mono text-[11px] text-tertiary">+1.24%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="QQQ">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="QQQ">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">SPYx</span>
-<span class="mono text-sm font-semibold">651.82</span>
-<span class="mono text-[11px] text-tertiary">+0.34%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="SPY">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="SPY">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">NVDAx</span>
-<span class="mono text-sm font-semibold">171.53</span>
-<span class="mono text-[11px] text-tertiary">+2.31%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="NVDA">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="NVDA">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">TSLAx</span>
-<span class="mono text-sm font-semibold">280.44</span>
-<span class="mono text-[11px] text-tertiary">+1.87%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="TSLA">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="TSLA">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">SMHx</span>
-<span class="mono text-sm font-semibold">248.91</span>
-<span class="mono text-[11px] text-tertiary">+1.65%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="SMH">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="SMH">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">CEGx</span>
-<span class="mono text-sm font-semibold">312.57</span>
-<span class="mono text-[11px] text-tertiary">+3.12%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">DELLx</span>
-<span class="mono text-sm font-semibold">118.34</span>
-<span class="mono text-[11px] text-tertiary">+0.92%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">VRTx</span>
-<span class="mono text-sm font-semibold">96.42</span>
-<span class="mono text-[11px] text-tertiary">+2.74%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SLVx</span>
-<span class="mono text-sm font-semibold">28.93</span>
-<span class="mono text-[11px] text-tertiary">+0.58%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">XLEx</span>
-<span class="mono text-sm font-semibold">89.17</span>
-<span class="mono text-[11px] text-tertiary">-0.43%</span>
-<div class="w-12 h-4 bg-error/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-error/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">STRKx</span>
-<span class="mono text-sm font-semibold">421.68</span>
-<span class="mono text-[11px] text-tertiary">+4.21%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="CEG">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="CEG">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">AAPLx</span>
-<span class="mono text-sm font-semibold">254.87</span>
-<span class="mono text-[11px] text-tertiary">+0.76%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="mono text-sm font-semibold" data-ticker-price="AAPL">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="AAPL">--</span>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">GEVx</span>
-<span class="mono text-sm font-semibold">387.14</span>
-<span class="mono text-[11px] text-tertiary">+1.98%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SMCIx</span>
-<span class="mono text-sm font-semibold">42.15</span>
-<span class="mono text-[11px] text-error">-2.18%</span>
-<div class="w-12 h-4 bg-error/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-error/20 to-transparent"></div></div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">LRCXx</span>
-<span class="mono text-sm font-semibold">78.56</span>
-<span class="mono text-[11px] text-tertiary">+1.34%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">STRKx</span>
+<span class="mono text-sm font-semibold" data-ticker-price="STRK">---</span>
+<span class="mono text-[11px] text-tertiary" data-ticker-chg="STRK">--</span>
 </div>
 </div>
 </div>
-<!-- Top Navigation Bar -->
-<nav class="bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50">
-  <div class="flex items-center gap-10">
-    <span class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter"><span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span></span>
-    <div class="hidden md:flex gap-1 items-center">
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="01-dashboard.html">Dashboard</a>
-      <a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="02-trading-terminal.html">Trading</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="03-ai-agent-operations.html">AI Agents</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="04-vault-management.html">Vaults</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="05-risk-management.html">Risk</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="06-analytics-backtesting.html">Analytics</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="07-operations-control.html">Operations</a>
-    </div>
-  </div>
-  <div class="flex items-center gap-3">
-    <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
-      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeText">Ink Sepolia</span>
-    </div>
-    <appkit-button size="sm" />
-    <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
-      <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
-    </button>
-  </div>
-</nav>
-<div id="mobileNav" class="md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden" style="transition:all 0.25s ease">
-  <div class="flex flex-col p-3 gap-1">
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="01-dashboard.html">Dashboard</a>
-    <a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="02-trading-terminal.html">Trading</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="03-ai-agent-operations.html">AI Agents</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="04-vault-management.html">Vaults</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="05-risk-management.html">Risk</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="06-analytics-backtesting.html">Analytics</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="07-operations-control.html">Operations</a>
-    <div class="flex items-center gap-2 mt-2 px-4 py-2">
-      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ink Sepolia</span>
-    </div>
-  </div>
-</div>
-<script>
-(function(){
-  var btn=document.getElementById('mobileMenuBtn'),nav=document.getElementById('mobileNav'),icon=document.getElementById('mobileMenuIcon');
-  if(btn&&nav){btn.addEventListener('click',function(){var open=nav.classList.toggle('hidden');icon.textContent=open?'menu':'close';});}
-})();
-</script>
-<!-- Risk Sentinel Banner -->
-<div id="riskBanner" class="fixed top-14 left-0 right-0 z-40" style="transition:all 0.4s cubic-bezier(0.4,0,0.2,1)">
-  <div class="flex items-center justify-between px-6 py-2 border-b" id="riskBannerInner" style="background:#00e67610;border-color:#00e67640">
-    <div class="flex items-center gap-3">
-      <span class="material-symbols-outlined text-lg" id="bannerIcon" style="color:#00e676">verified_user</span>
-      <span class="font-['JetBrains_Mono'] text-xs font-bold uppercase tracking-widest" id="bannerState" style="color:#00e676">NORMAL</span>
-      <span class="text-xs opacity-80" id="bannerReason">All systems nominal</span>
-    </div>
-    <div class="flex items-center gap-4">
-      <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest opacity-70" id="bannerLevCap">Max Leverage: 4.0x</span>
-      <a href="05-risk-management.html" class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#7c4dff] hover:text-[#cdbdff]">Details →</a>
-    </div>
-  </div>
-</div>
+<!-- Nav + Risk Banner rendered by nav.js -->
+<script src="nav.js"></script>
+<script>XNav.init('trading');</script>
 <div class="flex h-[calc(100vh-148px)] overflow-hidden" style="margin-top:36px">
 <!-- Sidebar Navigation -->
 <aside class="flex flex-col w-16 md:w-64 border-r border-[#494455]/15 bg-[#1b1b1f] shrink-0">
@@ -282,100 +192,95 @@
 <main class="flex-grow flex flex-col md:flex-row overflow-hidden bg-background">
 <!-- Left Panel: Chart Area (65%) -->
 <section class="w-full md:w-[65%] flex flex-col border-r border-outline-variant/15">
-<!-- Chart Header -->
+<!-- Chart Header with Searchable Ticker Selector -->
 <div class="h-12 flex items-center justify-between px-4 bg-surface-container-lowest/50 border-b border-outline-variant/10">
 <div class="flex items-center gap-4">
-<!-- Ticker Selector Pill Toggles -->
-<div class="flex flex-wrap bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10 gap-0.5">
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all bg-primary-container text-on-primary-container">QQQx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SPYx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">NVDAx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">TSLAx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">AAPLx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SMHx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">CEGx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">DELLx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VRTx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SMCIx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">ANETx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">GEVx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SMRx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">KLACx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">LRCXx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">AMATx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">TERx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">ETNx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">PWRx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">APLDx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SNDKx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">XLEx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">XOPx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">ITAx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VGKx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VUGx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VXUSx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SGOVx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SLVx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">PPLTx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">PALLx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">STRKx</button>
-<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">BTGOx</button>
+<!-- Searchable Ticker Selector -->
+<div class="relative" id="tickerSelectorWrap">
+<button id="tickerSelectorBtn" class="flex items-center gap-2 bg-surface-container-high rounded-sm px-3 py-1.5 border border-outline-variant/10 hover:border-primary-container/40 transition-colors">
+  <span class="mono text-sm font-bold text-on-surface" id="activeTickerLabel">QQQx</span>
+  <span class="text-[10px] text-outline hidden sm:inline" id="activeTickerName">Nasdaq-100 ETF</span>
+  <span class="mono text-sm font-semibold text-tertiary" id="activeTickerPrice">---</span>
+  <span class="material-symbols-outlined text-sm text-outline">expand_more</span>
+</button>
+<!-- Dropdown -->
+<div class="ticker-dropdown bg-surface-container-lowest border border-outline-variant/20 rounded-sm shadow-2xl mt-1 w-80" id="tickerDropdown">
+  <div class="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 p-2">
+    <div class="relative">
+      <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
+      <input id="tickerSearch" type="text" placeholder="Search assets..." class="w-full bg-surface-container-high text-on-surface text-xs pl-8 pr-3 py-2 rounded-sm border border-outline-variant/10 focus:border-primary-container focus:outline-none mono" autocomplete="off"/>
+    </div>
+    <!-- Quick category filters -->
+    <div class="flex gap-1 mt-2 flex-wrap" id="catFilters">
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm bg-primary-container/15 text-primary" data-cat="all">All</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="index">Index</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="tech">Tech</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="semi">Semis</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="energy">Energy</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="sector">Sector</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="commodity">Cmdty</button>
+      <button class="cat-filter-btn px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-sm text-outline hover:text-on-surface" data-cat="crypto">Crypto</button>
+    </div>
+  </div>
+  <div id="tickerList" class="py-1">
+    <!-- Populated by JS from assets.js -->
+  </div>
+  <div class="px-3 py-2 border-t border-outline-variant/10 text-[9px] text-outline mono">
+    <span id="tickerCount">42</span> assets available
+  </div>
+</div>
+</div>
+<!-- Favorite tickers (quick access) -->
+<div class="hidden md:flex gap-0.5 bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10">
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all bg-primary-container text-on-primary-container" data-sym="QQQ">QQQx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SPY">SPYx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="NVDA">NVDAx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="TSLA">TSLAx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="AAPL">AAPLx</button>
+<button class="fav-ticker px-2.5 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface" data-sym="SMH">SMHx</button>
 </div>
 <div class="h-4 w-px bg-outline-variant/30"></div>
-<div class="flex gap-1">
-<button class="px-2 py-0.5 text-[11px] font-medium text-primary bg-primary-container/10 rounded-sm">1m</button>
-<button class="px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface">5m</button>
-<button class="px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface">15m</button>
-<button class="px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface">1H</button>
-<button class="px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface">4H</button>
-<button class="px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface">1D</button>
+<div class="flex gap-1" id="timeframeBtns">
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="1M">1M</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="3M">3M</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-primary bg-primary-container/10 rounded-sm" data-tf="1Y">1Y</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="5Y">5Y</button>
+<button class="tf-btn px-2 py-0.5 text-[11px] font-medium text-outline hover:text-on-surface rounded-sm" data-tf="MAX">MAX</button>
 </div>
 </div>
 <div class="flex items-center gap-3">
-<button class="p-1 hover:bg-surface-container-high rounded-sm text-outline">
+<button class="chart-type-btn p-1 hover:bg-surface-container-high rounded-sm text-outline" data-type="candlestick" title="Candlestick">
 <span class="material-symbols-outlined" data-icon="candlestick_chart">candlestick_chart</span>
 </button>
-<button class="p-1 hover:bg-surface-container-high rounded-sm text-outline">
+<button class="chart-type-btn p-1 bg-surface-container-high rounded-sm text-primary" data-type="area" title="Area">
 <span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
 </button>
 <div class="h-4 w-px bg-outline-variant/30"></div>
-<button class="p-1 hover:bg-surface-container-high rounded-sm text-outline">
+<button class="p-1 hover:bg-surface-container-high rounded-sm text-outline" id="fullscreenBtn" title="Fullscreen">
 <span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
 </button>
 </div>
 </div>
-<!-- Main Chart Simulation -->
-<div class="flex-grow relative bg-[#0a0b0e] overflow-hidden">
-<!-- Grid Lines Simulation -->
-<div class="absolute inset-0 pointer-events-none opacity-[0.03]">
-<div class="grid grid-cols-12 h-full w-full border-l border-on-surface">
-<div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div><div class="border-r border-on-surface h-full"></div>
+<!-- Live Chart (lightweight-charts) -->
+<div class="flex-grow relative bg-[#0a0b0e] overflow-hidden" id="chartWrap">
+<!-- Chart renders here -->
+<div id="tv-chart" class="absolute inset-0"></div>
+<!-- Price overlay (populated by chart engine) -->
+<div class="absolute left-4 top-3 z-10 pointer-events-none">
+<div class="mono text-[10px] text-outline uppercase tracking-widest" id="chartLabel">QQQx 2.0x Leveraged</div>
+<div class="mono text-2xl font-bold text-on-surface" id="chartPrice">--</div>
+<div class="mono text-xs" id="chartChange">--</div>
 </div>
-<div class="grid grid-rows-8 h-full w-full border-t border-on-surface">
-<div class="border-b border-on-surface w-full"></div><div class="border-b border-on-surface w-full"></div><div class="border-b border-on-surface w-full"></div><div class="border-b border-on-surface w-full"></div><div class="border-b border-on-surface w-full"></div><div class="border-b border-on-surface w-full"></div><div class="border-b border-on-surface w-full"></div>
-</div>
-</div>
-<!-- Decorative Candlesticks and indicators -->
-<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-<img alt="Professional dark stock chart" class="w-full h-full object-cover opacity-20 grayscale brightness-50 contrast-125" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4B-jUryFcvfac9TnzpqUN35sG2rGbfg5XsSQ1XXfjTiXk3dekSZ4zdQEk9nKcSPxSvPvN5yozbmKzxsgKsovDrY4GRWLTfhocw2oTsBW3MU9inadvlnh1xBmluGtfmReQZT_vAsHRi1u_AcbhV_gNSbbDT62F7p9bQwCqJtbZKKWKCvCdJ8uD3uKI31e0qWzOb4YBcxpPmmIgJZmrz3-Vx5dQEboMkU55vxmYT7-AV6CrirL9l89vGIcwTOuLtsTg9m6-7kaXwbk"/>
-</div>
-<!-- Price Labels -->
-<div class="absolute right-0 top-0 bottom-0 w-16 bg-surface-container-lowest/80 border-l border-outline-variant/10 flex flex-col justify-between py-4 text-[10px] mono text-outline z-10">
-<span>492.50</span><span>491.00</span><span>489.50</span><span class="text-tertiary bg-tertiary/10 py-1 pl-1 border-l-2 border-tertiary">487.23</span><span>485.50</span><span>484.00</span><span>482.50</span><span>481.00</span>
-</div>
-<!-- Indicator Overlay -->
-<div class="absolute left-4 top-4 space-y-1">
-<div class="flex items-center gap-2">
-<span class="text-[10px] font-bold text-outline uppercase tracking-widest">MA(20)</span>
-<span class="mono text-[10px] text-primary">486.12</span>
-</div>
-<div class="flex items-center gap-2">
-<span class="text-[10px] font-bold text-outline uppercase tracking-widest">MA(50)</span>
-<span class="mono text-[10px] text-secondary">482.45</span>
-</div>
+<!-- Chart loading skeleton -->
+<div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-[#0a0b0e] z-20">
+  <div class="text-center space-y-3">
+    <div class="w-48 h-2 skeleton mx-auto"></div>
+    <div class="w-32 h-2 skeleton mx-auto"></div>
+    <div class="text-[10px] text-outline uppercase tracking-widest mono mt-4">Loading chart data...</div>
+  </div>
 </div>
 <!-- Chart Markers Legend -->
-<div class="absolute bottom-4 left-4 p-2 bg-surface-container-lowest/80 border border-outline-variant/20 rounded-sm backdrop-blur-sm">
+<div class="absolute bottom-4 left-4 p-2 bg-surface-container-lowest/80 border border-outline-variant/20 rounded-sm backdrop-blur-sm z-10">
 <div class="flex gap-4 items-center">
 <div class="flex items-center gap-1.5">
 <span class="text-yellow-400 font-bold">↓</span>
@@ -584,16 +489,27 @@
 </main>
 </div>
 <!-- Bottom Panel: Positions Table -->
-<div class="h-44 bg-surface-container-lowest border-t border-outline-variant/20 overflow-hidden">
-<div class="flex items-center h-8 px-4 bg-surface-container border-b border-outline-variant/10">
+<div class="h-44 bg-surface-container-lowest border-t border-outline-variant/20 overflow-hidden" id="positionsPanel">
+<div class="flex items-center justify-between h-8 px-4 bg-surface-container border-b border-outline-variant/10">
 <div class="flex gap-6">
-<button class="text-[11px] font-bold text-primary border-b border-primary h-full">Positions (4)</button>
-<button class="text-[11px] font-bold text-outline hover:text-on-surface h-full">Open Orders (2)</button>
-<button class="text-[11px] font-bold text-outline hover:text-on-surface h-full">History</button>
+<button class="pos-tab text-[11px] font-bold text-primary border-b border-primary h-full" data-tab="positions">Positions (<span id="posCount">0</span>)</button>
+<button class="pos-tab text-[11px] font-bold text-outline hover:text-on-surface h-full" data-tab="orders">Open Orders (<span id="orderCount">0</span>)</button>
+<button class="pos-tab text-[11px] font-bold text-outline hover:text-on-surface h-full" data-tab="history">History</button>
+</div>
+<div class="flex items-center gap-2 text-[9px] text-outline mono uppercase tracking-wider">
+  <span id="walletStatusDot" class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+  <span id="walletStatusText">No wallet connected</span>
 </div>
 </div>
-<div class="overflow-auto h-[calc(100%-32px)]">
-<table class="w-full text-left border-collapse">
+<div class="overflow-auto h-[calc(100%-32px)]" id="positionsBody">
+<!-- Empty state (shown when no wallet connected) -->
+<div id="positionsEmpty" class="flex flex-col items-center justify-center h-full text-center py-6">
+  <span class="material-symbols-outlined text-3xl text-outline/40 mb-2">account_balance_wallet</span>
+  <p class="text-xs text-outline">Connect your wallet to view positions</p>
+  <p class="text-[10px] text-outline/60 mt-1">Your leveraged positions will appear here</p>
+</div>
+<!-- Positions table (shown when wallet connected) -->
+<table class="w-full text-left border-collapse" id="positionsTable" style="display:none">
 <thead class="sticky top-0 bg-surface-container-lowest z-10">
 <tr class="text-[10px] text-outline uppercase tracking-wider font-bold border-b border-outline-variant/10">
 <th class="px-4 py-2">Asset</th>
@@ -606,7 +522,7 @@
 <th class="px-4 py-2 text-right">Action</th>
 </tr>
 </thead>
-<tbody class="mono text-[11px]">
+<tbody class="mono text-[11px]" id="positionsTbody">
 <tr class="hover:bg-surface-container transition-colors group">
 <td class="px-4 py-2.5 font-headline font-bold text-on-surface">QQQx 3×</td>
 <td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
@@ -644,74 +560,389 @@
 <!-- Terminal Footer -->
 <footer class="fixed bottom-0 w-full z-50 h-8 flex items-center justify-between px-4 border-t border-[#494455]/15 bg-[#0a0b0e]">
 <div class="flex items-center gap-6">
-<span class="font-mono text-[10px] uppercase tracking-widest JetBrains Mono text-[#00e475]">Network: Ethereum + Solana | Block: 19482734 | Gas: 12 Gwei</span>
+<span class="mono text-[10px] uppercase tracking-widest text-[#00e475]">
+  <span id="footerNetwork">Ink Sepolia</span> | Block: <span id="footerBlock">---</span>
+</span>
 <div class="flex items-center gap-4">
-<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase font-mono tracking-tighter" href="#">Status</a>
-<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase font-mono tracking-tighter" href="#">Docs</a>
-<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase font-mono tracking-tighter" href="#">Support</a>
+<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase mono tracking-tighter" href="#">Status</a>
+<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase mono tracking-tighter" href="#">Docs</a>
+<a class="text-slate-500 hover:text-[#7c4dff] transition-colors text-[10px] uppercase mono tracking-tighter" href="#">Support</a>
 </div>
 </div>
 <div class="flex items-center gap-4 text-slate-500">
-<span class="text-[10px] font-mono">UTC 14:24:11</span>
+<span class="text-[10px] mono" id="footerClock">UTC --:--:--</span>
 <span class="material-symbols-outlined text-[14px] text-[#00e475]" data-icon="circle" style="font-variation-settings: 'FILL' 1;">circle</span>
-<span class="text-[10px] uppercase font-mono">Terminal Active</span>
+<span class="text-[10px] uppercase mono">Terminal Active</span>
 </div>
 </footer>
+<script type="module" src="assets.js"></script>
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Wire up Open Position button to confirmation modal
+  // ═══════════════════════════════════════════
+  // LIVE UTC CLOCK
+  // ═══════════════════════════════════════════
+  const clockEl = document.getElementById('footerClock');
+  function updateClock() {
+    const now = new Date();
+    clockEl.textContent = 'UTC ' + now.toISOString().slice(11, 19);
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ═══════════════════════════════════════════
+  // SEARCHABLE TICKER SELECTOR
+  // ═══════════════════════════════════════════
+  let activeSym = 'QQQ';
+  const CAT_LABELS = { index: 'Index ETFs', sector: 'Sector ETFs', tech: 'Mega-Cap Tech', semi: 'Semiconductors', energy: 'Energy & Infrastructure', commodity: 'Commodities', crypto: 'Crypto-Adjacent' };
+
+  function waitForAssets() {
+    return new Promise(resolve => {
+      if (window.xLeverAssets) return resolve(window.xLeverAssets);
+      const check = setInterval(() => {
+        if (window.xLeverAssets) { clearInterval(check); resolve(window.xLeverAssets); }
+      }, 50);
+    });
+  }
+
+  waitForAssets().then(assets => {
+    const dropdown = document.getElementById('tickerDropdown');
+    const listEl = document.getElementById('tickerList');
+    const searchInput = document.getElementById('tickerSearch');
+    const btn = document.getElementById('tickerSelectorBtn');
+    const countEl = document.getElementById('tickerCount');
+    let currentCat = 'all';
+
+    function renderList(filter = '', cat = 'all') {
+      const q = filter.toLowerCase();
+      let html = '';
+      let count = 0;
+      const cats = Object.keys(assets.CATEGORIES);
+      cats.forEach(c => {
+        if (cat !== 'all' && cat !== c) return;
+        const items = assets.CATEGORIES[c].filter(a =>
+          a.sym.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)
+        );
+        if (!items.length) return;
+        html += `<div class="cat-label">${CAT_LABELS[c] || c}</div>`;
+        items.forEach(a => {
+          const isActive = a.sym === activeSym;
+          html += `<div class="ticker-row${isActive ? ' active' : ''}" data-sym="${a.sym}">
+            <div class="flex items-center gap-2">
+              <span class="ticker-sym${isActive ? ' text-primary-container' : ' text-on-surface'}">${a.sym}x</span>
+              <span class="ticker-name">${a.name}</span>
+            </div>
+            <span class="ticker-price" data-dp="${a.sym}">---</span>
+          </div>`;
+          count++;
+        });
+      });
+      listEl.innerHTML = html || '<div class="px-4 py-6 text-center text-xs text-outline">No assets match your search</div>';
+      countEl.textContent = count;
+
+      listEl.querySelectorAll('.ticker-row').forEach(row => {
+        row.addEventListener('click', () => selectTicker(row.dataset.sym));
+      });
+    }
+
+    function selectTicker(sym) {
+      activeSym = sym;
+      const a = assets.ASSETS.find(x => x.sym === sym);
+      document.getElementById('activeTickerLabel').textContent = sym + 'x';
+      document.getElementById('activeTickerName').textContent = a ? a.name : '';
+      dropdown.classList.remove('open');
+
+      // Update fav buttons
+      document.querySelectorAll('.fav-ticker').forEach(b => {
+        if (b.dataset.sym === sym) {
+          b.classList.add('bg-primary-container', 'text-on-primary-container');
+          b.classList.remove('text-outline');
+        } else {
+          b.classList.remove('bg-primary-container', 'text-on-primary-container');
+          b.classList.add('text-outline');
+        }
+      });
+
+      // Set active asset in contracts adapter
+      if (window.xLeverContracts) window.xLeverContracts.setActiveAsset(sym);
+
+      // Update chart label
+      const lev = window.XLeverage ? XLeverage.getLeverage() : 2;
+      document.getElementById('chartLabel').textContent = sym + 'x ' + Math.abs(lev).toFixed(1) + 'x Leveraged';
+
+      // Reload chart data
+      loadChartData(sym);
+
+      XToast.show(`Switched to ${sym}x`, 'info', 2000);
+      renderList(searchInput.value, currentCat);
+    }
+
+    // Toggle dropdown
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      if (dropdown.classList.contains('open')) {
+        searchInput.focus();
+        renderList('', currentCat);
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('tickerSelectorWrap').contains(e.target)) {
+        dropdown.classList.remove('open');
+      }
+    });
+
+    // Search input
+    searchInput.addEventListener('input', () => renderList(searchInput.value, currentCat));
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') dropdown.classList.remove('open');
+      if (e.key === 'Enter') {
+        const first = listEl.querySelector('.ticker-row');
+        if (first) selectTicker(first.dataset.sym);
+      }
+    });
+
+    // Category filter buttons
+    document.querySelectorAll('.cat-filter-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        currentCat = b.dataset.cat;
+        document.querySelectorAll('.cat-filter-btn').forEach(x => {
+          x.classList.remove('bg-primary-container/15', 'text-primary');
+          x.classList.add('text-outline');
+        });
+        b.classList.add('bg-primary-container/15', 'text-primary');
+        b.classList.remove('text-outline');
+        renderList(searchInput.value, currentCat);
+      });
+    });
+
+    // Fav ticker quick buttons
+    document.querySelectorAll('.fav-ticker').forEach(b => {
+      b.addEventListener('click', () => selectTicker(b.dataset.sym));
+    });
+
+    renderList();
+  });
+
+  // ═══════════════════════════════════════════
+  // LIGHTWEIGHT CHARTS — LIVE CHART
+  // ═══════════════════════════════════════════
+  let chart = null;
+  let areaSeries = null;
+  let candleSeries = null;
+  let currentChartType = 'area';
+
+  function initChart() {
+    const container = document.getElementById('tv-chart');
+    chart = LightweightCharts.createChart(container, {
+      layout: { background: { type: 'solid', color: '#0a0b0e' }, textColor: '#948ea1', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 },
+      grid: { vertLines: { color: 'rgba(148,142,161,0.04)' }, horzLines: { color: 'rgba(148,142,161,0.04)' } },
+      crosshair: { mode: 0, vertLine: { color: '#7c4dff40', width: 1, style: 2 }, horzLine: { color: '#7c4dff40', width: 1, style: 2 } },
+      rightPriceScale: { borderColor: '#49445520', scaleMargins: { top: 0.15, bottom: 0.05 } },
+      timeScale: { borderColor: '#49445520', timeVisible: false },
+      handleScroll: true,
+      handleScale: true,
+    });
+
+    areaSeries = chart.addAreaSeries({
+      lineColor: '#7c4dff',
+      topColor: 'rgba(124,77,255,0.25)',
+      bottomColor: 'rgba(124,77,255,0.01)',
+      lineWidth: 2,
+    });
+
+    candleSeries = chart.addCandlestickSeries({
+      upColor: '#00e475',
+      downColor: '#ff5252',
+      borderUpColor: '#00e475',
+      borderDownColor: '#ff5252',
+      wickUpColor: '#00e47580',
+      wickDownColor: '#ff525280',
+      visible: false,
+    });
+
+    // Responsive resize
+    const ro = new ResizeObserver(() => {
+      chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+    });
+    ro.observe(container);
+
+    // Crosshair move for price overlay
+    chart.subscribeCrosshairMove(param => {
+      if (!param.time || !param.seriesData) return;
+      const visible = currentChartType === 'area' ? areaSeries : candleSeries;
+      const data = param.seriesData.get(visible);
+      if (data) {
+        const price = data.close !== undefined ? data.close : data.value;
+        if (price) document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
+      }
+    });
+  }
+
+  // Generate synthetic OHLC data for a ticker (seeds by symbol for consistency)
+  function generateChartData(sym, days = 365) {
+    const seed = Array.from(sym).reduce((s, c) => s + c.charCodeAt(0), 0);
+    let rng = seed;
+    function rand() { rng = (rng * 16807 + 0) % 2147483647; return rng / 2147483647; }
+    function randn() { return Math.sqrt(-2 * Math.log(rand())) * Math.cos(2 * Math.PI * rand()); }
+
+    const basePrice = 100 + (seed % 400);
+    const data = [];
+    let price = basePrice;
+    const now = Math.floor(Date.now() / 1000);
+    const dayS = 86400;
+
+    for (let i = days; i >= 0; i--) {
+      const time = now - (i * dayS);
+      const drift = 0.0003;
+      const vol = 0.015 + (seed % 10) * 0.002;
+      const ret = drift + vol * randn();
+      price *= (1 + ret);
+      const o = price * (1 + (rand() - 0.5) * 0.005);
+      const c = price;
+      const h = Math.max(o, c) * (1 + rand() * 0.008);
+      const l = Math.min(o, c) * (1 - rand() * 0.008);
+      data.push({ time, open: +o.toFixed(2), high: +h.toFixed(2), low: +l.toFixed(2), close: +c.toFixed(2), value: +c.toFixed(2) });
+    }
+    return data;
+  }
+
+  function loadChartData(sym) {
+    const loading = document.getElementById('chartLoading');
+    if (loading) loading.style.display = 'flex';
+
+    // Simulate a brief load
+    setTimeout(() => {
+      const data = generateChartData(sym);
+      areaSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+      candleSeries.setData(data);
+
+      // Update price overlay
+      const last = data[data.length - 1];
+      const prev = data[data.length - 2];
+      if (last) {
+        document.getElementById('chartPrice').textContent = '$' + last.close.toFixed(2);
+        document.getElementById('activeTickerPrice').textContent = '$' + last.close.toFixed(2);
+        const chg = ((last.close - prev.close) / prev.close * 100);
+        const chgEl = document.getElementById('chartChange');
+        chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        chgEl.className = 'mono text-xs ' + (chg >= 0 ? 'text-tertiary' : 'text-error');
+      }
+
+      if (loading) loading.style.display = 'none';
+      chart.timeScale().fitContent();
+    }, 300);
+  }
+
+  // Chart type toggle
+  document.querySelectorAll('.chart-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chart-type-btn').forEach(b => {
+        b.classList.remove('bg-surface-container-high', 'text-primary');
+        b.classList.add('text-outline');
+      });
+      btn.classList.add('bg-surface-container-high', 'text-primary');
+      btn.classList.remove('text-outline');
+
+      currentChartType = btn.dataset.type;
+      areaSeries.applyOptions({ visible: currentChartType === 'area' });
+      candleSeries.applyOptions({ visible: currentChartType === 'candlestick' });
+    });
+  });
+
+  // Timeframe buttons
+  const tfDays = { '1M': 30, '3M': 90, '1Y': 365, '5Y': 1825, 'MAX': 3650 };
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tf-btn').forEach(b => {
+        b.classList.remove('text-primary', 'bg-primary-container/10');
+        b.classList.add('text-outline');
+      });
+      btn.classList.add('text-primary', 'bg-primary-container/10');
+      btn.classList.remove('text-outline');
+
+      const days = tfDays[btn.dataset.tf] || 365;
+      const data = generateChartData(activeSym, days);
+      areaSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+      candleSeries.setData(data);
+      chart.timeScale().fitContent();
+    });
+  });
+
+  // Fullscreen toggle
+  document.getElementById('fullscreenBtn').addEventListener('click', () => {
+    const wrap = document.getElementById('chartWrap');
+    if (!document.fullscreenElement) wrap.requestFullscreen();
+    else document.exitFullscreen();
+  });
+
+  // Init chart
+  initChart();
+  loadChartData('QQQ');
+
+  // ═══════════════════════════════════════════
+  // PYTH LIVE PRICES — Ticker strip + dropdown
+  // ═══════════════════════════════════════════
+  async function fetchLivePrices() {
+    try {
+      const pyth = window.xLeverPyth;
+      if (!pyth) return;
+      const data = await pyth.getAllPrices();
+      data.prices.forEach(p => {
+        const sym = p.symbol.replace('/USD', '');
+        // Update ticker strip
+        const priceEl = document.querySelector(`[data-ticker-price="${sym}"]`);
+        if (priceEl) priceEl.textContent = p.price.toFixed(2);
+        // Update dropdown prices
+        document.querySelectorAll(`[data-dp="${sym}"]`).forEach(el => {
+          el.textContent = '$' + p.price.toFixed(2);
+        });
+        // Update active ticker price if matching
+        if (sym === activeSym) {
+          document.getElementById('activeTickerPrice').textContent = '$' + p.price.toFixed(2);
+        }
+      });
+    } catch (e) {
+      console.warn('Live price fetch failed:', e);
+    }
+  }
+
+  // Fetch prices on load + every 15s
+  setTimeout(fetchLivePrices, 1000);
+  setInterval(fetchLivePrices, 15000);
+
+  // ═══════════════════════════════════════════
+  // OPEN POSITION BUTTON
+  // ═══════════════════════════════════════════
   const openBtn = document.getElementById('open-position-btn');
   if (openBtn) {
     openBtn.addEventListener('click', () => {
       const leverage = XLeverage.getLeverage();
       if (leverage === 0) return;
 
-      // Get the active ticker
-      const activeTickerBtn = document.querySelector('.bg-primary-container.text-on-primary-container');
-      const ticker = activeTickerBtn ? activeTickerBtn.textContent.trim() : 'QQQx';
-
-      // Get the size from input
+      const ticker = activeSym + 'x';
       const sizeInput = document.querySelector('input[type="text"]');
       const sizeStr = sizeInput ? sizeInput.value.replace(/,/g, '') : '10000';
       const size = parseFloat(sizeStr) || 10000;
 
-      // Get entry price from order book current price
-      const priceEl = document.querySelector('.mono.text-xs.font-bold.text-tertiary');
-      const price = priceEl ? priceEl.textContent.trim() : '487.23';
+      const priceEl = document.getElementById('chartPrice');
+      const price = priceEl ? priceEl.textContent.replace('$', '') : '0';
 
-      // Get fee
       const feeEl = document.getElementById('annual-fee-display');
       const fee = feeEl ? feeEl.textContent : '1.0% APR';
 
-      XModal.confirmTrade({
-        asset: ticker,
-        leverage: leverage,
-        size: size,
-        price: price,
-        fee: fee,
-      });
+      XModal.confirmTrade({ asset: ticker, leverage, size, price, fee });
     });
   }
 
-  // Wire up ticker toggle buttons
-  const tickerBtns = document.querySelectorAll('.bg-surface-container-high .rounded-sm');
-  tickerBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tickerBtns.forEach(b => {
-        b.classList.remove('bg-primary-container', 'text-on-primary-container');
-        b.classList.add('text-outline');
-      });
-      btn.classList.add('bg-primary-container', 'text-on-primary-container');
-      btn.classList.remove('text-outline');
-      XToast.show(`Switched to ${btn.textContent.trim()}`, 'info', 2000);
-    });
-  });
-
-  // Wire up order type tabs
+  // ═══════════════════════════════════════════
+  // ORDER TYPE TABS
+  // ═══════════════════════════════════════════
   const orderTabs = document.querySelectorAll('.border-b.border-outline-variant\\/10.pb-1 button');
   orderTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -724,7 +955,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Wire up Adjust buttons in positions table to real adjustLeverage
+  // ═══════════════════════════════════════════
+  // POSITIONS TABLE — Wallet-aware
+  // ═══════════════════════════════════════════
+  function updatePositionsState(connected) {
+    const empty = document.getElementById('positionsEmpty');
+    const table = document.getElementById('positionsTable');
+    const dot = document.getElementById('walletStatusDot');
+    const txt = document.getElementById('walletStatusText');
+
+    if (connected) {
+      dot.className = 'w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse';
+      txt.textContent = 'Wallet connected';
+      if (empty) empty.style.display = 'none';
+      if (table) table.style.display = 'table';
+    } else {
+      dot.className = 'w-1.5 h-1.5 rounded-full bg-outline';
+      txt.textContent = 'No wallet connected';
+      if (empty) empty.style.display = 'flex';
+      if (table) table.style.display = 'none';
+    }
+  }
+
+  // Listen for wallet connection events
+  const walletCheck = setInterval(() => {
+    if (window.xLeverWallet) {
+      clearInterval(walletCheck);
+      const modal = window.xLeverWallet;
+      modal.subscribeEvents(ev => {
+        if (ev.data?.event === 'CONNECT_SUCCESS') updatePositionsState(true);
+        if (ev.data?.event === 'DISCONNECT_SUCCESS') updatePositionsState(false);
+      });
+    }
+  }, 100);
+
+  // Adjust buttons in positions table
   document.querySelectorAll('button').forEach(btn => {
     if (btn.textContent.trim() === 'Adjust') {
       btn.addEventListener('click', async () => {
@@ -733,7 +998,6 @@ document.addEventListener('DOMContentLoaded', () => {
           XToast.show('Vault not deployed — adjust is simulated', 'info', 2500);
           return;
         }
-        // Prompt for new leverage
         const input = prompt('Enter new leverage (e.g. 2.0 for 2x long, -1.5 for 1.5x short):');
         if (!input) return;
         const newLev = parseFloat(input);
@@ -752,23 +1016,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Wire up asset ticker switches to set active asset in contracts adapter
-  const tickerMapping = {
-    'QQQx': 'QQQ', 'SPYx': 'SPY', 'AAPLx': 'AAPL', 'NVDAx': 'NVDA', 'TSLAx': 'TSLA',
-    'SMHx': 'SMH', 'CEGx': 'CEG', 'DELLx': 'DELL', 'VRTx': 'VRT', 'SMCIx': 'SMCI',
-    'ANETx': 'ANET', 'GEVx': 'GEV', 'SMRx': 'SMR', 'KLACx': 'KLAC', 'LRCXx': 'LRCX',
-    'AMATx': 'AMAT', 'TERx': 'TER', 'ETNx': 'ETN', 'PWRx': 'PWR', 'APLDx': 'APLD',
-    'SNDKx': 'SNDK', 'XLEx': 'XLE', 'XOPx': 'XOP', 'ITAx': 'ITA', 'VGKx': 'VGK',
-    'VUGx': 'VUG', 'VXUSx': 'VXUS', 'SGOVx': 'SGOV', 'SLVx': 'SLV', 'PPLTx': 'PPLT',
-    'PALLx': 'PALL', 'STRKx': 'STRK', 'BTGOx': 'BTGO',
-  };
-  document.querySelectorAll('.bg-surface-container-high .rounded-sm').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const sym = btn.textContent.trim();
-      const mapped = tickerMapping[sym] || 'QQQ';
-      if (window.xLeverContracts) window.xLeverContracts.setActiveAsset(mapped);
+  // Position tab toggles
+  document.querySelectorAll('.pos-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.pos-tab').forEach(t => {
+        t.classList.remove('text-primary', 'border-b', 'border-primary');
+        t.classList.add('text-outline');
+      });
+      tab.classList.add('text-primary', 'border-b', 'border-primary');
+      tab.classList.remove('text-outline');
     });
   });
+
+  // ═══════════════════════════════════════════
+  // BLOCK NUMBER — fetch from RPC
+  // ═══════════════════════════════════════════
+  async function fetchBlock() {
+    try {
+      const resp = await fetch('https://rpc-gel-sepolia.inkonchain.com', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 })
+      });
+      const json = await resp.json();
+      document.getElementById('footerBlock').textContent = parseInt(json.result, 16).toLocaleString();
+    } catch (e) {
+      document.getElementById('footerBlock').textContent = '---';
+    }
+  }
+  fetchBlock();
+  setInterval(fetchBlock, 12000);
 });
 </script>
 <script src="risk-engine.js"></script>
@@ -776,8 +1052,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Risk banner: try live Pyth data first, fall back to safe defaults
 (async function(){
   var SC = { NORMAL:'#00e676', WARNING:'#ffd740', RESTRICTED:'#ff9100', EMERGENCY:'#ff5252' };
-
-  // Build risk inputs from live Pyth oracle data when available
   var inputs = { oracleAgeSec:0, oracleDivergence:0, drawdown:0, healthFactor:2.0, volatility:0.20, utilization:0.45 };
 
   try {
@@ -788,11 +1062,9 @@ document.addEventListener('DOMContentLoaded', () => {
       var spy = data.prices.find(function(p){ return p.symbol === 'SPY/USD'; });
       if (qqq) {
         inputs.oracleAgeSec = pyth.oracleAge(qqq.publishTime);
-        // Confidence as a fraction of price ≈ rough volatility proxy
         if (qqq.price > 0) inputs.volatility = Math.min((qqq.conf / qqq.price) * 50, 1.5);
       }
       if (qqq && spy) {
-        // Cross-feed divergence: compare QQQ/SPY ratio against historical ~0.45
         var ratio = qqq.price / spy.price;
         inputs.oracleDivergence = Math.abs(ratio - 0.45) / 0.45;
       }
@@ -801,7 +1073,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.warn('Risk banner: Pyth fetch failed, using defaults', e);
   }
 
-  // Read on-chain pool state if vault is deployed
   try {
     var contracts = window.xLeverContracts;
     if (contracts && contracts.ADDRESSES.vault) {
@@ -827,7 +1098,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bannerReason').textContent = ev.reasons.length > 0 ? ev.reasons[0].reason : 'All systems nominal — Pyth oracle live';
   document.getElementById('bannerLevCap').textContent = 'Max Leverage: '+ev.leverageCap+'x';
 
-  // ─── PRD 4: Auto-disable trading controls in RESTRICTED/EMERGENCY ───
   if (ev.state === 'RESTRICTED' || ev.state === 'EMERGENCY') {
     var openBtn = document.getElementById('open-position-btn');
     if (openBtn) {
@@ -836,7 +1106,6 @@ document.addEventListener('DOMContentLoaded', () => {
       openBtn.style.pointerEvents = 'none';
       openBtn.title = ev.state + ': new positions blocked — ' + (ev.reasons[0]?.reason || '');
     }
-    // Disable adjust buttons
     document.querySelectorAll('button').forEach(function(btn) {
       if (btn.textContent.trim() === 'Adjust') {
         btn.disabled = true;
@@ -844,9 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.title = ev.state + ': adjustments blocked';
       }
     });
-    // Clamp leverage slider to the risk engine's cap
     if (window.XLeverage && ev.leverageCap < 4) {
-      // Restrict max available leverage
       window.XLeverage._riskCap = ev.leverageCap;
     }
   }

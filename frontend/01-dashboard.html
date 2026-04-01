@@ -87,67 +87,8 @@
     </style>
 </head>
 <body class="text-on-surface overflow-x-hidden pb-12">
-<!-- TopNavBar -->
-<nav class="bg-[#0a0b0e] flex justify-between items-center w-full px-6 h-14 border-b border-[#252833] fixed top-0 z-50">
-  <div class="flex items-center gap-10">
-    <span class="font-['JetBrains_Mono'] text-lg font-bold tracking-tighter"><span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span></span>
-    <div class="hidden md:flex gap-1 items-center">
-      <a class="text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-semibold px-3 py-1.5 rounded bg-[#1a1d26] border border-[#252833]" href="01-dashboard.html">Dashboard</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="02-trading-terminal.html">Trading</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="03-ai-agent-operations.html">AI Agents</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="04-vault-management.html">Vaults</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="05-risk-management.html">Risk</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="06-analytics-backtesting.html">Analytics</a>
-      <a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-[13px] font-medium px-3 py-1.5 rounded transition-colors" href="07-operations-control.html">Operations</a>
-    </div>
-  </div>
-  <div class="flex items-center gap-3">
-    <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3 py-1.5 border border-[#252833] rounded">
-      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeText">Ink Sepolia</span>
-    </div>
-    <appkit-button size="sm" />
-    <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
-      <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
-    </button>
-  </div>
-</nav>
-<!-- Mobile Nav Drawer -->
-<div id="mobileNav" class="md:hidden fixed top-14 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden" style="transition:all 0.25s ease">
-  <div class="flex flex-col p-3 gap-1">
-    <a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="01-dashboard.html">Dashboard</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="02-trading-terminal.html">Trading</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="03-ai-agent-operations.html">AI Agents</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="04-vault-management.html">Vaults</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="05-risk-management.html">Risk</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="06-analytics-backtesting.html">Analytics</a>
-    <a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="07-operations-control.html">Operations</a>
-    <div class="flex items-center gap-2 mt-2 px-4 py-2">
-      <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-      <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest">Ink Sepolia</span>
-    </div>
-  </div>
-</div>
-<script>
-(function(){
-  var btn=document.getElementById('mobileMenuBtn'),nav=document.getElementById('mobileNav'),icon=document.getElementById('mobileMenuIcon');
-  if(btn&&nav){btn.addEventListener('click',function(){var open=nav.classList.toggle('hidden');icon.textContent=open?'menu':'close';});}
-})();
-</script>
-<!-- Risk Sentinel Banner -->
-<div id="riskBanner" class="fixed top-14 left-0 right-0 z-40" style="transition:all 0.4s cubic-bezier(0.4,0,0.2,1)">
-  <div class="flex items-center justify-between px-6 py-2 border-b" id="riskBannerInner" style="background:#00e67610;border-color:#00e67640">
-    <div class="flex items-center gap-3">
-      <span class="material-symbols-outlined text-lg" id="bannerIcon" style="color:#00e676">verified_user</span>
-      <span class="font-['JetBrains_Mono'] text-xs font-bold uppercase tracking-widest" id="bannerState" style="color:#00e676">NORMAL</span>
-      <span class="text-xs opacity-80" id="bannerReason">All systems nominal</span>
-    </div>
-    <div class="flex items-center gap-4">
-      <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest opacity-70" id="bannerLevCap">Max Leverage: 4.0x</span>
-      <a href="05-risk-management.html" class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-[#7c4dff] hover:text-[#cdbdff]">Details →</a>
-    </div>
-  </div>
-</div>
+<script src="nav.js"></script>
+<script>XNav.init('dashboard');</script>
 <main class="pt-28 px-6 max-w-[1600px] mx-auto space-y-6">
 <!-- Portfolio Summary Strip -->
 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">

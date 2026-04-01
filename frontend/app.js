@@ -1,28 +1,31 @@
 // ═══════════════════════════════════════════════════════════
 // WALLET CONNECTION (Reown AppKit)
+// Reown (formerly WalletConnect) provides wallet connectivity
+// so users can view on-chain balances for LTAP vault tokens
 // ═══════════════════════════════════════════════════════════
 
-let connectedAddress = null;
-let publicClient = null;
+let connectedAddress = null; // Track wallet address globally so balance fetching and UI updates can reference it without re-querying the modal
+let publicClient = null; // viem public client for Ink Sepolia RPC — kept global so we create it once on connect instead of per-call
 
-// Token contract addresses
+// Token contract addresses on Ink Sepolia testnet — these are the deployed LTAP vault wrapper tokens
 const TOKEN_ADDRESSES = {
-  USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943',
-  wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
-  wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'
+  USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943',   // Stablecoin collateral that users deposit into senior tranche
+  wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', // Wrapped leveraged QQQ exposure token — the core LTAP product
+  wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e'  // Wrapped leveraged SPY exposure token — second supported underlying
 };
 
-// Minimal ERC-20 ABI for balanceOf
+// Minimal ERC-20 ABI — only balanceOf and decimals because that's all we need to display wallet balances
+// Full ABI would add unnecessary payload; deposit/withdraw use the vault contract ABI instead
 const ERC20_ABI = [
   {
-    name: 'balanceOf',
+    name: 'balanceOf',   // Read token balance to show in the wallet panel
     type: 'function',
     stateMutability: 'view',
     inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ name: 'balance', type: 'uint256' }]
   },
   {
-    name: 'decimals',
+    name: 'decimals',    // Need decimals to convert raw uint256 to human-readable amounts (USDC=6, wTokens=18)
     type: 'function',
     stateMutability: 'view',
     inputs: [],
@@ -31,685 +34,696 @@ const ERC20_ABI = [
 ];
 
 async function fetchBalances() {
-  if (!connectedAddress || !publicClient) return;
+  if (!connectedAddress || !publicClient) return; // Guard: no wallet connected means nothing to query — avoids RPC errors
 
   try {
-    const { formatEther, formatUnits } = window.viem;
+    const { formatEther, formatUnits } = window.viem; // viem formatting utils convert raw BigInt wei values to human-readable strings
 
-    // Fetch ETH balance
+    // ETH balance — needed so users know if they have gas to execute vault transactions on Ink Sepolia
     const ethBalance = await publicClient.getBalance({
-      address: connectedAddress
+      address: connectedAddress // Native balance query doesn't need a contract call
     });
-    document.getElementById('ethBalance').textContent = parseFloat(formatEther(ethBalance)).toFixed(4);
+    document.getElementById('ethBalance').textContent = parseFloat(formatEther(ethBalance)).toFixed(4); // 4 decimals sufficient for gas display
 
-    // Fetch USDC balance
+    // USDC balance — shows how much collateral the user can deposit into the senior tranche
     const usdcBalance = await publicClient.readContract({
       address: TOKEN_ADDRESSES.USDC,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [connectedAddress]
+      args: [connectedAddress] // Pass connected wallet as the account to query
     });
-    document.getElementById('usdcBalance').textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2);
+    document.getElementById('usdcBalance').textContent = parseFloat(formatUnits(usdcBalance, 6)).toFixed(2); // USDC has 6 decimals, show 2 for dollar precision
 
-    // Fetch wQQQx balance
+    // wQQQx balance — shows user's leveraged QQQ exposure token holdings from the LTAP vault
     const wqqqxBalance = await publicClient.readContract({
       address: TOKEN_ADDRESSES.wQQQx,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [connectedAddress]
+      args: [connectedAddress] // Same wallet address for all token queries
     });
-    document.getElementById('wqqqxBalance').textContent = parseFloat(formatUnits(wqqqxBalance, 18)).toFixed(4);
+    document.getElementById('wqqqxBalance').textContent = parseFloat(formatUnits(wqqqxBalance, 18)).toFixed(4); // 18 decimals (ERC-20 standard), 4dp for readability
 
-    // Fetch wSPYx balance
+    // wSPYx balance — shows user's leveraged SPY exposure token holdings
     const wspyxBalance = await publicClient.readContract({
       address: TOKEN_ADDRESSES.wSPYx,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [connectedAddress]
+      args: [connectedAddress] // Same pattern — consistent across all wrapped tokens
     });
-    document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4);
+    document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4); // Same 18-decimal format as wQQQx
 
     // console.log('✓ Balances updated');
   } catch (error) {
-    console.error('Failed to fetch balances:', error);
+    console.error('Failed to fetch balances:', error); // Non-fatal: UI still works, user just sees stale balances
   }
 }
 
 function updateWalletUI() {
-  const walletInfo = document.getElementById('walletInfo');
-  const walletAddress = document.getElementById('walletAddress');
+  const walletInfo = document.getElementById('walletInfo'); // Container for the wallet balance panel — toggled visible/hidden on connect/disconnect
+  const walletAddress = document.getElementById('walletAddress'); // Displays truncated address so user confirms which wallet is active
 
   if (connectedAddress) {
-    walletInfo.style.display = 'flex';
-    walletAddress.textContent = `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`;
+    walletInfo.style.display = 'flex'; // Show the balance panel only when a wallet is connected — keeps UI clean for visitors
+    walletAddress.textContent = `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`; // Truncate to 0x1234...5678 because full 42-char address is too long for the header
   } else {
-    walletInfo.style.display = 'none';
-    // Reset balance displays
+    walletInfo.style.display = 'none'; // Hide wallet panel when disconnected — no balances to show
+    // Reset balance displays to dash so stale numbers from previous session don't persist
     ['ethBalance', 'usdcBalance', 'wqqqxBalance', 'wspyxBalance'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.textContent = '-';
+      if (el) el.textContent = '-'; // Dash signals "not loaded" vs "0" which would mean empty wallet
     });
   }
 }
 
-// Wire up Reown AppKit wallet events
+// Wire up Reown AppKit wallet events — Reown emits lifecycle events for connect/disconnect
+// so we react to wallet state changes without polling
 function initWalletListeners() {
-  const modal = window.xLeverWallet;
-  if (!modal) return setTimeout(initWalletListeners, 200);
+  const modal = window.xLeverWallet; // Reown modal instance set up in wallet.js — may not be ready yet on first call
+  if (!modal) return setTimeout(initWalletListeners, 200); // Retry every 200ms because Reown SDK loads asynchronously and may initialize after app.js runs
 
-  modal.subscribeEvents(async (event) => {
-    if (event?.data?.event === 'CONNECT_SUCCESS') {
-      connectedAddress = modal.getAddress();
-      const { createPublicClient, http, inkSepolia } = window.viem;
+  modal.subscribeEvents(async (event) => { // Subscribe to all Reown events — we filter for CONNECT/DISCONNECT below
+    if (event?.data?.event === 'CONNECT_SUCCESS') { // User approved the wallet connection in their wallet app
+      connectedAddress = modal.getAddress(); // Capture the connected address immediately so fetchBalances can use it
+      const { createPublicClient, http, inkSepolia } = window.viem; // viem provides typed RPC clients — imported from window because we load it via CDN
       publicClient = createPublicClient({
-        chain: inkSepolia,
-        transport: http('https://rpc-gel-sepolia.inkonchain.com')
+        chain: inkSepolia, // Ink Sepolia is the testnet where LTAP vault contracts are deployed
+        transport: http('https://rpc-gel-sepolia.inkonchain.com') // Gelato-hosted RPC endpoint for Ink Sepolia — more reliable than public default
       });
-      updateWalletUI();
-      await fetchBalances();
+      updateWalletUI(); // Show the wallet address and balance panel in the header
+      await fetchBalances(); // Fetch all token balances now that we have a valid client and address
       // console.log('✓ Wallet connected:', connectedAddress);
     }
-    if (event?.data?.event === 'DISCONNECT_SUCCESS') {
-      connectedAddress = null;
-      publicClient = null;
-      updateWalletUI();
+    if (event?.data?.event === 'DISCONNECT_SUCCESS') { // User explicitly disconnected or session expired
+      connectedAddress = null; // Clear address so guard clauses in fetchBalances prevent stale RPC calls
+      publicClient = null; // Release the RPC client since we no longer need it
+      updateWalletUI(); // Hide the balance panel and reset displayed values to dashes
       // console.log('✓ Wallet disconnected');
     }
   });
 
-  // Check if already connected (e.g. page reload with active session)
+  // Check if already connected (e.g. page reload with active session) — Reown persists sessions in localStorage
+  // so the user shouldn't have to reconnect after every page refresh
   try {
     const isConnected = typeof modal.getIsConnected === 'function'
-      ? modal.getIsConnected()
-      : modal.getIsConnectedState?.();
+      ? modal.getIsConnected()             // Reown v3 API method name
+      : modal.getIsConnectedState?.();     // Fallback for older Reown versions that use a different method name
     if (isConnected) {
       connectedAddress = typeof modal.getAddress === 'function'
-        ? modal.getAddress()
-        : modal.getAddress?.();
-      const { createPublicClient, http, inkSepolia } = window.viem;
+        ? modal.getAddress()               // Standard Reown v3 getter
+        : modal.getAddress?.();            // Defensive fallback — same reason as above
+      const { createPublicClient, http, inkSepolia } = window.viem; // Re-import here because this code path runs independently of the event handler
       publicClient = createPublicClient({
-        chain: inkSepolia,
-        transport: http('https://rpc-gel-sepolia.inkonchain.com')
+        chain: inkSepolia, // Same chain as in CONNECT_SUCCESS — must match deployed contracts
+        transport: http('https://rpc-gel-sepolia.inkonchain.com') // Same RPC endpoint for consistency
       });
-      updateWalletUI();
-      fetchBalances();
+      updateWalletUI(); // Show wallet panel immediately on page load if session persists
+      fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
     }
   } catch (e) {
-    console.warn('Wallet reconnect check skipped:', e.message);
+    console.warn('Wallet reconnect check skipped:', e.message); // Non-fatal: user can manually reconnect via the AppKit button
   }
 }
-initWalletListeners();
+initWalletListeners(); // Start the initialization loop — will retry until Reown modal is available
 
 // ═══════════════════════════════════════════════════════════
 // DATA LAYER
-// Replace generateQQQData with fetchRealData for production
+// Synthetic data generator serves as offline fallback when
+// both OpenBB and Yahoo Finance APIs are unreachable.
+// In production, fetchRealData provides real OHLCV history.
 // ═══════════════════════════════════════════════════════════
 
-let _seed = 42;
-function srand() { _seed = (_seed * 16807) % 2147483647; return _seed / 2147483647; }
-function boxMuller() { return Math.sqrt(-2 * Math.log(srand())) * Math.cos(2 * Math.PI * srand()); }
+let _seed = 42; // Fixed seed so synthetic data is deterministic — same backtest input every run for reproducible testing
+function srand() { _seed = (_seed * 16807) % 2147483647; return _seed / 2147483647; } // Park-Miller LCG PRNG — deterministic, no Math.random() so results don't change between page loads
+function boxMuller() { return Math.sqrt(-2 * Math.log(srand())) * Math.cos(2 * Math.PI * srand()); } // Box-Muller transform converts uniform random to normal distribution — needed for realistic return modeling
 
-function generateQQQData(years) {
-  const days = Math.floor(years * 252);
-  const mu = 0.13 / 252, sigma = 0.22 / Math.sqrt(252);
-  const ohlcv = [];
-  let price = 100, vol = 1.0;
-  const d = new Date(); d.setFullYear(d.getFullYear() - years);
+function generateQQQData(years) { // Fallback synthetic data generator — produces QQQ-like price history when real data APIs fail
+  const days = Math.floor(years * 252); // 252 trading days per year (US equity market convention) — excludes weekends/holidays
+  const mu = 0.13 / 252, sigma = 0.22 / Math.sqrt(252); // QQQ historical: ~13% annual return, ~22% annual vol — scaled to daily for GBM simulation
+  const ohlcv = []; // Accumulate OHLCV bars to match the same format real data returns
+  let price = 100, vol = 1.0; // Start at $100 for easy percentage math; vol=1.0 is baseline volatility multiplier
+  const d = new Date(); d.setFullYear(d.getFullYear() - years); // Walk dates backward from today so synthetic data aligns with real calendar
 
   for (let i = 0; i < days; i++) {
-    d.setDate(d.getDate() + 1);
-    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-    if (srand() < 0.003) vol = 1.6 + srand(); else if (vol > 1.0) vol *= 0.975;
-    const ret = mu + sigma * vol * boxMuller();
-    const open = price, close = price * (1 + ret);
-    const high = Math.max(open, close) * (1 + Math.abs(boxMuller()) * 0.005);
-    const low = Math.min(open, close) * (1 - Math.abs(boxMuller()) * 0.005);
-    ohlcv.push({ time: d.toISOString().split('T')[0], open: +open.toFixed(4), high: +high.toFixed(4), low: +low.toFixed(4), close: +close.toFixed(4) });
-    price = close;
+    d.setDate(d.getDate() + 1); // Advance one calendar day
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); // Skip weekends — markets don't trade Saturday/Sunday
+    if (srand() < 0.003) vol = 1.6 + srand(); else if (vol > 1.0) vol *= 0.975; // 0.3% daily chance of a vol spike (simulates VIX events); otherwise vol mean-reverts by 2.5%/day back to baseline
+    const ret = mu + sigma * vol * boxMuller(); // Daily return via geometric Brownian motion: drift + scaled normal shock
+    const open = price, close = price * (1 + ret); // Open at previous close; close reflects the day's return
+    const high = Math.max(open, close) * (1 + Math.abs(boxMuller()) * 0.005); // High is slightly above max(open,close) — typical intraday range extension
+    const low = Math.min(open, close) * (1 - Math.abs(boxMuller()) * 0.005); // Low is slightly below min(open,close) — same logic for downside wicks
+    ohlcv.push({ time: d.toISOString().split('T')[0], open: +open.toFixed(4), high: +high.toFixed(4), low: +low.toFixed(4), close: +close.toFixed(4) }); // ISO date string for TradingView compatibility; toFixed(4) prevents floating point noise
+    price = close; // Carry forward the close as the next day's starting price
   }
-  return ohlcv;
+  return ohlcv; // Return array of OHLCV objects matching the same schema as fetchFromOpenBB/fetchFromYahoo
 }
 
 // ──────────────────────────────────────────────────
 // REAL DATA FETCHING (OpenBB-first, Yahoo fallback)
+// Two-tier data sourcing ensures maximum uptime:
+// OpenBB provides higher-quality analytics data,
+// Yahoo Finance is the widely-available fallback.
 // ──────────────────────────────────────────────────
 
-let allData = [];
-let dataLoading = true;
-let currentTicker = 'QQQ';
-let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
-let entryDateIndex = 0;
-const MIN_LEV = -4.0, MAX_LEV = 4.0;
+let allData = []; // Master OHLCV array for the current ticker — holds up to 25 years of daily bars for all timeframe slicing
+let dataLoading = true; // Loading flag prevents premature chart rendering before data arrives
+let currentTicker = 'QQQ'; // Default to QQQ because it's the primary LTAP product (Nasdaq-100 leveraged exposure)
+let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area'; // Defaults: 2x long, 1-year view, area chart — the most common user starting point
+let entryDateIndex = 0; // Index into the filtered data array where the backtest starts — 0 means "from period start", click-to-set changes this
+const MIN_LEV = -4.0, MAX_LEV = 4.0; // Leverage bounds: -4x short to +4x long — matches LTAP protocol's maximum supported leverage on Euler V2 EVK
 
-async function fetchFromOpenBB(symbol, years) {
-  const end = new Date();
+async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenBB provides institutional-grade OHLCV data via our local proxy server
+  const end = new Date(); // End date is always today — we want the most recent available data
   const start = new Date();
-  start.setFullYear(start.getFullYear() - years);
-  const startDate = start.toISOString().split('T')[0];
-  const endDate = end.toISOString().split('T')[0];
+  start.setFullYear(start.getFullYear() - years); // Go back N years from today to cover the requested timeframe
+  const startDate = start.toISOString().split('T')[0]; // ISO date string format (YYYY-MM-DD) that OpenBB API expects
+  const endDate = end.toISOString().split('T')[0]; // Same format for the end date parameter
 
-  const url = `/api/openbb/historical/${symbol}?start_date=${startDate}&end_date=${endDate}&interval=1d`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`OpenBB HTTP ${resp.status}: ${resp.statusText}`);
+  const url = `/api/openbb/historical/${symbol}?start_date=${startDate}&end_date=${endDate}&interval=1d`; // Proxied through our Express server to avoid CORS issues and keep API keys server-side
+  const resp = await fetch(url); // Fetch from local proxy — if OpenBB is down this throws and triggers Yahoo fallback
+  if (!resp.ok) throw new Error(`OpenBB HTTP ${resp.status}: ${resp.statusText}`); // Throw on HTTP errors so the caller's catch block can fall back to Yahoo
 
-  const json = await resp.json();
-  if (!json.data || json.data.length === 0) throw new Error('OpenBB returned no data');
+  const json = await resp.json(); // Parse the JSON response from our proxy
+  if (!json.data || json.data.length === 0) throw new Error('OpenBB returned no data'); // Empty data is useless — treat it as a failure so we try Yahoo instead
 
   return json.data.map(d => ({
-    time: (d.date || d.Date || '').split('T')[0],
-    open:  +(d.open  ?? d.Open  ?? d.close ?? 0).toFixed(4),
-    high:  +(d.high  ?? d.High  ?? d.close ?? 0).toFixed(4),
-    low:   +(d.low   ?? d.Low   ?? d.close ?? 0).toFixed(4),
-    close: +(d.close ?? d.Close ?? 0).toFixed(4),
-  })).filter(d => d.time && d.close > 0);
+    time: (d.date || d.Date || '').split('T')[0], // OpenBB sometimes uses 'date' vs 'Date' depending on provider — handle both; strip time portion for TradingView
+    open:  +(d.open  ?? d.Open  ?? d.close ?? 0).toFixed(4), // Fallback chain: try lowercase, then uppercase, then use close if OHLC is missing — some providers omit open/high/low
+    high:  +(d.high  ?? d.High  ?? d.close ?? 0).toFixed(4), // Same fallback pattern — ensures we always have a number, never undefined
+    low:   +(d.low   ?? d.Low   ?? d.close ?? 0).toFixed(4), // Same fallback pattern for low price
+    close: +(d.close ?? d.Close ?? 0).toFixed(4), // Close is the most critical — used for all return calculations in the LTAP engine
+  })).filter(d => d.time && d.close > 0); // Filter out any malformed rows — missing dates or zero/negative closes would corrupt simulations
 }
 
-async function fetchFromYahoo(symbol, years) {
-  const endDate = Math.floor(Date.now() / 1000);
-  const startDate = endDate - (years * 365 * 24 * 60 * 60);
-  const url = `/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
+async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo Finance is free and widely available when OpenBB is down
+  const endDate = Math.floor(Date.now() / 1000); // Yahoo uses Unix timestamps (seconds since epoch), not ISO dates
+  const startDate = endDate - (years * 365 * 24 * 60 * 60); // Approximate years in seconds — close enough for historical data range requests
+  const url = `/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`; // Proxied through our Express server to avoid CORS and rate-limiting
 
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+  const resp = await fetch(url); // Fetch from our Yahoo proxy endpoint
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`); // Surface HTTP errors clearly for debugging
 
-  const data = await resp.json();
+  const data = await resp.json(); // Parse Yahoo's nested JSON response format
   if (!data.chart || !data.chart.result || !data.chart.result[0]) {
-    throw new Error('Invalid response from Yahoo Finance API');
+    throw new Error('Invalid response from Yahoo Finance API'); // Yahoo sometimes returns empty results for delisted tickers or during outages
   }
 
-  const result = data.chart.result[0];
-  const timestamps = result.timestamp;
-  const quotes = result.indicators.quote[0];
+  const result = data.chart.result[0]; // Yahoo wraps data in chart.result array — always use first element for single-symbol queries
+  const timestamps = result.timestamp; // Array of Unix timestamps corresponding to each trading day
+  const quotes = result.indicators.quote[0]; // OHLCV arrays are nested under indicators.quote — Yahoo's non-obvious data structure
 
-  const ohlcv = [];
+  const ohlcv = []; // Build the same OHLCV format that OpenBB returns so the rest of the app doesn't care which source was used
   for (let i = 0; i < timestamps.length; i++) {
-    if (quotes.close[i] === null) continue;
-    const date = new Date(timestamps[i] * 1000);
+    if (quotes.close[i] === null) continue; // Skip days with null close — Yahoo inserts nulls for market holidays that fall on weekdays
+    const date = new Date(timestamps[i] * 1000); // Convert Unix seconds to JS Date for ISO string formatting
     ohlcv.push({
-      time: date.toISOString().split('T')[0],
-      open: +(quotes.open[i] || quotes.close[i]).toFixed(4),
-      high: +(quotes.high[i] || quotes.close[i]).toFixed(4),
-      low: +(quotes.low[i] || quotes.close[i]).toFixed(4),
-      close: +quotes.close[i].toFixed(4)
+      time: date.toISOString().split('T')[0], // Strip time portion — TradingView Lightweight Charts expects YYYY-MM-DD for daily bars
+      open: +(quotes.open[i] || quotes.close[i]).toFixed(4), // Use close as fallback if open is null — rare but happens on some data gaps
+      high: +(quotes.high[i] || quotes.close[i]).toFixed(4), // Same fallback for high — ensures no NaN values in chart rendering
+      low: +(quotes.low[i] || quotes.close[i]).toFixed(4), // Same fallback for low
+      close: +quotes.close[i].toFixed(4) // Close is always present (we filtered nulls above); toFixed(4) then + to clean float precision
     });
   }
-  return ohlcv;
+  return ohlcv; // Return normalized OHLCV array matching the OpenBB output format
 }
 
-async function fetchRealData(symbol, years) {
-  // Try OpenBB first (primary analytics backbone), fall back to Yahoo
+async function fetchRealData(symbol, years) { // Orchestrator: tries data sources in priority order to maximize data quality and availability
+  // Try OpenBB first because it provides higher-quality, pre-cleaned institutional data
   try {
     const data = await fetchFromOpenBB(symbol, years);
     // console.log(`✓ Loaded ${data.length} days via OpenBB`);
-    return data;
+    return data; // Success — return OpenBB data without trying Yahoo
   } catch (e) {
-    console.warn('OpenBB unavailable, falling back to Yahoo:', e.message);
+    console.warn('OpenBB unavailable, falling back to Yahoo:', e.message); // Log but don't crash — Yahoo fallback handles this gracefully
   }
   try {
-    return await fetchFromYahoo(symbol, years);
+    return await fetchFromYahoo(symbol, years); // Second attempt: Yahoo Finance is our fallback with broader ticker coverage
   } catch (error) {
-    console.error('Error fetching real data:', error);
-    throw error;
+    console.error('Error fetching real data:', error); // Both sources failed — caller will fall back to generateQQQData synthetic data
+    throw error; // Re-throw so loadTickerData's catch block can activate the synthetic fallback
   }
 }
 
-async function loadTickerData(ticker) {
+async function loadTickerData(ticker) { // Main data loading pipeline: cache-first, then API, then synthetic fallback
   try {
-    dataLoading = true;
-    
-    const cacheKey = `${ticker.toLowerCase()}_data_cache`;
-    const cacheTimeKey = `${ticker.toLowerCase()}_data_cache_time`;
-    const cached = localStorage.getItem(cacheKey);
-    const cacheTime = localStorage.getItem(cacheTimeKey);
-    const now = Date.now();
-    const cacheMaxAge = 24 * 60 * 60 * 1000;
-    
-    if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) {
-      allData = JSON.parse(cached);
-      dataLoading = false;
+    dataLoading = true; // Signal to UI that data is being fetched — prevents rendering stale charts during transition
+
+    const cacheKey = `${ticker.toLowerCase()}_data_cache`; // Per-ticker cache key so switching QQQ<->SPY doesn't overwrite each other
+    const cacheTimeKey = `${ticker.toLowerCase()}_data_cache_time`; // Separate timestamp key to track cache freshness independently
+    const cached = localStorage.getItem(cacheKey); // Check if we have cached OHLCV data from a previous session
+    const cacheTime = localStorage.getItem(cacheTimeKey); // When the cache was last written — used for staleness check
+    const now = Date.now(); // Current time for cache age comparison
+    const cacheMaxAge = 24 * 60 * 60 * 1000; // 24-hour cache TTL — daily OHLCV data only changes once per trading day, so 24h is optimal
+
+    if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) { // Use cache if it exists and is less than 24 hours old
+      allData = JSON.parse(cached); // Deserialize the cached OHLCV array — avoids a network round-trip on page reload
+      dataLoading = false; // Data is ready for rendering
       // console.log(`✓ Loaded ${allData.length} days of ${ticker} data from cache`);
-    } else {
-      allData = await fetchRealData(ticker, 25);
-      dataLoading = false;
-      
+    } else { // Cache is missing or stale — fetch fresh data from APIs
+      allData = await fetchRealData(ticker, 25); // Fetch 25 years of history — the maximum timeframe our UI supports ("25Y" and "MAX" buttons)
+      dataLoading = false; // Data arrived successfully
+
       try {
-        localStorage.setItem(cacheKey, JSON.stringify(allData));
-        localStorage.setItem(cacheTimeKey, now.toString());
+        localStorage.setItem(cacheKey, JSON.stringify(allData)); // Persist to localStorage so subsequent page loads are instant
+        localStorage.setItem(cacheTimeKey, now.toString()); // Record cache time for the 24-hour staleness check
         // console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server (cached)`);
       } catch (e) {
-        console.warn('Failed to cache data:', e);
+        console.warn('Failed to cache data:', e); // localStorage might be full (5MB limit) or disabled — data still works, just won't cache
         // console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server`);
       }
     }
-    
-    entryDateIndex = 0;
-    updateAll();
+
+    entryDateIndex = 0; // Reset backtest entry point when switching tickers — previous entry index is meaningless for a different dataset
+    updateAll(); // Re-render the chart and stats with the new ticker data
   } catch (error) {
-    console.error('Failed to load data, using generated data:', error);
-    const yearsMap = {'1M':1/12,'3M':0.25,'6M':0.5,'1Y':1,'3Y':3,'5Y':5,'10Y':10,'25Y':25,'MAX':25};
-    allData = generateQQQData(25);
-    dataLoading = false;
-    entryDateIndex = 0;
-    updateAll();
+    console.error('Failed to load data, using generated data:', error); // Both OpenBB and Yahoo failed — degrade gracefully to synthetic data
+    const yearsMap = {'1M':1/12,'3M':0.25,'6M':0.5,'1Y':1,'3Y':3,'5Y':5,'10Y':10,'25Y':25,'MAX':25}; // Unused here but documents the period mapping for reference
+    allData = generateQQQData(25); // Generate 25 years of synthetic QQQ-like data as final fallback so the UI still works offline
+    dataLoading = false; // Even synthetic data counts as "loaded"
+    entryDateIndex = 0; // Reset entry point for consistency
+    updateAll(); // Render with synthetic data — user sees a working chart rather than a blank screen
   }
 }
 
-document.addEventListener('DOMContentLoaded', async function() {
-  await loadTickerData(currentTicker);
-  setSliderPos(currentLeverage);
+document.addEventListener('DOMContentLoaded', async function() { // Wait for DOM to be fully parsed before initializing — ensures all chart containers and UI elements exist
+  await loadTickerData(currentTicker); // Load data first (blocking) because chart rendering depends on having OHLCV data
+  setSliderPos(currentLeverage); // Initialize slider position to match the default 2x leverage — must run after DOM is ready so slider elements exist
 });
 
 // ═══════════════════════════════════════════════════
 // LEVERAGE ENGINE - LTAP Protocol (Constant from Entry)
+// Unlike daily-reset products (TQQQ/SQQQ), LTAP uses
+// "constant leverage from entry" — no daily rebalancing,
+// which eliminates volatility decay but requires active
+// risk management via auto-deleverage and circuit breakers.
 // ═══════════════════════════════════════════════════
 
-function getLTAPFee(leverage) {
-  if (leverage === 0 || Math.abs(leverage) === 1.0) return 0;
-  return 0.005 + 0.005 * Math.abs(leverage - 1);
+function getLTAPFee(leverage) { // Annual fee calculation — scales with leverage to compensate liquidity providers for the risk they absorb
+  if (leverage === 0 || Math.abs(leverage) === 1.0) return 0; // No fee for cash (0x) or unleveraged (1x) positions — no borrowing cost to pass through
+  return 0.005 + 0.005 * Math.abs(leverage - 1); // Base 0.5% + 0.5% per unit of leverage above 1x — e.g., 2x = 1.0% APR, 3x = 1.5% APR, 4x = 2.0% APR
 }
 
 
 
-function getDeleverageLevelDirect(underlyingDrawdown) {
-  if (underlyingDrawdown >= 0.40) return 5;
-  if (underlyingDrawdown >= 0.30) return 4;
-  if (underlyingDrawdown >= 0.22) return 3;
-  if (underlyingDrawdown >= 0.15) return 2;
-  if (underlyingDrawdown >= 0.10) return 1;
-  return 0;
+function getDeleverageLevelDirect(underlyingDrawdown) { // 5-level cascade maps underlying drawdown severity to a deleverage action level
+  if (underlyingDrawdown >= 0.40) return 5; // Level 5: 40%+ drawdown = LIQUIDATION — underlying crashed too far, position is unsalvageable
+  if (underlyingDrawdown >= 0.30) return 4; // Level 4: 30%+ drawdown = force to 1x — eliminate all leverage to prevent liquidation
+  if (underlyingDrawdown >= 0.22) return 3; // Level 3: 22%+ drawdown = cap at 1.5x — significant stress, limit exposure aggressively
+  if (underlyingDrawdown >= 0.15) return 2; // Level 2: 15%+ drawdown = reduce leverage by 50% — moderate stress, halve the excess leverage
+  if (underlyingDrawdown >= 0.10) return 1; // Level 1: 10%+ drawdown = reduce leverage by 25% — early warning, gentle reduction to preserve upside recovery
+  return 0; // No drawdown threshold breached — maintain current leverage
 }
 
-function simulateProtocol(ohlcv, leverage, isShort, disableFees = false) {
-  const result = [];
-  const entryPrice = ohlcv[0].close;
-  let currentDeposit = entryPrice;
-  let currentEntry = entryPrice;
-  let currentLev = leverage;
-  let accruedFees = 0;
-  let liquidated = false;
-  const direction = isShort ? -1 : 1;
-  let peakUnderlyingPrice = ohlcv[0].close;
-  let lastFullLeverageDay = 0;
-  const events = [];
-  let totalDeleverageEvents = 0;
-  let totalReleverEvents = 0;
-  let totalSlippageCost = 0;
-  let timeAtReducedLeverage = 0;
-  let circuitBreakerDays = 0;
-  let lastDeleverageDay = -999;
-  let circuitBreakerUntil = -1;
-  let circuitBreakerFeeUntil = -1;
+function simulateProtocol(ohlcv, leverage, isShort, disableFees = false) { // Line-series LTAP simulation — outputs {time, value} for area/line charts; disableFees mode used for "no fee" comparison column
+  const result = []; // Accumulates daily {time, value, liquidated} points for the chart
+  const entryPrice = ohlcv[0].close; // First close becomes the starting NAV — all returns measured from this base
+  let currentDeposit = entryPrice; // Tracks the "deposit" (effective notional) that gets reset on deleverage/relever events to recalculate from new base
+  let currentEntry = entryPrice; // The price at which current leverage exposure was established — changes on deleverage/relever to prevent compounding errors
+  let currentLev = leverage; // Active leverage ratio — may be reduced by auto-deleverage and restored by releveraging
+  let accruedFees = 0; // Running total of fees subtracted from position value — reset to 0 on deleverage/relever since deposit absorbs them
+  let liquidated = false; // Once true, all remaining days output value=0 — position is permanently closed
+  const direction = isShort ? -1 : 1; // Multiply returns by -1 for shorts so the same math works for both long and short positions
+  let peakUnderlyingPrice = ohlcv[0].close; // High watermark of the underlying — used to calculate drawdown for auto-deleverage triggers
+  let lastFullLeverageDay = 0; // Tracks when full leverage was last active — used to reset peak price after successful releveraging
+  const events = []; // Log of deleverage/relever/circuit_breaker events — displayed as chart markers and in stats panel
+  let totalDeleverageEvents = 0; // Counter for deleverage events — shown in the risk stats panel
+  let totalReleverEvents = 0; // Counter for releveraging events — shown alongside deleverage count for balance
+  let totalSlippageCost = 0; // Cumulative slippage cost in dollar terms — quantifies the friction cost of risk management
+  let timeAtReducedLeverage = 0; // Days spent at less than target leverage — measures how often auto-deleverage is active
+  let circuitBreakerDays = 0; // Total days under circuit breaker restrictions — shows market stress exposure
+  let lastDeleverageDay = -999; // Day index of last deleverage — initialized to -999 so the 5-day cooldown check passes on first potential relever
+  let circuitBreakerUntil = -1; // Day index until which releveraging is blocked — prevents re-adding leverage during volatile periods
+  let circuitBreakerFeeUntil = -1; // Day index until which fees are doubled — penalizes holding leveraged positions during extreme volatility
 
-  for (let i = 0; i < ohlcv.length; i++) {
-    if (liquidated) {
+  for (let i = 0; i < ohlcv.length; i++) { // Walk through each trading day sequentially — order matters because state carries forward
+    if (liquidated) { // Position was wiped out on a previous day — emit zero for remaining days so chart shows flat line at zero
       result.push({ time: ohlcv[i].time, value: 0, liquidated: true });
-      continue;
+      continue; // Skip all calculations — nothing to simulate on a liquidated position
     }
 
-    const price = ohlcv[i].close;
-    const move = (price - currentEntry) / currentEntry;
+    const price = ohlcv[i].close; // Use close price as the reference — consistent with how leveraged products settle daily
+    const move = (price - currentEntry) / currentEntry; // Percentage move from entry — this is the "constant from entry" calculation that avoids daily-reset decay
 
-    const annualFee = getLTAPFee(currentLev);
-    let dailyFee = annualFee / 252;
-    
-    if (i <= circuitBreakerFeeUntil) {
-      dailyFee *= 2;
-    }
-    
-    if (!disableFees && i > 0) {
-      accruedFees += currentDeposit * dailyFee;
+    const annualFee = getLTAPFee(currentLev); // Fee depends on current (possibly reduced) leverage, not target — lower leverage = lower fee during deleverage
+    let dailyFee = annualFee / 252; // Convert annual fee to daily by dividing by trading days — accrued continuously
+
+    if (i <= circuitBreakerFeeUntil) { // During circuit breaker periods, fees double to discourage holding leveraged positions in extreme volatility
+      dailyFee *= 2; // 2x fee surcharge compensates liquidity providers for the elevated risk they bear
     }
 
-    let value = currentDeposit * (1 + currentLev * direction * move) - accruedFees;
+    if (!disableFees && i > 0) { // Skip fee on day 0 (entry day) and when running "no fee" comparison simulation
+      accruedFees += currentDeposit * dailyFee; // Fees accrue on the deposit notional, not the current value — prevents fee-on-fee compounding
+    }
 
-    if (i > 0) {
-      const dailyReturn = Math.abs((ohlcv[i].close - ohlcv[i - 1].close) / ohlcv[i - 1].close);
-      
-      if (dailyReturn > 0.08) {
-        circuitBreakerUntil = i + 5;
-        circuitBreakerFeeUntil = i + 3;
-        circuitBreakerDays += 5;
-        
-        events.push({ 
-          time: ohlcv[i].time, 
-          type: 'circuit_breaker', 
-          reason: '8%+ daily move — RED'
+    let value = currentDeposit * (1 + currentLev * direction * move) - accruedFees; // Core LTAP formula: deposit * (1 + leverage * directional_return) - fees — "constant from entry" means no daily rebalancing
+
+    if (i > 0) { // Circuit breaker detection — can't check on day 0 because there's no previous day to compare
+      const dailyReturn = Math.abs((ohlcv[i].close - ohlcv[i - 1].close) / ohlcv[i - 1].close); // Absolute daily return — circuit breakers trigger on magnitude regardless of direction
+
+      if (dailyReturn > 0.08) { // RED circuit breaker: 8%+ daily move signals extreme market stress (flash crash, circuit breaker halt)
+        circuitBreakerUntil = i + 5; // Block releveraging for 5 trading days — market needs time to stabilize before adding risk back
+        circuitBreakerFeeUntil = i + 3; // Double fees for 3 days — shorter than relever block because fee penalty is immediate
+        circuitBreakerDays += 5; // Track total circuit breaker days for risk stats display
+
+        events.push({ // Log the event for chart marker rendering
+          time: ohlcv[i].time,
+          type: 'circuit_breaker',
+          reason: '8%+ daily move — RED' // Human-readable reason shown in the marker tooltip
         });
-        
-      } else if (dailyReturn > 0.05) {
-        circuitBreakerUntil = Math.max(circuitBreakerUntil, i + 2);
-        circuitBreakerFeeUntil = Math.max(circuitBreakerFeeUntil, i + 1);
-        circuitBreakerDays += 2;
-        
-        events.push({ 
-          time: ohlcv[i].time, 
-          type: 'circuit_breaker', 
-          reason: '5%+ daily move — YELLOW'
+
+      } else if (dailyReturn > 0.05) { // YELLOW circuit breaker: 5%+ daily move is elevated but not extreme — shorter restriction period
+        circuitBreakerUntil = Math.max(circuitBreakerUntil, i + 2); // Max() prevents a YELLOW from shortening an existing RED restriction
+        circuitBreakerFeeUntil = Math.max(circuitBreakerFeeUntil, i + 1); // Same max() logic — don't reduce fee surcharge if RED is already active
+        circuitBreakerDays += 2; // 2-day restriction for YELLOW vs 5-day for RED — proportional to severity
+
+        events.push({ // Log YELLOW event separately from RED for distinct chart markers
+          time: ohlcv[i].time,
+          type: 'circuit_breaker',
+          reason: '5%+ daily move — YELLOW' // Color-coded reason distinguishes severity in the UI
         });
       }
     }
 
-    if (ohlcv[i].close > peakUnderlyingPrice) {
-      peakUnderlyingPrice = ohlcv[i].close;
+    if (ohlcv[i].close > peakUnderlyingPrice) { // Update high watermark when underlying makes a new high
+      peakUnderlyingPrice = ohlcv[i].close; // Drawdown is measured from this peak — raising it means drawdown thresholds require a bigger drop to trigger
     }
 
-    if (value > 0 && currentLev > 1.0) {
-      const underlyingDD = (peakUnderlyingPrice - ohlcv[i].close) / peakUnderlyingPrice;
-      
-      const level = getDeleverageLevelDirect(underlyingDD);
-      let newLev = currentLev;
+    if (value > 0 && currentLev > 1.0) { // Auto-deleverage only applies when position is still alive AND leverage exceeds 1x (no need to deleverage an unleveraged position)
+      const underlyingDD = (peakUnderlyingPrice - ohlcv[i].close) / peakUnderlyingPrice; // Drawdown from peak — measures how far the underlying has fallen, not the leveraged position
 
-      if (level === 5) {
+      const level = getDeleverageLevelDirect(underlyingDD); // Map drawdown percentage to a 0-5 severity level
+      let newLev = currentLev; // Start with current leverage — only reduce if a threshold is breached
+
+      if (level === 5) { // 40%+ drawdown: liquidation — position value would be wiped at high leverage, so force-close at 0x
         newLev = 0;
-      } else if (level === 4) {
+      } else if (level === 4) { // 30%+ drawdown: force to 1x — eliminate all borrowing to prevent further losses
         newLev = 1.0;
-      } else if (level === 3) {
+      } else if (level === 3) { // 22%+ drawdown: cap at 1.5x — aggressive reduction but maintain some upside for recovery
         newLev = Math.min(currentLev, 1.5);
-      } else if (level === 2) {
+      } else if (level === 2) { // 15%+ drawdown: halve excess leverage — e.g., 3x becomes 2x (1 + (3-1)*0.5)
         newLev = 1 + (currentLev - 1) * 0.5;
-      } else if (level === 1) {
+      } else if (level === 1) { // 10%+ drawdown: reduce excess leverage by 25% — gentle first step to preserve upside
         newLev = 1 + (currentLev - 1) * 0.75;
       }
 
-      if (newLev < currentLev) {
-        const slippageCost = level >= 5 ? 0.01 : level >= 4 ? 0.005 : level >= 3 ? 0.003 : 0.002;
-        value *= (1 - slippageCost);
-        totalSlippageCost += currentDeposit * slippageCost;
-        
-        events.push({ 
-          time: ohlcv[i].time, 
-          type: 'deleverage', 
-          from: currentLev, 
-          to: newLev, 
-          level: level,
-          slippage: slippageCost
+      if (newLev < currentLev) { // Only act if the new leverage is lower — prevents redundant events when drawdown stays in the same band
+        const slippageCost = level >= 5 ? 0.01 : level >= 4 ? 0.005 : level >= 3 ? 0.003 : 0.002; // Higher slippage at higher severity because urgent liquidations face worse execution prices
+        value *= (1 - slippageCost); // Deduct slippage from position value — simulates the real-world cost of unwinding leveraged positions
+        totalSlippageCost += currentDeposit * slippageCost; // Track cumulative slippage for the stats panel
+
+        events.push({ // Record deleverage event for chart markers and event log
+          time: ohlcv[i].time,
+          type: 'deleverage',
+          from: currentLev, // Previous leverage — shown in marker text as "DeLev 3.0→1.5×"
+          to: newLev, // New leverage after reduction
+          level: level, // Severity level (1-5) for color coding
+          slippage: slippageCost // Slippage percentage for the marker tooltip
         });
-        totalDeleverageEvents++;
-        
-        if (newLev === 0) {
-          liquidated = true;
+        totalDeleverageEvents++; // Increment counter for stats display
+
+        if (newLev === 0) { // Level 5 liquidation — position is fully closed
+          liquidated = true; // Set flag so all future days output zero
           result.push({ time: ohlcv[i].time, value: 0, liquidated: true });
-          continue;
+          continue; // Skip to next day — nothing more to calculate
         }
-        
-        currentDeposit = value;
-        currentEntry = price;
-        currentLev = newLev;
-        accruedFees = 0;
-        lastDeleverageDay = i;
+
+        currentDeposit = value; // Reset deposit to current value — future returns calculated from this new base
+        currentEntry = price; // Reset entry price — "constant from entry" restarts from the deleverage point
+        currentLev = newLev; // Apply the reduced leverage for future calculations
+        accruedFees = 0; // Reset accrued fees — they were already subtracted from value which became the new deposit
+        lastDeleverageDay = i; // Record when this happened — releveraging needs 5 days of cooldown from this point
       }
     }
 
-    if (value > 0 && currentLev < leverage && i > circuitBreakerUntil) {
-      const daysSinceDelev = i - lastDeleverageDay;
-      
-      if (daysSinceDelev >= 5) {
-        const lookback = Math.min(3, i);
+    if (value > 0 && currentLev < leverage && i > circuitBreakerUntil) { // Releveraging: position is alive, leverage is below target, and no circuit breaker is active
+      const daysSinceDelev = i - lastDeleverageDay; // Cooldown period since last deleverage — prevents whipsawing in volatile markets
+
+      if (daysSinceDelev >= 5) { // 5 trading days must pass before releveraging — gives the market time to confirm the drawdown is over
+        const lookback = Math.min(3, i); // Look back up to 3 days to check for recovery — fewer if near start of data
         const recentLow = Math.min(
           ...Array.from(
-            {length: lookback}, 
-            (_, k) => ohlcv[i - k].close
+            {length: lookback}, // Spread across recent days to find the lowest close
+            (_, k) => ohlcv[i - k].close // Get close prices for the last 1-3 days
           )
         );
-        const recovering = ohlcv[i].close > recentLow * 1.005;
-        
-        if (recovering) {
-          const restored = Math.min(leverage, currentLev + 1.0);
-          if (restored > currentLev) {
-            const slippage = 0.001;
-            value *= (1 - slippage);
-            totalSlippageCost += currentDeposit * slippage;
-            
-            events.push({ 
-              time: ohlcv[i].time, 
-              type: 'relever', 
-              from: currentLev, 
-              to: restored,
-              slippage: slippage
+        const recovering = ohlcv[i].close > recentLow * 1.005; // Price must be 0.5% above the recent low — confirms upward momentum, not just a dead cat bounce
+
+        if (recovering) { // Market is showing signs of recovery — safe to add leverage back gradually
+          const restored = Math.min(leverage, currentLev + 1.0); // Add back at most +1x per step — gradual releveraging prevents re-entering at full leverage into a bear market rally
+          if (restored > currentLev) { // Only act if we're actually increasing leverage (avoids no-op events)
+            const slippage = 0.001; // 0.1% slippage for releveraging — lower than deleverage because releveraging is less urgent
+            value *= (1 - slippage); // Deduct the cost of re-establishing the leveraged position
+            totalSlippageCost += currentDeposit * slippage; // Track cumulative cost
+
+            events.push({ // Log releveraging event for chart markers
+              time: ohlcv[i].time,
+              type: 'relever',
+              from: currentLev, // Previous (reduced) leverage
+              to: restored, // New (higher) leverage after restoration
+              slippage: slippage // Cost of the operation
             });
-            totalReleverEvents++;
-            currentDeposit = value;
-            currentEntry = price;
-            currentLev = restored;
-            accruedFees = 0;
-            lastDeleverageDay = i;
-            
-            if (restored >= leverage) {
-              peakUnderlyingPrice = price;
-              lastFullLeverageDay = i;
+            totalReleverEvents++; // Increment counter for stats display
+            currentDeposit = value; // Reset deposit to current value — same pattern as deleverage
+            currentEntry = price; // Reset entry price for the new leverage calculation base
+            currentLev = restored; // Apply the increased leverage
+            accruedFees = 0; // Reset fees since deposit absorbed them
+            lastDeleverageDay = i; // Reset cooldown timer — prevents rapid successive releveraging
+
+            if (restored >= leverage) { // Fully restored to target leverage — the crisis is over
+              peakUnderlyingPrice = price; // Reset the drawdown peak to current price so old drawdowns don't immediately re-trigger deleverage
+              lastFullLeverageDay = i; // Record when we returned to full leverage for tracking
             }
           }
         }
       }
     }
 
-    if (value <= 0) {
-      liquidated = true;
+    if (value <= 0) { // Position value went negative — shouldn't happen with deleverage but catches edge cases (e.g., gap downs)
+      liquidated = true; // Mark as liquidated — all future days will output zero
       result.push({ time: ohlcv[i].time, value: 0, liquidated: true });
     } else {
-      if (currentLev < leverage) timeAtReducedLeverage++;
-      result.push({ time: ohlcv[i].time, value: +value.toFixed(4), liquidated: false });
+      if (currentLev < leverage) timeAtReducedLeverage++; // Count days at reduced leverage — shows how often auto-deleverage is active in the stats panel
+      result.push({ time: ohlcv[i].time, value: +value.toFixed(4), liquidated: false }); // toFixed(4) then + prevents floating point noise from accumulating across thousands of days
     }
   }
-  
-  return { 
-    data: result, 
-    liquidated, 
-    liqTime: liquidated ? result.find(r => r.liquidated)?.time : null, 
-    events,
-    stats: {
-      totalDeleverageEvents,
-      totalReleverEvents,
-      totalSlippageCost,
-      timeAtReducedLeverage,
-      circuitBreakerDays
+
+  return { // Return comprehensive simulation results — data for charting, metadata for stats panel
+    data: result, // Array of {time, value, liquidated} for the line/area chart
+    liquidated, // Boolean: did the position get liquidated at any point?
+    liqTime: liquidated ? result.find(r => r.liquidated)?.time : null, // Date of liquidation for the LIQUIDATED marker on the chart
+    events, // Array of deleverage/relever/circuit_breaker events for chart markers
+    stats: { // Aggregate statistics for the risk panel display
+      totalDeleverageEvents, // How many times auto-deleverage triggered
+      totalReleverEvents, // How many times leverage was restored
+      totalSlippageCost, // Total dollar cost of deleverage/relever slippage
+      timeAtReducedLeverage, // Days spent at less than target leverage
+      circuitBreakerDays // Days under circuit breaker restrictions
     }
   };
 }
 
-function simulateProtocolOHLC(ohlcv, leverage, isShort, disableFees = false) {
-  const result = [];
-  const entryPrice = ohlcv[0].close;
-  let currentDeposit = entryPrice;
-  let currentEntry = entryPrice;
-  let currentLev = leverage;
-  let accruedFees = 0;
-  let liquidated = false;
-  const direction = isShort ? -1 : 1;
-  let peakUnderlyingPrice = ohlcv[0].close;
-  let lastFullLeverageDay = 0;
-  const events = [];
-  let totalDeleverageEvents = 0;
-  let totalReleverEvents = 0;
-  let totalSlippageCost = 0;
-  let timeAtReducedLeverage = 0;
-  let circuitBreakerDays = 0;
-  let lastDeleverageDay = -999;
-  let circuitBreakerUntil = -1;
-  let circuitBreakerFeeUntil = -1;
+function simulateProtocolOHLC(ohlcv, leverage, isShort, disableFees = false) { // Candlestick variant of simulateProtocol — outputs OHLC bars instead of single values, needed for the candlestick chart view
+  const result = []; // Accumulates OHLC bars with leveraged prices for candlestick rendering
+  const entryPrice = ohlcv[0].close; // Same starting NAV as line version — must match for consistent comparison
+  let currentDeposit = entryPrice; // Same deposit tracking as simulateProtocol — reset on deleverage/relever
+  let currentEntry = entryPrice; // Entry price for "constant from entry" calculation — same mechanics as line version
+  let currentLev = leverage; // Active leverage — subject to auto-deleverage cascade
+  let accruedFees = 0; // Running fee total — same accrual logic as line version
+  let liquidated = false; // Liquidation flag — once set, outputs zero-value candles
+  const direction = isShort ? -1 : 1; // Direction multiplier for short positions
+  let peakUnderlyingPrice = ohlcv[0].close; // High watermark for drawdown-based deleverage triggers
+  let lastFullLeverageDay = 0; // Tracks when target leverage was last fully active
+  const events = []; // Deleverage/relever/circuit_breaker event log (shared with line version's markers)
+  let totalDeleverageEvents = 0; // Counter for stats display
+  let totalReleverEvents = 0; // Counter for stats display
+  let totalSlippageCost = 0; // Cumulative slippage for stats display
+  let timeAtReducedLeverage = 0; // Days at reduced leverage for stats display
+  let circuitBreakerDays = 0; // Circuit breaker duration for stats display
+  let lastDeleverageDay = -999; // Last deleverage day for 5-day cooldown — same as line version
+  let circuitBreakerUntil = -1; // Releveraging block deadline
+  let circuitBreakerFeeUntil = -1; // Fee doubling deadline
 
-  for (let i = 0; i < ohlcv.length; i++) {
-    if (liquidated) {
+  for (let i = 0; i < ohlcv.length; i++) { // Sequential day-by-day simulation — same structure as simulateProtocol
+    if (liquidated) { // Position is dead — output zero candles for the remaining timeline
       result.push({
         time: ohlcv[i].time,
-        open: 0, high: 0, low: 0, close: 0,
+        open: 0, high: 0, low: 0, close: 0, // All OHLC values zero for a liquidated candle
         liquidated: true
       });
-      continue;
+      continue; // No further calculation needed
     }
 
-    const price = ohlcv[i].close;
-    const annualFee = getLTAPFee(currentLev);
-    let dailyFee = annualFee / 252;
-    
-    if (i <= circuitBreakerFeeUntil) {
+    const price = ohlcv[i].close; // Close price used for fee calculation and deleverage checks
+    const annualFee = getLTAPFee(currentLev); // Fee based on current leverage level
+    let dailyFee = annualFee / 252; // Convert to daily fee for accrual
+
+    if (i <= circuitBreakerFeeUntil) { // Double fees during circuit breaker periods — same logic as line version
       dailyFee *= 2;
     }
-    
-    if (!disableFees && i > 0) {
+
+    if (!disableFees && i > 0) { // Accrue daily fee from day 1 onward (skip entry day)
       accruedFees += currentDeposit * dailyFee;
     }
 
-    const vals = [
-      ohlcv[i].open,
-      ohlcv[i].high,
-      ohlcv[i].low,
-      ohlcv[i].close
-    ].map(p => {
-      const move = (p - currentEntry) / currentEntry;
-      return currentDeposit * (1 + currentLev * direction * move) - accruedFees;
+    const vals = [ // Transform all four OHLC prices through the leverage formula — needed for realistic candlestick shapes
+      ohlcv[i].open,  // Underlying open price
+      ohlcv[i].high,  // Underlying high — becomes leveraged high (amplified deviation from entry)
+      ohlcv[i].low,   // Underlying low — becomes leveraged low
+      ohlcv[i].close  // Underlying close — the settlement price
+    ].map(p => { // Apply the same "constant from entry" formula to each OHLC component
+      const move = (p - currentEntry) / currentEntry; // Return from entry for this price point
+      return currentDeposit * (1 + currentLev * direction * move) - accruedFees; // Leveraged value at each OHLC price
     });
 
-    const [o, h, l, c] = vals;
-    let value = c;
-    const minValue = Math.min(...vals);
+    const [o, h, l, c] = vals; // Destructure into leveraged open/high/low/close for the output candle
+    let value = c; // Close value is the primary tracking value — used for deleverage checks and event logging
+    const minValue = Math.min(...vals); // Check if ANY of the four OHLC prices went to zero — intraday liquidation even if close recovered
 
-    if (i > 0) {
-      const dailyReturn = Math.abs((ohlcv[i].close - ohlcv[i - 1].close) / ohlcv[i - 1].close);
-      
-      if (dailyReturn > 0.08) {
-        circuitBreakerUntil = i + 5;
-        circuitBreakerFeeUntil = i + 3;
-        circuitBreakerDays += 5;
-        
-        events.push({ 
-          time: ohlcv[i].time, 
-          type: 'circuit_breaker', 
+    if (i > 0) { // Circuit breaker detection — same logic as simulateProtocol
+      const dailyReturn = Math.abs((ohlcv[i].close - ohlcv[i - 1].close) / ohlcv[i - 1].close); // Absolute daily return magnitude
+
+      if (dailyReturn > 0.08) { // RED circuit breaker: extreme 8%+ move
+        circuitBreakerUntil = i + 5; // Block releveraging for 5 days
+        circuitBreakerFeeUntil = i + 3; // Double fees for 3 days
+        circuitBreakerDays += 5; // Track for stats
+
+        events.push({ // Log RED circuit breaker event
+          time: ohlcv[i].time,
+          type: 'circuit_breaker',
           reason: '8%+ daily move — RED'
         });
-        
-      } else if (dailyReturn > 0.05) {
-        circuitBreakerUntil = Math.max(circuitBreakerUntil, i + 2);
-        circuitBreakerFeeUntil = Math.max(circuitBreakerFeeUntil, i + 1);
-        circuitBreakerDays += 2;
-        
-        events.push({ 
-          time: ohlcv[i].time, 
-          type: 'circuit_breaker', 
+
+      } else if (dailyReturn > 0.05) { // YELLOW circuit breaker: elevated 5%+ move
+        circuitBreakerUntil = Math.max(circuitBreakerUntil, i + 2); // Don't shorten existing RED restriction
+        circuitBreakerFeeUntil = Math.max(circuitBreakerFeeUntil, i + 1); // Don't reduce existing fee surcharge
+        circuitBreakerDays += 2; // Track for stats
+
+        events.push({ // Log YELLOW circuit breaker event
+          time: ohlcv[i].time,
+          type: 'circuit_breaker',
           reason: '5%+ daily move — YELLOW'
         });
       }
     }
 
-    if (ohlcv[i].close > peakUnderlyingPrice) {
+    if (ohlcv[i].close > peakUnderlyingPrice) { // Update drawdown high watermark on new highs
       peakUnderlyingPrice = ohlcv[i].close;
     }
 
-    if (minValue > 0 && currentLev > 1.0) {
-      const currentUnderlyingLow = isShort 
-        ? ohlcv[i].high
-        : ohlcv[i].low;
-      
-      const underlyingDD = (peakUnderlyingPrice - currentUnderlyingLow) / peakUnderlyingPrice;
-      const level = getDeleverageLevelDirect(underlyingDD);
-      let newLev = currentLev;
+    if (minValue > 0 && currentLev > 1.0) { // OHLC version uses minValue instead of value — checks if intraday low would have triggered deleverage
+      const currentUnderlyingLow = isShort // For shorts, worst case is when underlying goes UP (high), not down (low)
+        ? ohlcv[i].high   // Short position suffers most at the day's high price
+        : ohlcv[i].low;   // Long position suffers most at the day's low price
 
-      if (level === 5) {
+      const underlyingDD = (peakUnderlyingPrice - currentUnderlyingLow) / peakUnderlyingPrice; // Drawdown using intraday extreme — more conservative than close-only in line version
+      const level = getDeleverageLevelDirect(underlyingDD); // Map drawdown to severity level
+      let newLev = currentLev; // Start with current leverage
+
+      if (level === 5) { // 40%+ drawdown: liquidation
         newLev = 0;
-      } else if (level === 4) {
+      } else if (level === 4) { // 30%+ drawdown: force to 1x
         newLev = 1.0;
-      } else if (level === 3) {
+      } else if (level === 3) { // 22%+ drawdown: cap at 1.5x
         newLev = Math.min(currentLev, 1.5);
-      } else if (level === 2) {
+      } else if (level === 2) { // 15%+ drawdown: halve excess leverage
         newLev = 1 + (currentLev - 1) * 0.5;
-      } else if (level === 1) {
+      } else if (level === 1) { // 10%+ drawdown: reduce 25% of excess
         newLev = 1 + (currentLev - 1) * 0.75;
       }
 
-      if (newLev < currentLev) {
-        const slippageCost = level >= 5 ? 0.01 : level >= 4 ? 0.005 : level >= 3 ? 0.003 : 0.002;
-        value *= (1 - slippageCost);
-        totalSlippageCost += currentDeposit * slippageCost;
-        
-        events.push({ 
-          time: ohlcv[i].time, 
-          type: 'deleverage', 
-          from: currentLev, 
-          to: newLev, 
+      if (newLev < currentLev) { // Leverage reduction triggered — apply slippage and record event
+        const slippageCost = level >= 5 ? 0.01 : level >= 4 ? 0.005 : level >= 3 ? 0.003 : 0.002; // Graduated slippage by severity
+        value *= (1 - slippageCost); // Deduct slippage from close value
+        totalSlippageCost += currentDeposit * slippageCost; // Track cumulative cost
+
+        events.push({ // Log deleverage event for chart markers
+          time: ohlcv[i].time,
+          type: 'deleverage',
+          from: currentLev,
+          to: newLev,
           level: level,
           slippage: slippageCost
         });
-        totalDeleverageEvents++;
-        
-        if (newLev === 0) {
+        totalDeleverageEvents++; // Increment deleverage counter
+
+        if (newLev === 0) { // Liquidation — output a candle that shows the collapse to near-zero
           liquidated = true;
           result.push({
             time: ohlcv[i].time,
-            open: Math.max(o, 0.01),
-            high: Math.max(h, 0.01),
-            low: 0.01,
-            close: 0.01,
+            open: Math.max(o, 0.01),  // Floor at 0.01 so TradingView can still render the candle body
+            high: Math.max(h, 0.01),  // Same floor for high wick
+            low: 0.01,                // Low is at the floor — shows the collapse visually
+            close: 0.01,              // Close at floor, not zero, because TradingView log scale can't handle zero
             liquidated: true
           });
-          continue;
+          continue; // Skip to next day
         }
-        
-        currentDeposit = value;
-        currentEntry = price;
-        currentLev = newLev;
-        accruedFees = 0;
-        lastDeleverageDay = i;
+
+        currentDeposit = value; // Reset deposit to post-slippage value
+        currentEntry = price; // Reset entry for new leverage base
+        currentLev = newLev; // Apply reduced leverage
+        accruedFees = 0; // Reset fees (absorbed into new deposit)
+        lastDeleverageDay = i; // Record for cooldown timer
       }
     }
 
-    if (value > 0 && currentLev < leverage && i > circuitBreakerUntil) {
-      const daysSinceDelev = i - lastDeleverageDay;
-      
-      if (daysSinceDelev >= 5) {
-        const lookback = Math.min(3, i);
+    if (value > 0 && currentLev < leverage && i > circuitBreakerUntil) { // Releveraging check — same conditions as line version
+      const daysSinceDelev = i - lastDeleverageDay; // Cooldown check
+
+      if (daysSinceDelev >= 5) { // 5-day minimum cooldown before releveraging
+        const lookback = Math.min(3, i); // Look back up to 3 days for recovery signal
         const recentLow = Math.min(
           ...Array.from(
-            {length: lookback}, 
+            {length: lookback}, // Find the lowest close in the lookback window
             (_, k) => ohlcv[i - k].close
           )
         );
-        const recovering = ohlcv[i].close > recentLow * 1.005;
-        
-        if (recovering) {
-          const restored = Math.min(leverage, currentLev + 1.0);
-          if (restored > currentLev) {
-            const slippage = 0.001;
-            value *= (1 - slippage);
-            totalSlippageCost += currentDeposit * slippage;
-            
-            events.push({ 
-              time: ohlcv[i].time, 
-              type: 'relever', 
-              from: currentLev, 
+        const recovering = ohlcv[i].close > recentLow * 1.005; // 0.5% above recent low confirms recovery momentum
+
+        if (recovering) { // Market recovery confirmed — gradually restore leverage
+          const restored = Math.min(leverage, currentLev + 1.0); // Add back up to +1x per step — gradual to prevent whipsawing
+          if (restored > currentLev) { // Only if actually increasing
+            const slippage = 0.001; // 0.1% slippage for releveraging — lower urgency than deleverage
+            value *= (1 - slippage); // Deduct cost
+            totalSlippageCost += currentDeposit * slippage; // Track cumulative
+
+            events.push({ // Log releveraging event
+              time: ohlcv[i].time,
+              type: 'relever',
+              from: currentLev,
               to: restored,
               slippage: slippage
             });
-            totalReleverEvents++;
-            currentDeposit = value;
-            currentEntry = price;
-            currentLev = restored;
-            accruedFees = 0;
-            lastDeleverageDay = i;
-            
-            if (restored >= leverage) {
-              peakUnderlyingPrice = price;
-              lastFullLeverageDay = i;
+            totalReleverEvents++; // Increment counter
+            currentDeposit = value; // Reset deposit
+            currentEntry = price; // Reset entry
+            currentLev = restored; // Apply increased leverage
+            accruedFees = 0; // Reset fees
+            lastDeleverageDay = i; // Reset cooldown
+
+            if (restored >= leverage) { // Fully restored — reset peak watermark
+              peakUnderlyingPrice = price; // New peak prevents old drawdowns from re-triggering
+              lastFullLeverageDay = i; // Record restoration point
             }
           }
         }
       }
     }
 
-    if (minValue <= 0) {
+    if (minValue <= 0) { // Intraday liquidation — any OHLC price hit zero even if close recovered (can't actually recover from liquidation)
       liquidated = true;
       result.push({
         time: ohlcv[i].time,
-        open: Math.max(o, 0.01),
+        open: Math.max(o, 0.01),  // Floor values for TradingView rendering
         high: Math.max(h, 0.01),
-        low: 0.01,
-        close: 0.01,
+        low: 0.01,                // Show the collapse to minimum
+        close: 0.01,              // Close at floor
         liquidated: true
       });
-    } else {
-      if (currentLev < leverage) timeAtReducedLeverage++;
+    } else { // Position survives — output normal leveraged OHLC candle
+      if (currentLev < leverage) timeAtReducedLeverage++; // Count days at reduced leverage
       result.push({
         time: ohlcv[i].time,
-        open: +o.toFixed(4),
+        open: +o.toFixed(4),   // Clean floating point for each OHLC component
         high: +h.toFixed(4),
         low: +l.toFixed(4),
         close: +c.toFixed(4),
@@ -717,13 +731,13 @@ function simulateProtocolOHLC(ohlcv, leverage, isShort, disableFees = false) {
       });
     }
   }
-  
-  return { 
-    data: result, 
-    liquidated,
-    liqTime: liquidated ? result.find(r => r.liquidated)?.time : null,
-    events,
-    stats: {
+
+  return { // Same return structure as simulateProtocol for consistent consumption by updateAll()
+    data: result, // Array of OHLC bars for the candlestick chart
+    liquidated, // Whether position was liquidated
+    liqTime: liquidated ? result.find(r => r.liquidated)?.time : null, // Liquidation date for chart marker
+    events, // Event log shared with line version for markers
+    stats: { // Aggregate stats for risk panel
       totalDeleverageEvents,
       totalReleverEvents,
       totalSlippageCost,
@@ -733,326 +747,332 @@ function simulateProtocolOHLC(ohlcv, leverage, isShort, disableFees = false) {
   };
 }
 
-function applyDailyResetLeverage(ohlcv, leverage, short) {
-  const borrowAPR = 0.052;
-  const dailyBorrow = borrowAPR / 252;
-  const result = [];
-  let cumPrice = ohlcv[0].close;
-  let liquidated = false;
-  
-  for (let i = 0; i < ohlcv.length; i++) {
-    if (liquidated) {
+function applyDailyResetLeverage(ohlcv, leverage, short) { // Simulates traditional daily-reset leveraged ETF (like TQQQ/SQQQ) for comparison with LTAP's constant-from-entry model
+  const borrowAPR = 0.052; // 5.2% annual borrow rate — approximates the implicit cost of daily-reset leverage (margin + swap fees)
+  const dailyBorrow = borrowAPR / 252; // Convert to daily rate — deducted each day to simulate the ongoing cost of borrowing
+  const result = []; // Accumulates {time, value} points — same format as simulateProtocol output for comparison
+  let cumPrice = ohlcv[0].close; // Cumulative NAV starting at the underlying's close price — tracks the compounding effect of daily resets
+  let liquidated = false; // Tracks if the daily-reset product went to zero (extremely rare but possible in theory)
+
+  for (let i = 0; i < ohlcv.length; i++) { // Walk through each trading day
+    if (liquidated) { // Once liquidated, output zeros for remaining days
       result.push({ time: ohlcv[i].time, value: 0 });
       continue;
     }
-    
-    if (i === 0) { result.push({ time: ohlcv[i].time, value: cumPrice }); continue; }
-    const baseRet = ohlcv[i].close / ohlcv[i - 1].close - 1;
-    const effectiveRet = short ? -baseRet : baseRet;
-    const borrowMultiplier = short ? leverage : Math.max(0, leverage - 1);
-    cumPrice *= 1 + leverage * effectiveRet - borrowMultiplier * dailyBorrow;
-    
-    if (cumPrice <= 0) {
+
+    if (i === 0) { result.push({ time: ohlcv[i].time, value: cumPrice }); continue; } // Day 0 is just the starting value — no return to apply yet
+    const baseRet = ohlcv[i].close / ohlcv[i - 1].close - 1; // Daily return of the underlying — this is what gets leveraged each day
+    const effectiveRet = short ? -baseRet : baseRet; // Flip sign for short positions — a down day is a positive return for shorts
+    const borrowMultiplier = short ? leverage : Math.max(0, leverage - 1); // Shorts borrow the full notional; longs only borrow the excess above 1x (e.g., 2x borrows 1x)
+    cumPrice *= 1 + leverage * effectiveRet - borrowMultiplier * dailyBorrow; // Daily compounding: leveraged return minus borrow cost — THIS is the daily-reset decay that LTAP avoids
+
+    if (cumPrice <= 0) { // Theoretical liquidation — daily-reset products can't actually go negative, but this catches the edge case
       liquidated = true;
       cumPrice = 0;
     }
-    
-    result.push({ time: ohlcv[i].time, value: +cumPrice.toFixed(4) });
+
+    result.push({ time: ohlcv[i].time, value: +cumPrice.toFixed(4) }); // Output the compounded value — toFixed(4) prevents float noise
   }
-  return { data: result, liquidated };
+  return { data: result, liquidated }; // Return same format as simulateProtocol for comparison grid
 }
 
 // ═══════════════════════════════════════════════════
 // STATS
+// Calculates portfolio analytics for any price series —
+// used for base, LTAP, daily-reset, and no-fee comparison.
 // ═══════════════════════════════════════════════════
 
-function calcStats(series, years) {
-  const prices = series.map(s => s.value !== undefined ? s.value : s.close);
+function calcStats(series, years) { // Unified stats calculator — works for both {value} (line) and {close} (candlestick) series formats
+  const prices = series.map(s => s.value !== undefined ? s.value : s.close); // Normalize: line series use .value, OHLC series use .close — extract a single price array for calculation
 
-  let effectiveEnd = prices.length - 1;
-  let wasLiquidated = false;
-  for (let i = 1; i < prices.length; i++) {
+  let effectiveEnd = prices.length - 1; // Default to full series — shortened if liquidation found
+  let wasLiquidated = false; // Track liquidation to cap maxDD at -100% and CAGR at -100%
+  for (let i = 1; i < prices.length; i++) { // Scan for the first zero/negative price indicating liquidation
     if (prices[i] <= 0) {
-      effectiveEnd = i;
+      effectiveEnd = i; // Mark where the position died — stats only use data up to this point
       wasLiquidated = true;
-      break;
+      break; // Only need the first liquidation point
     }
   }
 
-  const livePrices = prices.slice(0, effectiveEnd + 1);
-  const returns = [];
-  for (let i = 1; i < livePrices.length; i++) {
-    if (livePrices[i - 1] > 0) {
-      returns.push(livePrices[i] / livePrices[i - 1] - 1);
+  const livePrices = prices.slice(0, effectiveEnd + 1); // Trim to only the "alive" portion — computing returns on zero-value days would produce NaN/Infinity
+  const returns = []; // Daily return array for volatility and Sharpe calculation
+  for (let i = 1; i < livePrices.length; i++) { // Compute daily returns from the live portion only
+    if (livePrices[i - 1] > 0) { // Guard against division by zero on the rare day a price is exactly 0
+      returns.push(livePrices[i] / livePrices[i - 1] - 1); // Simple return (not log return) — consistent with how leveraged products report performance
     }
   }
 
-  const finalPrice = wasLiquidated ? 0 : prices[prices.length - 1];
-  const totalReturn = prices[0] > 0 ? finalPrice / prices[0] - 1 : -1;
+  const finalPrice = wasLiquidated ? 0 : prices[prices.length - 1]; // If liquidated, final value is zero regardless of any post-liquidation data
+  const totalReturn = prices[0] > 0 ? finalPrice / prices[0] - 1 : -1; // Total return from start to end — handles edge case where starting price is zero (synthetic data error)
 
-  let cagr;
+  let cagr; // Compound annual growth rate — the most meaningful single return metric for multi-year backtests
   if (wasLiquidated || totalReturn <= -1) {
-    cagr = -1;
+    cagr = -1; // Cap at -100% — you can't lose more than everything in a leveraged token (unlike margin)
   } else {
     const effectiveYears = wasLiquidated
-      ? (effectiveEnd / prices.length) * years
-      : years;
+      ? (effectiveEnd / prices.length) * years // Pro-rate years if liquidated early — CAGR of a 2-year position that died after 6 months uses 0.5 years
+      : years; // Full period if no liquidation
     cagr = effectiveYears > 0
-      ? Math.pow(1 + totalReturn, 1 / effectiveYears) - 1
-      : 0;
+      ? Math.pow(1 + totalReturn, 1 / effectiveYears) - 1 // Standard CAGR formula: (1 + totalReturn)^(1/years) - 1
+      : 0; // Zero years means no meaningful CAGR
   }
 
   const mean = returns.length > 0
-    ? returns.reduce((a, b) => a + b, 0) / returns.length
-    : 0;
+    ? returns.reduce((a, b) => a + b, 0) / returns.length // Average daily return — needed for variance calculation
+    : 0; // No returns available (e.g., single-day series)
   const variance = returns.length > 0
-    ? returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length
-    : 0;
-  const vol = Math.sqrt(variance * 252);
-  const sharpe = vol > 0 ? (cagr - 0.04) / vol : 0;
+    ? returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length // Population variance of daily returns — measures dispersion
+    : 0; // No data means zero variance
+  const vol = Math.sqrt(variance * 252); // Annualize daily variance: multiply by trading days then sqrt — standard finance convention
+  const sharpe = vol > 0 ? (cagr - 0.04) / vol : 0; // Sharpe ratio with 4% risk-free rate (approximate T-bill yield) — measures risk-adjusted return
 
-  let peak = prices[0], maxDD = 0;
-  for (let i = 0; i < livePrices.length; i++) {
-    if (livePrices[i] > peak) peak = livePrices[i];
-    if (peak > 0) {
-      const dd = (livePrices[i] - peak) / peak;
-      if (dd < maxDD) maxDD = dd;
+  let peak = prices[0], maxDD = 0; // Peak tracks the high watermark; maxDD tracks the worst drawdown seen
+  for (let i = 0; i < livePrices.length; i++) { // Walk through prices to find maximum drawdown
+    if (livePrices[i] > peak) peak = livePrices[i]; // Update high watermark on new highs
+    if (peak > 0) { // Guard against zero peak (shouldn't happen but defensive)
+      const dd = (livePrices[i] - peak) / peak; // Current drawdown as negative fraction (e.g., -0.20 = 20% drawdown)
+      if (dd < maxDD) maxDD = dd; // Track the worst (most negative) drawdown
     }
   }
-  if (wasLiquidated) maxDD = -1;
+  if (wasLiquidated) maxDD = -1; // Override to -100% if liquidated — total loss regardless of intermediate drawdowns
 
-  return { totalReturn, cagr, vol, sharpe, maxDD, liquidated: wasLiquidated };
+  return { totalReturn, cagr, vol, sharpe, maxDD, liquidated: wasLiquidated }; // Return all stats for display in the comparison grid and stats panel
 }
 
 // ═══════════════════════════════════════════════════
 // TRADINGVIEW LIGHTWEIGHT CHARTS SETUP
+// TradingView Lightweight Charts is used instead of
+// heavier charting libs because it's performant with
+// 6,000+ data points (25 years of daily data) and
+// supports area, candlestick, and line series natively.
 // ═══════════════════════════════════════════════════
 
-const chartEl = document.getElementById('tv-chart');
-const chart = LightweightCharts.createChart(chartEl, {
-  layout: { background: { type: 'solid', color: '#0a0b0e' }, textColor: '#555970', fontFamily: "'JetBrains Mono', monospace", fontSize: 11 },
-  grid: { vertLines: { color: '#ffffff06' }, horzLines: { color: '#ffffff06' } },
+const chartEl = document.getElementById('tv-chart'); // Chart container div — sized by CSS and tracked by ResizeObserver for responsive layout
+const chart = LightweightCharts.createChart(chartEl, { // Create the main chart instance with dark theme matching the xLever terminal aesthetic
+  layout: { background: { type: 'solid', color: '#0a0b0e' }, textColor: '#555970', fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }, // Dark background with muted text — monospace font for financial data readability
+  grid: { vertLines: { color: '#ffffff06' }, horzLines: { color: '#ffffff06' } }, // Nearly invisible grid lines — visible enough for alignment but don't compete with data
   crosshair: {
-    mode: LightweightCharts.CrosshairMode.Normal,
-    vertLine: { color: '#555970', width: 1, style: 2, labelBackgroundColor: '#1a1d26' },
-    horzLine: { color: '#555970', width: 1, style: 2, labelBackgroundColor: '#1a1d26' },
+    mode: LightweightCharts.CrosshairMode.Normal, // Normal mode allows free crosshair movement — better for exploring data than magnetic mode
+    vertLine: { color: '#555970', width: 1, style: 2, labelBackgroundColor: '#1a1d26' }, // Dashed vertical crosshair line with dark label background
+    horzLine: { color: '#555970', width: 1, style: 2, labelBackgroundColor: '#1a1d26' }, // Matching horizontal crosshair — dashed (style 2) to distinguish from data lines
   },
-  rightPriceScale: { borderColor: '#252833', scaleMargins: { top: 0.15, bottom: 0.08 } },
-  timeScale: { borderColor: '#252833', timeVisible: false, rightOffset: 0, fixLeftEdge: false, fixRightEdge: false },
-  handleScroll: { vertTouchDrag: false },
+  rightPriceScale: { borderColor: '#252833', scaleMargins: { top: 0.15, bottom: 0.08 } }, // Top margin leaves room for chart markers (deleverage/relever arrows); bottom margin for axis labels
+  timeScale: { borderColor: '#252833', timeVisible: false, rightOffset: 0, fixLeftEdge: false, fixRightEdge: false }, // timeVisible false because we use daily bars (no intraday); no fixed edges to allow free scrolling
+  handleScroll: { vertTouchDrag: false }, // Disable vertical touch drag to prevent accidental chart scrolling on mobile — horizontal scroll still works
 });
 
-let levAreaSeries = null, levCandleSeries = null, levLineSeries = null, baseSeries = null, depositRefSeries = null;
+let levAreaSeries = null, levCandleSeries = null, levLineSeries = null, baseSeries = null, depositRefSeries = null; // Track all chart series globally so removeSeries() can clean them up before re-rendering
 
-function removeSeries() {
-  [levAreaSeries, levCandleSeries, levLineSeries, baseSeries, depositRefSeries].forEach(s => { if (s) chart.removeSeries(s); });
-  levAreaSeries = levCandleSeries = levLineSeries = baseSeries = depositRefSeries = null;
+function removeSeries() { // Clear all existing chart series before adding new ones — prevents series buildup on repeated updateAll() calls
+  [levAreaSeries, levCandleSeries, levLineSeries, baseSeries, depositRefSeries].forEach(s => { if (s) chart.removeSeries(s); }); // Iterate all possible series and remove any that exist
+  levAreaSeries = levCandleSeries = levLineSeries = baseSeries = depositRefSeries = null; // Reset references to null so we don't try to remove already-removed series next time
 }
 
-function getFiltered(period) {
-  const cut = new Date();
-  let years;
-  
+function getFiltered(period) { // Slice the master 25-year dataset down to the selected timeframe (1M, 1Y, 5Y, etc.) and return the corresponding year count for stats calculation
+  const cut = new Date(); // Start from today and subtract the period duration to get the cutoff date
+  let years; // Number of years for CAGR and fee calculations — must match the actual data window
+
   switch(period) {
-    case '1M':
+    case '1M': // 1 month lookback — useful for recent performance check
       cut.setMonth(cut.getMonth() - 1);
-      years = 1/12;
+      years = 1/12; // Fractional year for accurate CAGR annualization
       break;
-    case '3M':
+    case '3M': // 3 months — a quarter of performance data
       cut.setMonth(cut.getMonth() - 3);
       years = 3/12;
       break;
-    case '6M':
+    case '6M': // 6 months — half year, captures one earnings cycle
       cut.setMonth(cut.getMonth() - 6);
       years = 6/12;
       break;
-    case '1Y':
+    case '1Y': // 1 year — the default view, captures full seasonal cycle
       cut.setFullYear(cut.getFullYear() - 1);
       years = 1;
       break;
-    case '3Y':
+    case '3Y': // 3 years — captures at least one bull/bear cycle for leverage analysis
       cut.setFullYear(cut.getFullYear() - 3);
       years = 3;
       break;
-    case '5Y':
+    case '5Y': // 5 years — medium-term, shows how LTAP handles multiple drawdowns
       cut.setFullYear(cut.getFullYear() - 5);
       years = 5;
       break;
-    case '10Y':
+    case '10Y': // 10 years — includes 2020 COVID crash, 2022 bear market for stress testing
       cut.setFullYear(cut.getFullYear() - 10);
       years = 10;
       break;
-    case '25Y':
+    case '25Y': // 25 years — maximum history, includes dot-com, GFC, COVID, 2022
       cut.setFullYear(cut.getFullYear() - 25);
       years = 25;
       break;
-    case 'MAX':
+    case 'MAX': // MAX is the same as 25Y — we fetch 25 years of data maximum
       cut.setFullYear(cut.getFullYear() - 25);
       years = 25;
       break;
-    default:
+    default: // Fallback to 1 year if an unknown period is somehow passed
       cut.setFullYear(cut.getFullYear() - 1);
       years = 1;
   }
-  
-  const cutStr = cut.toISOString().split('T')[0];
-  return { data: allData.filter(d => d.time >= cutStr), years: years };
+
+  const cutStr = cut.toISOString().split('T')[0]; // Convert cutoff to ISO date string for string comparison with OHLCV time fields
+  return { data: allData.filter(d => d.time >= cutStr), years: years }; // Filter master data to only include bars on or after the cutoff date
 }
 
 
-function updateAll() {
-  const { data, years } = getFiltered(currentPeriod);
+function updateAll() { // Master render function — called on every user interaction (leverage change, timeframe change, chart type toggle, entry point click)
+  const { data, years } = getFiltered(currentPeriod); // Get the OHLCV data sliced to the selected timeframe and the corresponding year count
   // console.log(`Period: ${currentPeriod}, Data points: ${data.length}, Years: ${years}, First date: ${data[0]?.time}, Last date: ${data[data.length-1]?.time}`);
-  if (data.length < 2) return;
+  if (data.length < 2) return; // Need at least 2 data points to compute a return — single point has no movement
 
-  const isShort = currentLeverage < 0;
-  const absMag = Math.abs(currentLeverage);
+  const isShort = currentLeverage < 0; // Negative leverage means short position — LTAP supports both long and short
+  const absMag = Math.abs(currentLeverage); // Absolute leverage magnitude — used for fee calculation and simulation (direction handled separately)
 
-  // Use entryDateIndex for backtesting from a specific point
+  // Slice data from the user-selected entry point — enables "what if I entered on this date?" backtesting
   const backtestData = data.slice(entryDateIndex);
-  if (backtestData.length < 2) {
-    entryDateIndex = 0;
-    return updateAll();
+  if (backtestData.length < 2) { // Entry point too close to end of data — reset to start and re-render
+    entryDateIndex = 0; // Prevent stuck state where user clicked near the end of the chart
+    return updateAll(); // Recursive call with reset entry — safe because entryDateIndex is now 0
   }
 
-  const normBase = data.map(d => ({ time: d.time, value: +d.close.toFixed(4) }));
-  const levResult = simulateProtocol(backtestData, absMag, isShort, false);
-  const levOHLCResult = simulateProtocolOHLC(backtestData, absMag, isShort, false);
-  const dailyResetResult = applyDailyResetLeverage(backtestData, absMag, isShort);
-  const noFeeResult = simulateProtocol(backtestData, absMag, isShort, true);
+  const normBase = data.map(d => ({ time: d.time, value: +d.close.toFixed(4) })); // Normalized base (1x unleveraged) series — shown as gray reference line on the chart
+  const levResult = simulateProtocol(backtestData, absMag, isShort, false); // LTAP line simulation with fees — the primary output displayed as area/line chart
+  const levOHLCResult = simulateProtocolOHLC(backtestData, absMag, isShort, false); // LTAP candlestick simulation — same logic but outputs OHLC bars for candlestick view
+  const dailyResetResult = applyDailyResetLeverage(backtestData, absMag, isShort); // TQQQ-style daily-reset comparison — shows how daily rebalancing compares to LTAP's constant-from-entry
+  const noFeeResult = simulateProtocol(backtestData, absMag, isShort, true); // Fee-free LTAP simulation — isolates the fee drag so users can see how much fees cost them
 
-  const levLine = levResult.data;
-  const levOHLC = levOHLCResult.data;
-  const dailyResetLine = dailyResetResult.data;
-  const noFeeLine = noFeeResult.data;
-  
+  const levLine = levResult.data; // Extract data arrays from simulation results for charting
+  const levOHLC = levOHLCResult.data; // OHLC bars for candlestick view
+  const dailyResetLine = dailyResetResult.data; // Daily-reset comparison line
+  const noFeeLine = noFeeResult.data; // No-fee comparison line
+
   // console.log(`First lev value: ${levLine[0]?.value}, Last lev value: ${levLine[levLine.length-1]?.value}`);
 
-  const finalPnL = levLine[levLine.length - 1].value - levLine[0].value;
-  const isProfitable = finalPnL >= 0;
-  let accent;
+  const finalPnL = levLine[levLine.length - 1].value - levLine[0].value; // Raw P&L in dollar terms to determine if the position is profitable
+  const isProfitable = finalPnL >= 0; // Used to color the chart line green (profit) or red (loss)
+  let accent; // Dynamic accent color based on position outcome
   if (currentLeverage === 0) {
-    accent = '#555970';
+    accent = '#555970'; // Neutral gray for cash (0x) — no exposure, no P&L to colorize
   } else if (isProfitable) {
-    accent = '#00e676';
+    accent = '#00e676'; // Green for profitable positions — consistent with trading terminal conventions
   } else {
-    accent = '#ff5252';
+    accent = '#ff5252'; // Red for losing positions — immediately visible risk signal
   }
 
-  removeSeries();
+  removeSeries(); // Clear all existing chart series before adding new ones — prevents visual artifacts from previous renders
 
-  baseSeries = chart.addLineSeries({ color: '#555970', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
-  baseSeries.setData(normBase);
+  baseSeries = chart.addLineSeries({ color: '#555970', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }); // Unleveraged base (1x) shown as thin gray line — reference for how much leverage amplifies/reduces returns
+  baseSeries.setData(normBase); // Plot the full period base data (not sliced to entry) so user can see the underlying's full movement
 
-  const entryPrice = normBase[entryDateIndex].value;
-  depositRefSeries = chart.addLineSeries({
-    color: '#ffffff15', lineWidth: 1, lineStyle: 2,
-    crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false
+  const entryPrice = normBase[entryDateIndex].value; // Entry price for the deposit reference line — shows where the user's capital started
+  depositRefSeries = chart.addLineSeries({ // Horizontal dashed line at entry price — visual reference for breakeven level
+    color: '#ffffff15', lineWidth: 1, lineStyle: 2, // Very faint white, dashed — subtle enough to not distract from main data
+    crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false // Hide all auto-labels — this is a pure visual reference
   });
-  depositRefSeries.setData([
-    { time: backtestData[0].time, value: entryPrice },
-    { time: data[data.length - 1].time, value: entryPrice }
+  depositRefSeries.setData([ // Two points define the horizontal line — TradingView draws a line between them
+    { time: backtestData[0].time, value: entryPrice }, // Start at entry date
+    { time: data[data.length - 1].time, value: entryPrice } // Extend to end of data — shows breakeven level across the full chart
   ]);
 
-  if (currentChartType === 'area') {
-    levAreaSeries = chart.addAreaSeries({ lineColor: accent, topColor: accent + '30', bottomColor: accent + '05', lineWidth: 2, lastValueVisible: true, priceLineVisible: false, crosshairMarkerRadius: 4, crosshairMarkerBackgroundColor: accent });
-    levAreaSeries.setData(levLine);
-  } else if (currentChartType === 'candlestick') {
-    levCandleSeries = chart.addCandlestickSeries({ upColor: '#00e676', downColor: '#ff5252', borderUpColor: '#00e676', borderDownColor: '#ff5252', wickUpColor: '#00e67688', wickDownColor: '#ff525288', lastValueVisible: true, priceLineVisible: false });
-    levCandleSeries.setData(levOHLC);
-  } else {
-    levLineSeries = chart.addLineSeries({ color: accent, lineWidth: 2, lastValueVisible: true, priceLineVisible: false, crosshairMarkerRadius: 4 });
-    levLineSeries.setData(levLine);
+  if (currentChartType === 'area') { // Area chart (default) — filled area under the curve gives intuitive sense of growth/decline
+    levAreaSeries = chart.addAreaSeries({ lineColor: accent, topColor: accent + '30', bottomColor: accent + '05', lineWidth: 2, lastValueVisible: true, priceLineVisible: false, crosshairMarkerRadius: 4, crosshairMarkerBackgroundColor: accent }); // Gradient fill from 30% to 5% opacity — stronger color near the line, fading to nearly transparent at bottom
+    levAreaSeries.setData(levLine); // Plot the LTAP simulated line data
+  } else if (currentChartType === 'candlestick') { // Candlestick view — shows intraday OHLC action of the leveraged position
+    levCandleSeries = chart.addCandlestickSeries({ upColor: '#00e676', downColor: '#ff5252', borderUpColor: '#00e676', borderDownColor: '#ff5252', wickUpColor: '#00e67688', wickDownColor: '#ff525288', lastValueVisible: true, priceLineVisible: false }); // Green up / red down with semi-transparent wicks — standard candlestick colors
+    levCandleSeries.setData(levOHLC); // Plot the OHLC simulated candle data
+  } else { // Plain line chart — no fill, just the line for a cleaner look
+    levLineSeries = chart.addLineSeries({ color: accent, lineWidth: 2, lastValueVisible: true, priceLineVisible: false, crosshairMarkerRadius: 4 }); // Same accent color, 2px width for visibility
+    levLineSeries.setData(levLine); // Plot the LTAP simulated line data
   }
 
-  const activeSeries = levAreaSeries || levLineSeries || levCandleSeries;
-  if (activeSeries && activeSeries.setMarkers) {
-    const markers = [];
+  const activeSeries = levAreaSeries || levLineSeries || levCandleSeries; // Whichever series type is active — needed to attach markers to the correct series
+  if (activeSeries && activeSeries.setMarkers) { // Guard: candlestick series might not support markers in all versions
+    const markers = []; // Collect all markers before sorting and setting — TradingView requires markers in chronological order
 
-    if (levResult.events && levResult.events.length > 0) {
+    if (levResult.events && levResult.events.length > 0) { // Add markers for deleverage, relever, and circuit breaker events from the simulation
       levResult.events.forEach(evt => {
-        if (evt.type === 'deleverage') {
+        if (evt.type === 'deleverage') { // Yellow downward arrow above the bar — visually signals leverage reduction
           markers.push({
             time: evt.time,
-            position: 'aboveBar',
-            color: '#ffd740',
-            shape: 'arrowDown',
-            text: `DeLev ${evt.from.toFixed(1)}→${evt.to.toFixed(1)}× (L${evt.level}, -${(evt.slippage * 100).toFixed(1)}%)`
+            position: 'aboveBar', // Above bar so it doesn't overlap with the data line
+            color: '#ffd740', // Amber/yellow for warning — deleverage is protective, not catastrophic
+            shape: 'arrowDown', // Downward arrow indicates leverage is being reduced
+            text: `DeLev ${evt.from.toFixed(1)}→${evt.to.toFixed(1)}× (L${evt.level}, -${(evt.slippage * 100).toFixed(1)}%)` // Show the leverage change, severity level, and slippage cost
           });
-        } else if (evt.type === 'relever') {
+        } else if (evt.type === 'relever') { // Green upward arrow below the bar — leverage being restored is a positive signal
           markers.push({
             time: evt.time,
-            position: 'belowBar',
-            color: '#00e676',
-            shape: 'arrowUp',
-            text: `ReLev ${evt.from.toFixed(1)}→${evt.to.toFixed(1)}×`
+            position: 'belowBar', // Below bar to avoid overlapping with deleverage markers on the same day
+            color: '#00e676', // Green for positive action — leverage restoration means recovery
+            shape: 'arrowUp', // Upward arrow indicates leverage is increasing
+            text: `ReLev ${evt.from.toFixed(1)}→${evt.to.toFixed(1)}×` // Show the leverage restoration range
           });
-        } else if (evt.type === 'circuit_breaker') {
+        } else if (evt.type === 'circuit_breaker') { // Red circle above the bar — signals extreme market volatility
           markers.push({
             time: evt.time,
-            position: 'aboveBar',
-            color: '#ff8a80',
-            shape: 'circle',
-            text: `CB: ${evt.reason}`
+            position: 'aboveBar', // Above bar alongside deleverage markers
+            color: '#ff8a80', // Light red — urgent but not as severe as liquidation red
+            shape: 'circle', // Circle distinguishes circuit breakers from deleverage arrows
+            text: `CB: ${evt.reason}` // Shows whether it's YELLOW (5%+) or RED (8%+)
           });
         }
       });
     }
 
-    if (levResult.liquidated && levResult.liqTime) {
+    if (levResult.liquidated && levResult.liqTime) { // Special marker for liquidation event — the most critical event to highlight
       markers.push({
         time: levResult.liqTime,
-        position: 'belowBar',
-        color: '#ff5252',
-        shape: 'arrowDown',
-        text: 'LIQUIDATED'
+        position: 'belowBar', // Below bar to be visible even when price crashes to zero
+        color: '#ff5252', // Bright red — maximum severity
+        shape: 'arrowDown', // Downward arrow signals terminal decline
+        text: 'LIQUIDATED' // Clear, unambiguous label
       });
     }
 
-    // Add entry point marker if not at start
+    // Add entry point marker only when user has clicked to set a custom entry — not needed when starting from the beginning
     if (entryDateIndex > 0) {
       markers.push({
         time: backtestData[0].time,
-        position: 'belowBar',
-        color: '#7c4dff',
-        shape: 'circle',
-        text: `Entry: $${entryPrice.toFixed(2)}`
+        position: 'belowBar', // Below bar to be visible in the chart area
+        color: '#7c4dff', // Purple — distinct from green/red/yellow used for events
+        shape: 'circle', // Circle for static reference point (not an event)
+        text: `Entry: $${entryPrice.toFixed(2)}` // Show the entry price for context
       });
     }
 
-    if (markers.length > 0) {
-      markers.sort((a, b) => a.time.localeCompare(b.time));
-      activeSeries.setMarkers(markers);
+    if (markers.length > 0) { // Only set markers if we have any — avoid unnecessary API calls
+      markers.sort((a, b) => a.time.localeCompare(b.time)); // TradingView requires markers sorted chronologically — unsorted markers cause rendering bugs
+      activeSeries.setMarkers(markers); // Apply all markers to the active series at once
     }
   }
 
-  // Force chart to show all data
+  // Force chart to show all data in the viewport — prevents the chart from being zoomed to an arbitrary range after re-rendering
   if (data.length > 0) {
-    chart.timeScale().setVisibleLogicalRange({
-      from: 0,
-      to: data.length - 1,
+    chart.timeScale().setVisibleLogicalRange({ // Set explicit visible range to show the full dataset
+      from: 0, // Start at the first data point
+      to: data.length - 1, // End at the last data point
     });
   } else {
-    chart.timeScale().fitContent();
+    chart.timeScale().fitContent(); // Fallback: let TradingView auto-fit — shouldn't happen but defensive
   }
 
-  const levStats = calcStats(levLine, years);
-  const baseLineStats = calcStats(normBase, years);
-  const dailyResetStats = calcStats(dailyResetLine, years);
-  const noFeeStats = calcStats(noFeeLine, years);
+  const levStats = calcStats(levLine, years); // Calculate stats for the LTAP leveraged series — feeds the main stats panel
+  const baseLineStats = calcStats(normBase, years); // Calculate stats for the unleveraged base — used for volatility multiple comparison
+  const dailyResetStats = calcStats(dailyResetLine, years); // Calculate stats for daily-reset comparison — shows LTAP vs TQQQ-style advantage
+  const noFeeStats = calcStats(noFeeLine, years); // Calculate stats for no-fee version — isolates fee drag impact
 
-  const finalVal = levLine[levLine.length - 1].value;
-  const directionLabel = absMag === 0 ? 'CASH' : (isShort ? 'SHORT' : 'LONG');
-  const directionColor = absMag === 0 ? '#555970' : (isShort ? '#ff5252' : '#00e676');
-  
-  const overlayPriceEl = document.getElementById('overlayPrice');
-  if (levResult.liquidated) {
-    overlayPriceEl.textContent = '$0.00';
-    overlayPriceEl.style.color = '#ff5252';
-    let liqBadge = document.getElementById('liqBadge');
-    if (!liqBadge) {
+  const finalVal = levLine[levLine.length - 1].value; // Final NAV of the LTAP position — displayed as the main price on the overlay
+  const directionLabel = absMag === 0 ? 'CASH' : (isShort ? 'SHORT' : 'LONG'); // Human-readable direction label for the overlay header
+  const directionColor = absMag === 0 ? '#555970' : (isShort ? '#ff5252' : '#00e676'); // Color-code: gray for cash, red for short, green for long — immediate visual direction cue
+
+  const overlayPriceEl = document.getElementById('overlayPrice'); // Main price display element overlaid on the top-left of the chart
+  if (levResult.liquidated) { // Position was liquidated — show zero price and a prominent liquidation badge
+    overlayPriceEl.textContent = '$0.00'; // Liquidated position is worth nothing
+    overlayPriceEl.style.color = '#ff5252'; // Red price to signal total loss
+    let liqBadge = document.getElementById('liqBadge'); // Check if liquidation badge already exists from a previous render
+    if (!liqBadge) { // Create the badge only once — subsequent renders just update its text and show/hide it
       liqBadge = document.createElement('div');
-      liqBadge.id = 'liqBadge';
+      liqBadge.id = 'liqBadge'; // ID for finding it on subsequent renders
       liqBadge.style.cssText = `
         display:inline-block;
         background:#ff525233;
@@ -1064,191 +1084,191 @@ function updateAll() {
         border-radius:4px;
         margin-top:4px;
         letter-spacing:0.5px;
-      `;
-      overlayPriceEl.parentNode.insertBefore(liqBadge, overlayPriceEl.nextSibling);
+      `; // Red bordered badge with semi-transparent red background — visually distinct warning element
+      overlayPriceEl.parentNode.insertBefore(liqBadge, overlayPriceEl.nextSibling); // Insert right after the price display
     }
-    liqBadge.textContent = `LIQUIDATED ${levResult.liqTime}`;
-    liqBadge.style.display = 'inline-block';
-  } else {
-    overlayPriceEl.textContent = '$' + finalVal.toFixed(2);
-    overlayPriceEl.style.color = '';
+    liqBadge.textContent = `LIQUIDATED ${levResult.liqTime}`; // Show when the liquidation occurred so user knows the exact date
+    liqBadge.style.display = 'inline-block'; // Make visible
+  } else { // Position is still alive — show current NAV and hide any liquidation badge
+    overlayPriceEl.textContent = '$' + finalVal.toFixed(2); // Display current value with 2 decimal places (dollar precision)
+    overlayPriceEl.style.color = ''; // Reset to default color (inherits from CSS based on profit/loss)
     const liqBadge = document.getElementById('liqBadge');
-    if (liqBadge) liqBadge.style.display = 'none';
+    if (liqBadge) liqBadge.style.display = 'none'; // Hide the badge — position is not liquidated in this scenario
   }
-  
-  const signedDisplay = currentLeverage > 0
-    ? '+' + absMag.toFixed(1)
-    : currentLeverage < 0
-      ? '-' + absMag.toFixed(1)
-      : '0';
 
-  if (absMag === 0) {
+  const signedDisplay = currentLeverage > 0 // Format leverage with explicit sign for clarity — "+2.0" vs "-2.0" vs "0"
+    ? '+' + absMag.toFixed(1) // Positive leverage gets a plus sign
+    : currentLeverage < 0
+      ? '-' + absMag.toFixed(1) // Negative leverage gets a minus sign
+      : '0'; // Zero leverage shown as plain "0"
+
+  if (absMag === 0) { // Cash position (0x leverage) — special label indicating no market exposure
     document.getElementById('overlayLabel').innerHTML = `${currentTicker} — <span style="color:#555970">CASH</span> 0× (No exposure)`;
-  } else if (absMag < 0.5 && absMag > 0) {
+  } else if (absMag < 0.5 && absMag > 0) { // Sub-0.5x leverage — warn user this provides minimal exposure (unusual use case)
     document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}× <span style="font-size:9px;color:var(--text-muted);">(Minimal exposure)</span>`;
-  } else {
+  } else { // Normal leverage range (0.5x to 4x) — standard label with ticker, direction, and magnitude
     document.getElementById('overlayLabel').innerHTML = `Leveraged ${currentTicker} — <span style="color:${directionColor}">${directionLabel}</span> ${signedDisplay}×`;
   }
-  const pct = levStats.totalReturn * 100;
-  const chEl = document.getElementById('overlayChange');
-  chEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-  chEl.className = 'price-change mono ' + (pct >= 0 ? 'positive' : 'negative');
-  document.getElementById('legendLev').textContent = `${signedDisplay}× LTAP`;
+  const pct = levStats.totalReturn * 100; // Convert decimal return to percentage for display (e.g., 0.15 -> 15.00%)
+  const chEl = document.getElementById('overlayChange'); // Percentage change element below the price overlay
+  chEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%'; // Explicit plus sign for positive returns — makes direction unambiguous
+  chEl.className = 'price-change mono ' + (pct >= 0 ? 'positive' : 'negative'); // CSS class toggles green/red color based on profit/loss
+  document.getElementById('legendLev').textContent = `${signedDisplay}× LTAP`; // Update the chart legend to show current leverage and "LTAP" label
 
-  document.getElementById('statMDD').textContent = (levStats.maxDD * 100).toFixed(1) + '%';
-  document.getElementById('statSharpe').textContent = levStats.sharpe.toFixed(2);
-  document.getElementById('statSharpe').className = 'stat-value ' + (levStats.sharpe > 0 ? 'positive' : 'negative');
-  
-  const baseVol = baseLineStats.vol;
-  const levVol = levStats.vol;
-  const volMultiple = baseVol > 0 ? levVol / baseVol : 0;
-  const volEl = document.getElementById('statVol');
-  volEl.textContent = (levVol * 100).toFixed(1) + '% (' + volMultiple.toFixed(1) + '× base)';
-  if (volMultiple > 3) {
+  document.getElementById('statMDD').textContent = (levStats.maxDD * 100).toFixed(1) + '%'; // Max drawdown displayed as percentage — always negative, -100% means liquidation
+  document.getElementById('statSharpe').textContent = levStats.sharpe.toFixed(2); // Sharpe ratio to 2 decimal places — risk-adjusted return metric
+  document.getElementById('statSharpe').className = 'stat-value ' + (levStats.sharpe > 0 ? 'positive' : 'negative'); // Green if positive Sharpe (risk-adjusted profit), red if negative (not worth the risk)
+
+  const baseVol = baseLineStats.vol; // Annualized volatility of the unleveraged underlying — baseline for comparison
+  const levVol = levStats.vol; // Annualized volatility of the LTAP leveraged position
+  const volMultiple = baseVol > 0 ? levVol / baseVol : 0; // How many times more volatile the leveraged position is vs the base — e.g., 2.1× means 2.1x more volatile
+  const volEl = document.getElementById('statVol'); // Volatility display element in the stats panel
+  volEl.textContent = (levVol * 100).toFixed(1) + '% (' + volMultiple.toFixed(1) + '× base)'; // Show both absolute vol and the multiple for context
+  if (volMultiple > 3) { // 3x+ vol multiple is dangerously high — color red as a warning
     volEl.className = 'stat-value negative';
-  } else if (volMultiple > 2) {
+  } else if (volMultiple > 2) { // 2x-3x vol multiple is elevated but manageable — amber warning
     volEl.style.color = '#ffd740';
     volEl.className = 'stat-value';
-  } else {
+  } else { // Under 2x vol multiple is expected for reasonable leverage — no color warning
     volEl.className = 'stat-value';
     volEl.style.color = '';
   }
-  document.getElementById('statCAGR').textContent = (levStats.cagr >= 0 ? '+' : '') + (levStats.cagr * 100).toFixed(1) + '%';
-  document.getElementById('statCAGR').className = 'stat-value ' + (levStats.cagr >= 0 ? 'positive' : 'negative');
+  document.getElementById('statCAGR').textContent = (levStats.cagr >= 0 ? '+' : '') + (levStats.cagr * 100).toFixed(1) + '%'; // CAGR with explicit plus sign for positive values
+  document.getElementById('statCAGR').className = 'stat-value ' + (levStats.cagr >= 0 ? 'positive' : 'negative'); // Green/red coloring based on whether CAGR is positive or negative
 
-  const feeDragEl = document.getElementById('statFeeDrag');
-  if (levStats.liquidated && !noFeeStats.liquidated) {
+  const feeDragEl = document.getElementById('statFeeDrag'); // Fee drag stat — shows how much performance the LTAP fees cost relative to a fee-free version
+  if (levStats.liquidated && !noFeeStats.liquidated) { // FATAL: fees caused the liquidation that wouldn't have happened without them — fees were the difference between survival and death
     feeDragEl.textContent = 'FATAL';
-    feeDragEl.style.color = '#ff5252';
-  } else if (levStats.liquidated && noFeeStats.liquidated) {
+    feeDragEl.style.color = '#ff5252'; // Bright red to highlight that fees were catastrophic in this scenario
+  } else if (levStats.liquidated && noFeeStats.liquidated) { // Both versions liquidated — fee drag is irrelevant since the position dies regardless
     feeDragEl.textContent = 'N/A (liq)';
-    feeDragEl.style.color = '#555970';
-  } else {
-    const feeDragPct = (noFeeStats.totalReturn - levStats.totalReturn) * 100;
-    feeDragEl.textContent = '-' + Math.abs(feeDragPct).toFixed(1) + '%';
-    feeDragEl.style.color = '';
+    feeDragEl.style.color = '#555970'; // Muted gray — not actionable information
+  } else { // Normal case: both versions survive — show the percentage difference attributable to fees
+    const feeDragPct = (noFeeStats.totalReturn - levStats.totalReturn) * 100; // Difference between no-fee and with-fee returns — always positive (fees always reduce returns)
+    feeDragEl.textContent = '-' + Math.abs(feeDragPct).toFixed(1) + '%'; // Show as negative to indicate cost
+    feeDragEl.style.color = ''; // Default color — fee drag is expected, not an alarm
   }
 
-  const vsDaily = (levStats.totalReturn - dailyResetStats.totalReturn) * 100;
-  const vsDailyEl = document.getElementById('statVsDaily');
-  vsDailyEl.textContent = (vsDaily >= 0 ? '+' : '') + vsDaily.toFixed(1) + '%';
-  vsDailyEl.className = 'stat-value ' + (vsDaily >= 0 ? 'positive' : 'negative');
+  const vsDaily = (levStats.totalReturn - dailyResetStats.totalReturn) * 100; // LTAP advantage over daily-reset (TQQQ-style) — positive means LTAP outperforms, which is the main selling point
+  const vsDailyEl = document.getElementById('statVsDaily'); // Display element for the LTAP vs daily-reset comparison
+  vsDailyEl.textContent = (vsDaily >= 0 ? '+' : '') + vsDaily.toFixed(1) + '%'; // Explicit plus sign when LTAP wins — makes the advantage immediately visible
+  vsDailyEl.className = 'stat-value ' + (vsDaily >= 0 ? 'positive' : 'negative'); // Green when LTAP outperforms daily-reset — reinforces the protocol's value proposition
 
-  document.getElementById('dynamicTicker').textContent = `${currentTicker} × ${signedDisplay}`;
-  document.getElementById('levDisplay').textContent = `${signedDisplay}×`;
-  document.getElementById('mobileLevDisplay').textContent = `${signedDisplay}×`;
+  document.getElementById('dynamicTicker').textContent = `${currentTicker} × ${signedDisplay}`; // Header ticker display — shows "QQQ × +2.0" to indicate current configuration
+  document.getElementById('levDisplay').textContent = `${signedDisplay}×`; // Desktop leverage display next to the slider
+  document.getElementById('mobileLevDisplay').textContent = `${signedDisplay}×`; // Mobile leverage display — duplicate because desktop and mobile have separate slider UIs
+
+  document.getElementById('legendBase').textContent = `${currentTicker} (1×)`; // Chart legend for the gray base line — clarifies it's the unleveraged underlying
+  document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`; // Comparison grid base ticker label
+  document.getElementById('dataSourceTicker').textContent = currentTicker; // Data source indicator showing which ticker's data is being displayed
   
-  document.getElementById('legendBase').textContent = `${currentTicker} (1×)`;
-  document.getElementById('compBaseTicker').textContent = `${currentTicker} 1×`;
-  document.getElementById('dataSourceTicker').textContent = currentTicker;
-  
-  const tickerNames = {
-    'QQQ': 'QQQ (Nasdaq-100)', 'SPY': 'SPY (S&P 500)',
-    'AAPL': 'AAPL (Apple)', 'NVDA': 'NVDA (NVIDIA)', 'TSLA': 'TSLA (Tesla)',
-    'SMH': 'SMH (Semiconductors ETF)', 'CEG': 'CEG (Constellation Energy)',
-    'DELL': 'DELL (Dell Technologies)', 'VRT': 'VRT (Vertiv)', 'SMCI': 'SMCI (Super Micro)',
-    'ANET': 'ANET (Arista Networks)', 'GEV': 'GEV (GE Vernova)', 'SMR': 'SMR (NuScale Power)',
-    'KLAC': 'KLAC (KLA Corp)', 'LRCX': 'LRCX (Lam Research)', 'AMAT': 'AMAT (Applied Materials)',
-    'TER': 'TER (Teradyne)', 'ETN': 'ETN (Eaton Corp)', 'PWR': 'PWR (Quanta Services)',
-    'APLD': 'APLD (Applied Digital)', 'SNDK': 'SNDK (Sandisk)',
-    'XLE': 'XLE (Energy Sector ETF)', 'XOP': 'XOP (Oil & Gas ETF)',
-    'ITA': 'ITA (Aerospace & Defense ETF)', 'VGK': 'VGK (Europe ETF)',
-    'VUG': 'VUG (Growth ETF)', 'VXUS': 'VXUS (Intl Stock ETF)', 'SGOV': 'SGOV (Treasury Bond ETF)',
-    'SLV': 'SLV (Silver Trust)', 'PPLT': 'PPLT (Platinum)', 'PALL': 'PALL (Palladium)',
-    'STRK': 'STRK (Strategy/MSTR)', 'BTGO': 'BTGO (BitGo)',
+  const tickerNames = { // Human-readable names for all supported tickers — shown in the underlying name display so users know what they're backtesting
+    'QQQ': 'QQQ (Nasdaq-100)', 'SPY': 'SPY (S&P 500)', // Primary LTAP products — index ETFs with deep liquidity
+    'AAPL': 'AAPL (Apple)', 'NVDA': 'NVDA (NVIDIA)', 'TSLA': 'TSLA (Tesla)', // Mega-cap tech stocks — popular single-stock leverage candidates
+    'SMH': 'SMH (Semiconductors ETF)', 'CEG': 'CEG (Constellation Energy)', // Sector plays — semiconductors and nuclear energy
+    'DELL': 'DELL (Dell Technologies)', 'VRT': 'VRT (Vertiv)', 'SMCI': 'SMCI (Super Micro)', // AI infrastructure plays — high-vol stocks that benefit most from LTAP's anti-decay design
+    'ANET': 'ANET (Arista Networks)', 'GEV': 'GEV (GE Vernova)', 'SMR': 'SMR (NuScale Power)', // Networking and energy infrastructure
+    'KLAC': 'KLAC (KLA Corp)', 'LRCX': 'LRCX (Lam Research)', 'AMAT': 'AMAT (Applied Materials)', // Semiconductor equipment stocks — cyclical, good stress-test for auto-deleverage
+    'TER': 'TER (Teradyne)', 'ETN': 'ETN (Eaton Corp)', 'PWR': 'PWR (Quanta Services)', // Industrial and infrastructure plays
+    'APLD': 'APLD (Applied Digital)', 'SNDK': 'SNDK (Sandisk)', // Smaller-cap / higher-vol names
+    'XLE': 'XLE (Energy Sector ETF)', 'XOP': 'XOP (Oil & Gas ETF)', // Energy sector ETFs — different vol profile than tech
+    'ITA': 'ITA (Aerospace & Defense ETF)', 'VGK': 'VGK (Europe ETF)', // Defense and international exposure
+    'VUG': 'VUG (Growth ETF)', 'VXUS': 'VXUS (Intl Stock ETF)', 'SGOV': 'SGOV (Treasury Bond ETF)', // Broad market and fixed income — low-vol options for conservative leverage
+    'SLV': 'SLV (Silver Trust)', 'PPLT': 'PPLT (Platinum)', 'PALL': 'PALL (Palladium)', // Precious metals — commodity exposure with leverage
+    'STRK': 'STRK (Strategy/MSTR)', 'BTGO': 'BTGO (BitGo)', // Crypto-adjacent equities — extremely high vol, maximum stress-test for the protocol
   };
-  document.getElementById('underlyingName').textContent = tickerNames[currentTicker] || currentTicker;
+  document.getElementById('underlyingName').textContent = tickerNames[currentTicker] || currentTicker; // Show full name if mapped, otherwise fall back to raw ticker symbol
 
-  const fmt = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
-  const cls = v => v >= 0 ? 'positive' : 'negative';
-  
-  document.getElementById('compQQQ').textContent = fmt(baseLineStats.totalReturn);
-  document.getElementById('compQQQ').className = 'comp-return ' + cls(baseLineStats.totalReturn);
-  
-  document.getElementById('compLev').textContent = fmt(levStats.totalReturn);
-  document.getElementById('compLev').className = 'comp-return ' + cls(levStats.totalReturn);
-  document.getElementById('compLevTicker').textContent = `${currentTicker} ${signedDisplay}× (Protocol)`;
-  
-  document.getElementById('compDaily').textContent = fmt(dailyResetStats.totalReturn);
-  document.getElementById('compDaily').className = 'comp-return ' + cls(dailyResetStats.totalReturn);
-  document.getElementById('compDailyTicker').textContent = `${currentTicker} ${signedDisplay}× (Daily)`;
-  
-  document.getElementById('compNoFee').textContent = fmt(noFeeStats.totalReturn);
-  document.getElementById('compNoFee').className = 'comp-return ' + cls(noFeeStats.totalReturn);
-  document.getElementById('compNoFeeTicker').textContent = `${currentTicker} ${signedDisplay}× (No Fees)`;
+  const fmt = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%'; // Format return as signed percentage — reusable formatter for the 4-column comparison grid
+  const cls = v => v >= 0 ? 'positive' : 'negative'; // CSS class selector for green/red coloring — reusable across all comparison cells
 
-  const annualFee = getLTAPFee(absMag);
-  document.getElementById('annualFee').textContent = (annualFee * 100).toFixed(1) + '% APR';
+  document.getElementById('compQQQ').textContent = fmt(baseLineStats.totalReturn); // Base (1x) return — the benchmark everything is measured against
+  document.getElementById('compQQQ').className = 'comp-return ' + cls(baseLineStats.totalReturn); // Color the base return green/red
 
-  const totalPool = 10000000;
-  const juniorRatio = 0.35;
-  const juniorDeposits = totalPool * juniorRatio;
-  const seniorDeposits = totalPool * (1 - juniorRatio);
-  const totalAnnualFees = seniorDeposits * annualFee;
-  const juniorAnnualShare = totalAnnualFees * 0.70;
-  const insuranceAnnualShare = totalAnnualFees * 0.20;
-  const juniorAPY = juniorDeposits > 0 ? (juniorAnnualShare / juniorDeposits) * 100 : 0;
-  const insuranceAccumulated = insuranceAnnualShare * years;
+  document.getElementById('compLev').textContent = fmt(levStats.totalReturn); // LTAP protocol return — the main product performance
+  document.getElementById('compLev').className = 'comp-return ' + cls(levStats.totalReturn); // Color based on profit/loss
+  document.getElementById('compLevTicker').textContent = `${currentTicker} ${signedDisplay}× (Protocol)`; // Label with ticker and leverage for clarity — "(Protocol)" distinguishes from daily-reset
+
+  document.getElementById('compDaily').textContent = fmt(dailyResetStats.totalReturn); // Daily-reset (TQQQ-style) return — the competitor product for comparison
+  document.getElementById('compDaily').className = 'comp-return ' + cls(dailyResetStats.totalReturn); // Color based on profit/loss
+  document.getElementById('compDailyTicker').textContent = `${currentTicker} ${signedDisplay}× (Daily)`; // "(Daily)" label distinguishes from LTAP protocol version
+
+  document.getElementById('compNoFee').textContent = fmt(noFeeStats.totalReturn); // No-fee LTAP return — shows the theoretical maximum if fees were zero
+  document.getElementById('compNoFee').className = 'comp-return ' + cls(noFeeStats.totalReturn); // Color based on profit/loss
+  document.getElementById('compNoFeeTicker').textContent = `${currentTicker} ${signedDisplay}× (No Fees)`; // "(No Fees)" label clarifies this is a hypothetical comparison
+
+  const annualFee = getLTAPFee(absMag); // Calculate the annual fee for the current leverage level — displayed in the fee info panel
+  document.getElementById('annualFee').textContent = (annualFee * 100).toFixed(1) + '% APR'; // Show fee as percentage APR — e.g., "1.0% APR" for 2x leverage
+
+  const totalPool = 10000000; // Assume $10M total vault pool for illustrative fee economics — used only for the junior tranche APY estimate display
+  const juniorRatio = 0.35; // 35% of the pool is junior tranche (first-loss capital) — this ratio determines how much fee income junior depositors earn
+  const juniorDeposits = totalPool * juniorRatio; // Dollar amount in the junior tranche — fee income denominator
+  const seniorDeposits = totalPool * (1 - juniorRatio); // Dollar amount in the senior tranche — these are the leveraged positions paying fees
+  const totalAnnualFees = seniorDeposits * annualFee; // Total fees collected from all senior (leveraged) positions per year
+  const juniorAnnualShare = totalAnnualFees * 0.70; // 70% of fees flow to junior depositors as yield — they bear first-loss risk so they get the lion's share
+  const insuranceAnnualShare = totalAnnualFees * 0.20; // 20% of fees go to the insurance fund — builds a safety buffer for extreme events beyond the junior tranche
+  const juniorAPY = juniorDeposits > 0 ? (juniorAnnualShare / juniorDeposits) * 100 : 0; // Junior tranche APY: their fee income divided by their deposits — higher leverage = higher APY for junior depositors
+  const insuranceAccumulated = insuranceAnnualShare * years; // Total insurance fund accumulation over the backtest period — shows how large the safety buffer grows over time
+
+  document.getElementById('juniorRatio').textContent = `${((1-juniorRatio)*100).toFixed(0)}% Senior / ${(juniorRatio*100).toFixed(0)}% Junior`; // Display the vault composition ratio
+  document.getElementById('juniorAPY').textContent = '+' + juniorAPY.toFixed(1) + '%'; // Junior tranche yield — always positive since it comes from fee income
+  document.getElementById('insuranceFund').textContent = '$' + (insuranceAccumulated / 1000).toFixed(0) + 'k'; // Insurance fund size in thousands — shows the accumulated safety buffer
+
+  const absLev = absMag; // Alias for readability in the buffer requirement calculation
+  let requiredBuffer = 0.20; // Base buffer requirement: 20% junior ratio minimum for leverage up to 1.5x
+  if (absLev > 1.5) requiredBuffer = 0.22; // Higher leverage requires larger junior buffer to absorb potential losses — 22% for >1.5x
+  if (absLev > 2.0) requiredBuffer = 0.25; // 25% buffer for >2x — each step up increases the required first-loss capital
+  if (absLev > 2.5) requiredBuffer = 0.28; // 28% for >2.5x — approaching aggressive territory
+  if (absLev > 3.0) requiredBuffer = 0.30; // 30% for >3x — high leverage needs substantial protection
+  if (absLev > 3.5) requiredBuffer = 0.33; // 33% for >3.5x — near-maximum leverage requires the largest buffer
+
+  let dynamicMax = 4.0; // Dynamic maximum leverage cap — reduces when junior tranche is too thin relative to senior
+  if (juniorRatio < 0.40) dynamicMax = 3.0; // Cap at 3x if junior ratio drops below 40% — insufficient first-loss capital for 4x exposure
+  if (juniorRatio < 0.30) dynamicMax = 2.0; // Cap at 2x for <30% — conservative limit when buffer is thin
+  if (juniorRatio < 0.20) dynamicMax = 1.5; // Cap at 1.5x for <20% — near-minimum buffer, only allow minimal leverage
+
+  const bufferHealthy = juniorRatio >= requiredBuffer; // Check if the current junior ratio meets the minimum for the selected leverage
+  const bufferEl = document.getElementById('bufferHealth'); // Buffer health indicator element in the risk panel
   
-  document.getElementById('juniorRatio').textContent = `${((1-juniorRatio)*100).toFixed(0)}% Senior / ${(juniorRatio*100).toFixed(0)}% Junior`;
-  document.getElementById('juniorAPY').textContent = '+' + juniorAPY.toFixed(1) + '%';
-  document.getElementById('insuranceFund').textContent = '$' + (insuranceAccumulated / 1000).toFixed(0) + 'k';
-  
-  const absLev = absMag;
-  let requiredBuffer = 0.20;
-  if (absLev > 1.5) requiredBuffer = 0.22;
-  if (absLev > 2.0) requiredBuffer = 0.25;
-  if (absLev > 2.5) requiredBuffer = 0.28;
-  if (absLev > 3.0) requiredBuffer = 0.30;
-  if (absLev > 3.5) requiredBuffer = 0.33;
-  
-  let dynamicMax = 4.0;
-  if (juniorRatio < 0.40) dynamicMax = 3.0;
-  if (juniorRatio < 0.30) dynamicMax = 2.0;
-  if (juniorRatio < 0.20) dynamicMax = 1.5;
-  
-  const bufferHealthy = juniorRatio >= requiredBuffer;
-  const bufferEl = document.getElementById('bufferHealth');
-  
-  if (absLev > dynamicMax) {
-    bufferEl.textContent = '⚠ Exceeds Dynamic Cap (' + dynamicMax.toFixed(1) + '×)';
-    bufferEl.className = 'row-value negative';
-  } else if (bufferHealthy) {
+  if (absLev > dynamicMax) { // Leverage exceeds the dynamic cap based on current junior ratio — warn the user
+    bufferEl.textContent = '⚠ Exceeds Dynamic Cap (' + dynamicMax.toFixed(1) + '×)'; // Show the actual cap so user knows what's allowed
+    bufferEl.className = 'row-value negative'; // Red warning — this leverage level wouldn't be permitted on-chain
+  } else if (bufferHealthy) { // Junior ratio meets the requirement for the current leverage — all good
     bufferEl.textContent = '✓ Healthy';
-    bufferEl.className = 'row-value positive';
-  } else {
+    bufferEl.className = 'row-value positive'; // Green — buffer is sufficient for this leverage level
+  } else { // Junior ratio is below the requirement — the vault would need more first-loss capital
     bufferEl.textContent = '⚠ Undercapitalized';
-    bufferEl.className = 'row-value negative';
+    bufferEl.className = 'row-value negative'; // Red — leverage is technically allowed but buffer is thin
   }
 
-  document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage));
+  document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage)); // Highlight the quick-select leverage button that matches the current slider value
 
-  const riskPct = Math.min(100, (absMag / 4.0) * 100);
-  const rf = document.getElementById('riskFill');
-  rf.style.width = riskPct + '%';
-  
-  let riskLabel = 'No Exposure';
-  if (absMag > 0 && absMag <= 1) {
-    riskLabel = isShort ? 'Conservative Short' : 'Conservative';
-    rf.style.background = 'var(--green)';
-  } else if (absMag > 1 && absMag <= 2) {
+  const riskPct = Math.min(100, (absMag / 4.0) * 100); // Risk meter fill: 0x = 0%, 4x = 100% — linear mapping of leverage to risk bar width
+  const rf = document.getElementById('riskFill'); // The colored fill element inside the risk meter bar
+  rf.style.width = riskPct + '%'; // Set the fill width proportional to leverage magnitude
+
+  let riskLabel = 'No Exposure'; // Default label for 0x leverage — changes based on leverage bands below
+  if (absMag > 0 && absMag <= 1) { // Sub-1x leverage: conservative territory — less risk than holding the underlying outright
+    riskLabel = isShort ? 'Conservative Short' : 'Conservative'; // Distinguish short from long at low leverage
+    rf.style.background = 'var(--green)'; // Green = safe zone
+  } else if (absMag > 1 && absMag <= 2) { // 1x-2x: moderate leverage — the sweet spot for most users
     riskLabel = 'Moderate';
-    rf.style.background = 'var(--yellow)';
-  } else if (absMag > 2 && absMag <= 3) {
+    rf.style.background = 'var(--yellow)'; // Yellow = caution zone
+  } else if (absMag > 2 && absMag <= 3) { // 2x-3x: aggressive — significant amplification of both gains and losses
     riskLabel = 'Aggressive';
-    rf.style.background = 'var(--red)';
-  } else if (absMag > 3) {
+    rf.style.background = 'var(--red)'; // Red = high risk zone
+  } else if (absMag > 3) { // 3x+: maximum risk — near the protocol's leverage limit
     riskLabel = 'Maximum Risk';
-    rf.style.background = 'var(--red)';
+    rf.style.background = 'var(--red)'; // Same red as aggressive — both are high risk
   }
-  
-  document.getElementById('riskText').textContent = riskLabel;
-  document.getElementById('bufferReq').textContent = `Buffer: ${(requiredBuffer * 100).toFixed(0)}% junior ratio required`;
-  
-  if (levResult.stats) {
-    document.getElementById('statDelevEvents').textContent = levResult.stats.totalDeleverageEvents;
-    document.getElementById('statReducedDays').textContent = levResult.stats.timeAtReducedLeverage;
-  } else {
+
+  document.getElementById('riskText').textContent = riskLabel; // Display the risk category text below the meter
+  document.getElementById('bufferReq').textContent = `Buffer: ${(requiredBuffer * 100).toFixed(0)}% junior ratio required`; // Show the minimum junior ratio needed for this leverage level
+
+  if (levResult.stats) { // Display deleverage event statistics if the simulation produced them
+    document.getElementById('statDelevEvents').textContent = levResult.stats.totalDeleverageEvents; // Total deleverage events — high count means volatile period or aggressive leverage
+    document.getElementById('statReducedDays').textContent = levResult.stats.timeAtReducedLeverage; // Days at reduced leverage — shows how often auto-deleverage was active
+  } else { // No stats available (shouldn't happen, but defensive)
     document.getElementById('statDelevEvents').textContent = '0';
     document.getElementById('statReducedDays').textContent = '0';
   }
@@ -1256,151 +1276,155 @@ function updateAll() {
 
 // ═══════════════════════════════════════════════════
 // SLIDER
+// Custom dual-direction leverage slider covering -4x to +4x.
+// Built from scratch because HTML range inputs don't support
+// bidirectional fill from center (0x) with color-coded
+// green (long) and red (short) segments.
 // ═══════════════════════════════════════════════════
 
-const sliderTrack = document.getElementById('sliderTrack');
-const sliderThumb = document.getElementById('sliderThumb');
-const sliderFill = document.getElementById('sliderFill');
-const mobileSliderTrack = document.getElementById('mobileSliderTrack');
-const mobileSliderThumb = document.getElementById('mobileSliderThumb');
-const mobileSliderFill = document.getElementById('mobileSliderFill');
+const sliderTrack = document.getElementById('sliderTrack'); // Desktop slider track element — the clickable/draggable area
+const sliderThumb = document.getElementById('sliderThumb'); // Desktop slider thumb/handle — positioned via CSS left percentage
+const sliderFill = document.getElementById('sliderFill'); // Desktop slider fill — uses CSS gradient to show colored range from center to thumb
+const mobileSliderTrack = document.getElementById('mobileSliderTrack'); // Mobile slider track — separate DOM element because mobile layout positions it differently
+const mobileSliderThumb = document.getElementById('mobileSliderThumb'); // Mobile slider thumb — mirrors desktop thumb position
+const mobileSliderFill = document.getElementById('mobileSliderFill'); // Mobile slider fill — mirrors desktop fill gradient
 
-function snapLeverage(raw) {
-  return Math.round(raw * 4) / 4;
+function snapLeverage(raw) { // Snap to 0.25 increments (e.g., 1.0, 1.25, 1.5, 1.75, 2.0) — prevents awkward values like 1.37x
+  return Math.round(raw * 4) / 4; // Multiply by 4, round to nearest integer, divide by 4 — produces exact 0.25 steps
 }
 
-function setSliderPos(lev) {
-  const pct = (lev - MIN_LEV) / (MAX_LEV - MIN_LEV);
-  const thumbPct = pct * 100;
-  const centerPct = (0 - MIN_LEV) / (MAX_LEV - MIN_LEV) * 100;
-  
-  sliderThumb.style.left = thumbPct + '%';
-  mobileSliderThumb.style.left = thumbPct + '%';
-  
-  let gradient;
-  if (lev >= 0) {
+function setSliderPos(lev) { // Update the visual position and colors of both desktop and mobile sliders to match the given leverage value
+  const pct = (lev - MIN_LEV) / (MAX_LEV - MIN_LEV); // Convert leverage value to 0-1 percentage position on the slider track
+  const thumbPct = pct * 100; // Convert to CSS percentage for positioning
+  const centerPct = (0 - MIN_LEV) / (MAX_LEV - MIN_LEV) * 100; // Position of 0x (center) on the slider — at 50% since range is -4 to +4
+
+  sliderThumb.style.left = thumbPct + '%'; // Move desktop thumb to the correct position
+  mobileSliderThumb.style.left = thumbPct + '%'; // Move mobile thumb to match
+
+  let gradient; // CSS gradient fills the track from center (0x) to the thumb position with direction-appropriate colors
+  if (lev >= 0) { // Long position: fill from center rightward with green-to-purple gradient
     gradient = `linear-gradient(90deg,
       #555970 0%,
       #555970 ${centerPct}%,
       #00e676 ${centerPct}%,
       #7c4dff ${thumbPct}%,
       #555970 ${thumbPct}%,
-      #555970 100%)`;
-  } else {
+      #555970 100%)`; // Gray on both sides of the colored range — inactive portion of the track
+  } else { // Short position: fill from thumb leftward to center with red gradient
     gradient = `linear-gradient(90deg,
       #555970 0%,
       #555970 ${thumbPct}%,
       #ff5252 ${thumbPct}%,
       #ff8a80 ${centerPct}%,
       #555970 ${centerPct}%,
-      #555970 100%)`;
-  }
-  
-  sliderFill.style.background = gradient;
-  sliderFill.style.width = '100%';
-  mobileSliderFill.style.background = gradient;
-  mobileSliderFill.style.width = '100%';
-  
-  const displayLev = Math.abs(lev).toFixed(1);
-  document.getElementById('mobileLevDisplay').textContent = (lev < 0 ? '-' : '') + displayLev + '×';
-}
-
-function levFromEvent(e) {
-  const rect = sliderTrack.getBoundingClientRect();
-  const x = (e.clientX || e.touches[0].clientX) - rect.left;
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-  return snapLeverage(raw);
-}
-
-let activeSlider = null;
-
-function setupSlider(track, isDesktop = true) {
-  function levFromSliderEvent(e) {
-    const rect = track.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)) - rect.left;
-    const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-    return snapLeverage(raw);
+      #555970 100%)`; // Red gradient from thumb to center — visually distinct from the green long fill
   }
 
-  track.addEventListener('mousedown', e => {
-    activeSlider = track;
-    currentLeverage = levFromSliderEvent(e);
-    setSliderPos(currentLeverage);
-    updateAll();
+  sliderFill.style.background = gradient; // Apply the gradient to the desktop slider fill element
+  sliderFill.style.width = '100%'; // Fill spans the entire track width — the gradient handles the visual segmentation
+  mobileSliderFill.style.background = gradient; // Mirror the same gradient on mobile
+  mobileSliderFill.style.width = '100%'; // Same full-width fill on mobile
+
+  const displayLev = Math.abs(lev).toFixed(1); // Format leverage for display — always positive with explicit sign added separately
+  document.getElementById('mobileLevDisplay').textContent = (lev < 0 ? '-' : '') + displayLev + '×'; // Update mobile leverage readout with sign and multiplication symbol
+}
+
+function levFromEvent(e) { // Convert a mouse/touch event position on the desktop slider track to a snapped leverage value
+  const rect = sliderTrack.getBoundingClientRect(); // Get track dimensions for coordinate mapping
+  const x = (e.clientX || e.touches[0].clientX) - rect.left; // Horizontal offset from the left edge of the track — works for both mouse and touch events
+  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map pixel position to leverage range, clamped to [0,1] to prevent out-of-bounds values
+  return snapLeverage(raw); // Snap to 0.25 increments for clean leverage values
+}
+
+let activeSlider = null; // Tracks which slider (desktop or mobile) is currently being dragged — null when idle
+
+function setupSlider(track, isDesktop = true) { // Initialize event listeners for a slider track — called once for desktop and once for mobile
+  function levFromSliderEvent(e) { // Closure over the specific track element — converts event coordinates to leverage using the correct track dimensions
+    const rect = track.getBoundingClientRect(); // Get THIS track's bounding rect (desktop vs mobile may have different positions/sizes)
+    const x = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)) - rect.left; // Extract x position from mouse or touch event with fallback to 0 if neither exists
+    const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map to leverage range with clamping
+    return snapLeverage(raw); // Snap to 0.25 increments
+  }
+
+  track.addEventListener('mousedown', e => { // Desktop: start drag on mousedown — sets the leverage immediately on click (not just on drag)
+    activeSlider = track; // Mark this track as active so mousemove handler knows which track to use for coordinates
+    currentLeverage = levFromSliderEvent(e); // Set leverage to the clicked position immediately — more responsive than waiting for mousemove
+    setSliderPos(currentLeverage); // Update slider visual to match
+    updateAll(); // Re-render chart and stats with new leverage
   });
 
-  track.addEventListener('touchstart', e => {
-    activeSlider = track;
-    currentLeverage = levFromSliderEvent(e);
-    setSliderPos(currentLeverage);
-    updateAll();
+  track.addEventListener('touchstart', e => { // Mobile: start drag on touchstart — same logic as mousedown but for touch events
+    activeSlider = track; // Mark as active for touchmove handler
+    currentLeverage = levFromSliderEvent(e); // Set leverage to touch position
+    setSliderPos(currentLeverage); // Update visual
+    updateAll(); // Re-render
   });
 }
 
-setupSlider(sliderTrack, true);
-setupSlider(mobileSliderTrack, false);
+setupSlider(sliderTrack, true); // Initialize desktop slider with its track element
+setupSlider(mobileSliderTrack, false); // Initialize mobile slider — separate track but same behavior
 
-document.addEventListener('mousemove', e => {
-  if (!activeSlider) return;
-  const rect = activeSlider.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-  currentLeverage = snapLeverage(raw);
-  setSliderPos(currentLeverage);
-  updateAll();
-}, { passive: false });
+document.addEventListener('mousemove', e => { // Document-level mousemove for smooth dragging — listening on document (not track) so the user can drag outside the track bounds without losing control
+  if (!activeSlider) return; // Not dragging — ignore all mouse moves for performance
+  const rect = activeSlider.getBoundingClientRect(); // Use whichever slider (desktop/mobile) is being dragged
+  const x = e.clientX - rect.left; // Horizontal offset from track left edge
+  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map to leverage with clamping
+  currentLeverage = snapLeverage(raw); // Snap to 0.25 increments during drag
+  setSliderPos(currentLeverage); // Update slider visual in real-time
+  updateAll(); // Re-render chart on every drag step — gives live preview of leverage changes
+}, { passive: false }); // passive:false allows preventDefault if needed (not used here but prevents browser optimizations that could cause jank)
 
-document.addEventListener('touchmove', e => {
-  if (!activeSlider) return;
-  e.preventDefault();
-  const rect = activeSlider.getBoundingClientRect();
-  const x = e.touches[0].clientX - rect.left;
-  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV);
-  currentLeverage = snapLeverage(raw);
-  setSliderPos(currentLeverage);
-  updateAll();
-}, { passive: false });
+document.addEventListener('touchmove', e => { // Document-level touchmove for mobile drag — same pattern as mousemove
+  if (!activeSlider) return; // Not dragging — ignore
+  e.preventDefault(); // Prevent page scrolling while dragging the slider — without this, the page scrolls instead of the slider moving
+  const rect = activeSlider.getBoundingClientRect(); // Get active slider dimensions
+  const x = e.touches[0].clientX - rect.left; // Touch x position relative to track
+  const raw = MIN_LEV + Math.max(0, Math.min(1, x / rect.width)) * (MAX_LEV - MIN_LEV); // Map to leverage range
+  currentLeverage = snapLeverage(raw); // Snap to 0.25
+  setSliderPos(currentLeverage); // Update visual
+  updateAll(); // Re-render chart live during touch drag
+}, { passive: false }); // passive:false required for preventDefault() to work on touchmove
 
-document.addEventListener('mouseup', () => activeSlider = null);
-document.addEventListener('touchend', () => activeSlider = null);
+document.addEventListener('mouseup', () => activeSlider = null); // End desktop drag — release the slider so mousemove stops updating leverage
+document.addEventListener('touchend', () => activeSlider = null); // End mobile drag — same cleanup for touch events
 
-// Chart click handler for backtesting entry point selection
-chart.subscribeClick((param) => {
-  if (!param.time) return;
-  
-  const { data } = getFiltered(currentPeriod);
-  const clickedIndex = data.findIndex(d => d.time === param.time);
-  
-  if (clickedIndex >= 0) {
-    entryDateIndex = clickedIndex;
+// Chart click handler for backtesting entry point selection — lets users answer "what if I entered on this date?"
+chart.subscribeClick((param) => { // TradingView's click callback provides the time/price at the clicked point
+  if (!param.time) return; // Click was outside the data area (e.g., on the price scale) — ignore
+
+  const { data } = getFiltered(currentPeriod); // Get the current period's data to find the index of the clicked date
+  const clickedIndex = data.findIndex(d => d.time === param.time); // Find which bar the user clicked on — matches by date string
+
+  if (clickedIndex >= 0) { // Valid data point clicked — set it as the new backtest entry point
+    entryDateIndex = clickedIndex; // Update the entry index — updateAll() will slice the data from this point
     // console.log(`Entry date set to: ${data[clickedIndex].time} (index ${clickedIndex})`);
-    updateAll();
+    updateAll(); // Re-render everything from the new entry point — chart, stats, and comparison grid all update
   }
 });
 
-// Double-click to reset entry to start
-chartEl.addEventListener('dblclick', () => {
-  if (entryDateIndex !== 0) {
-    entryDateIndex = 0;
+// Double-click to reset entry to start — intuitive UX pattern (single click = set, double click = reset)
+chartEl.addEventListener('dblclick', () => { // Listen on the chart container element for double-click events
+  if (entryDateIndex !== 0) { // Only reset if entry is not already at the start — avoids unnecessary re-renders
+    entryDateIndex = 0; // Reset to the beginning of the selected period
     // console.log('Entry date reset to start');
-    updateAll();
+    updateAll(); // Re-render with full period data
   }
 });
 
-// Wallet connection is handled by Reown AppKit (appkit-button web component)
+// Wallet connection is handled by Reown AppKit (appkit-button web component) — no click handler needed here, the web component manages its own UI
 
-document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { 
-  if (b.dataset.ticker === currentTicker) return;
-  document.querySelectorAll('.ticker-select-btn').forEach(x => x.classList.remove('active')); 
-  b.classList.add('active'); 
-  currentTicker = b.dataset.ticker; 
-  await loadTickerData(currentTicker); 
+document.querySelectorAll('.ticker-select-btn').forEach(b => b.addEventListener('click', async () => { // Ticker selection buttons (QQQ, SPY, etc.) — each loads different historical data
+  if (b.dataset.ticker === currentTicker) return; // Already on this ticker — skip the expensive data reload
+  document.querySelectorAll('.ticker-select-btn').forEach(x => x.classList.remove('active')); // Deactivate all ticker buttons before activating the clicked one — radio button behavior
+  b.classList.add('active'); // Highlight the selected ticker button
+  currentTicker = b.dataset.ticker; // Update the global ticker state — used by updateAll() and data loading
+  await loadTickerData(currentTicker); // Fetch/cache the new ticker's data and re-render — async because it may hit the network
 }));
-document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); }));
-document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); }));
-document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); }));
+document.querySelectorAll('.notch-btn').forEach(b => b.addEventListener('click', () => { currentLeverage = parseFloat(b.dataset.lev); setSliderPos(currentLeverage); updateAll(); })); // Quick-select leverage buttons (1x, 2x, 3x, etc.) — set leverage, update slider position, and re-render in one click
+document.querySelectorAll('.tf-btn').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tf-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentPeriod = b.dataset.period; entryDateIndex = 0; updateAll(); })); // Timeframe buttons (1M, 1Y, 5Y, etc.) — switch period, reset entry point to start of new period, and re-render
+document.querySelectorAll('.chart-type-btn[data-type]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.chart-type-btn[data-type]').forEach(x => x.classList.remove('active')); b.classList.add('active'); currentChartType = b.dataset.type; updateAll(); })); // Chart type toggle (area/candlestick/line) — changes which series type is rendered without recomputing data
 
-new ResizeObserver(() => { 
-  const r = chartEl.getBoundingClientRect(); 
-  chart.applyOptions({ width: r.width, height: r.height }); 
-}).observe(chartEl);
+new ResizeObserver(() => { // Watch the chart container for size changes — triggers on window resize, sidebar toggle, or any layout shift
+  const r = chartEl.getBoundingClientRect(); // Get the current pixel dimensions of the chart container
+  chart.applyOptions({ width: r.width, height: r.height }); // Tell TradingView to resize its canvas to match — without this, the chart would clip or leave gaps on resize
+}).observe(chartEl); // Observe the chart element specifically — more reliable than window.onresize because it catches all sources of size change
