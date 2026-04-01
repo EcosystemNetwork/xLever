@@ -955,7 +955,15 @@ const XAuthGate = (() => {
 
   function _isConnected() {
     var w = window.xLeverWallet;
-    return w && typeof w.getIsConnected === 'function' && w.getIsConnected();
+    if (!w) return false;
+    // Primary check: use getIsConnected if available
+    if (typeof w.getIsConnected === 'function' && w.getIsConnected()) return true;
+    // Fallback: check if we have an address (means wallet is connected)
+    if (typeof w.getAddress === 'function') {
+      var addr = w.getAddress();
+      return addr && addr !== '' && addr !== null;
+    }
+    return false;
   }
 
   function _applyState() {
