@@ -74,6 +74,9 @@ Thumbs.db
 cache_hardhat/
 artifacts/
 
+# PRDs (local planning documents)
+docs/prds/
+
 # Don't ignore example files
 !.env.example
 !contracts/.env.example
