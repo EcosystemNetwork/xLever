@@ -19,10 +19,10 @@ const TOKEN_ADDRESSES = window.xLeverContracts
   ? { USDC: window.xLeverContracts.ADDRESSES.usdc, wQQQx: window.xLeverContracts.ADDRESSES.wQQQx, wSPYx: window.xLeverContracts.ADDRESSES.wSPYx }
   : { USDC: '0x6b57475467cd854d36Be7FB614caDa5207838943', wQQQx: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', wSPYx: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e' };
 
-// Vault contract addresses (DEPLOYED - Full Vault with Junior Tranche)
+// Vault contract addresses (DEPLOYED - Fixed Vault with initialized TWAP)
 const VAULT_ADDRESSES = {
-  wSPYx: '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd',
-  wQQQx: '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b'
+  wSPYx: '0xe96adcFA329f40ACFb73AdD9CCCA957686b9712d',
+  wQQQx: '0x5861B179Ed373eF0A4A79D4a1C0a0eDd40096955'
 };
 
 // Minimal ERC-20 ABI for balance display — balanceOf, decimals, and approve
@@ -49,7 +49,7 @@ const VAULT_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'amount', type: 'uint256' }],
-    outputs: [{ name: 'received', type: 'uint256' }]
+    outputs: [{ name: '', type: 'uint256' }]
   },
   {
     name: 'depositJunior',
@@ -100,6 +100,49 @@ const VAULT_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'address' }]
+  },
+  {
+    name: 'getPoolState',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'totalSeniorDeposits', type: 'uint128' },
+        { name: 'totalJuniorDeposits', type: 'uint128' },
+        { name: 'grossLongExposure', type: 'uint128' },
+        { name: 'grossShortExposure', type: 'uint128' },
+        { name: 'netExposure', type: 'int256' },
+        { name: 'currentMaxLeverageBps', type: 'uint32' },
+        { name: 'protocolState', type: 'uint8' }
+      ]
+    }]
+  },
+  {
+    name: 'getMaxLeverage',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'maxLeverageBps', type: 'int32' }]
+  },
+  {
+    name: 'getFundingRate',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: 'rateBps', type: 'int256' }]
+  },
+  {
+    name: 'getCurrentTWAP',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'twap', type: 'uint128' },
+      { name: 'spreadBps', type: 'uint16' }
+    ]
   }
 ];
 
@@ -135,6 +178,20 @@ const JUNIOR_TRANCHE_ABI = [
   },
   {
     name: 'totalShares',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'totalSupply',
     type: 'function',
     stateMutability: 'view',
     inputs: [],
@@ -255,62 +312,45 @@ async function fetchJuniorPosition(vaultAddress) {
 async function updateJuniorUI() {
   if (!connectedAddress || !publicClient) return;
 
-  try {
-    // Fetch positions for both vaults
-    const wqqqxPosition = await fetchJuniorPosition(VAULT_ADDRESSES.wQQQx);
-    const wspyxPosition = await fetchJuniorPosition(VAULT_ADDRESSES.wSPYx);
-
-    // Check if junior tranche is available
-    if (!wqqqxPosition && !wspyxPosition) {
-      // No junior tranche support - show message
-      document.getElementById('yourJuniorPosition').textContent = 'Not Available';
-      document.getElementById('juniorTVL').textContent = 'Not Available';
-      document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
-      document.getElementById('poolUtilization').textContent = 'N/A';
-      console.log('⚠️ Junior tranche not available on deployed vaults');
-      return;
-    }
-
-    // Calculate total position value
-    const totalPosition = (wqqqxPosition?.userValue || 0) + (wspyxPosition?.userValue || 0);
-    const totalTVL = (wqqqxPosition?.totalValue || 0) + (wspyxPosition?.totalValue || 0);
-
-    // Update UI elements
-    document.getElementById('yourJuniorPosition').textContent = `$${totalPosition.toFixed(2)}`;
-    document.getElementById('juniorTVL').textContent = `$${totalTVL.toFixed(2)}`;
-    document.getElementById('juniorPositionWithdraw').textContent = `$${totalPosition.toFixed(2)}`;
-
-    // Calculate pool utilization - get actual senior deposits
-    let utilization = 0;
+  // Use the comprehensive junior page UI update if available
+  if (typeof updateJuniorPageUI === 'function') {
+    await updateJuniorPageUI();
+  } else {
+    // Fallback to basic update
     try {
-      const poolState = await publicClient.readContract({
+      const wqqqxPosition = await publicClient.readContract({
         address: VAULT_ADDRESSES.wQQQx,
         abi: VAULT_ABI,
-        functionName: 'getPoolState'
-      });
-      const seniorDeposits = parseFloat(poolState.totalSeniorDeposits || 0) / 1e6;
-      const totalPool = totalTVL + seniorDeposits;
-      utilization = totalPool > 0 ? Math.round((seniorDeposits / totalPool) * 100) : 0;
-    } catch (e) {
-      utilization = 0;
-    }
-    document.getElementById('poolUtilization').textContent = `${utilization}%`;
+        functionName: 'juniorTranche'
+      }).catch(() => null);
 
-    console.log('✓ Junior UI updated');
-  } catch (error) {
-    console.error('Failed to update junior UI:', error);
+      if (!wqqqxPosition) {
+        document.getElementById('yourJuniorPosition').textContent = 'Not Available';
+        document.getElementById('juniorTVL').textContent = 'Not Available';
+        document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
+        document.getElementById('poolUtilization').textContent = 'N/A';
+        return;
+      }
+
+      document.getElementById('yourJuniorPosition').textContent = '$0.00';
+      document.getElementById('juniorTVL').textContent = '$0.00';
+      document.getElementById('juniorPositionWithdraw').textContent = '$0.00';
+      document.getElementById('poolUtilization').textContent = '0%';
+    } catch (error) {
+      console.error('Error updating junior UI:', error);
+    }
   }
 }
 
 async function depositJunior() {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'error');
     return;
   }
 
   const depositAmount = document.getElementById('depositAmount').value;
   if (!depositAmount || parseFloat(depositAmount) <= 0) {
-    alert('Please enter a valid deposit amount');
+    showToast('Please enter a valid deposit amount', 'error');
     return;
   }
 
@@ -329,7 +369,7 @@ async function depositJunior() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.\n\nSee DeployFullVault.s.sol script.');
+      showToast('⚠️ Junior tranche not available on current vaults', 'error');
       return;
     }
 
@@ -340,7 +380,10 @@ async function depositJunior() {
       abi: ERC20_ABI,
       functionName: 'approve',
       args: [vaultAddress, amount],
-      account: connectedAddress
+      account: connectedAddress,
+      gas: 100000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
     });
 
     console.log('Waiting for approval confirmation...');
@@ -353,13 +396,16 @@ async function depositJunior() {
       abi: VAULT_ABI,
       functionName: 'depositJunior',
       args: [amount],
-      account: connectedAddress
+      account: connectedAddress,
+      gas: 500000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n
     });
 
     console.log('Waiting for deposit confirmation...');
     await publicClient.waitForTransactionReceipt({ hash: depositTx });
 
-    alert('✓ Junior deposit successful!');
+    showToast('✓ Junior deposit successful!', 'success');
     
     // Refresh balances and UI
     await fetchBalances();
@@ -369,19 +415,19 @@ async function depositJunior() {
     document.getElementById('depositAmount').value = '';
   } catch (error) {
     console.error('Junior deposit failed:', error);
-    alert('Deposit failed: ' + (error.message || 'Unknown error'));
+    showToast('Deposit failed: ' + (error.shortMessage || error.message || 'Unknown error'), 'error');
   }
 }
 
 async function withdrawJunior() {
   if (!walletClient || !connectedAddress) {
-    alert('Please connect your wallet first');
+    showToast('Please connect your wallet first', 'error');
     return;
   }
 
   const withdrawAmount = document.getElementById('withdrawAmount').value;
   if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-    alert('Please enter a valid withdrawal amount');
+    showToast('Please enter a valid withdrawal amount', 'error');
     return;
   }
 
@@ -397,7 +443,7 @@ async function withdrawJunior() {
     }).catch(() => null);
 
     if (!juniorTrancheCheck) {
-      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.');
+      showToast('⚠️ Junior tranche not available on current vaults', 'error');
       return;
     }
 
@@ -425,13 +471,14 @@ async function withdrawJunior() {
       abi: VAULT_ABI,
       functionName: 'withdrawJunior',
       args: [shares],
-      account: connectedAddress
+      account: connectedAddress,
+      gas: 500000n
     });
 
     console.log('Waiting for withdrawal confirmation...');
     await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
 
-    alert('✓ Junior withdrawal successful!');
+    showToast('✓ Junior withdrawal successful!', 'success');
     
     // Refresh balances and UI
     await fetchBalances();
@@ -441,7 +488,7 @@ async function withdrawJunior() {
     document.getElementById('withdrawAmount').value = '';
   } catch (error) {
     console.error('Junior withdrawal failed:', error);
-    alert('Withdrawal failed: ' + (error.message || 'Unknown error'));
+    showToast('Withdrawal failed: ' + (error.shortMessage || error.message || 'Unknown error'), 'error');
   }
 }
 
@@ -537,6 +584,7 @@ async function connectWallet() {
     updateWalletUI();
     await fetchBalances();
     await updateJuniorUI();
+    await loadUserPositions();
     
     localStorage.setItem('walletConnected', 'true');
     console.log('✓ Wallet connected:', connectedAddress);
@@ -1824,7 +1872,8 @@ function snapLeverage(raw) { // Snap leverage to clean increments — prevents a
   if (isDegenMode) {
     return Math.round(raw); // Degen mode: snap to whole numbers (10x, 25x, etc.) — 0.25 steps are meaningless at 100x
   } else {
-    return Math.round(raw * 4) / 4; // Normal mode: snap to 0.25 increments (1.0, 1.25, 1.5, 1.75, 2.0)
+    // Snap to 0.1 increments for finer control
+    return Math.round(raw * 10) / 10;
   }
 }
 

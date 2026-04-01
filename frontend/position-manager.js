@@ -126,31 +126,42 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     const amountParsed = parseUnits(amount.toString(), 6);
     const vaultAddress = VAULT_ADDRESSES[selectedAsset];
 
-    // Step 1: Approve USDC
-    console.log('Approving USDC...');
-    btn.textContent = 'Approving USDC...';
-    
-    let approveTx;
-    try {
-      approveTx = await walletClient.writeContract({
-        address: TOKEN_ADDRESSES.USDC,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [vaultAddress, amountParsed],
-        account: connectedAddress,
-        maxFeePerGas: 2000000000n, // 2 gwei
-        maxPriorityFeePerGas: 1000000000n // 1 gwei
-      });
-      console.log('✓ Approval tx sent:', approveTx);
-    } catch (approveError) {
-      // Transaction was sent but RPC returned error - continue anyway
-      console.log('Approval sent (RPC error ignored):', approveError.message);
+    // Step 1: Check and approve USDC if needed
+    const currentAllowance = await publicClient.readContract({
+      address: TOKEN_ADDRESSES.USDC,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [connectedAddress, vaultAddress]
+    });
+
+    if (currentAllowance < amountParsed) {
+      console.log('Approving USDC (infinite approval)...');
+      btn.textContent = 'Approving USDC...';
+      
+      const MAX_UINT256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
+      
+      let approveTx;
+      try {
+        approveTx = await walletClient.writeContract({
+          address: TOKEN_ADDRESSES.USDC,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [vaultAddress, MAX_UINT256],
+          account: connectedAddress,
+          gas: 100000n,
+          maxFeePerGas: 2000000000n,
+          maxPriorityFeePerGas: 1000000000n
+        });
+        console.log('✓ Approval tx sent:', approveTx);
+      } catch (approveError) {
+        console.log('Approval sent (RPC error ignored):', approveError.message);
+      }
+      
+      btn.textContent = 'Approval pending...';
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    } else {
+      console.log('✓ USDC already approved, skipping...');
     }
-    
-    btn.textContent = 'Approval pending...';
-    
-    // Wait for approval to be mined
-    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Step 2: Deposit to vault
     console.log('Opening position...');
@@ -164,6 +175,7 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
         functionName: 'deposit',
         args: [amountParsed, leverageBps],
         account: connectedAddress,
+        gas: 800000n,
         maxFeePerGas: 2000000000n, // 2 gwei
         maxPriorityFeePerGas: 1000000000n // 1 gwei
       });
@@ -288,22 +300,62 @@ window.closePosition = async function(asset, vaultAddress) {
   try {
     console.log(`Closing ${asset} position...`);
 
-    // Withdraw entire position (amount = 0 means close all)
+    // First, verify the position exists and get the amount
+    const position = await publicClient.readContract({
+      address: vaultAddress,
+      abi: VAULT_ABI,
+      functionName: 'getPosition',
+      args: [connectedAddress]
+    });
+    
+    console.log('Position details:', position);
+    console.log('Deposit amount:', position.depositAmount.toString());
+    console.log('Leverage BPS:', position.leverageBps);
+    console.log('Entry TWAP:', position.entryTWAP.toString());
+    console.log('Is active:', position.isActive);
+    
+    if (!position.isActive || position.depositAmount === 0n) {
+      showToast('No active position to close', 'warning');
+      return;
+    }
+
+    // Withdraw entire position using the deposit amount
+    const withdrawAmount = position.depositAmount;
+    console.log('Withdrawing amount:', withdrawAmount.toString());
+    
+    // First simulate the transaction to get the actual error
+    try {
+      await publicClient.simulateContract({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName: 'withdraw',
+        args: [withdrawAmount],
+        account: connectedAddress
+      });
+      console.log('✓ Simulation passed');
+    } catch (simError) {
+      console.error('Simulation failed:', simError);
+      const errorMsg = simError.message || simError.toString();
+      showToast(`Cannot withdraw: ${errorMsg.substring(0, 100)}`, 'error', 8000);
+      throw simError;
+    }
+    
     let withdrawTx;
     try {
       withdrawTx = await walletClient.writeContract({
         address: vaultAddress,
         abi: VAULT_ABI,
         functionName: 'withdraw',
-        args: [0], // 0 = withdraw all
+        args: [withdrawAmount],
         account: connectedAddress,
+        gas: 500000n,
         maxFeePerGas: 2000000000n, // 2 gwei
         maxPriorityFeePerGas: 1000000000n // 1 gwei
       });
       console.log('✓ Withdraw tx sent:', withdrawTx);
     } catch (withdrawError) {
-      // Transaction was sent but RPC returned error - continue anyway
-      console.log('Withdraw sent (RPC error ignored):', withdrawError.message);
+      console.error('Withdraw error details:', withdrawError);
+      throw withdrawError;
     }
     
     // Wait for transaction to be mined
