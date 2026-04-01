@@ -1,33 +1,7 @@
 /**
  * @file nav.js — xLever Unified Navigation (XNav component)
- *
- * Provides a single responsive navigation bar that operates in two modes:
- *   - Landing mode: logo + Features/Docs/GitHub links + "Launch App" CTA
- *   - App mode: logo + Trade/Research toggle + page tabs + network badge + wallet button
- *
- * Also supports Judge Mode, which replaces the mode toggle with a "Live Demo" badge
- * and filters visible pages to a curated demo flow.
- *
- * @module XNav
- * @exports {Object} XNav - Singleton exposed on window.XNav
- * @exports {Function} XNav.init - Initialize the nav bar for a given page
- * @exports {Function} XNav.enterApp - Transition from landing mode to app mode
- *
- * @dependencies
- *   - localStorage ('xlever-mode') for persisted mode preference
- *   - window.JudgeMode (optional) for demo mode filtering
- *   - window.XMode (optional) for mode synchronization
- *   - window.xLeverWallet (optional) for Reown AppKit network switching
- *   - window.xLeverLendingAdapters (optional) for chain-aware adapter switching
- *   - window.xLeverLendingAgent (optional) for agent chain hot-swap
  */
 const XNav = (() => {
-  /**
-   * Page definitions for the app navigation.
-   * Each entry maps a page ID to its label, href, and which mode it belongs to.
-   * Pages with mode=null are visible in all modes (e.g., Admin).
-   * @type {Array<{id: string, label: string, href: string, mode: string|null}>}
-   */
   const PAGES = [
     { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html',              mode: 'trade' },
     { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html',       mode: 'trade' },
@@ -35,41 +9,21 @@ const XNav = (() => {
     { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html',        mode: null },
   ];
 
-  /** @type {string|null} Currently active page ID, or null for landing */
   let _activePageId = null;
-  /** @type {boolean} Whether the nav is in landing mode (no app chrome) */
   let _isLanding = false;
-  /** @type {boolean} Whether Judge Mode is active (curated demo flow) */
   let _isJudgeMode = false;
 
-  /**
-   * Read the current UI mode from localStorage.
-   * @returns {string} 'trade' or 'research'
-   */
   function getMode() {
     return localStorage.getItem('xlever-mode') || 'trade';
   }
 
-  /**
-   * Filter PAGES to those visible in the given mode.
-   * In Judge Mode, delegates filtering to JudgeMode.filterPages().
-   * @param {string} mode - 'trade' or 'research'
-   * @returns {Array<{id: string, label: string, href: string, mode: string|null}>}
-   */
   function pagesForMode(mode) {
-    // Judge mode overrides: only show the core demo flow
     if (window.JudgeMode && window.JudgeMode.isActive()) {
       return window.JudgeMode.filterPages(PAGES);
     }
     return PAGES.filter(p => p.mode === mode || p.mode === null);
   }
 
-  /**
-   * Initialize the navigation bar.
-   * Pass null for landing page, or a page ID string for app pages.
-   * Renders both desktop and mobile nav, wires up event handlers.
-   * @param {string|null} activePageId - The ID of the current page, or null for landing
-   */
   function init(activePageId) {
     _activePageId = activePageId;
     _isLanding = (activePageId === null);
@@ -78,6 +32,7 @@ const XNav = (() => {
     const mode = getMode();
     document.body.classList.add(`mode-${mode}`);
 
+    injectNavStyles();
     renderNav(activePageId);
     renderMobileDrawer(activePageId);
     wireUpMobileMenu();
@@ -85,7 +40,6 @@ const XNav = (() => {
     wireUpModeToggle(activePageId);
   }
 
-  /** Transition from landing → app nav (called by Launch App button) */
   function enterApp() {
     _isLanding = false;
     const nav = document.getElementById('xnav');
@@ -99,16 +53,180 @@ const XNav = (() => {
     wireUpModeToggle(_activePageId);
   }
 
-  /**
-   * Generate an HTML anchor string for a desktop nav link.
-   * Active links get a highlighted background; inactive links are muted.
-   * In Judge Mode, prepends a numbered step indicator badge.
-   * @param {{id: string, label: string, href: string}} page - Page definition
-   * @param {boolean} isActive - Whether this page is the current page
-   * @returns {string} HTML string for the link element
-   */
+  /** Inject scoped nav styles once */
+  function injectNavStyles() {
+    if (document.getElementById('xnav-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'xnav-styles';
+    style.textContent = `
+      #xnav {
+        background: rgba(10, 11, 14, 0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 0 32px;
+        height: 56px;
+        border-bottom: 1px solid #1e2030;
+        position: fixed;
+        top: 0;
+        z-index: 50;
+      }
+      #xnav .nav-logo {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+      }
+      #xnav .nav-logo .x { color: #e3e2e6; }
+      #xnav .nav-logo .lever { color: #7c4dff; }
+
+      #xnav .nav-link {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: #6b7094;
+        text-decoration: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        transition: color 0.15s, background 0.15s;
+        white-space: nowrap;
+      }
+      #xnav .nav-link:hover { color: #e3e2e6; background: rgba(255,255,255,0.04); }
+      #xnav .nav-link.active {
+        color: #e3e2e6;
+        font-weight: 600;
+        background: #1a1d26;
+        border: 1px solid #252833;
+      }
+
+      #xnav .nav-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #7c4dff;
+        color: #fff;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background 0.15s, transform 0.1s;
+        white-space: nowrap;
+      }
+      #xnav .nav-cta:hover { background: #6a3de8; transform: translateY(-1px); }
+
+      #xnav .nav-network {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #12141a;
+        padding: 6px 12px;
+        border: 1px solid #1e2030;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      #xnav .nav-network .dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: #00e676;
+        animation: xnav-pulse 2s infinite;
+      }
+      #xnav .nav-network span {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: #6b7094;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      @keyframes xnav-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+      #xnav .mode-toggle {
+        display: flex;
+        gap: 2px;
+        background: #0e1017;
+        border: 1px solid #1e2030;
+        border-radius: 8px;
+        padding: 3px;
+      }
+      #xnav .mode-toggle button {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 14px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s;
+        background: transparent;
+        color: #555970;
+      }
+      #xnav .mode-toggle button.active-trade { background: #00e676; color: #0a0b0e; }
+      #xnav .mode-toggle button.active-research { background: #7c4dff; color: #fff; }
+
+      #xnav .nav-left, #xnav .nav-right {
+        display: flex;
+        align-items: center;
+      }
+      #xnav .nav-left { gap: 24px; }
+      #xnav .nav-right { gap: 12px; }
+      #xnav .nav-links { display: flex; gap: 2px; align-items: center; }
+
+      #xnav .hamburger {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 36px; height: 36px;
+        border-radius: 6px;
+        border: 1px solid #1e2030;
+        background: #12141a;
+        color: #6b7094;
+        cursor: pointer;
+        transition: color 0.15s;
+      }
+      #xnav .hamburger:hover { color: #e3e2e6; }
+      @media (max-width: 768px) {
+        #xnav .nav-links, #xnav .nav-network, #xnav .mode-toggle, #xnav .desktop-only { display: none !important; }
+        #xnav .hamburger { display: flex; }
+      }
+
+      #mobileNav {
+        position: fixed;
+        top: 56px;
+        left: 0; right: 0;
+        z-index: 50;
+        background: rgba(10, 11, 14, 0.96);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid #1e2030;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      #mobileNav.hidden { display: none; }
+      #mobileNav a {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        color: #6b7094;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        transition: color 0.15s, background 0.15s;
+      }
+      #mobileNav a:hover { color: #e3e2e6; background: rgba(255,255,255,0.04); }
+      #mobileNav a.active { color: #e3e2e6; font-weight: 600; background: #1a1d26; border: 1px solid #252833; }
+    `;
+    document.head.appendChild(style);
+  }
+
   function navLink(page, isActive) {
-    // In judge mode, add step numbers for the linear flow
     let stepHtml = '';
     if (_isJudgeMode && window.JudgeMode) {
       const stepIdx = window.JudgeMode.JUDGE_PAGES.indexOf(page.id);
@@ -116,96 +234,66 @@ const XNav = (() => {
         stepHtml = `<span class="judge-step${isActive ? ' active' : ''}">${stepIdx + 1}</span>`;
       }
     }
-    if (isActive) {
-      return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2 rounded bg-[#1a1d26] border border-[#252833] flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
-    }
-    return `<a class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium px-4 py-2 rounded transition-colors flex items-center" href="${page.href}">${stepHtml}${page.label}</a>`;
+    return `<a class="nav-link${isActive ? ' active' : ''}" href="${page.href}">${stepHtml}${page.label}</a>`;
   }
 
-  /**
-   * Generate an HTML anchor string for a mobile drawer nav link.
-   * @param {{id: string, label: string, href: string}} page - Page definition
-   * @param {boolean} isActive - Whether this page is the current page
-   * @returns {string} HTML string for the mobile link element
-   */
   function mobileLink(page, isActive) {
-    if (isActive) {
-      return `<a class="text-[#e3e2e6] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded bg-[#1a1d26] border border-[#252833]" href="${page.href}">${page.label}</a>`;
-    }
-    return `<a class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors" href="${page.href}">${page.label}</a>`;
+    return `<a class="${isActive ? 'active' : ''}" href="${page.href}">${page.label}</a>`;
   }
 
-  /**
-   * Build and prepend the desktop navigation bar to the document body.
-   * Renders either landing mode (minimal links + Launch App CTA) or
-   * app mode (mode toggle + page tabs + network badge + wallet).
-   * @param {string|null} activeId - The currently active page ID
-   */
   function renderNav(activeId) {
     const mode = getMode();
     const nav = document.createElement('nav');
     nav.id = 'xnav';
-    nav.className = 'bg-[#0a0b0e] flex justify-between items-center w-full px-8 h-16 border-b border-[#252833] fixed top-0 z-50';
-    nav.style.transition = 'all 0.3s ease';
 
     if (_isLanding) {
-      // ── Landing mode: clean & minimal ──
       nav.innerHTML = `
-        <div class="flex items-center gap-10">
-          <a href="index.html" class="font-['JetBrains_Mono'] text-xl font-bold tracking-tighter no-underline">
-            <span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span>
-          </a>
-          <div class="hidden sm:flex items-center gap-6">
-            <a href="#features" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium transition-colors no-underline">Features</a>
-            <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium transition-colors no-underline">Docs</a>
-            <a href="https://github.com/madschristensen99/xLever" target="_blank" class="text-[#555970] hover:text-[#e3e2e6] font-['DM_Sans'] text-sm font-medium transition-colors no-underline">GitHub</a>
+        <div class="nav-left">
+          <a href="index.html" class="nav-logo"><span class="x">x</span><span class="lever">Lever</span></a>
+          <div class="nav-links desktop-only">
+            <a class="nav-link" href="#features">Features</a>
+            <a class="nav-link" href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
+            <a class="nav-link" href="https://github.com/madschristensen99/xLever" target="_blank">GitHub</a>
           </div>
         </div>
-        <div class="flex items-center gap-3">
-          <a href="#" id="navLaunchAppBtn" class="inline-flex items-center gap-2 bg-[#7c4dff] hover:bg-[#6a3de8] text-white font-['DM_Sans'] text-[15px] font-semibold px-6 py-2.5 rounded-lg transition-all no-underline" style="transform: translateY(0); transition: all 0.2s;">
-            Launch App <span style="font-size:16px">→</span>
-          </a>
-          <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
-            <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
+        <div class="nav-right">
+          <a href="#" id="navLaunchAppBtn" class="nav-cta">Launch App <span>→</span></a>
+          <button class="hamburger" id="mobileMenuBtn" aria-label="Menu">
+            <span class="material-symbols-outlined" style="font-size:20px" id="mobileMenuIcon">menu</span>
           </button>
         </div>
       `;
     } else {
-      // ── App mode: full nav ──
       const visiblePages = pagesForMode(mode);
+      const modeToggle = _isJudgeMode
+        ? '<div class="judge-demo-badge">Live Demo</div>'
+        : `<div class="mode-toggle">
+            <button class="nav-mode-btn${mode === 'trade' ? ' active-trade' : ''}" data-mode="trade">Trade</button>
+            <button class="nav-mode-btn${mode === 'research' ? ' active-research' : ''}" data-mode="research">Research</button>
+          </div>`;
+
       nav.innerHTML = `
-        <div class="flex items-center gap-6">
-          <a href="index.html" class="font-['JetBrains_Mono'] text-xl font-bold tracking-tighter no-underline">
-            <span class="text-[#e3e2e6]">x</span><span class="text-[#7c4dff]">Lever</span>
-          </a>
-          ${_isJudgeMode
-            ? '<div class="judge-demo-badge">Live Demo</div>'
-            : `<div class="mode-toggle" style="display:flex;gap:2px;background:#0a0b0e;border:1px solid #252833;border-radius:8px;padding:2px;">
-            <button class="nav-mode-btn${mode === 'trade' ? ' active' : ''}" data-mode="trade"
-              style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;${mode === 'trade' ? 'background:#00e676;color:#0a0b0e;' : 'background:transparent;color:#555970;'}">Trade</button>
-            <button class="nav-mode-btn${mode === 'research' ? ' active' : ''}" data-mode="research"
-              style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.2s;${mode === 'research' ? 'background:#7c4dff;color:#fff;' : 'background:transparent;color:#555970;'}">Research</button>
-          </div>`}
-          <div class="hidden md:flex gap-1 items-center" id="navLinks">
-            ${visiblePages.map(p => navLink(p, p.id === activeId)).join('\n            ')}
+        <div class="nav-left">
+          <a href="index.html" class="nav-logo"><span class="x">x</span><span class="lever">Lever</span></a>
+          ${modeToggle}
+          <div class="nav-links" id="navLinks">
+            ${visiblePages.map(p => navLink(p, p.id === activeId)).join('')}
           </div>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="hidden sm:flex items-center gap-2 bg-[#12141a] px-3.5 py-2 border border-[#252833] rounded">
-            <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-            <span class="font-['JetBrains_Mono'] text-[11px] text-[#8b8fa3] uppercase tracking-widest cursor-pointer" id="networkBadgeText">Ink Sepolia</span>
+        <div class="nav-right">
+          <div class="nav-network desktop-only" id="networkBadge">
+            <div class="dot"></div>
+            <span id="networkBadgeText">Ink Sepolia</span>
           </div>
-          <appkit-button size="md"></appkit-button>
-          <button class="md:hidden flex items-center justify-center w-9 h-9 rounded border border-[#252833] bg-[#12141a] text-[#8b8fa3] hover:text-[#e3e2e6] transition-colors" id="mobileMenuBtn" aria-label="Menu">
-            <span class="material-symbols-outlined text-xl" id="mobileMenuIcon">menu</span>
+          <appkit-button size="sm"></appkit-button>
+          <button class="hamburger" id="mobileMenuBtn" aria-label="Menu">
+            <span class="material-symbols-outlined" style="font-size:20px" id="mobileMenuIcon">menu</span>
           </button>
         </div>
       `;
     }
 
     document.body.prepend(nav);
-
-    // Hide the Reown AppKit loading spinner inside shadow DOM
     killAppkitSpinner();
   }
 
@@ -229,36 +317,24 @@ const XNav = (() => {
     setTimeout(() => clearInterval(poll), 15000);
   }
 
-  /**
-   * Build and insert the mobile navigation drawer below the nav bar.
-   * Hidden by default; toggled via the hamburger menu button.
-   * @param {string|null} activeId - The currently active page ID
-   */
   function renderMobileDrawer(activeId) {
     const mode = getMode();
     const drawer = document.createElement('div');
     drawer.id = 'mobileNav';
-    drawer.className = 'md:hidden fixed top-16 left-0 right-0 z-50 bg-[#0a0b0e] border-b border-[#252833] hidden';
-    drawer.style.transition = 'all 0.25s ease';
+    drawer.className = 'hidden';
 
     if (_isLanding) {
       drawer.innerHTML = `
-        <div class="flex flex-col p-3 gap-1">
-          <a href="#features" class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">Features</a>
-          <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank" class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">Docs</a>
-          <a href="https://github.com/madschristensen99/xLever" target="_blank" class="text-[#555970] font-['DM_Sans'] text-sm font-medium px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">GitHub</a>
-          <a href="#" id="mobileLaunchAppBtn" class="text-[#7c4dff] font-['DM_Sans'] text-sm font-semibold px-4 py-2.5 rounded hover:bg-[#12141a] transition-colors no-underline">Launch App →</a>
-        </div>
+        <a href="#features">Features</a>
+        <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
+        <a href="https://github.com/madschristensen99/xLever" target="_blank">GitHub</a>
+        <a href="#" id="mobileLaunchAppBtn" style="color:#7c4dff;font-weight:600">Launch App →</a>
       `;
     } else {
       const visiblePages = pagesForMode(mode);
       drawer.innerHTML = `
-        <div class="flex flex-col p-3 gap-1" id="mobileNavLinks">
-          ${visiblePages.map(p => mobileLink(p, p.id === activeId)).join('\n          ')}
-          <div class="flex items-center gap-2 mt-2 px-4 py-2">
-            <div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div>
-            <span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span>
-          </div>
+        <div id="mobileNavLinks">
+          ${visiblePages.map(p => mobileLink(p, p.id === activeId)).join('')}
         </div>
       `;
     }
@@ -267,10 +343,6 @@ const XNav = (() => {
     if (nav) nav.after(drawer);
   }
 
-  /**
-   * Mapping of chain IDs (numeric or CAIP) to display names for the network badge.
-   * @type {Object<number|string, string>}
-   */
   const CHAIN_NAMES = {
     763373: 'Ink Sepolia',
     1: 'Ethereum',
@@ -278,10 +350,6 @@ const XNav = (() => {
     'ton:mainnet': 'TON',
   };
 
-  /**
-   * Update the network name text in both desktop and mobile badge elements.
-   * @param {string} name - Network display name (e.g., "Ink Sepolia")
-   */
   function updateNetworkBadge(name) {
     const desktop = document.getElementById('networkBadgeText');
     const mobile = document.getElementById('networkBadgeMobile');
@@ -289,13 +357,8 @@ const XNav = (() => {
     if (mobile) mobile.textContent = name;
   }
 
-  /**
-   * Wire up the network badge click handler and subscribe to Reown AppKit
-   * CAIP network change events. On network switch, updates the badge text
-   * and propagates the chain change to the lending adapter registry and agent.
-   */
   function wireUpNetworkSwitcher() {
-    const badge = document.getElementById('networkBadgeText');
+    const badge = document.getElementById('networkBadge');
     if (badge && window.xLeverWallet) {
       badge.addEventListener('click', () => window.xLeverWallet.open({ view: 'Networks' }));
     }
@@ -320,12 +383,6 @@ const XNav = (() => {
     }
   }
 
-  /**
-   * Attach click handlers to the Trade/Research mode toggle buttons.
-   * On mode switch: persists to localStorage, re-renders nav links,
-   * updates body class, and notifies XMode if available.
-   * @param {string|null} activeId - The currently active page ID
-   */
   function wireUpModeToggle(activeId) {
     document.querySelectorAll('.nav-mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -333,26 +390,18 @@ const XNav = (() => {
         localStorage.setItem('xlever-mode', newMode);
 
         document.querySelectorAll('.nav-mode-btn').forEach(b => {
-          b.classList.remove('active');
-          b.style.background = 'transparent';
-          b.style.color = '#555970';
+          b.classList.remove('active-trade', 'active-research');
         });
-        btn.classList.add('active');
-        if (newMode === 'trade') {
-          btn.style.background = '#00e676'; btn.style.color = '#0a0b0e';
-        } else {
-          btn.style.background = '#7c4dff'; btn.style.color = '#fff';
-        }
+        btn.classList.add(newMode === 'trade' ? 'active-trade' : 'active-research');
 
         const visiblePages = pagesForMode(newMode);
         const navLinks = document.getElementById('navLinks');
         if (navLinks) {
-          navLinks.innerHTML = visiblePages.map(p => navLink(p, p.id === activeId)).join('\n');
+          navLinks.innerHTML = visiblePages.map(p => navLink(p, p.id === activeId)).join('');
         }
         const mobileNavLinks = document.getElementById('mobileNavLinks');
         if (mobileNavLinks) {
-          const networkBadge = `<div class="flex items-center gap-2 mt-2 px-4 py-2"><div class="w-2 h-2 rounded-full bg-[#00e676] animate-pulse"></div><span class="font-['JetBrains_Mono'] text-[10px] text-[#8b8fa3] uppercase tracking-widest" id="networkBadgeMobile">Ink Sepolia</span></div>`;
-          mobileNavLinks.innerHTML = visiblePages.map(p => mobileLink(p, p.id === activeId)).join('\n') + networkBadge;
+          mobileNavLinks.innerHTML = visiblePages.map(p => mobileLink(p, p.id === activeId)).join('');
         }
 
         if (window.XMode) window.XMode.set(newMode);
@@ -363,10 +412,6 @@ const XNav = (() => {
     });
   }
 
-  /**
-   * Wire up the mobile hamburger menu button to toggle the mobile drawer
-   * visibility and swap the icon between "menu" and "close".
-   */
   function wireUpMobileMenu() {
     const btn = document.getElementById('mobileMenuBtn');
     const nav = document.getElementById('mobileNav');
