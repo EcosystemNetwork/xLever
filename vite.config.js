@@ -39,6 +39,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'frontend/index.html'),
+        trading: resolve(__dirname, 'frontend/trading.html'),
         dashboard: resolve(__dirname, 'frontend/01-dashboard.html'),
         agents: resolve(__dirname, 'frontend/03-ai-agent-operations.html')
       },
