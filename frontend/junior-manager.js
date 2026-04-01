@@ -370,16 +370,21 @@ function initJuniorPage() {
   // Vault selector
   const juniorHero = document.querySelector('.junior-hero');
   if (juniorHero) {
-    const vaultSelector = document.createElement('div');
-    vaultSelector.className = 'vault-selector';
-    vaultSelector.innerHTML = `
-      <label>Select Vault</label>
-      <div class="vault-buttons">
-        <button class="vault-btn" data-vault="wSPYx">SPY Vault</button>
-        <button class="vault-btn active" data-vault="wQQQx">QQQ Vault</button>
-      </div>
-    `;
-    juniorHero.appendChild(vaultSelector);
+    // Check if vault selector already exists to prevent duplicates
+    let vaultSelector = juniorHero.querySelector('.vault-selector');
+    
+    if (!vaultSelector) {
+      vaultSelector = document.createElement('div');
+      vaultSelector.className = 'vault-selector';
+      vaultSelector.innerHTML = `
+        <label>Select Vault</label>
+        <div class="vault-buttons">
+          <button class="vault-btn" data-vault="wSPYx">SPY Vault</button>
+          <button class="vault-btn active" data-vault="wQQQx">QQQ Vault</button>
+        </div>
+      `;
+      juniorHero.appendChild(vaultSelector);
+    }
 
     // Vault button handlers
     document.querySelectorAll('.vault-btn').forEach(btn => {
