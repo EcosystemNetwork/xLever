@@ -88,38 +88,96 @@
 <body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-white">
 <!-- Top Ticker Strip -->
 <div class="w-full h-10 bg-surface-container-lowest etched-border flex items-center overflow-hidden z-50">
-<div class="flex whitespace-nowrap animate-marquee px-4 gap-8">
+<div class="flex whitespace-nowrap animate-marquee px-4 gap-8" id="tickerMarquee">
 <div class="flex items-center space-x-3">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">QQQx</span>
 <span class="mono text-sm font-semibold">487.23</span>
 <span class="mono text-[11px] text-tertiary">+1.24%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden">
-<div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div>
-</div>
-</div>
-<div class="flex items-center space-x-3">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">NVDAx</span>
-<span class="mono text-sm font-semibold">171.53</span>
-<span class="mono text-[11px] text-tertiary">+2.31%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden">
-<div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div>
-</div>
-</div>
-<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
-<span class="text-[10px] text-outline font-bold uppercase tracking-wider">TSLAx</span>
-<span class="mono text-sm font-semibold">280.44</span>
-<span class="mono text-[11px] text-tertiary">+1.87%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden">
-<div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div>
-</div>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
 </div>
 <div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
 <span class="text-[10px] text-outline font-bold uppercase tracking-wider">SPYx</span>
 <span class="mono text-sm font-semibold">651.82</span>
 <span class="mono text-[11px] text-tertiary">+0.34%</span>
-<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden">
-<div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
 </div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">NVDAx</span>
+<span class="mono text-sm font-semibold">171.53</span>
+<span class="mono text-[11px] text-tertiary">+2.31%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">TSLAx</span>
+<span class="mono text-sm font-semibold">280.44</span>
+<span class="mono text-[11px] text-tertiary">+1.87%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SMHx</span>
+<span class="mono text-sm font-semibold">248.91</span>
+<span class="mono text-[11px] text-tertiary">+1.65%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">CEGx</span>
+<span class="mono text-sm font-semibold">312.57</span>
+<span class="mono text-[11px] text-tertiary">+3.12%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">DELLx</span>
+<span class="mono text-sm font-semibold">118.34</span>
+<span class="mono text-[11px] text-tertiary">+0.92%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">VRTx</span>
+<span class="mono text-sm font-semibold">96.42</span>
+<span class="mono text-[11px] text-tertiary">+2.74%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SLVx</span>
+<span class="mono text-sm font-semibold">28.93</span>
+<span class="mono text-[11px] text-tertiary">+0.58%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">XLEx</span>
+<span class="mono text-sm font-semibold">89.17</span>
+<span class="mono text-[11px] text-tertiary">-0.43%</span>
+<div class="w-12 h-4 bg-error/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-error/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">STRKx</span>
+<span class="mono text-sm font-semibold">421.68</span>
+<span class="mono text-[11px] text-tertiary">+4.21%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">AAPLx</span>
+<span class="mono text-sm font-semibold">254.87</span>
+<span class="mono text-[11px] text-tertiary">+0.76%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">GEVx</span>
+<span class="mono text-sm font-semibold">387.14</span>
+<span class="mono text-[11px] text-tertiary">+1.98%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">SMCIx</span>
+<span class="mono text-sm font-semibold">42.15</span>
+<span class="mono text-[11px] text-error">-2.18%</span>
+<div class="w-12 h-4 bg-error/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-error/20 to-transparent"></div></div>
+</div>
+<div class="flex items-center space-x-3 border-l border-outline-variant/20 pl-8">
+<span class="text-[10px] text-outline font-bold uppercase tracking-wider">LRCXx</span>
+<span class="mono text-sm font-semibold">78.56</span>
+<span class="mono text-[11px] text-tertiary">+1.34%</span>
+<div class="w-12 h-4 bg-tertiary/10 rounded-sm relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-tr from-tertiary/20 to-transparent"></div></div>
 </div>
 </div>
 </div>
@@ -228,9 +286,40 @@
 <div class="h-12 flex items-center justify-between px-4 bg-surface-container-lowest/50 border-b border-outline-variant/10">
 <div class="flex items-center gap-4">
 <!-- Ticker Selector Pill Toggles -->
-<div class="flex bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10">
+<div class="flex flex-wrap bg-surface-container-high rounded-sm p-0.5 border border-outline-variant/10 gap-0.5">
 <button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all bg-primary-container text-on-primary-container">QQQx</button>
 <button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SPYx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">NVDAx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">TSLAx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">AAPLx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SMHx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">CEGx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">DELLx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VRTx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SMCIx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">ANETx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">GEVx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SMRx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">KLACx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">LRCXx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">AMATx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">TERx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">ETNx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">PWRx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">APLDx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SNDKx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">XLEx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">XOPx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">ITAx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VGKx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VUGx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">VXUSx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SGOVx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">SLVx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">PPLTx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">PALLx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">STRKx</button>
+<button class="px-3 py-1 text-[11px] font-bold tracking-tight rounded-sm transition-all text-outline hover:text-on-surface">BTGOx</button>
 </div>
 <div class="h-4 w-px bg-outline-variant/30"></div>
 <div class="flex gap-1">
@@ -664,7 +753,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Wire up asset ticker switches to set active asset in contracts adapter
-  const tickerMapping = { 'QQQx': 'QQQ', 'SPYx': 'SPY', 'AAPLx': 'AAPL', 'NVDAx': 'NVDA', 'TSLAx': 'TSLA' };
+  const tickerMapping = {
+    'QQQx': 'QQQ', 'SPYx': 'SPY', 'AAPLx': 'AAPL', 'NVDAx': 'NVDA', 'TSLAx': 'TSLA',
+    'SMHx': 'SMH', 'CEGx': 'CEG', 'DELLx': 'DELL', 'VRTx': 'VRT', 'SMCIx': 'SMCI',
+    'ANETx': 'ANET', 'GEVx': 'GEV', 'SMRx': 'SMR', 'KLACx': 'KLAC', 'LRCXx': 'LRCX',
+    'AMATx': 'AMAT', 'TERx': 'TER', 'ETNx': 'ETN', 'PWRx': 'PWR', 'APLDx': 'APLD',
+    'SNDKx': 'SNDK', 'XLEx': 'XLE', 'XOPx': 'XOP', 'ITAx': 'ITA', 'VGKx': 'VGK',
+    'VUGx': 'VUG', 'VXUSx': 'VXUS', 'SGOVx': 'SGOV', 'SLVx': 'SLV', 'PPLTx': 'PPLT',
+    'PALLx': 'PALL', 'STRKx': 'STRK', 'BTGOx': 'BTGO',
+  };
   document.querySelectorAll('.bg-surface-container-high .rounded-sm').forEach(btn => {
     btn.addEventListener('click', () => {
       const sym = btn.textContent.trim();

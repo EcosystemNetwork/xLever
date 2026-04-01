@@ -4,43 +4,65 @@ Hope you got some good sleep. We've been cooking while you were out. Here's the 
 
 ## What's done
 
-### Frontend (7 screens, fully interactive)
+### Frontend (8 screens, fully interactive)
 All screens are in `frontend/` with consistent nav, wallet connect (Reown AppKit), and real xStocks data:
 
-1. **Dashboard** — Portfolio overview, PnL cards, live trades feed
-2. **Trading Terminal** — Chart, order book, -4x/+4x leverage slider, position entry
-3. **AI Agent Operations** — Agent cards, execution log, deployment controls
-4. **Vault Management** — Euler V2 vaults, deposit/withdraw, tranche visualization
-5. **Risk Management** — Correlation matrix, liquidation ladder, auto-deleverage cascade
-6. **Analytics & Backtesting** — Strategy comparison, Monte Carlo, LTAP vs daily reset
-7. **Operations Control** — System health, tx history, governance, alerts
+1. **Landing Page** — Protocol overview, feature cards, wallet connect, 4-chain support
+2. **Dashboard** — Portfolio overview, PnL cards, live trades feed, health metrics
+3. **Trading Terminal** — TradingView chart with real data, order book, -4x/+4x leverage slider, position entry
+4. **AI Agent Operations** — Agent cards, execution log, deployment controls, 3 policy modes (Safe, Target, Accumulate)
+5. **Vault Management** — Euler V2 vaults, senior/junior tranche deposit/withdraw, visualization
+6. **Risk Management** — Correlation matrix, liquidation ladder, auto-deleverage cascade, 4-state sentinel alerts
+7. **Analytics & Backtesting** — Strategy comparison, LTAP vs daily-reset with real Yahoo Finance data, circuit breaker markers
+8. **Operations Control** — System health, tx history, governance, operational alerts
 
-Run locally: `npx vite` then open `http://localhost:5173/frontend/01-dashboard.html`
+Run locally: `npm run dev` then open `http://localhost:3000`
 
 ### Wallet + Contract Layer
-- **`wallet.js`** — Reown AppKit with wagmi adapter, dark themed, xLever branding
-- **`ux.js`** — Toast notifications, trade confirmation modal (with real tx flow when vault is deployed, simulated otherwise), leverage slider, skeleton loading
+- **`wallet.js`** — Reown AppKit with wagmi adapter, dark themed, xLever branding. Supports Ethereum mainnet, Ink Sepolia, Solana, TON
+- **`ux.js`** — Toast notifications, trade confirmation modal (with real tx flow when vault is deployed, simulated otherwise), interactive leverage slider (-4x to +4x with drag), skeleton loading
 - **`contracts.js`** — Full viem adapter for your Vault contracts. Already has:
   - Ink Sepolia chain config
-  - ABIs matching `Vault.sol` and `VaultSimple.sol` exactly
-  - `openPosition(amount, leverage)` — handles USDC approve + deposit
-  - `closePosition(amount)` — withdraw flow
-  - `adjustLeverage(newLeverage)` — adjust existing position
+  - ABIs matching `Vault.sol` and `VaultSimple.sol` exactly (including Pyth priceUpdateData params)
+  - `openPosition(amount, leverage)` — handles USDC approve + Pyth price fetch + deposit with fee
+  - `closePosition(amount)` — withdraw flow with Pyth update
+  - `adjustLeverage(newLeverage)` — adjust existing position with Pyth update
   - `depositJunior(amount)` / `withdrawJunior(shares)` — LP flows
-  - All read functions: getPosition, getPositionValue, getPoolState, getTWAP, etc.
+  - All read functions: getPosition, getPositionValue, getPoolState, getTWAP, getMaxLeverage, getFundingRate, getJuniorValue
+  - Pyth fee estimation via PythAdapter.getUpdateFee() with 10% buffer
   - Explorer URL helpers for Ink Sepolia
+
+### Oracle Layer
+- **`pyth.js`** — Full Hermes client with feed IDs for QQQ, SPY, AAPL, NVDA, TSLA, ETH. Fetches updateData bytes for on-chain vault calls. Includes staleness checker and price divergence calculator.
+
+### Risk Engine
+- **`risk-engine.js`** — Deterministic 4-state sentinel (NORMAL → WARNING → RESTRICTED → EMERGENCY). Monitors oracle freshness, divergence, drawdown, health factor, volatility, and pool utilization. Has 5-level auto-deleverage cascade. Includes 3 demo scenarios for the risk management screen.
+
+### AI Agent
+- **`agent-executor.js`** — Real decision loop that reads Pyth oracle + on-chain contracts + OpenBB, evaluates policy rules, and executes real transactions (or dry-run previews). Three modes: Safe (stop-loss), Target Exposure (maintain band), Accumulate (DCA). Permission boundaries enforced in code — not just UI.
+
+### Backend
+- **`server/server.py`** — Simple HTTP proxy for Yahoo Finance (used by backtester)
+- **`server/api/`** — Full FastAPI app with routes for users, positions, agents, alerts, prices (DB-cached), and OpenBB intelligence. PostgreSQL + Redis via Docker.
+
+### Code Documentation
+- **Every line of code is commented** explaining WHY it exists — all JS, CSS, Python, and Solidity files
 
 ### Token Addresses (already in contracts.js)
 ```
+EVC:   0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c
 USDC:  0x6b57475467cd854d36Be7FB614caDa5207838943
 wSPYx: 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e
 wQQQx: 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9
-EVC:   0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c
+Pyth:  0x2880aB155794e7179c9eE2e38200202908C17B43
+PythAdapter: 0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f
+QQQ Vault: 0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6
+SPY Vault: 0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228
 ```
 
 ## What you need to do
 
-### 1. Deploy the vaults
+### 1. Deploy the vaults (if redeploying)
 The deployment script is ready at `contracts/script/DeployXLever.s.sol`. It deploys `VaultSimple` for both wSPYx and wQQQx:
 
 ```bash
@@ -51,7 +73,7 @@ cp ../.env.example ../.env
 forge script script/DeployXLever.s.sol --rpc-url https://rpc-gel-sepolia.inkonchain.com --broadcast
 ```
 
-### 2. Tell the frontend about the vault addresses
+### 2. Tell the frontend about new vault addresses (only if redeploying)
 After deployment, update `frontend/contracts.js` — find the `ADDRESSES` object and fill in:
 ```js
 spyVault: '0x_YOUR_DEPLOYED_SPY_VAULT',
@@ -65,48 +87,58 @@ window.xLeverContracts.setAddress('vault', '0x_YOUR_VAULT')
 
 Once `vault` is set, the trade confirmation modal automatically switches from simulated to real on-chain transactions.
 
-### 3. Review the contracts
-I didn't change any of your Solidity code — everything in `contracts/src/xLever/` is exactly as you left it. The frontend adapter (`contracts.js`) was built to match your ABI signatures:
+### 3. Review the contract adapter
+I didn't change any of your Solidity code — everything in `contracts/src/xLever/` is exactly as you left it (now with comments on every line). The frontend adapter (`contracts.js`) was built to match your ABI signatures:
 
-- `deposit(uint256 amount, int32 leverageBps)` — leverage in basis points (-40000 to +40000)
-- `withdraw(uint256 amount)`
-- `adjustLeverage(int32 newLeverageBps)`
+- `deposit(uint256 amount, int32 leverageBps, bytes[] priceUpdateData)` — leverage in basis points (-40000 to +40000), includes Pyth update
+- `withdraw(uint256 amount, bytes[] priceUpdateData)` — with Pyth update
+- `adjustLeverage(int32 newLeverageBps, bytes[] priceUpdateData)` — with Pyth update
 - `getPosition(address user)` — returns the Position struct
 - `getPositionValue(address user)` — returns (value, pnl)
 - `getPoolState()` — returns the PoolState struct
+- `getCurrentTWAP()` — returns (twap, spreadBps)
+- `getMaxLeverage()` / `getFundingRate()` / `getCarryRate()` / `getJuniorValue()`
 
 If you change any function signatures, just update the `VAULT_ABI` array in `contracts.js` to match.
 
 ### 4. Things to consider
-- **VaultSimple vs Vault**: The deploy script uses `VaultSimple` (no fees, no hedging) for speed. If you want the full `Vault.sol` with all modules (FeeEngine, JuniorTranche, TWAPOracle, RiskModule), you'll need to verify contract size fits or split it.
+- **VaultSimple vs Vault**: The deploy script uses `VaultSimple` (no fees, no hedging) for speed. If you want the full `Vault.sol` with all modules (FeeEngine, JuniorTranche, TWAPOracle, RiskModule, EulerHedgingModule), you'll need to verify contract size fits or split it.
 - **Oracle initialization**: `TWAPOracle.initializeBuffer(startPrice)` needs to be called after deploy with the current xStocks price (8 decimals).
 - **USDC approval**: The frontend handles `approve()` before `deposit()` automatically.
+- **Pyth fees**: The frontend fetches the update fee from PythAdapter.getUpdateFee() and adds a 10% buffer. If the adapter isn't deployed, it falls back to 0.001 ETH.
+- **Risk sentinel**: The risk engine runs client-side and reads from on-chain state + Pyth. It's deterministic — same inputs always produce same outputs. Demo scenarios are in `risk-engine.js` for the risk management screen.
 
 ## Architecture
 ```
-User Wallet (AppKit)
+User Wallet (Reown AppKit — 4 chains)
       │
       ▼
   contracts.js (viem)
       │
-      ├── openPosition() ──→ USDC.approve() → Vault.deposit()
-      ├── closePosition() ──→ Vault.withdraw()
-      ├── adjustLeverage() ──→ Vault.adjustLeverage()
+      ├── openPosition() ──→ Pyth.getPriceUpdate() → USDC.approve() → Vault.deposit{value: fee}()
+      ├── closePosition() ──→ Pyth.getPriceUpdate() → Vault.withdraw{value: fee}()
+      ├── adjustLeverage() ──→ Pyth.getPriceUpdate() → Vault.adjustLeverage{value: fee}()
+      ├── depositJunior() ──→ USDC.approve() → Vault.depositJunior()
       └── getPosition() ──→ Vault.getPosition() [view]
       │
       ▼
-  VaultSimple.sol (Ink Sepolia)
+  VaultSimple.sol / Vault.sol (Ink Sepolia)
       ├── USDC transfers
-      ├── Position tracking
-      └── Pool state management
+      ├── Position tracking (PositionModule)
+      ├── Euler V2 hedging (EulerHedgingModule via EVC)
+      ├── Fee calculation (FeeEngine)
+      ├── Risk monitoring (RiskModule)
+      ├── Junior tranche (JuniorTranche)
+      └── Oracle (PythOracleAdapter + TWAPOracle)
 ```
 
 ## Quick test after deploy
-1. `npx vite` — start frontend
+1. `npm run dev` — start frontend
 2. Connect wallet on Ink Sepolia
 3. Get testnet USDC (faucet?)
 4. Open a position on the Trading Terminal screen
-5. Verify tx on Ink Sepolia explorer
+5. Verify tx on Ink Sepolia explorer: https://explorer-sepolia.inkonchain.com
+6. Check risk management screen — sentinel should show NORMAL state with live oracle data
 
 LFG when you're up.
 

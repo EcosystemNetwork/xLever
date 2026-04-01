@@ -171,7 +171,7 @@ function generateQQQData(years) {
 }
 
 // ──────────────────────────────────────────────────
-// REAL DATA FETCHING (Yahoo Finance via api.wrapsynth.com)
+// REAL DATA FETCHING (OpenBB-first, Yahoo fallback)
 // ──────────────────────────────────────────────────
 
 let allData = [];
@@ -181,42 +181,72 @@ let currentLeverage = 2.0, currentPeriod = '1Y', currentChartType = 'area';
 let entryDateIndex = 0;
 const MIN_LEV = -4.0, MAX_LEV = 4.0;
 
+async function fetchFromOpenBB(symbol, years) {
+  const end = new Date();
+  const start = new Date();
+  start.setFullYear(start.getFullYear() - years);
+  const startDate = start.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
+
+  const url = `/api/openbb/historical/${symbol}?start_date=${startDate}&end_date=${endDate}&interval=1d`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`OpenBB HTTP ${resp.status}: ${resp.statusText}`);
+
+  const json = await resp.json();
+  if (!json.data || json.data.length === 0) throw new Error('OpenBB returned no data');
+
+  return json.data.map(d => ({
+    time: (d.date || d.Date || '').split('T')[0],
+    open:  +(d.open  ?? d.Open  ?? d.close ?? 0).toFixed(4),
+    high:  +(d.high  ?? d.High  ?? d.close ?? 0).toFixed(4),
+    low:   +(d.low   ?? d.Low   ?? d.close ?? 0).toFixed(4),
+    close: +(d.close ?? d.Close ?? 0).toFixed(4),
+  })).filter(d => d.time && d.close > 0);
+}
+
+async function fetchFromYahoo(symbol, years) {
+  const endDate = Math.floor(Date.now() / 1000);
+  const startDate = endDate - (years * 365 * 24 * 60 * 60);
+  const url = `/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
+
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+
+  const data = await resp.json();
+  if (!data.chart || !data.chart.result || !data.chart.result[0]) {
+    throw new Error('Invalid response from Yahoo Finance API');
+  }
+
+  const result = data.chart.result[0];
+  const timestamps = result.timestamp;
+  const quotes = result.indicators.quote[0];
+
+  const ohlcv = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    if (quotes.close[i] === null) continue;
+    const date = new Date(timestamps[i] * 1000);
+    ohlcv.push({
+      time: date.toISOString().split('T')[0],
+      open: +(quotes.open[i] || quotes.close[i]).toFixed(4),
+      high: +(quotes.high[i] || quotes.close[i]).toFixed(4),
+      low: +(quotes.low[i] || quotes.close[i]).toFixed(4),
+      close: +quotes.close[i].toFixed(4)
+    });
+  }
+  return ohlcv;
+}
+
 async function fetchRealData(symbol, years) {
+  // Try OpenBB first (primary analytics backbone), fall back to Yahoo
   try {
-    const endDate = Math.floor(Date.now() / 1000);
-    const startDate = endDate - (years * 365 * 24 * 60 * 60);
-    
-    // Relative URL — Vite dev server proxies /api/* to the Python backend
-    const url = `/api/yahoo/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
-    
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-    
-    const data = await resp.json();
-    
-    if (!data.chart || !data.chart.result || !data.chart.result[0]) {
-      throw new Error('Invalid response from Yahoo Finance API');
-    }
-    
-    const result = data.chart.result[0];
-    const timestamps = result.timestamp;
-    const quotes = result.indicators.quote[0];
-    
-    const ohlcv = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (quotes.close[i] === null) continue;
-      
-      const date = new Date(timestamps[i] * 1000);
-      ohlcv.push({
-        time: date.toISOString().split('T')[0],
-        open: +(quotes.open[i] || quotes.close[i]).toFixed(4),
-        high: +(quotes.high[i] || quotes.close[i]).toFixed(4),
-        low: +(quotes.low[i] || quotes.close[i]).toFixed(4),
-        close: +quotes.close[i].toFixed(4)
-      });
-    }
-    
-    return ohlcv;
+    const data = await fetchFromOpenBB(symbol, years);
+    console.log(`✓ Loaded ${data.length} days via OpenBB`);
+    return data;
+  } catch (e) {
+    console.warn('OpenBB unavailable, falling back to Yahoo:', e.message);
+  }
+  try {
+    return await fetchFromYahoo(symbol, years);
   } catch (error) {
     console.error('Error fetching real data:', error);
     throw error;
@@ -1113,8 +1143,19 @@ function updateAll() {
   document.getElementById('dataSourceTicker').textContent = currentTicker;
   
   const tickerNames = {
-    'QQQ': 'QQQ (Nasdaq-100)',
-    'SPY': 'SPY (S&P 500)'
+    'QQQ': 'QQQ (Nasdaq-100)', 'SPY': 'SPY (S&P 500)',
+    'AAPL': 'AAPL (Apple)', 'NVDA': 'NVDA (NVIDIA)', 'TSLA': 'TSLA (Tesla)',
+    'SMH': 'SMH (Semiconductors ETF)', 'CEG': 'CEG (Constellation Energy)',
+    'DELL': 'DELL (Dell Technologies)', 'VRT': 'VRT (Vertiv)', 'SMCI': 'SMCI (Super Micro)',
+    'ANET': 'ANET (Arista Networks)', 'GEV': 'GEV (GE Vernova)', 'SMR': 'SMR (NuScale Power)',
+    'KLAC': 'KLAC (KLA Corp)', 'LRCX': 'LRCX (Lam Research)', 'AMAT': 'AMAT (Applied Materials)',
+    'TER': 'TER (Teradyne)', 'ETN': 'ETN (Eaton Corp)', 'PWR': 'PWR (Quanta Services)',
+    'APLD': 'APLD (Applied Digital)', 'SNDK': 'SNDK (Sandisk)',
+    'XLE': 'XLE (Energy Sector ETF)', 'XOP': 'XOP (Oil & Gas ETF)',
+    'ITA': 'ITA (Aerospace & Defense ETF)', 'VGK': 'VGK (Europe ETF)',
+    'VUG': 'VUG (Growth ETF)', 'VXUS': 'VXUS (Intl Stock ETF)', 'SGOV': 'SGOV (Treasury Bond ETF)',
+    'SLV': 'SLV (Silver Trust)', 'PPLT': 'PPLT (Platinum)', 'PALL': 'PALL (Palladium)',
+    'STRK': 'STRK (Strategy/MSTR)', 'BTGO': 'BTGO (BitGo)',
   };
   document.getElementById('underlyingName').textContent = tickerNames[currentTicker] || currentTicker;
 

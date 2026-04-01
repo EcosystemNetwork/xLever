@@ -1,24 +1,42 @@
+# Top-level services block defines the containers that make up the xLever backend infrastructure
 services:
+  # PostgreSQL database stores persistent protocol data (positions, vaults, user accounts, transactions)
   postgres:
+    # Alpine variant keeps the image small; Postgres 16 is the latest stable major version
     image: postgres:16-alpine
+    # Automatically restarts on crash but not if manually stopped, ensuring uptime during development
     restart: unless-stopped
+    # Environment variables configure the initial database and credentials on first run
     environment:
+      # Create a dedicated database for xLever instead of using the default "postgres" db
       POSTGRES_DB: xlever
+      # Service account username the FastAPI backend uses to connect
       POSTGRES_USER: xlever
+      # Password for local development — should be overridden via secrets in production
       POSTGRES_PASSWORD: xlever
+    # Expose Postgres on the standard port so the FastAPI backend and local tools (pgAdmin, psql) can connect
     ports:
       - "5432:5432"
+    # Named volume persists database data across container restarts and rebuilds
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # Redis provides in-memory caching for price feeds, session data, and pub/sub for real-time updates
   redis:
+    # Alpine variant for minimal image size; Redis 7 is the latest stable major version
     image: redis:7-alpine
+    # Same restart policy as Postgres — recovers from crashes but respects manual stops
     restart: unless-stopped
+    # Expose Redis on the standard port so the FastAPI backend and local debugging tools can connect
     ports:
       - "6379:6379"
+    # Named volume persists Redis RDB snapshots so cached data survives container restarts
     volumes:
       - redisdata:/data
 
+# Named volumes declared here so Docker manages their lifecycle and they persist across 'docker compose down'
 volumes:
+  # Stores PostgreSQL data files (tables, indexes, WAL) outside the container filesystem
   pgdata:
+  # Stores Redis RDB/AOF persistence files outside the container filesystem
   redisdata:

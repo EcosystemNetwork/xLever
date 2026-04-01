@@ -40,10 +40,13 @@ npm run dev
 
 ### 3. Key technical proof
 
-- **Backtesting engine** ([frontend/app.js](frontend/app.js)): 1,100+ lines implementing the full LTAP leverage simulation — fixed-entry vs daily-reset comparison using real market data
-- **Pyth oracle integration** ([frontend/pyth.js](frontend/pyth.js)): Live Hermes client fetching price update data for on-chain pull-oracle transactions
-- **Contract adapter** ([frontend/contracts.js](frontend/contracts.js)): viem-based interface for deployed Vault + ERC-20 + Pyth adapter contracts on Ink Sepolia
-- **Risk engine** ([frontend/risk-engine.js](frontend/risk-engine.js)): Deterministic 4-state risk sentinel with auto-deleverage policy
+- **Backtesting engine** ([frontend/app.js](frontend/app.js)): 1,400+ lines implementing the full LTAP leverage simulation — fixed-entry vs daily-reset comparison using real Yahoo Finance data via Python proxy, with circuit breakers, 5-level auto-deleverage, slippage modeling, and releveraging logic
+- **Pyth oracle integration** ([frontend/pyth.js](frontend/pyth.js)): Live Hermes client fetching price update data (QQQ, SPY, AAPL, NVDA, TSLA, ETH) for on-chain pull-oracle transactions with staleness and divergence checks
+- **Contract adapter** ([frontend/contracts.js](frontend/contracts.js)): viem-based interface for deployed Vault + ERC-20 + Pyth adapter contracts on Ink Sepolia — handles approve flows, Pyth fee estimation, position formatting
+- **Risk engine** ([frontend/risk-engine.js](frontend/risk-engine.js)): Deterministic 4-state risk sentinel (NORMAL → WARNING → RESTRICTED → EMERGENCY) with auto-deleverage recommendations, oracle health checks, and scenario simulation runner
+- **AI agent executor** ([frontend/agent-executor.js](frontend/agent-executor.js)): Bounded smart-account automation with 3 policy modes (Safe, Target Exposure, Accumulation) — gathers live state from Pyth + on-chain + OpenBB, enforces permission boundaries in code
+- **OpenBB intelligence** ([frontend/openbb.js](frontend/openbb.js)): Market intelligence client providing real-time quotes, historical data, options chains, and curated dashboard context for agent decision-making
+- **Consumer UX** ([frontend/ux.js](frontend/ux.js)): Production-grade UX layer with toast notifications, trade confirmation modals (real + simulated tx paths), interactive leverage slider, and skeleton loading states
 - **Protocol design**: 80KB architecture document covering vault mechanics, fee engine, circuit breakers, and Euler V2 integration ([protocol.md](protocol.md))
 
 ---
@@ -55,13 +58,13 @@ npm run dev
 | Frontend (8 screens) | **Live** | Vite-bundled, Bloomberg Terminal aesthetic |
 | Wallet connection | **Live** | Reown AppKit — Ethereum, Ink Sepolia, Solana, TON |
 | Smart contracts | **Deployed** | Vault, VaultFactory, PythOracleAdapter on Ink Sepolia |
-| Pyth oracle | **Live** | Hermes price feeds for QQQ, SPY, AAPL, NVDA, TSLA |
+| Pyth oracle | **Live** | Hermes price feeds for QQQ, SPY, AAPL, NVDA, TSLA, ETH |
 | Risk engine | **Live** | Deterministic 4-state sentinel with live oracle/position inputs |
-| Backtesting engine | **Live** | Real market data, LTAP fixed-entry leverage simulation |
+| Backtesting engine | **Live** | Real Yahoo Finance data, LTAP fixed-entry leverage simulation |
 | Trading charts | **Live** | TradingView Lightweight Charts with real QQQ/SPY data |
-| Data server | **Live** | Python proxy serving market data with caching |
+| Data server | **Live** | Python proxy serving Yahoo Finance data with caching |
 | OpenBB intelligence | **Live** | Market snapshots, options context, agent tooling |
-| AI agent trading | **Bounded** | Policy-based executor with real tx capabilities |
+| AI agent trading | **Bounded** | Policy-based executor with real tx capabilities (dry-run default) |
 
 ---
 
@@ -73,25 +76,36 @@ User Layer
          │                                        │
          ▼                                        ▼
 Core Protocol (Vault on Ink Sepolia)
-  Position Manager  │  Exposure Aggregator  │  Fee Engine
+  Position Manager  │  Exposure Aggregator  │  Fee Engine  │  Risk Sentinel
          │
          ▼
 Oracle + Intelligence
-  Pyth (on-chain execution oracle)  │  OpenBB (off-chain analytics/agent context)
+  Pyth Hermes (on-chain pull-oracle)  │  OpenBB (off-chain analytics/agent context)
          │
          ▼
-External
-  Euler V2 Markets  │  xStocks (wQQQx, wSPYx)
+External Protocols
+  Euler V2 Markets (EVC atomic looping)  │  xStocks (wQQQx, wSPYx)
 ```
 
 **How it works:**
 1. Senior users deposit USDC, pick leverage (-4x to +4x)
 2. Protocol handles lending/borrowing on Euler V2 atomically (single tx via EVC)
 3. PnL = Deposit x Leverage x Price Change — no daily rebalancing, no volatility decay
-4. Junior LPs provide first-loss capital, earn fees from all senior activity
-5. No liquidations — auto-deleverage cascade protects the system
+4. Junior LPs provide first-loss capital, earn 70% of fee revenue
+5. No liquidations — 5-level auto-deleverage cascade protects the system
+6. Risk sentinel monitors oracle freshness, drawdown, health factor, volatility, and pool utilization
 
 **Fee model:** `0.5% + 0.5% x |leverage - 1|` annually
+
+**Auto-deleverage cascade:**
+| Level | Trigger (Underlying DD) | Action |
+|-------|------------------------|--------|
+| 0 | < 10% | No action |
+| 1 | 10% | Reduce leverage 25% |
+| 2 | 15% | Reduce leverage 50% |
+| 3 | 22% | Cap at 1.5x |
+| 4 | 30% | Force to 1.0x |
+| 5 | 40% | Full liquidation |
 
 ---
 
@@ -99,13 +113,14 @@ External
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Vite + Vanilla JS/CSS, TradingView Charts, Tailwind CSS |
+| Frontend | Vite + Vanilla JS/CSS, TradingView Lightweight Charts |
 | Wallet | Reown AppKit (Ethereum, Ink Sepolia, Solana, TON) |
 | Contracts | Solidity, Euler V2 EVK + EVC, deployed on Ink Sepolia |
 | Oracle | Pyth Network (Hermes pull-oracle) |
 | Intelligence | OpenBB Platform (market data, options, agent context) |
-| Data | Market data proxy with caching |
+| Backend | Python — simple HTTP proxy + FastAPI with PostgreSQL |
 | Risk | Deterministic 4-state sentinel engine |
+| Styling | Bloomberg Terminal dark aesthetic (custom CSS) |
 
 ---
 
@@ -113,30 +128,84 @@ External
 
 ```
 xLever/
-├── frontend/
-│   ├── index.html              # Landing page
-│   ├── 01-dashboard.html       # Portfolio command center
-│   ├── 02-trading-terminal.html # Trading + charting
-│   ├── 03-ai-agent-operations.html # Smart agent control
-│   ├── 04-vault-management.html # Euler V2 vault UI
-│   ├── 05-risk-management.html # Risk sentinel
-│   ├── 06-analytics-backtesting.html # Backtesting engine
-│   ├── 07-operations-control.html # System operations
-│   ├── wallet.js               # Reown AppKit (4-chain wallet)
-│   ├── contracts.js            # viem contract adapter
-│   ├── pyth.js                 # Pyth Hermes client
-│   ├── risk-engine.js          # Risk sentinel engine
-│   ├── openbb.js               # OpenBB intelligence service
-│   ├── app.js                  # LTAP backtesting engine
-│   └── ux.js                   # UX layer (toasts, modals)
-├── contracts/
-│   └── src/xLever/             # Solidity contracts
-├── server/
-│   ├── server.py               # Data proxy server
-│   └── api/                    # API routes
-├── protocol.md                 # Full protocol architecture (80KB)
-└── README.md                   # You are here
+├── frontend/                           # 9,000+ LOC interactive UI
+│   ├── index.html                      # Landing page with protocol overview
+│   ├── 01-dashboard.html               # Portfolio command center
+│   ├── 02-trading-terminal.html        # TradingView charts + leverage trading
+│   ├── 03-ai-agent-operations.html     # Bounded agent control panel
+│   ├── 04-vault-management.html        # Euler V2 vault deposit/withdraw
+│   ├── 05-risk-management.html         # Risk sentinel visualization
+│   ├── 06-analytics-backtesting.html   # LTAP vs daily-reset backtesting
+│   ├── 07-operations-control.html      # System health + tx tracking
+│   ├── wallet.js                       # Reown AppKit (4-chain wallet)
+│   ├── contracts.js                    # viem contract adapter (Vault + ERC-20)
+│   ├── pyth.js                         # Pyth Hermes oracle client
+│   ├── risk-engine.js                  # 4-state risk sentinel engine
+│   ├── agent-executor.js               # AI agent with bounded policies
+│   ├── openbb.js                       # OpenBB market intelligence client
+│   ├── app.js                          # LTAP backtesting engine (1,400+ LOC)
+│   ├── ux.js                           # UX layer (toasts, modals, slider)
+│   ├── viem-shim.js                    # viem window bridge for non-module scripts
+│   └── styles.css                      # Bloomberg Terminal aesthetic CSS
+│
+├── contracts/                          # Solidity smart contracts
+│   ├── src/xLever/                     # Core protocol contracts
+│   │   ├── Vault.sol                   # Main vault with module dispatch
+│   │   ├── VaultSimple.sol             # Lightweight vault (no fees/hedging)
+│   │   ├── VaultFactory.sol            # Deploy and register vaults
+│   │   ├── modules/                    # Protocol modules
+│   │   │   ├── PositionModule.sol      # User position tracking
+│   │   │   ├── EulerHedgingModule.sol  # Euler V2 EVC looping
+│   │   │   ├── FeeEngine.sol           # Dynamic fee calculation
+│   │   │   ├── RiskModule.sol          # Health monitor + auto-deleverage
+│   │   │   ├── JuniorTranche.sol       # First-loss capital pool
+│   │   │   ├── PythOracleAdapter.sol   # Pyth price feeds
+│   │   │   └── TWAPOracle.sol          # 15-min TWAP with dynamic spread
+│   │   ├── interfaces/                 # Contract interfaces
+│   │   └── libraries/DataTypes.sol     # Shared data structures
+│   ├── script/                         # 23 Foundry deployment scripts
+│   ├── test/                           # Foundry tests
+│   ├── audits/                         # 13 security audit PDFs
+│   └── lib/                            # Git submodules (EVC, OZ, Permit2)
+│
+├── server/                             # Python backend
+│   ├── server.py                       # Simple HTTP + Yahoo Finance proxy
+│   └── api/                            # FastAPI application
+│       ├── main.py                     # App entry point
+│       ├── config.py                   # Pydantic settings
+│       ├── database.py                 # SQLAlchemy async engine
+│       ├── models.py                   # ORM models (User, Position, Agent, Alert)
+│       ├── schemas.py                  # Pydantic request/response schemas
+│       └── routes/                     # API endpoints
+│           ├── prices.py               # Yahoo Finance proxy with DB cache
+│           ├── positions.py            # Position history + stats
+│           ├── agents.py               # Agent run lifecycle
+│           ├── alerts.py               # Risk/price alert management
+│           ├── openbb.py              # OpenBB market intelligence
+│           └── users.py               # Wallet-based user management
+│
+├── dist/                               # Vite production build output
+├── vite.config.js                      # Vite bundler + dev server config
+├── package.json                        # npm dependencies
+├── docker-compose.yml                  # PostgreSQL + Redis for backend
+├── vercel.json                         # Vercel deployment config
+├── deployment.json                     # Current deployed contract addresses
+├── protocol.md                         # Full protocol architecture (80KB)
+├── MADS_README.md                      # Status update for Mads (Euler V2 specialist)
+├── DEMO_SCRIPT.md                      # 2-minute demo shot list
+├── SUBMISSION_CHECKLIST.md             # Judge verification checklist
+└── README.md                           # You are here
 ```
+
+---
+
+## Code Documentation
+
+Every line of code in the codebase is commented explaining **why** it exists — not just what it does. This includes:
+- All frontend JavaScript modules (wallet, contracts, pyth, risk engine, agent, UX, backtesting)
+- All Solidity smart contracts and deployment scripts
+- All Python backend files (server, API routes, models, schemas)
+- CSS styles and configuration files
 
 ---
 
@@ -163,18 +232,44 @@ xLever/
 # 1. Install dependencies
 npm install
 
-# 2. Start data server
+# 2. Start data server (serves Yahoo Finance data for backtesting)
 cd server && python3 server.py &
 cd ..
 
-# 3. Start dev server
+# 3. Start dev server (Vite, opens browser automatically)
 npm run dev
 # → http://localhost:3000
 
-# 4. Build for production
+# 4. (Optional) Start backend services for full API
+docker compose up -d          # PostgreSQL + Redis
+pip install -r server/requirements.txt
+uvicorn server.api.main:app --reload --port 8000
+
+# 5. Build for production
 npm run build
 # → output in dist/
 ```
+
+---
+
+## Risk Sentinel States
+
+| State | Color | Max Leverage | Trigger Conditions |
+|-------|-------|-------------|-------------------|
+| NORMAL | Green | 4.0x | All metrics healthy |
+| WARNING | Yellow | 3.0x | Oracle aging (>5m), 1% divergence, 5% drawdown, health <1.5, vol >50%, util >75% |
+| RESTRICTED | Orange | 1.5x | Oracle stale (>15m), 3% divergence, 15% drawdown, health <1.2, vol >80%, util >90% |
+| EMERGENCY | Red | 0.0x | 30%+ drawdown, health <1.05 |
+
+---
+
+## AI Agent Policy Modes
+
+| Mode | Can Open | Can Close | Can Adjust | Use Case |
+|------|----------|-----------|------------|----------|
+| Safe | No | Yes | Reduce only | Stop-loss, vol protection |
+| Target Exposure | No | No | Within band | Maintain target leverage |
+| Accumulate | Yes (bounded) | Profit-take | No | DCA with auto take-profit |
 
 ---
 
