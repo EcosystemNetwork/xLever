@@ -1,18 +1,36 @@
 /**
- * xLever LLM Analyst — Provider-Agnostic Market Intelligence
- * ────────────────────────────────────────────────────────────
+ * @file llm-analyst.js
+ * @module LLMAnalyst
+ * @description
+ * xLever LLM Analyst — Provider-agnostic AI-powered market analysis.
  * Fourth analyst agent in the news-to-trade pipeline.
- * Supports multiple LLM backends via a unified interface:
  *
- *   groq      — Free tier, 30 req/min, Llama 3.3 70B (DEFAULT)
- *   ollama    — Local, free forever, any model, offline capable
+ * Supports multiple LLM backends via a unified interface:
+ *   groq       — Free tier, 30 req/min, Llama 3.3 70B (DEFAULT, auto-detected first)
+ *   ollama     — Local, free forever, any model, offline capable (fallback)
  *   openrouter — Multi-model gateway, free tiers available
- *   gemini    — Google AI, free tier 15 req/min
+ *   gemini     — Google AI, free tier 15 req/min
  *   perplexity — Online LLM with web search (paid)
  *
  * Integrates into NewsAnalysts.analyzeAll() alongside sentiment, technical, macro.
+ * Auto-detects the best available provider on load based on configured API keys.
+ *
+ * Features:
+ *  - Per-provider rate limiting (sliding window, 1-minute buckets)
+ *  - Exponential backoff retry (up to 2 retries)
+ *  - 15-second request timeout with AbortController
+ *  - Robust JSON extraction from LLM responses (handles markdown, code blocks)
+ *  - Market context gathering from Pyth oracle, OpenBB, and RiskLive
  *
  * Config via window.__ENV__ or setProvider() / setApiKey() at runtime.
+ *
+ * @exports {Object} LLMAnalyst - Frozen singleton exposed on window.LLMAnalyst
+ *
+ * @dependencies
+ *  - window.__ENV__     — Environment variables for API keys
+ *  - window.xLeverPyth  — Pyth oracle for market context (optional)
+ *  - window.xLeverOpenBB — OpenBB for daily change context (optional)
+ *  - window.RiskLive     — Risk engine state for prompt context (optional)
  */
 
 const LLMAnalyst = (() => {
@@ -161,10 +179,21 @@ const LLMAnalyst = (() => {
   // CONFIG
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Get the currently active provider configuration object.
+   * @returns {Object|undefined} Provider config with url, model, buildPayload, parseResponse, etc.
+   */
   function getProvider() {
     return PROVIDERS[_activeProvider]
   }
 
+  /**
+   * Resolve the API key for the active provider.
+   * Checks window.__ENV__, then window-level globals.
+   * Returns '__local__' for Ollama (no key needed).
+   *
+   * @returns {string|null} API key string or null if not configured
+   */
   function getApiKey() {
     const provider = getProvider()
     if (!provider) return null
@@ -182,12 +211,21 @@ const LLMAnalyst = (() => {
     return null
   }
 
+  /**
+   * Check if the active provider is available (has API key or is local).
+   * @returns {boolean} True if the provider can accept queries
+   */
   function isAvailable() {
     // Ollama: try to assume it's available (no key check needed)
     if (_activeProvider === 'ollama') return true
     return !!getApiKey()
   }
 
+  /**
+   * Get the model name that will be used for the next query.
+   * Returns the manual override if set, otherwise the provider's default model.
+   * @returns {string} Model identifier
+   */
   function getActiveModel() {
     return _modelOverride || getProvider()?.model || 'unknown'
   }
@@ -196,6 +234,12 @@ const LLMAnalyst = (() => {
   // RATE LIMITER
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Try to acquire a rate-limit slot for the current provider.
+   * Uses a sliding 60-second window with per-provider request caps.
+   *
+   * @returns {boolean} True if a slot was acquired; false if rate-limited
+   */
   function acquireRateSlot() {
     const provider = getProvider()
     const limit = provider?.rateLimit || 10
@@ -215,6 +259,16 @@ const LLMAnalyst = (() => {
   // UNIFIED LLM CLIENT
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Send a single query to the active LLM provider.
+   * Handles URL construction, payload building, auth headers, and response parsing
+   * for all supported providers through their config objects.
+   *
+   * @param {string} prompt - User message / analysis prompt
+   * @param {string} systemPrompt - System prompt with role instructions
+   * @returns {Promise<Object>} Parsed response with content, model, and usage fields
+   * @throws {Error} On HTTP errors, timeouts, or missing API key
+   */
   async function queryLLM(prompt, systemPrompt) {
     const provider = getProvider()
     if (!provider) throw new Error(`Unknown provider: ${_activeProvider}`)
@@ -276,6 +330,15 @@ const LLMAnalyst = (() => {
     }
   }
 
+  /**
+   * Query the LLM with exponential backoff retry (up to MAX_RETRIES attempts).
+   * Delay doubles with each retry: 1s, 2s, 4s, etc.
+   *
+   * @param {string} prompt - User message
+   * @param {string} systemPrompt - System prompt
+   * @returns {Promise<Object>} Parsed LLM response
+   * @throws {Error} After all retries are exhausted
+   */
   async function queryWithRetry(prompt, systemPrompt) {
     let lastErr
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -314,6 +377,18 @@ Rules:
 - If the news is stale or already priced in, confidence should be low
 - Factor in the current risk environment (tariffs, Fed policy, geopolitical tensions)`
 
+  /**
+   * Build a structured analysis prompt from news item data and live market context.
+   * Includes headline, body (truncated to 500 chars), source, priority,
+   * mentioned tickers, oracle price, daily move, and risk state.
+   *
+   * @param {Object} newsItem - News item to analyze
+   * @param {Object} [marketContext] - Live market context data
+   * @param {number} [marketContext.oraclePrice] - Current QQQ price from Pyth
+   * @param {number} [marketContext.dailyChange] - Today's QQQ % change
+   * @param {string} [marketContext.riskState] - Current risk engine state
+   * @returns {string} Formatted prompt string
+   */
   function buildPrompt(newsItem, marketContext) {
     const parts = [
       `NEWS HEADLINE: ${newsItem.headline}`,
@@ -352,6 +427,14 @@ Rules:
   // RESPONSE PARSING
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Extract a JSON object from LLM response content.
+   * Tries three strategies in order: direct parse, markdown code block extraction,
+   * and brace-delimited extraction. Handles common LLM formatting quirks.
+   *
+   * @param {string} content - Raw LLM response text
+   * @returns {Object|null} Parsed JSON object, or null if extraction fails
+   */
   function extractJSON(content) {
     content = content.trim()
 
@@ -373,6 +456,14 @@ Rules:
     return null
   }
 
+  /**
+   * Parse and validate the LLM response into a typed analyst signal.
+   * Extracts JSON, validates/clamps all fields, and normalizes confidence from 0-100 to 0-1.
+   *
+   * @param {string} content - Raw LLM response text
+   * @param {Object} newsItem - Original news item for fallback asset extraction
+   * @returns {Object} Analyst signal conforming to the NewsAnalysts signal schema
+   */
   function parseResponse(content, newsItem) {
     const data = extractJSON(content)
 
@@ -415,6 +506,14 @@ Rules:
     }
   }
 
+  /**
+   * Create a neutral fallback signal when the LLM query fails or is unavailable.
+   * Returns zero confidence to ensure the fallback doesn't influence aggregation.
+   *
+   * @param {string} reason - Human-readable failure reason
+   * @param {string} [rawResponse=''] - Raw response text for debugging (truncated to 500 chars)
+   * @returns {Object} Neutral signal with zero confidence and parseSuccess=false
+   */
   function makeFallbackSignal(reason, rawResponse = '') {
     return {
       analyst: 'llm',
@@ -437,6 +536,13 @@ Rules:
   // MARKET CONTEXT GATHERING
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Gather current market context from all available data sources.
+   * Collects oracle price (Pyth), daily change (OpenBB), and risk state.
+   * Each source is individually try/caught for graceful degradation.
+   *
+   * @returns {Promise<Object>} Market context object with optional oraclePrice, dailyChange, riskState
+   */
   async function gatherMarketContext() {
     const ctx = {}
 
@@ -473,6 +579,16 @@ Rules:
   // MAIN ANALYSIS FUNCTION
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Main analysis entry point — analyze a news item using the active LLM provider.
+   * Gathers market context, builds a structured prompt, queries the LLM,
+   * and parses the response into a typed signal.
+   *
+   * Returns a neutral fallback signal if the provider is unavailable, rate-limited, or errors.
+   *
+   * @param {Object} newsItem - News item to analyze
+   * @returns {Promise<Object>} Analyst signal with direction, confidence, action, reasoning, and metadata
+   */
   async function analyze(newsItem) {
     if (!isAvailable()) {
       return makeFallbackSignal(`No API key for ${getProvider()?.name || _activeProvider}`)
@@ -508,6 +624,13 @@ Rules:
   // STANDALONE MARKET ANALYSIS
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Standalone market analysis — query the LLM for general market conditions
+   * for a given asset. Not part of the news pipeline; intended for on-demand use.
+   *
+   * @param {string} [asset='QQQ'] - Ticker symbol to analyze
+   * @returns {Promise<Object|null>} Raw LLM response with content, model, and usage; null on failure
+   */
   async function analyzeMarket(asset = 'QQQ') {
     if (!isAvailable()) return null
     if (!acquireRateSlot()) return null
@@ -526,6 +649,12 @@ Rules:
   // AUTO-DETECT BEST AVAILABLE PROVIDER
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Auto-detect the best available LLM provider based on configured API keys.
+   * Priority order: groq (free+fast) > openrouter > gemini > perplexity > ollama (local fallback).
+   *
+   * @returns {string} Provider key (e.g., 'groq', 'ollama')
+   */
   function autoDetect() {
     const env = window.__ENV__ || {}
     // Priority: groq (free+fast) > ollama (local) > openrouter > gemini > perplexity
@@ -558,6 +687,14 @@ Rules:
     get stats() { return { ..._stats } },
 
     // Configuration
+    /**
+     * Switch to a different LLM provider.
+     * @param {string} name - Provider key ('groq', 'ollama', 'openrouter', 'gemini', 'perplexity')
+     * @param {Object} [opts={}] - Provider options
+     * @param {string} [opts.model] - Override the provider's default model
+     * @param {string} [opts.url] - Ollama base URL override (ollama provider only)
+     * @throws {Error} If provider name is not recognized
+     */
     setProvider(name, opts = {}) {
       if (!PROVIDERS[name]) throw new Error(`Unknown provider: ${name}. Available: ${Object.keys(PROVIDERS).join(', ')}`)
       _activeProvider = name
@@ -567,6 +704,12 @@ Rules:
       if (name === 'ollama' && opts.url) _ollamaUrl = opts.url
     },
 
+    /**
+     * Set an API key for a provider at runtime.
+     * Stores in window.__ENV__ under the provider's keyEnv name.
+     * @param {string} key - API key value
+     * @param {string} [provider] - Provider name (defaults to active provider)
+     */
     setApiKey(key, provider) {
       window.__ENV__ = window.__ENV__ || {}
       const p = provider || _activeProvider
@@ -574,8 +717,14 @@ Rules:
       if (prov?.keyEnv) window.__ENV__[prov.keyEnv] = key
     },
 
+    /** @param {string} model - Override the provider's default model */
     setModel(model) { _modelOverride = model },
+    /** @param {number} rpm - Override the provider's rate limit (requests per minute) */
     setRateLimit(rpm) { const p = getProvider(); if (p) p.rateLimit = rpm },
+    /**
+     * Re-run auto-detection to select the best available provider.
+     * @returns {string} The newly selected provider key
+     */
     autoDetect() { _activeProvider = autoDetect(); return _activeProvider },
   })
 })()

@@ -1,13 +1,27 @@
 /**
- * xLever Oracle Health Badge
- * ───────────────────────────
+ * @file oracle-health.js — xLever Oracle Health Badge
+ *
  * Reusable UI component that displays oracle freshness, price divergence,
  * circuit breaker status, and separated price roles (execution vs display).
  *
- * Usage:
- *   OracleHealthBadge.mount('#oracle-badge')
- *   // or subscribe to RiskLive updates automatically
- *   OracleHealthBadge.autoStart('#oracle-badge')
+ * Shows a colored status badge with:
+ *   - Freshness indicator (fresh/ok/stale/circuit breaker)
+ *   - Execution price and TWAP display price
+ *   - Divergence percentage between spot and TWAP
+ *   - Spread in basis points
+ *   - Pyth confidence interval percentage
+ *   - Oracle sample count
+ *
+ * @module OracleHealthBadge
+ * @exports {Object} window.OracleHealthBadge
+ * @exports {Function} OracleHealthBadge.mount - Mount badge into a container
+ * @exports {Function} OracleHealthBadge.autoStart - Mount and auto-update via RiskLive
+ * @exports {Function} OracleHealthBadge.render - Manual render with provided data
+ * @exports {Function} OracleHealthBadge.destroy - Cleanup and unmount
+ *
+ * @dependencies
+ *   - window.RiskLive (optional) for auto-update subscription
+ *   - Google Material Symbols (icon font)
  */
 
 const OracleHealthBadge = (() => {
@@ -97,7 +111,10 @@ const OracleHealthBadge = (() => {
 
   return {
     /**
-     * Mount the badge into a container element. Call render() manually after.
+     * Mount the badge into a container element without rendering.
+     * Call render() manually after to populate the badge content.
+     * @param {string|HTMLElement} selector - CSS selector string or direct DOM element reference
+     * @returns {OracleHealthBadge} This instance for method chaining
      */
     mount(selector) {
       _el = typeof selector === 'string' ? document.querySelector(selector) : selector
@@ -105,7 +122,10 @@ const OracleHealthBadge = (() => {
     },
 
     /**
-     * Mount and auto-update via RiskLive subscription.
+     * Mount the badge and automatically update it via RiskLive subscription.
+     * Subscribes to RiskLive state changes and re-renders on every tick.
+     * @param {string|HTMLElement} selector - CSS selector string or direct DOM element reference
+     * @returns {OracleHealthBadge} This instance for method chaining
      */
     autoStart(selector) {
       this.mount(selector)
@@ -124,14 +144,18 @@ const OracleHealthBadge = (() => {
     },
 
     /**
-     * Manual render with provided data.
+     * Manually render the badge with provided oracle data.
+     * Use this when not using autoStart (e.g., rendering from a custom data source).
+     * @param {Object} oracleHealth - Oracle health data (price, conf, age, freshness)
+     * @param {Object} onChainOracle - On-chain oracle state (executionPrice, displayPrice, divergenceBps)
      */
     render(oracleHealth, onChainOracle) {
       render(_el, oracleHealth, onChainOracle)
     },
 
     /**
-     * Stop listening and clear the badge.
+     * Unsubscribe from RiskLive updates, clear the badge content, and release
+     * the DOM element reference. Call this when the badge is no longer needed.
      */
     destroy() {
       if (_unsub) { _unsub(); _unsub = null }

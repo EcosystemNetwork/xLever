@@ -14,21 +14,38 @@
  */
 
 const LendingAgent = (() => {
+  /** @type {number|null} Interval ID for the tick loop */
   let _interval = null
+  /** @type {Object|null} Current policy config: {mode, minIdleThreshold, ...} */
   let _policy = null
+  /** @type {boolean} Whether the agent is paused */
   let _paused = false
+  /** @type {Function} Log callback: (category, message, level) => void */
   let _log = () => {}
+  /** @type {Function} Stats callback: (stats) => void */
   let _onStats = () => {}
+  /** @type {boolean} When true, actions are logged but not executed on-chain */
   let _dryRun = true
+  /** @type {number} Running count of actions taken (dry or live) */
   let _actionCount = 0
+  /** @type {number} Timestamp of the last tick execution */
   let _lastTickTime = 0
 
   // Rate limiting: minimum 5s between ticks, max 6 per minute
+  /** @type {number} Minimum milliseconds between consecutive ticks */
   const MIN_TICK_GAP = 5000
+  /** @type {number} Maximum ticks allowed per 60-second window */
   const MAX_TICKS_PER_MIN = 6
+  /** @type {number[]} Timestamps of recent ticks for rate limit enforcement */
   let _tickTimestamps = []
 
-  // Validates that a value is a finite number, returning the fallback if not
+  /**
+   * Validates that a value is a finite number, returning the fallback if not.
+   * Prevents NaN/Infinity from propagating into decision logic.
+   * @param {*} val - Value to validate
+   * @param {number} [fallback=0] - Default if val is not a finite number
+   * @returns {number} A guaranteed finite number
+   */
   function _safeNum(val, fallback = 0) {
     const n = Number(val);
     return Number.isFinite(n) ? n : fallback;
@@ -38,10 +55,20 @@ const LendingAgent = (() => {
   // ADAPTER ACCESS — lazy reference to the registry singleton
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Get a lazy reference to the LendingAdapterRegistry singleton.
+   * @returns {LendingAdapterRegistry|null}
+   * @private
+   */
   function _getRegistry() {
     return window.xLeverLendingAdapters || null
   }
 
+  /**
+   * Get the currently active chain's lending adapter.
+   * @returns {ILendingAdapter|null}
+   * @private
+   */
   function _getAdapter() {
     const reg = _getRegistry()
     return reg ? reg.active() : null
@@ -90,6 +117,12 @@ const LendingAgent = (() => {
   // LIVE STATE GATHERING (chain-agnostic via adapter)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Gather comprehensive lending state from the active chain adapter.
+   * Fetches: markets, user positions, health factor, idle balance,
+   * oracle price, risk state, xLever position, and cross-chain markets.
+   * @returns {Promise<Object>} Aggregated lending state for decision functions
+   */
   async function gatherLendingState() {
     const adapter = _getAdapter()
     const registry = _getRegistry()
@@ -175,6 +208,15 @@ const LendingAgent = (() => {
   // DECISION FUNCTIONS (one per policy mode)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Yield policy decision function.
+   * Auto-supplies idle stablecoins to the best APY market, detects cross-chain
+   * yield opportunities, and rebalances between markets when APY differentials
+   * exceed the configured threshold.
+   * @param {Object} state - Gathered lending state from gatherLendingState()
+   * @param {Object} config - Policy config with thresholds (minIdleThreshold, minSupplyApy, etc.)
+   * @returns {Array<Object>} Actions to execute: SUPPLY, REBALANCE
+   */
   function decideYield(state, config) {
     const actions = []
     const perms = PERMISSIONS.yield
@@ -245,6 +287,14 @@ const LendingAgent = (() => {
     return actions
   }
 
+  /**
+   * Leverage policy decision function.
+   * Auto-repays when health factor drops below minimum, supplies idle collateral,
+   * and borrows against collateral when health factor allows (up to maxLeverageLoops).
+   * @param {Object} state - Gathered lending state
+   * @param {Object} config - Policy config with targetHealthFactor, minHealthFactor, maxLeverageLoops
+   * @returns {Array<Object>} Actions to execute: REPAY, SUPPLY, BORROW
+   */
   function decideLeverage(state, config) {
     const actions = []
     const perms = PERMISSIONS.leverage
@@ -301,6 +351,14 @@ const LendingAgent = (() => {
     return actions
   }
 
+  /**
+   * Hedge policy decision function.
+   * Coordinates with an active xLever position: borrows to hedge long exposure,
+   * supplies stablecoins alongside short positions, and auto-repays when health drops.
+   * @param {Object} state - Gathered lending state (must include xLeverPosition)
+   * @param {Object} config - Policy config with hedgeRatio, hedgeMinHF, hedgeAsset
+   * @returns {Array<Object>} Actions to execute: BORROW, SUPPLY, REPAY
+   */
   function decideHedge(state, config) {
     const actions = []
     const perms = PERMISSIONS.hedge
@@ -353,6 +411,14 @@ const LendingAgent = (() => {
     return actions
   }
 
+  /**
+   * Monitor-only policy decision function.
+   * Produces no executable actions; only logs alerts for:
+   * low health factors, low APYs, high utilization, and cross-chain issues.
+   * @param {Object} state - Gathered lending state
+   * @param {Object} _config - Unused (monitor mode has no configurable thresholds)
+   * @returns {Array} Always returns empty array (no actions)
+   */
   function decideMonitor(state, _config) {
     const alerts = []
 
@@ -397,6 +463,13 @@ const LendingAgent = (() => {
   // EXECUTION ENGINE (dispatches to active chain adapter)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Execute a single lending action via the active chain adapter.
+   * In dry-run mode, logs the action without executing on-chain.
+   * Supports: SUPPLY, WITHDRAW, BORROW, REPAY, REBALANCE.
+   * @param {Object} action - Action descriptor with type, asset, amount, chain, reason
+   * @returns {Promise<{success: boolean, dryRun?: boolean, action: Object, result?: Object, error?: string}>}
+   */
   async function executeAction(action) {
     const adapter = _getAdapter()
     const chainLabel = adapter ? `${adapter.protocolName} (${adapter.config.name})` : action.chain
@@ -456,6 +529,12 @@ const LendingAgent = (() => {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Get the default stablecoin symbol for a given chain.
+   * @param {string} chain - Chain identifier from CHAINS enum
+   * @returns {string} Stablecoin symbol (e.g., 'USDC', 'USDT')
+   * @private
+   */
   function _defaultStable(chain) {
     const stables = {
       'ink-sepolia': 'USDC',
@@ -470,6 +549,11 @@ const LendingAgent = (() => {
   // TICK LOOP
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Single tick of the agent loop. Rate-limited to MIN_TICK_GAP and MAX_TICKS_PER_MIN.
+   * Gathers state, runs the active policy's decision function, and executes resulting actions.
+   * @returns {Promise<void>}
+   */
   async function tick() {
     if (_paused || !_policy) return
 
@@ -515,6 +599,16 @@ const LendingAgent = (() => {
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Start the lending agent with a given policy configuration.
+   * Runs an immediate first tick, then ticks at the configured interval.
+   * @param {Object} policy - Policy config with mode ('yield'|'leverage'|'hedge'|'monitor') and thresholds
+   * @param {Object} [opts] - Options
+   * @param {Function} [opts.log] - Log callback: (category, message, level) => void
+   * @param {Function} [opts.onStats] - Stats update callback
+   * @param {boolean} [opts.dryRun=true] - If true, actions are logged but not executed on-chain
+   * @param {number} [opts.intervalMs=30000] - Tick interval in milliseconds
+   */
   function start(policy, { log, onStats, dryRun = true, intervalMs = 30000 } = {}) {
     stop()
     _policy = policy
@@ -534,6 +628,7 @@ const LendingAgent = (() => {
     _interval = setInterval(tick, intervalMs)
   }
 
+  /** Stop the agent and clear the tick interval. */
   function stop() {
     if (_interval) {
       clearInterval(_interval)
@@ -544,11 +639,25 @@ const LendingAgent = (() => {
     _log('STOP', 'Lending Agent stopped', 'info')
   }
 
+  /** Pause the agent. Ticks will be skipped until resume() is called. */
   function pause()  { _paused = true;  _log('PAUSE', 'Lending Agent paused', 'warn') }
+  /** Resume a paused agent. The next tick will execute normally. */
   function resume() { _paused = false; _log('RESUME', 'Lending Agent resumed', 'success') }
+  /**
+   * Check if the agent is actively running (started and not paused).
+   * @returns {boolean} True if the interval is active and not paused
+   */
   function isRunning() { return _interval !== null && !_paused }
+  /**
+   * Get the current policy configuration.
+   * @returns {Object|null} Active policy with mode and thresholds, or null if stopped
+   */
   function getPolicy() { return _policy }
 
+  /**
+   * Get current agent statistics including action count, state, and chain info.
+   * @returns {{actions: number, paused: boolean, running: boolean, mode: string|null, chain: string|null, protocol: string|null}}
+   */
   function getStats() {
     const adapter = _getAdapter()
     return {
@@ -561,9 +670,18 @@ const LendingAgent = (() => {
     }
   }
 
+  /**
+   * Toggle dry-run mode. In dry-run mode, actions are logged but not executed on-chain.
+   * @param {boolean} val - True to enable dry-run, false for live execution
+   */
   function setDryRun(val) { _dryRun = val; _log('CONFIG', `Dry run: ${val}`, 'info') }
 
-  /** Switch the agent to a different chain (hot-swap, no restart needed) */
+  /**
+   * Switch the agent to a different chain without restarting.
+   * The next tick will gather state from the new chain's adapter.
+   * @param {string} chain - Chain identifier from CHAINS enum (e.g., 'ink-sepolia', 'solana')
+   * @throws {Error} If the adapter registry is not initialized
+   */
   function switchChain(chain) {
     const registry = _getRegistry()
     if (!registry) throw new Error('Adapter registry not initialized')
@@ -572,7 +690,11 @@ const LendingAgent = (() => {
     _log('CHAIN', `Switched to ${adapter.protocolName} on ${adapter.config.name}`, 'success')
   }
 
-  /** Get cross-chain market snapshot */
+  /**
+   * Fetch a cross-chain market snapshot from all registered adapters.
+   * Returns market data keyed by chain, useful for yield comparison.
+   * @returns {Promise<Object<string, Object<string, MarketData>>>} Markets keyed by chain then symbol
+   */
   async function getCrossChainMarkets() {
     const registry = _getRegistry()
     if (!registry) return {}

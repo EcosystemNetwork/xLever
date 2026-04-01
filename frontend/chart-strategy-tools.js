@@ -1,11 +1,26 @@
 /**
- * xLever Chart Strategy Tools — Drawing & Agent Strategy Overlay
- * ──────────────────────────────────────────────────────────────
- * Adds interactive drawing tools and programmatic agent strategy
- * visualization to the Lightweight Charts ticker chart.
+ * @file chart-strategy-tools.js — TradingView Strategy Overlays
  *
- * Tools: Horizontal Line, Trend Line, Rectangle Zone, Fib Retracement
- * Agent API: Entry/exit markers, TP/SL lines, strategy zones
+ * Adds interactive drawing tools and programmatic agent strategy
+ * visualization to the Lightweight Charts (LWC) ticker chart.
+ *
+ * Drawing Tools (user-driven via toolbar):
+ *   - Horizontal Line: static price level via LWC createPriceLine
+ *   - Trend Line: two-point line rendered on canvas overlay
+ *   - Rectangle Zone: price/time area rendered on canvas overlay
+ *   - Fibonacci Retracement: multi-level retracement between two points
+ *
+ * Agent Strategy API (programmatic):
+ *   - drawStrategy(): Entry/TP/SL lines, entry zone, signal markers
+ *   - addSignal(): Individual buy/sell/info markers merged with chart markers
+ *   - setBaseMarkers(): Merge with existing chart markers (deleverage events, etc.)
+ *
+ * @module ChartStrategyTools
+ * @exports {Object} window.ChartStrategyTools
+ *
+ * @dependencies
+ *   - Lightweight Charts (LWC) library loaded globally
+ *   - A chart instance and series getter function passed to init()
  */
 
 const ChartStrategyTools = (() => {
@@ -43,6 +58,14 @@ const ChartStrategyTools = (() => {
   // INITIALIZATION
   // ═══════════════════════════════════════════
 
+  /**
+   * Initialize the strategy tools module.
+   * Creates an overlay canvas on the chart, wires up event handlers,
+   * and subscribes to chart scroll/zoom for redraw.
+   * @param {Object} chart - Lightweight Charts IChartApi instance
+   * @param {Function} getSeriesFn - Callback returning the current visible series (area or candle)
+   * @returns {Object} The public API object
+   */
   function init(chart, getSeriesFn) {
     _chart = chart
     _getSeries = getSeriesFn
@@ -111,6 +134,12 @@ const ChartStrategyTools = (() => {
   // DRAWING TOOLS
   // ═══════════════════════════════════════════
 
+  /**
+   * Set the active drawing tool. Pass null to deactivate.
+   * Updates cursor, enables/disables canvas pointer events,
+   * and highlights the active toolbar button.
+   * @param {'hline'|'trendline'|'rect'|'fib'|null} tool - Tool to activate
+   */
   function setTool(tool) {
     _activeTool = tool
     _pendingPoints = []
@@ -499,6 +528,10 @@ const ChartStrategyTools = (() => {
   // MANAGEMENT
   // ═══════════════════════════════════════════
 
+  /**
+   * Remove a drawing by its ID. Cleans up LWC price lines if applicable.
+   * @param {number} id - Drawing ID to remove
+   */
   function removeDrawing(id) {
     const idx = _drawings.findIndex(d => d.id === id)
     if (idx === -1) return
@@ -511,6 +544,7 @@ const ChartStrategyTools = (() => {
     _redraw()
   }
 
+  /** Remove all drawings and strategy markers from the chart. */
   function clearAll() {
     for (const d of _drawings) {
       if (d.priceLine && d.series) {
@@ -523,6 +557,7 @@ const ChartStrategyTools = (() => {
     _redraw()
   }
 
+  /** Remove only agent-drawn overlays (Entry/TP/SL lines and strategy markers). */
   function clearStrategyOnly() {
     // Remove agent-drawn price lines
     const agentDrawings = _drawings.filter(d => d.label && (d.label.includes('TP') || d.label.includes('SL') || d.label.includes('Entry')))
@@ -533,6 +568,10 @@ const ChartStrategyTools = (() => {
     _applyMarkers()
   }
 
+  /**
+   * Get a summary of all current drawings (for serialization or UI display).
+   * @returns {Array<{id: number, type: string, label: string}>}
+   */
   function getDrawings() {
     return _drawings.map(d => ({ id: d.id, type: d.type, label: d.label }))
   }

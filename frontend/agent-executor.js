@@ -26,7 +26,14 @@ const AgentExecutor = (() => {
   let _actionCount = 0      // Running total of actions taken this session, for stats display
   let _lastCheckTime = 0    // Timestamp of last action — used by accumulate mode to enforce DCA intervals
 
-  // Validates that a value is a finite number, returning the fallback if not
+  /**
+   * Validate that a value is a finite number, returning the fallback if not.
+   * Guards against NaN, Infinity, undefined, and non-numeric strings in agent inputs.
+   *
+   * @param {*} val — Value to validate (any type)
+   * @param {number} [fallback=0] — Default to return if val is not a finite number
+   * @returns {number} The validated number or the fallback
+   */
   function _safeNum(val, fallback = 0) {
     const n = Number(val);
     return Number.isFinite(n) ? n : fallback;
@@ -65,7 +72,17 @@ const AgentExecutor = (() => {
 
   // ─── LIVE DATA GATHERING ───
 
-  // Collects all data the agent needs from oracles, contracts, risk engine, and market APIs
+  /**
+   * Collect all live data the agent needs for decision-making.
+   * Reads from Pyth oracle, on-chain contracts, risk engine, and OpenBB market APIs.
+   * Each data source is fetched independently with try/catch so partial failures
+   * don't prevent the agent from acting on available data.
+   *
+   * @returns {Promise<{oracleAge: number|null, oraclePrice: number|null, oracleConf: number|null,
+   *   position: Object|null, positionValue: {value: number, pnl: number}|null,
+   *   poolState: Object|null, riskState: Object|null, marketContext: Object|null}>}
+   *   Snapshot of all live state, with null fields for unavailable data sources
+   */
   async function gatherLiveState() {
     // Initialize all fields to null so downstream code can check what data is available
     const state = {
@@ -192,7 +209,20 @@ const AgentExecutor = (() => {
 
   // ─── DECISION FUNCTIONS PER MODE ───
 
-  // Safe mode: monitors for risk events and recommends deleveraging or closing when thresholds breach
+  /**
+   * Safe mode decision function. Monitors for risk events and recommends
+   * deleveraging or closing when policy thresholds are breached.
+   * Checks (in priority order): risk engine state, oracle staleness,
+   * daily volatility trigger, and position drawdown.
+   *
+   * @param {Object} state — Live state snapshot from gatherLiveState()
+   * @param {Object} policy — Safe mode policy config
+   * @param {number} policy.volTrigger — Daily move % that triggers deleverage
+   * @param {number} policy.deleverageTarget — Target leverage after vol trigger
+   * @param {number} policy.maxDrawdown — Max allowed drawdown % before position close
+   * @returns {Promise<Array<{type: string, reason: string, targetLeverage?: number, severity: string}>>}
+   *   Array of recommended actions (0 or more)
+   */
   async function decideSafe(state, policy) {
     // Accumulate actions to return; safe mode may generate 0 or 1 action per tick
     const actions = []
@@ -259,7 +289,18 @@ const AgentExecutor = (() => {
     return actions
   }
 
-  // Target mode: keeps leverage within a band around a target by adjusting up or down
+  /**
+   * Target mode decision function. Keeps leverage within a band around
+   * a target value by recommending upward or downward adjustments.
+   * Only acts when leverage drifts outside [target - band, target + band].
+   *
+   * @param {Object} state — Live state snapshot from gatherLiveState()
+   * @param {Object} policy — Target mode policy config
+   * @param {number} policy.targetLev — Target leverage multiplier (e.g., 2.0)
+   * @param {number} policy.band — Allowed deviation from target (e.g., 0.5 means +/-0.5x)
+   * @returns {Promise<Array<{type: string, reason: string, targetLeverage: number, severity: string}>>}
+   *   Array of 0 or 1 adjustment actions
+   */
   async function decideTarget(state, policy) {
     // Accumulate actions; target mode generates 0 or 1 adjustment per tick
     const actions = []
@@ -303,7 +344,21 @@ const AgentExecutor = (() => {
     return actions
   }
 
-  // Accumulate mode: executes DCA buys on a schedule and takes profit when thresholds are hit
+  /**
+   * Accumulate mode decision function. Executes dollar-cost-averaging (DCA) buys
+   * on a configurable schedule and takes partial profit when unrealized gains
+   * exceed the profit threshold. Profit-taking has priority over buying.
+   *
+   * @param {Object} state — Live state snapshot from gatherLiveState()
+   * @param {Object} policy — Accumulate mode policy config
+   * @param {number} policy.buyAmount — USD amount per DCA buy
+   * @param {number} policy.leverage — Leverage multiplier for DCA buys
+   * @param {string} policy.interval — Buy frequency: 'hourly'|'daily'|'weekly'|'biweekly'|'monthly'
+   * @param {boolean} [policy.profitTake] — Whether to enable profit-taking
+   * @param {number} [policy.profitThreshold] — Unrealized gain % that triggers profit-take
+   * @returns {Promise<Array<{type: string, reason: string, amount?: number, leverage?: number, severity: string}>>}
+   *   Array of 0 or 1 actions (buy or close-partial)
+   */
   async function decideAccumulate(state, policy) {
     // Accumulate actions; this mode generates a buy or a profit-take, never both
     const actions = []
@@ -361,7 +416,15 @@ const AgentExecutor = (() => {
 
   // ─── ACTION EXECUTION ───
 
-  // Takes a single action object and either dry-runs or executes it on-chain, respecting policy permissions
+  /**
+   * Execute a single agent action, either as a dry-run preview or a real on-chain transaction.
+   * Enforces permission boundaries from the PERMISSIONS object before executing.
+   * Handles four action types: deleverage/adjust, close, buy, and close-partial.
+   *
+   * @param {{type: string, reason: string, targetLeverage?: number, amount?: number, leverage?: number, severity: string}} action
+   *   — Action object from a decide* function
+   * @returns {Promise<boolean>} True if the action was handled (dry-run or executed), false if blocked or unknown type
+   */
   async function executeAction(action) {
     // Look up the permission set for the current policy mode
     const perms = PERMISSIONS[_policy.mode]
@@ -514,7 +577,14 @@ const AgentExecutor = (() => {
 
   // ─── MAIN LOOP ───
 
-  // Single tick of the agent loop: gather state, decide, execute
+  /**
+   * Single tick of the agent decision loop. Gathers live state from all data sources,
+   * logs oracle and position status, runs the active policy's decision function,
+   * and executes any resulting actions sequentially.
+   * Silently returns if paused or no policy is active.
+   *
+   * @returns {Promise<void>}
+   */
   async function tick() {
     // Skip this tick if the agent is paused or has no active policy
     if (_paused || !_policy) return
@@ -619,7 +689,10 @@ const AgentExecutor = (() => {
       _interval = setInterval(tick, intervalMs)
     },
 
-    // Stop the agent completely — clears the interval and resets all state
+    /**
+     * Stop the agent completely. Clears the polling interval and resets
+     * all internal state (policy, pause flag, counters).
+     */
     stop() {
       if (_interval) clearInterval(_interval)  // Stop the recurring tick
       _interval = null                          // Clear the interval reference so isRunning returns false
@@ -628,7 +701,12 @@ const AgentExecutor = (() => {
       _log('SYSTEM', 'Agent executor stopped.', 'error')  // Log in error color because stopping is a notable event
     },
 
-    // Toggle pause — paused agent keeps its interval running but tick() returns immediately
+    /**
+     * Toggle the agent's pause state. A paused agent keeps its interval
+     * running but tick() returns immediately without gathering data or acting.
+     *
+     * @returns {boolean} The new pause state (true = paused, false = resumed)
+     */
     pause() {
       _paused = !_paused   // Toggle the pause flag
       // Log the new state with appropriate color
@@ -642,7 +720,12 @@ const AgentExecutor = (() => {
     get actionCount() { return _actionCount },    // Total actions executed this session
     get isDryRun() { return _dryRun },            // Whether the agent is in dry-run or live mode
 
-    // Setter for dry-run mode — allows the UI to toggle without restarting the agent
+    /**
+     * Set the dry-run mode. Allows the UI to toggle between preview
+     * and live execution without restarting the agent.
+     *
+     * @param {boolean} val — True for dry-run (preview only), false for live execution
+     */
     setDryRun(val) { _dryRun = val },
   }
 })() // Immediately invoke the factory to create the singleton AgentExecutor

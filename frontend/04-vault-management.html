@@ -1,5 +1,20 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     04-vault-management.html — Vault Management Terminal
 
+     Euler V2 vault management interface with sidebar + main content layout:
+     - SIDEBAR (fixed left): Node status, nav links (Dashboard/Trading/AI Agents/Vaults),
+       New Position button, Settings/Support
+     - MAIN CONTENT:
+       - Header with page title and Network TVL display
+       - Vault grid (4 cards): QQQx 3x, NVDAx 2x, SPYx 1.5x, TSLAx 2x
+         Each shows APY, TVL, user deposit, 30d earnings, utilization bar
+       - Risk tranche segmentation visualization (Junior 30% / Mezzanine 25% / Senior 45%)
+       - Transaction panel (sticky right): Deposit/Withdraw tabs, USDC input,
+         estimated APY, fees, slippage, live transaction sequence steps
+       - Global liquidity pool composition table (6 pools with TVL/APY/volume/fees)
+     - FOOTER: Protocol version, mainnet status, gas, block, audit badge
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -98,10 +113,13 @@
     </style>
 </head>
 <body class="bg-surface-container-lowest text-on-surface">
+<!-- ===== SCRIPTS: Judge mode and navigation ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('vaults');</script>
-<!-- SideNavBar -->
+<!-- ===== SIDEBAR: Left Navigation =====
+     Fixed sidebar with node status indicator, navigation links,
+     New Position button, and Settings/Support links. -->
 <aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#0d0e11] flex flex-col py-4 border-r border-outline-variant/30">
 <div class="px-6 py-4 mb-4">
 <div class="flex items-center gap-3">
@@ -142,9 +160,9 @@
 </div>
 </div>
 </aside>
-<!-- Main Content Canvas -->
+<!-- ===== MAIN CONTENT: Vault Management Canvas ===== -->
 <main class="ml-64 mt-16 p-8 mb-8 pb-12">
-<!-- Header Section -->
+<!-- ===== HEADER: Page Title + Euler V2 Badge + Network TVL ===== -->
 <div class="flex justify-between items-end mb-10">
 <div>
 <div class="flex items-center gap-3 mb-2">
@@ -159,9 +177,14 @@
 </div>
 </div>
 <div class="grid grid-cols-12 gap-6">
-<!-- Left Column: Vaults & Tranches -->
+<!-- ===== LEFT COLUMN (8/12): Vault Cards + Tranche Visualization ===== -->
 <div class="col-span-12 lg:col-span-8 space-y-6">
-<!-- Vault Grid -->
+<!-- ===== SECTION: Vault Cards Grid =====
+     Four vault cards in a 2-column grid:
+     1. QQQx 3x Leverage Vault (Aggressive)
+     2. NVDAx 2x Leverage Vault (Moderate)
+     3. SPYx 1.5x Conservative Vault (Stable)
+     4. TSLAx 2x Balanced Vault (Passive, not deposited — dashed border) -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <!-- Vault Card 1 -->
 <div class="bg-surface-container-low p-5 border border-outline-variant/20 hover:border-primary/40 transition-colors group">
@@ -294,7 +317,9 @@
 </div>
 </div>
 </div>
-<!-- Tranche Visualization -->
+<!-- ===== SECTION: Risk Tranche Segmentation =====
+     Visual bar showing Junior (30%) / Mezzanine (25%) / Senior (45%) split.
+     Below: APY and description for each tranche tier. -->
 <div class="bg-surface-container p-6 border border-outline-variant/20">
 <h2 class="font-headline font-bold text-sm uppercase tracking-widest mb-6">Risk Tranche Segmentation</h2>
 <div class="flex h-12 w-full gap-1 mb-8">
@@ -327,7 +352,9 @@
 </div>
 </div>
 </div>
-<!-- Right Column: Transaction Panel -->
+<!-- ===== RIGHT COLUMN (4/12): Transaction Panel =====
+     Sticky deposit/withdraw interface with USDC input, estimated APY,
+     fees, slippage tolerance, and live transaction sequence animation. -->
 <div class="col-span-12 lg:col-span-4">
 <div class="sticky top-24 bg-surface-container-low border border-outline-variant/20">
 <div class="flex border-b border-outline-variant/30">
@@ -413,7 +440,9 @@
 </div>
 </div>
 </div>
-<!-- Bottom Section: Liquidity Pools -->
+<!-- ===== SECTION: Global Liquidity Pool Composition Table =====
+     Full-width table showing 6 pools (QQQx, NVDAx, SPYx, TSLAx, AAPLx, COINx)
+     with TVL, yield APY, user share, 24h volume, and 7-day fees earned. -->
 <div class="col-span-12 mt-8">
 <div class="bg-surface-container-low border border-outline-variant/20 overflow-hidden">
 <div class="p-6 border-b border-outline-variant/20 flex justify-between items-center">
@@ -546,7 +575,7 @@
 </div>
 </div>
 </main>
-<!-- Footer -->
+<!-- ===== FOOTER: Protocol Version + Status Bar ===== -->
 <footer class="fixed bottom-0 w-full z-50 bg-[#0d0e11] border-t border-[#494455]/30 flex justify-between items-center px-4 h-8 w-full font-['JetBrains_Mono'] text-[10px] uppercase">
 <div class="flex items-center gap-6">
 <span class="text-[#e3e2e6] font-bold">xLever Protocol v2.4.1</span>
@@ -561,6 +590,7 @@
 <span class="text-tertiary">Audited by Zellic</span>
 </div>
 </footer>
+<!-- ===== SCRIPTS: Core modules (wallet, oracle, contracts, UX utilities) ===== -->
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>

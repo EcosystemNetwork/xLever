@@ -4,7 +4,7 @@
 # httpx is the async HTTP client — required because urllib/requests would block FastAPI's event loop
 import httpx
 # datetime/timedelta for comparing cache freshness against the configured TTL
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 # APIRouter groups related endpoints; Depends injects DB sessions; HTTPException returns error responses
 from fastapi import APIRouter, Depends, HTTPException
@@ -64,7 +64,7 @@ async def get_price_data(
     cached = result.scalar_one_or_none()
 
     # If cache exists and hasn't expired, return it immediately without hitting Yahoo
-    if cached and (datetime.now(timezone.utc) - cached.fetched_at.replace(tzinfo=timezone.utc)) < ttl:
+    if cached and (datetime.utcnow() - cached.fetched_at) < ttl:
         return PriceResponse(
             symbol=symbol, interval=interval, period=period, data=cached.data, cached=True
         )
@@ -95,7 +95,7 @@ async def get_price_data(
     if cached:
         # Update existing cache entry with fresh data and reset the timestamp
         cached.data = data
-        cached.fetched_at = datetime.now(timezone.utc)
+        cached.fetched_at = datetime.utcnow()
     else:
         # Insert new cache entry for this symbol+interval+period combination
         db.add(PriceCache(symbol=symbol, interval=interval, period=period, data=data))

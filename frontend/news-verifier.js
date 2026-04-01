@@ -324,7 +324,19 @@ const NewsVerifier = (() => {
     },
   }
 
-  // Also try to verify against a backend calendar endpoint
+  /**
+   * Calendar verification — check if claimed economic events match
+   * the known economic calendar (backend API or heuristic day-of-week check).
+   *
+   * Covers: FOMC (Wednesdays), CPI (mid-month Tue-Thu), Jobs (first Friday),
+   * GDP (last week of month), and Earnings (seasonal months).
+   *
+   * Falls back to day-of-week heuristic when the backend calendar is unavailable.
+   *
+   * @param {Object} newsItem - News item to verify
+   * @param {Object} check - Mutable check result object
+   * @returns {Promise<void>} Modifies check in place
+   */
   async function verifyCalendar(newsItem, check) {
     const text = `${newsItem.headline} ${newsItem.body}`
 
@@ -393,6 +405,17 @@ const NewsVerifier = (() => {
   // ═══════════════════════════════════════════════════════════════
   // Detect recycled/old news being repackaged as new
 
+  /**
+   * Staleness check — detect recycled or old news being repackaged as new.
+   *
+   * Three checks:
+   *  1. Timestamp age > 60 minutes = stale
+   *  2. Past-tense language patterns ("last week", "previously reported") = stale
+   *  3. Freshness markers ("breaking", "just in") = positive signal
+   *
+   * @param {Object} newsItem - News item with timestamp and headline
+   * @param {Object} check - Mutable check result object
+   */
   function verifyStaleness(newsItem, check) {
     const now = Date.now()
     const itemAge = now - (newsItem.timestamp || now)
@@ -444,6 +467,24 @@ const NewsVerifier = (() => {
   // COMPOSITE VERIFICATION
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Run all four verification checks in parallel and compute a composite score.
+   *
+   * Composite scoring:
+   *  - Each check weighted: price=0.35, source=0.25, calendar=0.15, staleness=0.25
+   *  - Passed = full weight, failed = 0, inconclusive = 50% weight
+   *  - confidence = weighted sum / total weight
+   *
+   * Priority adjustment rules:
+   *  - Price mismatch: downgrade by 2 levels (hard fail)
+   *  - Stale news: downgrade by 1 level
+   *  - High confidence (>=0.8) with 3+ passes: upgrade by 1 level
+   *  - Low confidence (<0.5) without hard fails: downgrade by 1 level
+   *
+   * @param {Object} newsItem - News item to verify
+   * @returns {Promise<Object>} Verification result with verified boolean, confidence 0..1,
+   *   adjustedPriority, flags array, and per-check details
+   */
   async function verify(newsItem) {
     const result = makeVerification(newsItem)
     const checks = result.checks
@@ -518,6 +559,12 @@ const NewsVerifier = (() => {
   // BATCH VERIFICATION
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Verify multiple news items in parallel.
+   *
+   * @param {Object[]} newsItems - Array of news items to verify
+   * @returns {Promise<Object[]>} Array of verification results (same order as input)
+   */
   async function verifyBatch(newsItems) {
     return Promise.all(newsItems.map(item => verify(item)))
   }
@@ -528,6 +575,11 @@ const NewsVerifier = (() => {
 
   const _stats = { verified: 0, failed: 0, downgraded: 0, upgraded: 0 }
 
+  /**
+   * Update internal stats counters based on a verification result.
+   *
+   * @param {Object} result - Verification result from verify()
+   */
   function recordStats(result) {
     if (result.verified) _stats.verified++
     else _stats.failed++

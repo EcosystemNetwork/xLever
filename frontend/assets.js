@@ -64,35 +64,76 @@ const ASSETS = Object.freeze([
 // DERIVED LOOKUPS (computed once at load, frozen)
 // ═══════════════════════════════════════════════════════════════
 
-// { 'QQQ/USD': '0x...', 'SPY/USD': '0x...', ... }  — keyed by "SYM/USD"
+/**
+ * Pyth oracle feed ID lookup by "SYM/USD" key.
+ * Maps human-readable price pair names to their Pyth hex feed IDs.
+ *
+ * @type {Object.<string, string>}
+ * @example PYTH_FEEDS['QQQ/USD'] // => '0x9695e2b96ea7...'
+ */
 export const PYTH_FEEDS = Object.freeze(
   Object.fromEntries(ASSETS.map(a => [`${a.sym}/USD`, a.feed]))
 )
 
-// { QQQ: '0x...', SPY: '0x...', ... }  — keyed by bare symbol
+/**
+ * Pyth feed ID lookup by bare ticker symbol.
+ * Useful when you have a ticker but not the "SYM/USD" pair string.
+ *
+ * @type {Object.<string, string>}
+ * @example ASSET_FEED_MAP['QQQ'] // => '0x9695e2b96ea7...'
+ */
 export const ASSET_FEED_MAP = Object.freeze(
   Object.fromEntries(ASSETS.map(a => [a.sym, a.feed]))
 )
 
-// { '0x...': 'QQQ/USD', ... }  — reverse lookup: feedId → symbol
+/**
+ * Reverse lookup: Pyth feed ID to "SYM/USD" string.
+ * Used when decoding Pyth price responses back to human-readable symbols.
+ *
+ * @type {Object.<string, string>}
+ * @example FEED_SYMBOLS['0x9695e2b96ea7...'] // => 'QQQ/USD'
+ */
 export const FEED_SYMBOLS = Object.freeze(
   Object.fromEntries(ASSETS.map(a => [a.feed, `${a.sym}/USD`]))
 )
 
-// { QQQ: 'QQQ (Nasdaq-100 ETF)', ... }  — for UI display
+/**
+ * Human-readable display names keyed by ticker symbol.
+ * Used in dropdowns, tooltips, and labels throughout the UI.
+ *
+ * @type {Object.<string, string>}
+ * @example TICKER_NAMES['QQQ'] // => 'QQQ (Nasdaq-100 ETF)'
+ */
 export const TICKER_NAMES = Object.freeze(
   Object.fromEntries(ASSETS.map(a => [a.sym, `${a.sym} (${a.name})`]))
 )
 
-// { 'QQQx': 'QQQ', 'SPYx': 'SPY', ... }  — maps xStock ticker to bare symbol
+/**
+ * Maps xStock ticker (with 'x' suffix) to bare underlying symbol.
+ * Used to resolve vault/oracle lookups from the on-chain token symbol.
+ *
+ * @type {Object.<string, string>}
+ * @example TICKER_MAP['QQQx'] // => 'QQQ'
+ */
 export const TICKER_MAP = Object.freeze(
   Object.fromEntries(ASSETS.map(a => [`${a.sym}x`, a.sym]))
 )
 
-// All ticker symbols with 'x' suffix, ordered by registry: ['QQQx', 'SPYx', ...]
+/**
+ * All xStock ticker symbols with 'x' suffix, ordered by registry position.
+ * Used to populate asset selection lists and iterate over all supported assets.
+ *
+ * @type {string[]}
+ * @example ALL_TICKERS // => ['QQQx', 'SPYx', 'VUGx', ...]
+ */
 export const ALL_TICKERS = Object.freeze(ASSETS.map(a => `${a.sym}x`))
 
-// Category groupings for UI sections
+/**
+ * Assets grouped by category for rendering UI sections (e.g., "Index ETFs", "Tech").
+ * Each key maps to an array of asset objects from the ASSETS registry.
+ *
+ * @type {Object.<string, Array<{sym: string, name: string, cat: string, feed: string}>>}
+ */
 export const CATEGORIES = Object.freeze({
   index:     ASSETS.filter(a => a.cat === 'index'),
   sector:    ASSETS.filter(a => a.cat === 'sector'),

@@ -1,18 +1,29 @@
 /**
- * xLever WebSocket Broadcaster
- * ─────────────────────────────
+ * @file ws-broadcast.js — xLever WebSocket Broadcast Client
+ *
  * Real-time event broadcasting for agent decisions, position updates,
  * and market events. Allows external consumers (dashboards, bots, mobile)
  * to subscribe to the agent pipeline's output.
  *
  * Two modes:
- *  1. Server mode — runs a local WebSocket server (Node.js / service worker)
- *  2. Client mode — connects to an external WS endpoint and relays events
+ *  1. Server mode -- runs a local WebSocket server (Node.js / service worker)
+ *  2. Client mode -- connects to an external WS endpoint and relays events
  *
  * In browser context, operates as a client-side event bus that:
- *  - Buffers events when no listeners are connected
- *  - Connects to a configurable WS endpoint for external relay
- *  - Provides a local pub/sub for in-page consumers
+ *  - Buffers events when no listeners are connected (up to MAX_BUFFER=200)
+ *  - Connects to a configurable WS endpoint with exponential-backoff reconnect
+ *  - Provides local pub/sub for in-page consumers (typed + wildcard subscriptions)
+ *  - Relays inbound WS messages to local subscribers (bidirectional comms)
+ *
+ * @module WSBroadcast
+ * @exports {Object} window.WSBroadcast (frozen singleton)
+ * @exports {Function} WSBroadcast.emit - Emit event to local subs and remote WS
+ * @exports {Function} WSBroadcast.subscribe - Subscribe to events by type or wildcard
+ * @exports {Object} WSBroadcast.EventType - Frozen enum of all event types
+ * @exports {Function} WSBroadcast.connect - Connect to a remote WS relay endpoint
+ * @exports {Function} WSBroadcast.disconnect - Close WS connection
+ *
+ * @dependencies None (self-contained, uses native WebSocket API)
  */
 
 const WSBroadcast = (() => {
@@ -104,6 +115,13 @@ const WSBroadcast = (() => {
     }
   }
 
+  /**
+   * Dispatch an event to all matching local subscribers (typed + wildcard).
+   * Swallows errors from individual callbacks to prevent one bad listener from
+   * breaking delivery to others.
+   * @param {Object} event - Event object with event_type, data, severity, timestamp
+   * @private
+   */
   function notifyLocal(event) {
     // Typed subscribers
     const subs = _subscribers.get(event.event_type)
@@ -150,6 +168,12 @@ const WSBroadcast = (() => {
     }
   }
 
+  /**
+   * Add an event to the offline buffer for later transmission when WS reconnects.
+   * Drops oldest events when buffer exceeds MAX_BUFFER.
+   * @param {Object} event - Serialized event object
+   * @private
+   */
   function bufferEvent(event) {
     if (_buffer.length >= MAX_BUFFER) {
       _buffer.shift()
@@ -163,6 +187,11 @@ const WSBroadcast = (() => {
   // CONVENIENCE EMITTERS
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Emit a decision event from the agent pipeline.
+   * @param {Object} recommendation - Agent recommendation with action, conviction, direction, score
+   * @param {Object} [auditEntry] - Audit log entry with executed flag
+   */
   function emitDecision(recommendation, auditEntry) {
     emit(EventType.DECISION_MADE, {
       action: recommendation.action,
@@ -175,6 +204,10 @@ const WSBroadcast = (() => {
     }, `${recommendation.action} (${recommendation.conviction})`)
   }
 
+  /**
+   * Emit an action execution event.
+   * @param {Object} action - Executed action with type, reason, targetLeverage
+   */
   function emitExecution(action) {
     emit(EventType.DECISION_EXECUTED, {
       type: action.type,
@@ -183,6 +216,11 @@ const WSBroadcast = (() => {
     }, `Executed: ${action.type}`, action.severity === 'error' ? 'warning' : 'info')
   }
 
+  /**
+   * Emit a risk state transition event with appropriate severity.
+   * @param {string} newState - New risk state (NORMAL, WARNING, RESTRICTED, EMERGENCY)
+   * @param {string} oldState - Previous risk state
+   */
   function emitRiskChange(newState, oldState) {
     const severity = newState === 'EMERGENCY' ? 'critical'
       : newState === 'RESTRICTED' ? 'error'
@@ -194,6 +232,11 @@ const WSBroadcast = (() => {
     }, `Risk: ${oldState} → ${newState}`, severity)
   }
 
+  /**
+   * Emit a news processing event after the agent processes a news item.
+   * @param {Object} newsItem - Processed news item with headline, priority, source
+   * @param {number} signalCount - Number of trading signals generated
+   */
   function emitNewsProcessed(newsItem, signalCount) {
     emit(EventType.NEWS_PROCESSED, {
       headline: newsItem.headline?.slice(0, 100),
@@ -207,6 +250,12 @@ const WSBroadcast = (() => {
   // WEBSOCKET CLIENT (connects to external relay server)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Connect to a remote WebSocket relay server.
+   * Flushes buffered events on successful connection.
+   * Auto-reconnects with exponential backoff on disconnect (up to MAX_RECONNECT_ATTEMPTS).
+   * @param {string} endpoint - WebSocket URL (e.g., 'wss://relay.xlever.markets/ws')
+   */
   function connect(endpoint) {
     _endpoint = endpoint
     _reconnectAttempts = 0
@@ -258,6 +307,10 @@ const WSBroadcast = (() => {
     _reconnectTimer = setTimeout(_connect, delay)
   }
 
+  /**
+   * Disconnect from the remote WS endpoint. Cancels any pending reconnect
+   * timers and clears the endpoint so no further reconnections are attempted.
+   */
   function disconnect() {
     if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null }
     if (_ws) { _ws.onclose = null; _ws.close(); _ws = null }

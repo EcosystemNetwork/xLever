@@ -285,7 +285,10 @@
     <span>Powered by Euler V2 EVK</span>
   </div>
 </div>
-<!-- Senior Trader View -->
+<!-- ===== SECTION: Senior Trader View =====
+     Main layout with chart area (timeframe buttons, chart type toggle,
+     price overlay, live/research stats bars) and right panel
+     (leverage slider, position entry, strategy details, buffer tranche). -->
 <div id="seniorView" class="main-layout">
   <div class="chart-area">
     <div class="chart-toolbar">
@@ -319,7 +322,7 @@
       </div>
       <div id="tv-chart"></div>
     </div>
-    <!-- Live Mode: real-time protocol stats from contract reads -->
+    <!-- ===== STATS BAR: Live Mode — Real-time protocol data from contract reads ===== -->
     <div class="chart-bottom live-only" id="liveStatsBar" style="display:none;">
       <div class="stat-item"><span class="stat-label">Oracle Price</span><span class="stat-value" id="liveOraclePrice">—</span></div>
       <div class="stat-item"><span class="stat-label">Oracle Status</span><span class="stat-value" id="liveOracleStatus">—</span></div>
@@ -330,7 +333,7 @@
       <div class="stat-item"><span class="stat-label">Pool TVL</span><span class="stat-value" id="livePoolTVL">—</span></div>
       <div class="stat-item"><span class="stat-label">Data Source</span><span class="stat-value" id="liveDataSource" style="font-size:10px;">contract</span></div>
     </div>
-    <!-- Research Mode: simulated backtest stats -->
+    <!-- ===== STATS BAR: Research Mode — Simulated backtest metrics ===== -->
     <div class="chart-bottom research-only" id="researchStatsBar">
       <div class="stat-item"><span class="stat-label">Max Drawdown</span><span class="stat-value negative" id="statMDD">-0.0%</span></div>
       <div class="stat-item"><span class="stat-label">Sharpe Ratio</span><span class="stat-value" id="statSharpe">0.00</span></div>
@@ -368,7 +371,7 @@
       
     </div>
     
-    <!-- Position Entry Section -->
+    <!-- ===== PANEL: Position Entry — Asset selector, USDC input, Open Position button ===== -->
     <div class="panel-section">
       <div class="panel-title">Open Position</div>
       <div style="background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); padding: 20px;">

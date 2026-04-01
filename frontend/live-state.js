@@ -1,21 +1,43 @@
 /**
- * live-state.js — Fetches real protocol state from the backend
- * which reads on-chain contract state + Pyth oracle prices.
+ * @file live-state.js — Live Application State Manager
  *
- * Used by the "Live" mode of the trading UI.
- * All values come from contract reads or oracle feeds — never browser-computed.
+ * Fetches real protocol state from the backend API which reads
+ * on-chain contract state + Pyth oracle prices. Used by the "Live"
+ * mode of the trading UI.
+ *
+ * All values come from contract reads or oracle feeds -- never browser-computed.
+ * Polls the backend at a 15-second interval (matching backend cache TTL).
+ *
+ * @module liveState
+ * @exports {Object} window.liveState
+ * @exports {Function} window.liveState.fetchLiveSummary - Fetch vault summary from API
+ * @exports {Function} window.liveState.fetchLivePosition - Fetch user position for a vault
+ * @exports {Function} window.liveState.startLivePolling - Start polling with callback
+ * @exports {Function} window.liveState.stopLivePolling - Stop the polling interval
+ * @exports {Function} window.liveState.getLiveState - Get cached state (sync)
+ * @exports {Function} window.liveState.getLiveEconomics - Extract economics for a vault
+ *
+ * @dependencies
+ *   - Backend API at /api/live/summary and /api/live/position/:symbol
  */
 
+/** @type {string} Base URL for the live state API endpoints */
 const LIVE_API_BASE = '/api/live';
-const POLL_INTERVAL = 15_000; // 15 seconds — matches backend cache TTL
+/** @type {number} Polling interval in ms -- matches backend cache TTL */
+const POLL_INTERVAL = 15_000;
 
+/** @type {Object|null} Most recently fetched live state summary */
 let _liveState = null;
+/** @type {number|null} Interval ID for the polling timer */
 let _pollTimer = null;
-let _onUpdate = null; // callback when new data arrives
+/** @type {Function|null} Callback invoked with new state on each successful poll */
+let _onUpdate = null;
 
 /**
- * Fetch full summary for all vaults.
- * Returns { vaults: { QQQ: { pool, oracle, junior, fees, pyth }, SPY: ... } }
+ * Fetch full summary for all vaults from the backend API.
+ * The backend reads on-chain contract state + Pyth oracle prices and caches for 15s.
+ * @returns {Promise<{vaults: Object<string, {pool: Object, oracle: Object, junior: Object, fees: Object, pyth: Object}>, source: string, cacheAge: number}|null>}
+ *   Returns null if the fetch fails.
  */
 async function fetchLiveSummary() {
   try {
@@ -29,7 +51,10 @@ async function fetchLiveSummary() {
 }
 
 /**
- * Fetch a single user's position for a given vault.
+ * Fetch a single user's position for a given vault from the backend API.
+ * @param {string} symbol - Vault symbol ('QQQ' or 'SPY')
+ * @param {string} userAddress - User's wallet address (hex)
+ * @returns {Promise<Object|null>} Position data with depositAmount, leverageBps, isActive, or null on failure
  */
 async function fetchLivePosition(symbol, userAddress) {
   try {
@@ -43,7 +68,10 @@ async function fetchLivePosition(symbol, userAddress) {
 }
 
 /**
- * Start polling live state. Calls onUpdate(state) on each refresh.
+ * Start polling live state at POLL_INTERVAL (15s). Runs an immediate first fetch,
+ * then continues at the configured interval. Calls onUpdate with the full state
+ * on each successful fetch.
+ * @param {Function} onUpdate - Callback invoked with the full live state summary on each refresh
  */
 function startLivePolling(onUpdate) {
   _onUpdate = onUpdate;
@@ -51,6 +79,9 @@ function startLivePolling(onUpdate) {
   _pollTimer = setInterval(_pollOnce, POLL_INTERVAL);
 }
 
+/**
+ * Stop the live state polling interval.
+ */
 function stopLivePolling() {
   if (_pollTimer) {
     clearInterval(_pollTimer);
@@ -58,6 +89,10 @@ function stopLivePolling() {
   }
 }
 
+/**
+ * Execute a single poll: fetch summary and notify the update callback.
+ * @private
+ */
 async function _pollOnce() {
   const summary = await fetchLiveSummary();
   if (summary) {
@@ -67,7 +102,9 @@ async function _pollOnce() {
 }
 
 /**
- * Get the most recent cached live state (synchronous).
+ * Get the most recent cached live state (synchronous, no network call).
+ * Returns null if no successful fetch has been made yet.
+ * @returns {Object|null} The last fetched live state summary
  */
 function getLiveState() {
   return _liveState;
@@ -75,7 +112,11 @@ function getLiveState() {
 
 /**
  * Extract live economics for a specific vault from cached state.
- * Returns null values for any field that isn't available.
+ * Parses USDC amounts (6 decimals), calculates pool ratios, APY estimates,
+ * and returns a flat object with all vault metrics for UI consumption.
+ * Returns null if the vault data is not yet available in the cache.
+ * @param {string} symbol - Vault symbol ('QQQ' or 'SPY')
+ * @returns {Object|null} Flat economics object with pool, oracle, fee, exposure, and limit data
  */
 function getLiveEconomics(symbol) {
   if (!_liveState || !_liveState.vaults || !_liveState.vaults[symbol]) {

@@ -1,26 +1,52 @@
 /**
- * xLever Live Risk Connector
- * ───────────────────────────
+ * @file risk-live.js — xLever Live Risk Connector
+ *
  * Auto-polls Pyth oracle + on-chain contracts + OpenBB context,
  * feeds live data into the RiskEngine, and exposes the current
  * risk state for any screen (dashboard, risk, trading, agent).
  *
  * Enforces leverage restrictions: when risk state restricts leverage,
  * UI controls and contract calls should respect the cap.
+ *
+ * @module RiskLive
+ * @exports {Object} window.RiskLive
+ * @exports {Function} RiskLive.start - Begin auto-polling
+ * @exports {Function} RiskLive.stop - Stop polling
+ * @exports {Function} RiskLive.refresh - Force single update
+ * @exports {Function} RiskLive.subscribe - Subscribe to risk state changes
+ *
+ * @dependencies
+ *   - window.xLeverPyth (optional) for Pyth oracle price feeds
+ *   - window.xLeverContracts (optional) for on-chain pool state and oracle state
+ *   - window.xLeverOpenBB (optional) for market context enrichment
+ *   - window.RiskEngine (optional) for risk evaluation
  */
 
 const RiskLive = (() => {
+  /** @type {number|null} Interval ID for the polling loop */
   let _interval = null
-  let _state = null        // Latest RiskEngine evaluation result
-  let _inputs = null       // Latest raw inputs fed to RiskEngine
-  let _oracleHealth = null // Latest oracle health snapshot
-  let _onChainOracle = null // Latest on-chain oracle state (separated prices)
-  let _listeners = []      // Callbacks notified on every update
-  let _peakPrice = 0       // Tracks peak QQQ price for drawdown calc
-  let _oracleWarnLogged = false // Suppress repeated oracle warnings
+  /** @type {Object|null} Latest RiskEngine evaluation result */
+  let _state = null
+  /** @type {Object|null} Latest raw inputs fed to RiskEngine */
+  let _inputs = null
+  /** @type {Object|null} Latest oracle health snapshot (Pyth + on-chain) */
+  let _oracleHealth = null
+  /** @type {Object|null} Latest on-chain oracle state with separated prices */
+  let _onChainOracle = null
+  /** @type {Function[]} Callbacks notified on every risk state update */
+  let _listeners = []
+  /** @type {number} Peak QQQ price for max-drawdown calculation */
+  let _peakPrice = 0
+  /** @type {boolean} Suppresses repeated on-chain oracle warnings */
+  let _oracleWarnLogged = false
 
   /**
-   * Gather all live inputs, evaluate risk, and notify listeners.
+   * Single tick of the risk evaluation loop.
+   * Gathers inputs from Pyth oracle, on-chain pool state, on-chain oracle state,
+   * and OpenBB market context, then evaluates them through the RiskEngine
+   * and notifies all subscribers with the updated state.
+   * @returns {Promise<void>}
+   * @private
    */
   async function tick() {
     const inputs = {
@@ -148,7 +174,9 @@ const RiskLive = (() => {
 
   return {
     /**
-     * Start auto-polling. Default 15s interval.
+     * Start auto-polling the Pyth oracle, on-chain contracts, and OpenBB context.
+     * Runs an immediate first tick, then polls at the specified interval.
+     * @param {number} [intervalMs=15000] - Polling interval in milliseconds
      */
     start(intervalMs = 15000) {
       if (_interval) clearInterval(_interval)
@@ -156,15 +184,28 @@ const RiskLive = (() => {
       _interval = setInterval(tick, intervalMs)
     },
 
+    /**
+     * Stop the auto-polling loop and clear the interval timer.
+     */
     stop() {
       if (_interval) clearInterval(_interval)
       _interval = null
     },
 
-    /** Force a single update right now. */
+    /**
+     * Force a single risk evaluation tick immediately.
+     * Useful for on-demand refresh after user actions.
+     * @returns {Promise<void>}
+     */
     refresh() { return tick() },
 
-    /** Subscribe to risk state changes. Returns unsubscribe function. */
+    /**
+     * Subscribe to risk state changes. The callback is invoked on every tick
+     * with the latest risk evaluation, raw inputs, and oracle health snapshot.
+     * If state already exists, the callback is called immediately with current values.
+     * @param {Function} cb - Callback: (riskState, inputs, oracleHealth) => void
+     * @returns {Function} Unsubscribe function -- call to stop receiving updates
+     */
     subscribe(cb) {
       _listeners.push(cb)
       // Immediately call with current state if available
@@ -172,21 +213,48 @@ const RiskLive = (() => {
       return () => { _listeners = _listeners.filter(l => l !== cb) }
     },
 
-    /** Current risk evaluation (may be null before first tick). */
+    /**
+     * Current RiskEngine evaluation result. May be null before the first tick completes.
+     * @type {Object|null}
+     */
     get state() { return _state },
+    /**
+     * Raw inputs that were fed to the last RiskEngine evaluation.
+     * @type {Object|null}
+     */
     get inputs() { return _inputs },
+    /**
+     * Latest Pyth oracle health snapshot (price, confidence, age, freshness).
+     * @type {Object|null}
+     */
     get oracleHealth() { return _oracleHealth },
-    /** On-chain oracle state with separated prices (execution, display, risk). */
+    /**
+     * On-chain oracle state with separated prices (execution, display, risk)
+     * and circuit breaker status.
+     * @type {Object|null}
+     */
     get onChainOracle() { return _onChainOracle },
 
-    /** Current leverage cap (safe default 4.0 if not evaluated yet). */
+    /**
+     * Current maximum allowed leverage from the risk evaluation.
+     * Returns 4.0 (protocol max) if no evaluation has been performed yet.
+     * @type {number}
+     */
     get leverageCap() { return _state ? _state.leverageCap : 4.0 },
 
-    /** Whether a given leverage value is currently allowed. */
+    /**
+     * Check whether a given leverage value is within the current risk-adjusted cap.
+     * @param {number} lev - Leverage value to check (can be negative for shorts)
+     * @returns {boolean} True if the absolute leverage is within the current cap
+     */
     isLeverageAllowed(lev) {
       return Math.abs(lev) <= this.leverageCap
     },
 
+    /**
+     * Whether the auto-polling loop is currently active.
+     * @type {boolean}
+     */
     get isRunning() { return _interval !== null },
   }
 })()

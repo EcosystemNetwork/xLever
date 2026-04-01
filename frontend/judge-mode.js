@@ -1,27 +1,50 @@
 /**
- * xLever Judge Mode
+ * @file judge-mode.js — xLever Demo Walkthrough Mode
  *
- * A focused demo mode that shows only what is live and demoable:
- *   Dashboard → Trading Terminal → Vault Management
+ * A focused demo mode that shows only what is live and demoable.
+ * Designed for investor presentations and hackathon demos.
  *
  * Activation:
- *   - URL param: ?judge=true  (activates and persists)
+ *   - URL param: ?judge=true  (activates and persists to localStorage)
  *   - URL param: ?judge=false (deactivates)
- *   - localStorage: 'xlever-judge-mode'
+ *   - Programmatic: JudgeMode.activate() / JudgeMode.deactivate()
  *
  * When active:
- *   - Nav shows only the 3 core pages (no Research, no Admin, no Operations)
+ *   - Nav shows only the pages in JUDGE_PAGES (configurable)
  *   - Trade/Research toggle is replaced with a "LIVE DEMO" badge
- *   - Degen mode toggle is hidden
- *   - Simulated/hardcoded metrics get a "SIMULATED" label
+ *   - Degen mode toggle is hidden via CSS
+ *   - Simulated/hardcoded metrics get a yellow "SIMULATED" label
  *   - body gets class 'judge-mode' for CSS overrides
+ *   - Testnet banner is shown at the bottom of the viewport
+ *   - Mode is locked to 'trade' (no research toggle)
+ *
+ * @module JudgeMode
+ * @exports {Object} window.JudgeMode
+ * @exports {Function} JudgeMode.isActive - Check if judge mode is on
+ * @exports {Function} JudgeMode.activate - Enable judge mode
+ * @exports {Function} JudgeMode.deactivate - Disable and reload
+ * @exports {Function} JudgeMode.filterPages - Filter nav pages for demo flow
+ * @exports {string[]} JudgeMode.JUDGE_PAGES - Pages visible in judge mode
+ *
+ * @dependencies
+ *   - localStorage ('xlever-judge-mode', 'xlever-mode')
+ *   - Called by nav.js for page filtering and badge rendering
  */
 const JudgeMode = (() => {
+  /** @type {string} localStorage key for judge mode persistence */
   const STORAGE_KEY = 'xlever-judge-mode';
 
-  // All pages visible for now — can be narrowed later for final demo
+  /**
+   * Page IDs visible in judge mode. Can be narrowed for final demo.
+   * @type {string[]}
+   */
   const JUDGE_PAGES = ['dashboard', 'trading', 'vaults', 'risk', 'lending', 'analytics', 'agents', 'operations', 'admin'];
 
+  /**
+   * Check if judge mode is currently active.
+   * URL param (?judge=true/false) takes priority over localStorage.
+   * @returns {boolean}
+   */
   function isActive() {
     // URL param takes priority
     const params = new URLSearchParams(window.location.search);
@@ -33,17 +56,23 @@ const JudgeMode = (() => {
     return localStorage.getItem(STORAGE_KEY) === '1';
   }
 
+  /** Activate judge mode and apply all CSS/DOM changes. */
   function activate() {
     localStorage.setItem(STORAGE_KEY, '1');
     apply();
   }
 
+  /** Deactivate judge mode, remove body class, and reload the page. */
   function deactivate() {
     localStorage.setItem(STORAGE_KEY, '0');
     document.body.classList.remove('judge-mode');
     window.location.reload();
   }
 
+  /**
+   * Apply judge mode effects to the DOM: add body class, force trade mode,
+   * label simulated metrics, and inject judge-mode-specific CSS.
+   */
   function apply() {
     if (!isActive()) return;
 
@@ -61,6 +90,11 @@ const JudgeMode = (() => {
     injectStyles();
   }
 
+  /**
+   * Scan the page for hardcoded/static metric sections (e.g., Market Sentiment,
+   * Portfolio Allocation) and append yellow "SIMULATED" badges to their headers.
+   * @private
+   */
   function addSimulationLabels() {
     // Market sentiment gauge — hardcoded Fear/Greed value
     const sentimentHeader = document.querySelector('h2');
@@ -81,6 +115,11 @@ const JudgeMode = (() => {
     });
   }
 
+  /**
+   * Append a "SIMULATED" badge span to an element (idempotent).
+   * @param {HTMLElement} el - Element to append the badge to
+   * @private
+   */
   function appendSimLabel(el) {
     if (el.querySelector('.judge-sim-label')) return;
     const badge = document.createElement('span');
@@ -222,6 +261,10 @@ const JudgeMode = (() => {
     document.body.appendChild(banner);
   }
 
+  /**
+   * Initialize judge mode if active. Applies DOM changes and adds testnet banner.
+   * Called automatically on DOMContentLoaded.
+   */
   function init() {
     if (!isActive()) return;
     apply();

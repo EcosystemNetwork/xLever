@@ -1,20 +1,40 @@
 /**
- * xLever ↔ Swarm Protocol Bridge
- * ────────────────────────────────
- * Translates between the EcosystemNetwork/Swarm protocol and xLever's
- * internal agent system. Runs as an HTTP webhook server (port 3777) that:
+ * @file swarm-bridge.js
+ * @module SwarmBridge
+ * @description
+ * xLever <-> Swarm Protocol Bridge — Translates between the EcosystemNetwork/Swarm
+ * protocol and xLever's internal agent system.
  *
- *  1. Receives Swarm messages forwarded by the swarm daemon
+ * Core responsibilities:
+ *  1. Receives Swarm messages via polling daemon (configurable interval)
  *  2. Parses intent from natural-language or structured commands
  *  3. Routes to the correct xLever subsystem (agent, positions, market, risk, etc.)
  *  4. Returns structured results back through the Swarm relay
+ *  5. Bridges xLever events to Swarm channels so other agents can react
  *
  * Supports the OpenClaw runtime adapter format:
- *   POST /chat  →  { message, context }  →  { response }
+ *   POST /chat  ->  { message, context }  ->  { response }
  *
- * Also acts as a tool registry — exposes every xLever capability as a
- * callable tool so Swarm-connected agents (OpenClaw, Eliza, Hermes, etc.)
- * can discover and invoke them programmatically.
+ * Acts as a comprehensive tool registry — exposes 30+ xLever capabilities as
+ * callable tools covering: agent control, HITL decisions, positions, market data,
+ * market intelligence, news pipeline, risk management, lending, alerts,
+ * on-chain execution, oracle data, and platform health.
+ *
+ * Message handling pipeline:
+ *  1. Try structured tool invocation (msg.tool + msg.params)
+ *  2. Parse natural language intent via keyword matching
+ *  3. Forward to OpenClaw for AI processing (if configured)
+ *  4. Fallback: return available tools list
+ *
+ * @exports {Object} SwarmBridge - Frozen singleton exposed on window.SwarmBridge
+ *
+ * @dependencies
+ *  - window.AgentExecutor  — Agent lifecycle state
+ *  - window.AgentCoordinator — News swarm coordinator
+ *  - window.RiskLive / window.RiskEngine — Risk engine
+ *  - window.xLeverPyth     — Pyth oracle for price data
+ *  - window.xLeverContracts — On-chain execution (wallet required)
+ *  - window.WSBroadcast     — Event relay for bridging to Swarm
  */
 
 const SwarmBridge = (() => {
@@ -457,6 +477,15 @@ const SwarmBridge = (() => {
   // API HELPER
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Make an API call to the xLever backend. Returns { error } on failure
+   * instead of throwing, to keep tool execution safe.
+   *
+   * @param {string} endpoint - API path (e.g., '/agent/status')
+   * @param {string} [method='GET'] - HTTP method
+   * @param {Object|null} [body=null] - Request body (JSON-serialized)
+   * @returns {Promise<Object>} Parsed JSON response, or { error: string } on failure
+   */
   async function apiCall(endpoint, method = 'GET', body = null) {
     const url = `${CONFIG.API_BASE}${endpoint}`
     const options = {
@@ -623,11 +652,21 @@ const SwarmBridge = (() => {
     return { tool: null, params: {} }
   }
 
+  /**
+   * Extract an Ethereum address (0x + 40 hex chars) from text.
+   * @param {string} text - Input text to search
+   * @returns {string|null} Matched address or null
+   */
   function extractAddress(text) {
     const match = text.match(/0x[a-fA-F0-9]{40}/)
     return match ? match[0] : null
   }
 
+  /**
+   * Extract a ticker symbol (1-5 uppercase letters) from text.
+   * @param {string} text - Input text to search
+   * @returns {string|null} Matched ticker symbol or null
+   */
   function extractSymbol(text) {
     // Match common ticker patterns (1-5 uppercase letters)
     const match = text.match(/\b([A-Z]{1,5})\b/)
@@ -780,6 +819,7 @@ const SwarmBridge = (() => {
     _log('SWARM', `Daemon started (polling every ${interval / 1000}s)`, 'primary')
   }
 
+  /** Stop the Swarm daemon polling loop. */
   function stopDaemon() {
     if (_daemonInterval) {
       clearInterval(_daemonInterval)
@@ -847,12 +887,24 @@ const SwarmBridge = (() => {
   // SUBSCRIPTIONS
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Subscribe to internal SwarmBridge events. Use '*' for all events.
+   *
+   * @param {string} eventType - Event type to listen for
+   * @param {Function} callback - Called with event data
+   * @returns {Function} Unsubscribe function
+   */
   function subscribe(eventType, callback) {
     if (!_subscribers.has(eventType)) _subscribers.set(eventType, new Set())
     _subscribers.get(eventType).add(callback)
     return () => _subscribers.get(eventType)?.delete(callback)
   }
 
+  /**
+   * Notify subscribers for a specific event type and wildcard ('*') subscribers.
+   * @param {string} eventType - Event type
+   * @param {*} data - Event data
+   */
   function notifySubscribers(eventType, data) {
     const subs = _subscribers.get(eventType)
     if (subs) subs.forEach(cb => { try { cb(data) } catch {} })
@@ -878,6 +930,11 @@ const SwarmBridge = (() => {
 
     // Tool registry
     get tools() { return { ...TOOLS } },
+    /**
+     * Get the full tool registry as an array of { name, description, parameters } objects.
+     * Suitable for sending to external agents for tool discovery.
+     * @returns {Object[]} Array of tool descriptors
+     */
     getToolList() {
       return Object.entries(TOOLS).map(([key, tool]) => ({
         name: key,
@@ -885,12 +942,19 @@ const SwarmBridge = (() => {
         parameters: tool.parameters,
       }))
     },
+    /**
+     * Invoke a tool by name with the given parameters.
+     * @param {string} name - Tool name from the registry
+     * @param {Object} [params={}] - Tool parameters
+     * @returns {Promise<Object>} Tool execution result, or { error } if unknown tool
+     */
     async invokeTool(name, params = {}) {
       if (!TOOLS[name]) return { error: `Unknown tool: ${name}` }
       return TOOLS[name].execute(params)
     },
 
     // OpenClaw
+    /** @param {string} url - OpenClaw runtime URL to use for AI message forwarding */
     setOpenClawUrl(url) { CONFIG.OPENCLAW_URL = url },
 
     // State

@@ -1,4 +1,39 @@
-// Sanitize strings before interpolation into innerHTML to prevent XSS
+/**
+ * xLever LTAP Backtesting Engine & Trading Terminal
+ * ──────────────────────────────────────────────────
+ * Main application module for the xLever trading terminal (02-trading-terminal.html).
+ * Combines:
+ *
+ *  - Wallet connection via Reown AppKit (connect, disconnect, session restore)
+ *  - On-chain balance reads (ETH, USDC, wQQQx, wSPYx) via viem
+ *  - Junior tranche deposit/withdraw UI (senior/junior tab switching)
+ *  - LTAP backtesting engine: "constant leverage from entry" protocol simulation
+ *    with auto-deleverage cascades, circuit breakers, and releveraging logic
+ *  - Multi-source OHLCV data pipeline: OpenBB -> Yahoo Finance -> synthetic fallback
+ *  - TradingView Lightweight Charts rendering (area, candlestick, line)
+ *  - Portfolio stats: CAGR, Sharpe, max drawdown, vol, fee drag analysis
+ *  - Comparison grid: LTAP vs daily-reset (TQQQ-style) vs no-fee
+ *  - Custom bidirectional leverage slider with degen mode (up to +/-100x)
+ *  - Live/Research mode toggle with on-chain state polling
+ *
+ * Dependencies:
+ *  - window.xLeverContracts (contracts.js) — vault reads/writes
+ *  - window.xLeverWallet (wallet.js) — Reown AppKit modal instance
+ *  - window.xLeverPyth (pyth.js) — oracle price feeds
+ *  - window.viem — viem library loaded via CDN
+ *  - window.liveState — live protocol state poller (live-state.js)
+ *  - LightweightCharts — TradingView charting library loaded via CDN
+ *
+ * @module app
+ */
+
+/**
+ * Sanitize a string for safe interpolation into innerHTML to prevent XSS.
+ * Creates a temporary text node to leverage the browser's built-in escaping.
+ *
+ * @param {string} str — Untrusted string to escape
+ * @returns {string} HTML-safe string with &, <, >, ", ' escaped
+ */
 function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = String(str);
@@ -264,6 +299,13 @@ const JUNIOR_TRANCHE_ABI = [
   }
 ];
 
+/**
+ * Fetch and display on-chain token balances for the connected wallet.
+ * Reads ETH (native), USDC, wQQQx, and wSPYx balances from Ink Sepolia
+ * and updates the corresponding DOM elements.
+ *
+ * @returns {Promise<void>}
+ */
 async function fetchBalances() {
   if (!connectedAddress || !publicClient) return; // Guard: no wallet connected means nothing to query — avoids RPC errors
 
@@ -314,6 +356,14 @@ async function fetchBalances() {
   }
 }
 
+/**
+ * Fetch a user's junior tranche position from a specific vault.
+ * Reads shares, value, share price, and total tranche value via the JuniorTranche contract.
+ *
+ * @param {string} vaultAddress — Vault contract address to query
+ * @returns {Promise<{shares: number, userValue: number, sharePrice: number, totalValue: number}|null>}
+ *   Junior position data in USDC terms (6 decimal precision), or null if tranche unavailable
+ */
 async function fetchJuniorPosition(vaultAddress) {
   if (!connectedAddress || !publicClient) return null;
 
@@ -374,6 +424,13 @@ async function fetchJuniorPosition(vaultAddress) {
   }
 }
 
+/**
+ * Update the junior tranche UI panel with current position data from both vaults.
+ * Fetches junior positions for wQQQx and wSPYx, sums them, and renders
+ * total position value, TVL, and pool utilization.
+ *
+ * @returns {Promise<void>}
+ */
 async function updateJuniorUI() {
   if (!connectedAddress || !publicClient) return;
 
@@ -424,6 +481,13 @@ async function updateJuniorUI() {
   }
 }
 
+/**
+ * Execute a junior tranche deposit. Reads the amount from the deposit input,
+ * approves USDC spending, then calls depositJunior on the vault contract.
+ * Refreshes balances and UI on success.
+ *
+ * @returns {Promise<void>}
+ */
 async function depositJunior() {
   if (!walletClient || !connectedAddress) {
     alert('Please connect your wallet first');
@@ -495,6 +559,13 @@ async function depositJunior() {
   }
 }
 
+/**
+ * Execute a junior tranche withdrawal. Reads the amount from the withdraw input,
+ * calculates the corresponding shares to redeem based on current share price,
+ * then calls withdrawJunior on the vault contract.
+ *
+ * @returns {Promise<void>}
+ */
 async function withdrawJunior() {
   if (!walletClient || !connectedAddress) {
     alert('Please connect your wallet first');
@@ -567,6 +638,12 @@ async function withdrawJunior() {
   }
 }
 
+/**
+ * Request the user's wallet to switch to Ink Sepolia (chain ID 763373).
+ * If the network is not yet added to the wallet, adds it first via wallet_addEthereumChain.
+ *
+ * @returns {Promise<boolean>} True if switch succeeded, false if user rejected or error occurred
+ */
 async function switchToInkSepolia() {
   try {
     // First try to switch
@@ -610,6 +687,13 @@ async function switchToInkSepolia() {
   }
 }
 
+/**
+ * Connect a Web3 wallet via window.ethereum (MetaMask/injected provider).
+ * Requests accounts, ensures Ink Sepolia chain, creates viem clients,
+ * and updates the wallet UI. Falls back to Reown AppKit if no injected provider.
+ *
+ * @returns {Promise<void>}
+ */
 async function connectWallet() {
   try {
     if (!window.ethereum) {
@@ -670,6 +754,10 @@ async function connectWallet() {
   }
 }
 
+/**
+ * Disconnect the wallet, clear state, and update UI.
+ * Removes the persistent session flag from localStorage.
+ */
 function disconnectWallet() {
   walletClient = null;
   connectedAddress = null;
@@ -678,6 +766,10 @@ function disconnectWallet() {
   console.log('✓ Wallet disconnected');
 }
 
+/**
+ * Update wallet-related DOM elements based on connection state.
+ * Shows/hides the balance panel and displays the truncated address when connected.
+ */
 function updateWalletUI() {
   const walletInfo = document.getElementById('walletInfo'); // Container for the wallet balance panel — toggled visible/hidden on connect/disconnect
   const walletAddress = document.getElementById('walletAddress'); // Displays truncated address so user confirms which wallet is active
@@ -697,6 +789,12 @@ function updateWalletUI() {
 
 // Wire up Reown AppKit wallet events — Reown emits lifecycle events for connect/disconnect
 // so we react to wallet state changes without polling
+/**
+ * Initialize Reown AppKit wallet event listeners.
+ * Subscribes to CONNECT_SUCCESS and DISCONNECT_SUCCESS events, wires up
+ * connect/disconnect buttons, and handles session restoration on page reload.
+ * Retries every 200ms if the Reown modal is not yet available.
+ */
 function initWalletListeners() {
   const modal = window.xLeverWallet; // Reown modal instance set up in wallet.js — may not be ready yet on first call
   if (!modal) return setTimeout(initWalletListeners, 200); // Retry every 200ms because Reown SDK loads asynchronously and may initialize after app.js runs
@@ -797,6 +895,12 @@ initWalletListeners(); // Start the initialization loop — will retry until Reo
 // only from confirmed chain state — no setTimeout polling.
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * Subscribe to transaction lifecycle events from contracts.js.
+ * On 'confirmed', automatically reloads wallet balances from chain state
+ * so the UI reflects the latest on-chain data without polling.
+ * Retries every 300ms if contracts module is not yet available.
+ */
 function initTxEventListeners() {
   const contracts = window.xLeverContracts;
   if (!contracts?.txEvents) return setTimeout(initTxEventListeners, 300);
@@ -819,6 +923,14 @@ let _seed = 42; // Fixed seed so synthetic data is deterministic — same backte
 function srand() { _seed = (_seed * 16807) % 2147483647; return _seed / 2147483647; } // Park-Miller LCG PRNG — deterministic, no Math.random() so results don't change between page loads
 function boxMuller() { return Math.sqrt(-2 * Math.log(srand())) * Math.cos(2 * Math.PI * srand()); } // Box-Muller transform converts uniform random to normal distribution — needed for realistic return modeling
 
+/**
+ * Generate synthetic QQQ-like OHLCV data using geometric Brownian motion.
+ * Used as a fallback when both OpenBB and Yahoo Finance APIs are unreachable.
+ * Parameters calibrated to historical QQQ characteristics (~13% annual return, ~22% annual vol).
+ *
+ * @param {number} years — Number of years of history to generate
+ * @returns {Array<{time: string, open: number, high: number, low: number, close: number}>} Synthetic OHLCV array
+ */
 function generateQQQData(years) { // Fallback synthetic data generator — produces QQQ-like price history when real data APIs fail
   const days = Math.floor(years * 252); // 252 trading days per year (US equity market convention) — excludes weekends/holidays
   const mu = 0.13 / 252, sigma = 0.22 / Math.sqrt(252); // QQQ historical: ~13% annual return, ~22% annual vol — scaled to daily for GBM simulation
@@ -857,6 +969,15 @@ let MIN_LEV = -3.5, MAX_LEV = 3.5; // Leverage bounds — mutable to support deg
 const NORMAL_MIN = -3.5, NORMAL_MAX = 3.5; // Normal mode leverage limits — matches deployed vault's maximum supported leverage
 const DEGEN_MIN = -100.0, DEGEN_MAX = 100.0; // Degen mode leverage limits — for education/entertainment only
 
+/**
+ * Fetch historical OHLCV data from OpenBB via the local API proxy.
+ * Primary data source — provides institutional-grade, pre-cleaned data.
+ *
+ * @param {string} symbol — Ticker symbol (e.g., 'QQQ', 'AAPL')
+ * @param {number} years — Number of years of history to fetch
+ * @returns {Promise<Array<{time: string, open: number, high: number, low: number, close: number}>>} OHLCV array
+ * @throws {Error} If OpenBB returns HTTP error or empty data
+ */
 async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenBB provides institutional-grade OHLCV data via our local proxy server
   const end = new Date(); // End date is always today — we want the most recent available data
   const start = new Date();
@@ -880,6 +1001,15 @@ async function fetchFromOpenBB(symbol, years) { // Primary data source — OpenB
   })).filter(d => d.time && d.close > 0); // Filter out any malformed rows — missing dates or zero/negative closes would corrupt simulations
 }
 
+/**
+ * Fetch historical OHLCV data from Yahoo Finance via the FastAPI proxy.
+ * Fallback data source — used when OpenBB is unavailable.
+ *
+ * @param {string} symbol — Ticker symbol (e.g., 'QQQ', 'AAPL')
+ * @param {number} years — Number of years of history to fetch (use 20+ for 'max')
+ * @returns {Promise<Array<{time: string, open: number, high: number, low: number, close: number}>>} OHLCV array
+ * @throws {Error} If Yahoo returns HTTP error or invalid response structure
+ */
 async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo Finance via FastAPI /api/prices proxy with DB caching
   const period = years >= 20 ? 'max' : `${years}y`; // Map years to Yahoo's period format — 'max' for full history, otherwise Ny
   const url = `/api/prices/${symbol}?period=${period}&interval=1d`; // FastAPI prices endpoint proxies Yahoo with server-side DB cache
@@ -912,6 +1042,15 @@ async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo
   return ohlcv; // Return normalized OHLCV array matching the OpenBB output format
 }
 
+/**
+ * Orchestrator: fetch historical OHLCV data from the best available source.
+ * Tries OpenBB first (higher quality), falls back to Yahoo Finance.
+ *
+ * @param {string} symbol — Ticker symbol
+ * @param {number} years — Number of years of history
+ * @returns {Promise<Array<{time: string, open: number, high: number, low: number, close: number}>>} OHLCV array
+ * @throws {Error} If both OpenBB and Yahoo fail — caller should use generateQQQData() as final fallback
+ */
 async function fetchRealData(symbol, years) { // Orchestrator: tries data sources in priority order to maximize data quality and availability
   // Try OpenBB first because it provides higher-quality, pre-cleaned institutional data
   try {
@@ -928,6 +1067,14 @@ async function fetchRealData(symbol, years) { // Orchestrator: tries data source
   }
 }
 
+/**
+ * Main data loading pipeline for a ticker symbol. Implements a three-tier
+ * fallback strategy: localStorage cache (24h TTL) -> real API data (OpenBB/Yahoo) ->
+ * synthetic data generation. Resets the entry point and re-renders on completion.
+ *
+ * @param {string} ticker — Ticker symbol to load (e.g., 'QQQ', 'SPY', 'AAPL')
+ * @returns {Promise<void>}
+ */
 async function loadTickerData(ticker) { // Main data loading pipeline: cache-first, then API, then synthetic fallback
   try {
     dataLoading = true; // Signal to UI that data is being fetched — prevents rendering stale charts during transition
@@ -979,6 +1126,14 @@ document.addEventListener('DOMContentLoaded', async function() { // Wait for DOM
 // risk management via auto-deleverage and circuit breakers.
 // ═══════════════════════════════════════════════════
 
+/**
+ * Calculate the annual LTAP protocol fee for a given leverage level.
+ * Fee scales linearly with leverage: base 0.5% + 0.5% per unit above 1x.
+ * No fee for cash (0x) or unleveraged (1x) positions.
+ *
+ * @param {number} leverage — Absolute leverage multiplier (e.g., 2.0, 3.5)
+ * @returns {number} Annual fee as a decimal (e.g., 0.01 = 1% APR)
+ */
 function getLTAPFee(leverage) { // Annual fee calculation — scales with leverage to compensate liquidity providers for the risk they absorb
   if (leverage === 0 || Math.abs(leverage) === 1.0) return 0; // No fee for cash (0x) or unleveraged (1x) positions — no borrowing cost to pass through
   return 0.005 + 0.005 * Math.abs(leverage - 1); // Base 0.5% + 0.5% per unit of leverage above 1x — e.g., 2x = 1.0% APR, 3x = 1.5% APR, 4x = 2.0% APR
@@ -986,6 +1141,15 @@ function getLTAPFee(leverage) { // Annual fee calculation — scales with levera
 
 
 
+/**
+ * Map underlying asset drawdown to an auto-deleverage severity level (0-5).
+ * Each level corresponds to a progressively more aggressive risk response.
+ * Level 0 = no action, Level 5 = full liquidation.
+ *
+ * @param {number} underlyingDrawdown — Drawdown from peak as a decimal (e.g., 0.15 = 15%)
+ * @returns {number} Deleverage level: 0 (none), 1 (reduce 25%), 2 (reduce 50%),
+ *   3 (cap 1.5x), 4 (force 1x), 5 (liquidate)
+ */
 function getDeleverageLevelDirect(underlyingDrawdown) { // 5-level cascade maps underlying drawdown severity to a deleverage action level
   if (underlyingDrawdown >= 0.40) return 5; // Level 5: 40%+ drawdown = LIQUIDATION — underlying crashed too far, position is unsalvageable
   if (underlyingDrawdown >= 0.30) return 4; // Level 4: 30%+ drawdown = force to 1x — eliminate all leverage to prevent liquidation
@@ -995,6 +1159,20 @@ function getDeleverageLevelDirect(underlyingDrawdown) { // 5-level cascade maps 
   return 0; // No drawdown threshold breached — maintain current leverage
 }
 
+/**
+ * Simulate the LTAP "constant leverage from entry" protocol on historical OHLCV data.
+ * Outputs a line series ({time, value}) for area/line chart rendering.
+ * Includes auto-deleverage cascades, circuit breakers, and releveraging logic.
+ *
+ * @param {Array<{time: string, open: number, high: number, low: number, close: number}>} ohlcv — Historical price bars
+ * @param {number} leverage — Target leverage multiplier (absolute, e.g., 2.0)
+ * @param {boolean} isShort — True for short positions (inverts return direction)
+ * @param {boolean} [disableFees=false] — True to run fee-free simulation for comparison
+ * @returns {{data: Array<{time: string, value: number, liquidated: boolean}>,
+ *   liquidated: boolean, liqTime: string|null,
+ *   events: Array<{time: string, type: string, from?: number, to?: number, level?: number, slippage?: number, reason?: string}>,
+ *   stats: {totalDeleverageEvents: number, totalReleverEvents: number, totalSlippageCost: number, timeAtReducedLeverage: number, circuitBreakerDays: number}}}
+ */
 function simulateProtocol(ohlcv, leverage, isShort, disableFees = false) { // Line-series LTAP simulation — outputs {time, value} for area/line charts; disableFees mode used for "no fee" comparison column
   const result = []; // Accumulates daily {time, value, liquidated} points for the chart
   const entryPrice = ohlcv[0].close; // First close becomes the starting NAV — all returns measured from this base
@@ -1183,6 +1361,18 @@ function simulateProtocol(ohlcv, leverage, isShort, disableFees = false) { // Li
   };
 }
 
+/**
+ * Candlestick variant of simulateProtocol. Outputs OHLC bars instead of single values,
+ * applying the same auto-deleverage/releveraging/circuit breaker logic.
+ * All four OHLC prices are transformed through the leverage formula for realistic candle shapes.
+ *
+ * @param {Array<{time: string, open: number, high: number, low: number, close: number}>} ohlcv — Historical price bars
+ * @param {number} leverage — Target leverage multiplier (absolute)
+ * @param {boolean} isShort — True for short positions
+ * @param {boolean} [disableFees=false] — True for fee-free comparison
+ * @returns {{data: Array<{time: string, open: number, high: number, low: number, close: number, liquidated: boolean}>,
+ *   liquidated: boolean, liqTime: string|null, events: Array, stats: Object}}
+ */
 function simulateProtocolOHLC(ohlcv, leverage, isShort, disableFees = false) { // Candlestick variant of simulateProtocol — outputs OHLC bars instead of single values, needed for the candlestick chart view
   const result = []; // Accumulates OHLC bars with leveraged prices for candlestick rendering
   const entryPrice = ohlcv[0].close; // Same starting NAV as line version — must match for consistent comparison
@@ -1409,6 +1599,16 @@ function simulateProtocolOHLC(ohlcv, leverage, isShort, disableFees = false) { /
   };
 }
 
+/**
+ * Simulate a traditional daily-reset leveraged ETF (like TQQQ/SQQQ) for comparison.
+ * Unlike LTAP's "constant from entry", this compounds daily returns with leverage,
+ * which causes volatility decay over time. Includes a 5.2% APR borrow cost.
+ *
+ * @param {Array<{time: string, close: number}>} ohlcv — Historical price bars
+ * @param {number} leverage — Leverage multiplier (absolute)
+ * @param {boolean} short — True for inverse/short product simulation
+ * @returns {{data: Array<{time: string, value: number}>, liquidated: boolean}}
+ */
 function applyDailyResetLeverage(ohlcv, leverage, short) { // Simulates traditional daily-reset leveraged ETF (like TQQQ/SQQQ) for comparison with LTAP's constant-from-entry model
   const borrowAPR = 0.052; // 5.2% annual borrow rate — approximates the implicit cost of daily-reset leverage (margin + swap fees)
   const dailyBorrow = borrowAPR / 252; // Convert to daily rate — deducted each day to simulate the ongoing cost of borrowing
@@ -1444,6 +1644,16 @@ function applyDailyResetLeverage(ohlcv, leverage, short) { // Simulates traditio
 // used for base, LTAP, daily-reset, and no-fee comparison.
 // ═══════════════════════════════════════════════════
 
+/**
+ * Calculate portfolio analytics for any price series. Works for both line ({value})
+ * and candlestick ({close}) formats. Computes total return, CAGR, volatility,
+ * Sharpe ratio, max drawdown, and liquidation detection.
+ *
+ * @param {Array<{value?: number, close?: number}>} series — Price series (line or OHLC)
+ * @param {number} years — Duration in years (used for CAGR annualization)
+ * @returns {{totalReturn: number, cagr: number, vol: number, sharpe: number,
+ *   maxDD: number, liquidated: boolean}} Portfolio statistics
+ */
 function calcStats(series, years) { // Unified stats calculator — works for both {value} (line) and {close} (candlestick) series formats
   const prices = series.map(s => s.value !== undefined ? s.value : s.close); // Normalize: line series use .value, OHLC series use .close — extract a single price array for calculation
 
@@ -1526,11 +1736,24 @@ const chart = LightweightCharts.createChart(chartEl, { // Create the main chart 
 
 let levAreaSeries = null, levCandleSeries = null, levLineSeries = null, baseSeries = null, depositRefSeries = null; // Track all chart series globally so removeSeries() can clean them up before re-rendering
 
+/**
+ * Remove all existing chart series from the TradingView chart instance.
+ * Called before re-rendering to prevent series buildup on repeated updateAll() calls.
+ */
 function removeSeries() { // Clear all existing chart series before adding new ones — prevents series buildup on repeated updateAll() calls
   [levAreaSeries, levCandleSeries, levLineSeries, baseSeries, depositRefSeries].forEach(s => { if (s) chart.removeSeries(s); }); // Iterate all possible series and remove any that exist
   levAreaSeries = levCandleSeries = levLineSeries = baseSeries = depositRefSeries = null; // Reset references to null so we don't try to remove already-removed series next time
 }
 
+/**
+ * Slice the master 25-year OHLCV dataset to the selected timeframe.
+ * Converts period strings ('1M', '1Y', '5Y', etc.) to date cutoffs
+ * and returns both the filtered data and the corresponding year count
+ * needed for CAGR annualization.
+ *
+ * @param {string} period — Timeframe code: '1M'|'3M'|'6M'|'1Y'|'3Y'|'5Y'|'10Y'|'25Y'|'MAX'
+ * @returns {{data: Array<{time: string, open: number, high: number, low: number, close: number}>, years: number}}
+ */
 function getFiltered(period) { // Slice the master 25-year dataset down to the selected timeframe (1M, 1Y, 5Y, etc.) and return the corresponding year count for stats calculation
   const cut = new Date(); // Start from today and subtract the period duration to get the cutoff date
   let years; // Number of years for CAGR and fee calculations — must match the actual data window
@@ -1582,6 +1805,13 @@ function getFiltered(period) { // Slice the master 25-year dataset down to the s
 }
 
 
+/**
+ * Master render function. Called on every user interaction (leverage change,
+ * timeframe switch, chart type toggle, entry point click, ticker change).
+ * Runs all simulations (LTAP, OHLC, daily-reset, no-fee), updates the chart
+ * with series and markers, computes stats, and refreshes all UI panels
+ * (overlay, comparison grid, risk meter, fee economics, deleverage stats).
+ */
 function updateAll() { // Master render function — called on every user interaction (leverage change, timeframe change, chart type toggle, entry point click)
   const { data, years } = getFiltered(currentPeriod); // Get the OHLCV data sliced to the selected timeframe and the corresponding year count
   if (data.length < 2) return; // Need at least 2 data points to compute a return — single point has no movement
@@ -1982,6 +2212,13 @@ const mobileSliderTrack = document.getElementById('mobileSliderTrack'); // Mobil
 const mobileSliderThumb = document.getElementById('mobileSliderThumb'); // Mobile slider thumb — mirrors desktop thumb position
 const mobileSliderFill = document.getElementById('mobileSliderFill'); // Mobile slider fill — mirrors desktop fill gradient
 
+/**
+ * Snap a raw leverage value to clean increments for display and simulation.
+ * Normal mode snaps to 0.1 steps (e.g., 1.3, 1.4); degen mode snaps to integers.
+ *
+ * @param {number} raw — Raw leverage value from slider position calculation
+ * @returns {number} Snapped leverage value
+ */
 function snapLeverage(raw) { // Snap leverage to clean increments — prevents awkward values like 1.37x
   if (isDegenMode) {
     return Math.round(raw); // Degen mode: snap to whole numbers (10x, 25x, etc.) — 0.25 steps are meaningless at 100x
@@ -1991,6 +2228,13 @@ function snapLeverage(raw) { // Snap leverage to clean increments — prevents a
   }
 }
 
+/**
+ * Update the visual position, fill gradient, and display text of both desktop
+ * and mobile leverage sliders. Uses a CSS gradient that fills from the center
+ * (0x) to the thumb position: green for long, red for short.
+ *
+ * @param {number} lev — Current leverage value (negative = short, positive = long)
+ */
 function setSliderPos(lev) { // Update the visual position and colors of both desktop and mobile sliders to match the given leverage value
   const pct = (lev - MIN_LEV) / (MAX_LEV - MIN_LEV); // Convert leverage value to 0-1 percentage position on the slider track
   const thumbPct = pct * 100; // Convert to CSS percentage for positioning
@@ -2030,12 +2274,26 @@ function setSliderPos(lev) { // Update the visual position and colors of both de
 let isDragging = false; // Tracks whether a slider is currently being dragged
 let currentSlider = null; // Reference to the active slider element (desktop or mobile)
 
+/**
+ * Begin a slider drag interaction. Sets the active slider reference
+ * and immediately updates leverage to the click/touch position.
+ *
+ * @param {HTMLElement} slider — The slider track element being interacted with
+ * @param {number} clientX — Horizontal pixel position of the click/touch
+ */
 function handleSliderStart(slider, clientX) { // Begin drag — sets active slider and immediately updates leverage to click position
   isDragging = true;
   currentSlider = slider;
   updateLeverageFromPosition(slider, clientX);
 }
 
+/**
+ * Convert a pixel position on the slider track to a leverage value,
+ * snap it to clean increments, update the slider visuals, and re-render the chart.
+ *
+ * @param {HTMLElement} slider — The slider track element (used for bounding rect)
+ * @param {number} clientX — Horizontal pixel position
+ */
 function updateLeverageFromPosition(slider, clientX) { // Convert pixel position to leverage value and update everything
   const rect = slider.getBoundingClientRect();
   const x = clientX - rect.left;
@@ -2046,6 +2304,12 @@ function updateLeverageFromPosition(slider, clientX) { // Convert pixel position
   updateAll();
 }
 
+/**
+ * Document-level mouse/touch move handler for smooth slider dragging.
+ * Continues updating leverage even when the cursor moves outside the track bounds.
+ *
+ * @param {MouseEvent|TouchEvent} e — Mouse or touch move event
+ */
 function handleSliderMove(e) { // Document-level move handler for smooth dragging outside track bounds
   if (!isDragging || !currentSlider) return;
   e.preventDefault(); // Prevent page scrolling on mobile while dragging
@@ -2053,6 +2317,10 @@ function handleSliderMove(e) { // Document-level move handler for smooth draggin
   updateLeverageFromPosition(currentSlider, clientX);
 }
 
+/**
+ * End slider drag interaction. Resets dragging state so subsequent
+ * mouse/touch moves no longer update leverage.
+ */
 function handleSliderEnd() { // Release drag — stop updating leverage on move events
   isDragging = false;
   currentSlider = null;
@@ -2235,6 +2503,10 @@ document.getElementById('degenModeBtn').addEventListener('click', () => {
   updateAll();
 });
 
+/**
+ * Swap slider labels and quick-select notch buttons for degen mode range (-100x to +100x).
+ * Replaces the normal -4x to +4x labels and re-wires click handlers on the new buttons.
+ */
 function updateDegenModeUI() { // Swap slider labels and notch buttons for degen range
   const sliderLabels = document.querySelectorAll('.slider-labels');
   sliderLabels.forEach(label => {
@@ -2265,6 +2537,10 @@ function updateDegenModeUI() { // Swap slider labels and notch buttons for degen
   });
 }
 
+/**
+ * Restore slider labels and quick-select notch buttons to normal mode range (-4x to +4x).
+ * Replaces degen mode labels and re-wires click handlers on the standard buttons.
+ */
 function updateNormalModeUI() { // Restore slider labels and notch buttons to normal range
   const sliderLabels = document.querySelectorAll('.slider-labels');
   sliderLabels.forEach(label => {
@@ -2306,6 +2582,14 @@ new ResizeObserver(() => { // Watch the chart container for size changes — tri
 
 let currentMode = 'live'; // Default to live mode — show real protocol state
 
+/**
+ * Switch between Live and Research modes in the trading terminal UI.
+ * Live mode shows real-time contract/oracle data with polling.
+ * Research mode shows the backtest/simulation engine.
+ * Toggles visibility of mode-specific panels and starts/stops live polling.
+ *
+ * @param {'live'|'research'} mode — The mode to activate
+ */
 function setMode(mode) {
   currentMode = mode;
 

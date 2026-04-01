@@ -15,8 +15,15 @@ import { Address, beginCell, toNano } from '@ton/core'
 import { TonClient } from '@ton/ton'
 
 // Heavy protocol SDKs are loaded dynamically to avoid WASM bundling issues
-// and reduce initial bundle size — they're only needed for write operations.
+// and reduce initial bundle size -- they're only needed for write operations.
+
+/** @type {Object|null} Cached Kamino SDK module exports */
 let _kaminoSdk = null
+/**
+ * Lazily load the Kamino Finance lending SDK (@kamino-finance/klend-sdk).
+ * Caches the module on first load to avoid repeated dynamic imports.
+ * @returns {Promise<{KaminoMarket: any, KaminoAction: any, VanillaObligation: any, BN: any}>}
+ */
 async function loadKaminoSdk() {
   if (!_kaminoSdk) {
     const mod = await import('@kamino-finance/klend-sdk')
@@ -26,7 +33,13 @@ async function loadKaminoSdk() {
   return _kaminoSdk
 }
 
+/** @type {Object|null} Cached EVAA SDK module exports */
 let _evaaSdk = null
+/**
+ * Lazily load the EVAA Protocol SDK (@evaafi/sdk) for TON lending operations.
+ * Caches the module on first load.
+ * @returns {Promise<Object>} EVAA SDK exports including EvaaMasterClassic, pool configs, and asset constants
+ */
 async function loadEvaaSdk() {
   if (!_evaaSdk) {
     const mod = await import('@evaafi/sdk')
@@ -126,7 +139,16 @@ export const CHAIN_CONFIG = {
  * @property {string} explorerUrl - Link to block explorer
  */
 
+/**
+ * Abstract base class defining the interface every chain lending adapter must implement.
+ * Subclasses: EulerV2Adapter (EVM), KaminoAdapter (Solana), EvaaAdapter (TON).
+ * @abstract
+ */
 class ILendingAdapter {
+  /**
+   * @param {string} chain - Chain identifier from CHAINS enum
+   * @throws {Error} If chain is not configured in CHAIN_CONFIG
+   */
   constructor(chain) {
     this.chain = chain
     this.config = CHAIN_CONFIG[chain]
@@ -225,7 +247,17 @@ const ERC20_ABI = [
   { type: 'function', name: 'balanceOf', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ]
 
+/**
+ * Euler V2 lending adapter for EVM chains (Ink Sepolia, Ethereum Mainnet).
+ * Uses viem for contract reads/writes via the xLeverContracts singleton.
+ * Supports supply, withdraw, borrow, repay with automatic approval handling.
+ * @extends ILendingAdapter
+ */
 class EulerV2Adapter extends ILendingAdapter {
+  /**
+   * @param {string} chain - CHAINS.INK_SEPOLIA or CHAINS.ETHEREUM
+   * @throws {Error} If Euler V2 is not configured for the given chain
+   */
   constructor(chain) {
     super(chain)
     this.addresses = EULER_ADDRESSES[chain]
@@ -340,9 +372,13 @@ class EulerV2Adapter extends ILendingAdapter {
   }
 
   /**
-   * Waits for a tx receipt, checks for reverts, and emits txEvents.
-   * Centralizes receipt validation so supply/withdraw/borrow/repay
-   * all get consistent revert detection and event-based reload.
+   * Wait for a transaction receipt, check for on-chain reverts, and emit
+   * txEvents for UI lifecycle tracking. Centralizes receipt validation so
+   * supply/withdraw/borrow/repay all get consistent revert detection.
+   * @param {Object} pc - viem public client for receipt polling
+   * @param {string} hash - Transaction hash to monitor
+   * @returns {Promise<TxResult>} Success result with hash and explorer URL
+   * @throws {Error} If the transaction reverts on-chain
    */
   async _waitAndValidate(pc, hash) {
     const contracts = window.xLeverContracts
@@ -469,6 +505,11 @@ class EulerV2Adapter extends ILendingAdapter {
     throw lastError
   }
 
+  /**
+   * Build a minimal viem chain definition for writeContract calls.
+   * @returns {Object} Chain config with id, name, nativeCurrency, and rpcUrls
+   * @private
+   */
   _viemChain() {
     if (this.chain === CHAINS.ETHEREUM) {
       return { id: 1, name: 'Ethereum', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [this.config.rpc] } } }
@@ -519,6 +560,12 @@ const KAMINO_CONFIG = {
   },
 }
 
+/**
+ * Kamino Finance lending adapter for Solana.
+ * Uses @solana/web3.js for RPC calls and the Kamino Lending SDK for
+ * building deposit/withdraw/borrow/repay transactions.
+ * @extends ILendingAdapter
+ */
 class KaminoAdapter extends ILendingAdapter {
   constructor() {
     super(CHAINS.SOLANA)
@@ -620,6 +667,12 @@ class KaminoAdapter extends ILendingAdapter {
 
   // ─── Transaction methods (Kamino Lending SDK) ───────────────
 
+  /**
+   * Load the Kamino lending market from on-chain state.
+   * @returns {Promise<KaminoMarket>} Initialized Kamino market instance
+   * @throws {Error} If the market fails to load from the Solana RPC
+   * @private
+   */
   async _loadMarket() {
     const { KaminoMarket } = await loadKaminoSdk()
     const conn = this._getConnection()
@@ -634,6 +687,14 @@ class KaminoAdapter extends ILendingAdapter {
     return market
   }
 
+  /**
+   * Build a Kamino lending transaction, sign it with the wallet provider,
+   * send it to the Solana network, and wait for confirmation.
+   * @param {Function} actionBuilder - Async function: (market, ownerPk, obligation) => KaminoAction
+   * @returns {Promise<string>} Transaction signature
+   * @throws {Error} If wallet is not connected or transaction fails
+   * @private
+   */
   async _buildAndSend(actionBuilder) {
     const { KaminoAction, VanillaObligation } = await loadKaminoSdk()
     const provider = this._getProvider()
@@ -657,6 +718,12 @@ class KaminoAdapter extends ILendingAdapter {
     return sig
   }
 
+  /**
+   * Supply an asset to Kamino lending market.
+   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Transaction signature
+   */
   async supply(asset, amount) {
     const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
@@ -671,6 +738,12 @@ class KaminoAdapter extends ILendingAdapter {
     )
   }
 
+  /**
+   * Withdraw a previously supplied asset from Kamino lending market.
+   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Transaction signature
+   */
   async withdraw(asset, amount) {
     const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
@@ -685,6 +758,12 @@ class KaminoAdapter extends ILendingAdapter {
     )
   }
 
+  /**
+   * Borrow an asset from Kamino lending market against deposited collateral.
+   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Transaction signature
+   */
   async borrow(asset, amount) {
     const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
@@ -699,6 +778,12 @@ class KaminoAdapter extends ILendingAdapter {
     )
   }
 
+  /**
+   * Repay a borrowed asset on Kamino lending market.
+   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
+   * @param {number} amount - Amount in human-readable units
+   * @returns {Promise<string>} Transaction signature
+   */
   async repay(asset, amount) {
     const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
@@ -761,6 +846,12 @@ const EVAA_CONFIG = {
   },
 }
 
+/**
+ * EVAA Protocol lending adapter for TON.
+ * Uses @ton/ton TonClient for RPC and the EVAA SDK for building
+ * supply/withdraw/borrow/repay messages on the TON blockchain.
+ * @extends ILendingAdapter
+ */
 class EvaaAdapter extends ILendingAdapter {
   constructor() {
     super(CHAINS.TON)
@@ -860,6 +951,13 @@ class EvaaAdapter extends ILendingAdapter {
 
   // ─── Transaction methods (EVAA SDK) ─────────────────────────
 
+  /**
+   * Map an asset symbol to the EVAA SDK pool asset constant.
+   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
+   * @returns {Promise<Object>} EVAA pool asset constant for SDK calls
+   * @throws {Error} If the asset is not configured for EVAA
+   * @private
+   */
   async _getPoolAsset(asset) {
     const sdk = await loadEvaaSdk()
     const map = {
@@ -873,11 +971,22 @@ class EvaaAdapter extends ILendingAdapter {
     return poolAsset
   }
 
+  /**
+   * Create an EVAA master contract instance for pool interactions.
+   * @returns {Promise<EvaaMasterClassic>} Initialized EVAA master contract
+   * @private
+   */
   async _getMaster() {
     const { EvaaMasterClassic, MAINNET_POOL_CONFIG } = await loadEvaaSdk()
     return new EvaaMasterClassic({ poolConfig: MAINNET_POOL_CONFIG })
   }
 
+  /**
+   * Get a TonConnect sender instance for signing and sending transactions.
+   * @returns {Promise<Object>} TonConnect sender compatible with EVAA SDK
+   * @throws {Error} If TON wallet is not connected
+   * @private
+   */
   async _getSender() {
     const { getTonConnectSender } = await loadEvaaSdk()
     const provider = this._getProvider()
@@ -1004,6 +1113,17 @@ class EvaaAdapter extends ILendingAdapter {
 // ADAPTER REGISTRY — factory + manager for all chain adapters
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Factory and manager for all chain lending adapters.
+ * Provides a unified interface to switch between chains, query markets
+ * across all chains, and resolve network change events to chain IDs.
+ *
+ * Usage:
+ *   const registry = new LendingAdapterRegistry().init()
+ *   registry.setActiveChain('solana')
+ *   const adapter = registry.active()
+ *   const markets = await adapter.getMarkets()
+ */
 class LendingAdapterRegistry {
   constructor() {
     this._adapters = new Map()

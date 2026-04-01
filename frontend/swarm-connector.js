@@ -1,18 +1,31 @@
 /**
- * xLever Swarm Connector
- * ──────────────────────
- * Connects xLever to the EcosystemNetwork/Swarm protocol, enabling
- * external AI agents (OpenClaw, Eliza, Hermes, etc.) to discover
- * and use all xLever tools through the Swarm network.
+ * @file swarm-connector.js
+ * @module SwarmConnector
+ * @description
+ * xLever Swarm Connector — High-level connection manager for the Swarm protocol.
+ * Connects xLever to the EcosystemNetwork/Swarm protocol, enabling external AI agents
+ * (OpenClaw, Eliza, Hermes, etc.) to discover and use all xLever tools through
+ * the Swarm network.
  *
  * This module:
- *  1. Registers xLever as a Swarm agent on startup
- *  2. Runs a daemon that polls for inbound Swarm messages
- *  3. Routes messages through SwarmBridge's tool registry
- *  4. Relays xLever events (decisions, positions, risk) back to Swarm
- *  5. Provides a chat interface for direct OpenClaw ↔ xLever conversation
+ *  1. Registers xLever as a Swarm agent on startup via SwarmBridge
+ *  2. Starts a daemon that polls for inbound Swarm messages
+ *  3. Routes messages through SwarmBridge's tool registry (30+ tools)
+ *  4. Relays significant xLever events (decisions, positions, risk) back to Swarm
+ *  5. Provides a chat interface for direct OpenClaw <-> xLever conversation
+ *  6. Maintains conversation history (max 50 messages) for context-aware responses
+ *  7. Supports offline mode when Swarm hub is unreachable (tools still work locally)
  *
- * Dependencies: swarm-bridge.js, agent-bridge.js, ws-broadcast.js
+ * Chat pipeline: user message -> try tool parsing -> forward to OpenClaw -> return response
+ *
+ * @exports {Object} SwarmConnector - Frozen singleton exposed on window.SwarmConnector
+ *
+ * @dependencies
+ *  - window.SwarmBridge     — Tool registry, Swarm protocol, and OpenClaw bridge (required)
+ *  - window.AgentExecutor   — Agent state for system prompt generation (optional)
+ *  - window.AgentCoordinator — Swarm coordinator state (optional)
+ *  - window.RiskLive        — Risk engine state for system prompt (optional)
+ *  - window.xLeverWallet    — Wallet connectivity for address resolution (optional)
  */
 
 const SwarmConnector = (() => {

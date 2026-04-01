@@ -1,16 +1,23 @@
 /**
- * xLever Signal Aggregator
- * ─────────────────────────
- * Combines signals from the three parallel analyst agents into a single
- * weighted trading decision. Implements:
+ * @file signal-aggregator.js
+ * @module SignalAggregator
+ * @description
+ * xLever Signal Aggregator — Weighted signal combination and consensus detection.
+ * Combines signals from the parallel analyst agents into a single weighted trading
+ * decision. Implements:
  *
- *  1. Weighted confidence scoring (configurable per analyst)
- *  2. Consensus detection (agreement across agents)
- *  3. Conflict resolution (disagreeing agents)
- *  4. Action recommendation with conviction level
- *  5. Signal history for pattern tracking
+ *  1. Weighted confidence scoring (configurable per analyst, auto-rebalanced when LLM active)
+ *  2. Consensus detection (unanimous agreement boosts score by 15%)
+ *  3. Conflict resolution (disagreeing analysts dampen score by 25%)
+ *  4. Action recommendation mapped to conviction levels via configurable thresholds
+ *  5. Signal history buffer (max 100) for trend analysis over rolling windows
  *
- * Output: a single ActionRecommendation consumed by the AgentCoordinator
+ * Output: a single ActionRecommendation consumed by the AgentCoordinator.
+ *
+ * Default analyst weights:
+ *  sentiment=0.25, technical=0.30, macro=0.20, llm=0.25
+ *
+ * @exports {Object} SignalAggregator - Frozen singleton exposed on window.SignalAggregator
  */
 
 const SignalAggregator = (() => {
@@ -50,6 +57,10 @@ const SignalAggregator = (() => {
   const MAX_HISTORY = 100
   const _history = []
 
+  /**
+   * Record a recommendation in the signal history buffer (FIFO, max 100).
+   * @param {Object} recommendation - Aggregated recommendation to store
+   */
   function recordSignal(recommendation) {
     _history.push(recommendation)
     if (_history.length > MAX_HISTORY) _history.shift()
@@ -59,6 +70,24 @@ const SignalAggregator = (() => {
   // AGGREGATION ENGINE
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Aggregate signals from all analysts into a single trading recommendation.
+   *
+   * Pipeline:
+   *  1. Compute weighted score: sum(direction * confidence * weight) / totalWeight
+   *  2. Detect consensus: unanimous (all agree) boosts score; conflicting dampens it
+   *  3. Select most urgent signal for urgency propagation
+   *  4. Map weighted score to action/conviction via threshold bands
+   *  5. Collect all affected assets across analysts
+   *  6. Record in history buffer
+   *
+   * @param {Object} analysisResult - Output from NewsAnalysts.analyzeAll()
+   * @param {Object} analysisResult.newsItem - Original news item
+   * @param {Object[]} analysisResult.signals - Array of analyst signals
+   * @param {number} analysisResult.analysisTime - Total analysis time in ms
+   * @returns {Object} ActionRecommendation with action, conviction, direction, score,
+   *   consensus, urgency, affectedAssets, newsItem summary, breakdown, and timestamp
+   */
   function aggregate(analysisResult) {
     const { newsItem, signals, analysisTime } = analysisResult
 
@@ -181,6 +210,12 @@ const SignalAggregator = (() => {
   // TREND ANALYSIS (over recent signal history)
   // ═══════════════════════════════════════════════════════════════
 
+  /**
+   * Analyze the trend of recent signals within a rolling time window.
+   *
+   * @param {number} [windowMs=300000] - Lookback window in milliseconds (default 5 minutes)
+   * @returns {Object} Trend summary with direction, avgScore, count, strongSignals, and consensus
+   */
   function getRecentTrend(windowMs = 300000) { // Default 5 minute window
     const cutoff = Date.now() - windowMs
     const recent = _history.filter(r => r.timestamp > cutoff)
@@ -200,7 +235,14 @@ const SignalAggregator = (() => {
   // BATCH AGGREGATION
   // ═══════════════════════════════════════════════════════════════
 
-  // Aggregate multiple analysis results and pick the highest conviction
+  /**
+   * Aggregate multiple analysis results and return them sorted by signal strength.
+   * Each result is individually aggregated, then the array is sorted by absolute
+   * score descending so the strongest signal appears first.
+   *
+   * @param {Object[]} analysisResults - Array of outputs from NewsAnalysts.analyzeAll()
+   * @returns {Object[]} Sorted array of ActionRecommendations (strongest first)
+   */
   function aggregateBatch(analysisResults) {
     const recommendations = analysisResults.map(r => aggregate(r))
     // Sort by absolute score descending — strongest signal first
@@ -218,6 +260,10 @@ const SignalAggregator = (() => {
     getRecentTrend,
 
     // Configuration
+    /**
+     * Update analyst weights. Merges with existing weights.
+     * @param {Object} w - Weight overrides keyed by analyst name
+     */
     setWeights(w) {
       _weights = { ..._weights, ...w }
     },

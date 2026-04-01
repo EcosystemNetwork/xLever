@@ -646,7 +646,7 @@ tailwind.config = {
 
 </main>
 
-<!-- Footer -->
+<!-- ===== FOOTER: Terminal Status Bar ===== -->
 <footer class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-4 h-8 bg-[#1b1b1f] dark:bg-[#1b1b1f] border-t border-[#343538]/20">
   <div class="flex items-center gap-6">
     <span class="font-mono text-[10px] uppercase tracking-widest text-[#7dffa2] font-bold">xLever Terminal v1.0.4 | Mainnet</span>
@@ -660,6 +660,19 @@ tailwind.config = {
   </div>
 </footer>
 
+<!-- ===== SCRIPTS: Agent system modules =====
+     risk-engine.js       — Client-side risk state machine for agent decisions
+     agent-executor.js    — Executes agent actions (leverage adjustments, trades)
+     ws-broadcast.js      — WebSocket broadcast layer for real-time updates
+     agent-bridge.js      — Bridge between frontend agent UI and executor
+     llm-analyst.js       — LLM-powered market analysis
+     news-ingest.js       — News feed ingestion pipeline
+     news-verifier.js     — Multi-source news verification
+     news-analysts.js     — Sentiment/Technical/Macro analyst agents
+     signal-aggregator.js — Aggregates analyst signals into trade decisions
+     agent-coordinator.js — Orchestrates the full news-to-trade pipeline
+     swarm-bridge.js      — Bridge to external swarm intelligence
+     swarm-connector.js   — WebSocket connector for swarm data -->
 <script src="risk-engine.js"></script>
 <script src="agent-executor.js"></script>
 <script src="ws-broadcast.js"></script>

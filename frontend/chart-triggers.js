@@ -1,24 +1,38 @@
 /**
- * xLever Chart Triggers — Price-Level Trigger System
- * ───────────────────────────────────────────────────
+ * @file chart-triggers.js — Chart Event Triggers (Price-Level Trigger System)
+ *
  * Place interactive price triggers on the chart that fire actions
  * when the live oracle price crosses the trigger level.
  *
  * Trigger types:
- *   - alert:   Desktop notification + log entry
- *   - buy:     Open a new position at specified leverage
- *   - sell:    Close current position (full or partial)
- *   - adjust:  Change leverage to a target value
+ *   - alert:      Desktop notification + log entry
+ *   - buy:        Open a new position at specified leverage
+ *   - sell:       Close current position (full or partial)
+ *   - adjust:     Change leverage to a target value
  *   - deleverage: Reduce leverage to a target value
  *
  * Triggers can be placed by:
- *   - Clicking on the chart with the trigger tool active
+ *   - Clicking on the chart with the trigger tool active (interactive placement)
  *   - Programmatically via the API (for agents)
  *   - The trigger panel form
  *
- * Each trigger monitors the Pyth oracle price and fires once
- * when the crossing condition is met. One-shot by default,
- * with an optional repeat flag.
+ * Each trigger monitors the Pyth oracle price and fires once when the
+ * crossing condition is met. One-shot by default, with an optional repeat flag.
+ * Persisted to localStorage for survival across page reloads.
+ *
+ * @module ChartTriggers
+ * @exports {Object} window.ChartTriggers
+ * @exports {Function} ChartTriggers.init - Initialize with chart and series
+ * @exports {Function} ChartTriggers.add - Create a new price trigger
+ * @exports {Function} ChartTriggers.startMonitor - Begin oracle price monitoring
+ * @exports {Function} ChartTriggers.startPlacement - Enter interactive placement mode
+ *
+ * @dependencies
+ *   - Lightweight Charts (LWC) library
+ *   - window.xLeverPyth (optional) for Pyth oracle price
+ *   - window.xLeverContracts (optional) for on-chain execution
+ *   - window.AgentExecutor (optional) for routing through agent pipeline
+ *   - localStorage ('xlever_chart_triggers') for persistence
  */
 
 const ChartTriggers = (() => {
@@ -50,6 +64,17 @@ const ChartTriggers = (() => {
   // INITIALIZATION
   // ═══════════════════════════════════════════
 
+  /**
+   * Initialize the trigger system with a chart instance.
+   * Loads any persisted triggers from localStorage and renders them.
+   * @param {Object} chart - Lightweight Charts IChartApi instance
+   * @param {Function} getSeriesFn - Callback returning the current visible series
+   * @param {Object} [opts] - Configuration options
+   * @param {Function} [opts.log] - Log callback: (category, message, color) => void
+   * @param {Function} [opts.onFire] - Callback when a trigger fires: (trigger, currentPrice) => void
+   * @param {Function} [opts.onUpdate] - Callback when trigger list changes: (triggers) => void
+   * @returns {Object} The public API object
+   */
   function init(chart, getSeriesFn, opts = {}) {
     _chart = chart
     _getSeries = getSeriesFn
@@ -121,6 +146,11 @@ const ChartTriggers = (() => {
     return trigger
   }
 
+  /**
+   * Remove a trigger by ID. Cleans up the chart price line and persists.
+   * @param {number} id - Trigger ID to remove
+   * @returns {boolean} True if the trigger was found and removed
+   */
   function remove(id) {
     const idx = _triggers.findIndex(t => t.id === id)
     if (idx === -1) return false
@@ -135,6 +165,12 @@ const ChartTriggers = (() => {
     return true
   }
 
+  /**
+   * Enable or disable a trigger. Disabled triggers keep their data
+   * but remove their visual price line and are skipped during monitoring.
+   * @param {number} id - Trigger ID
+   * @param {boolean} enabled - Whether to enable or disable
+   */
   function enable(id, enabled) {
     const t = _triggers.find(t => t.id === id)
     if (!t) return
@@ -160,6 +196,10 @@ const ChartTriggers = (() => {
     _notifyUpdate()
   }
 
+  /**
+   * Get a serializable snapshot of all triggers (without DOM references).
+   * @returns {Array<Object>} Trigger data objects
+   */
   function getAll() {
     return _triggers.map(t => ({
       id: t.id,
@@ -175,6 +215,7 @@ const ChartTriggers = (() => {
     }))
   }
 
+  /** Remove all triggers, clean up chart price lines, and reset state. */
   function clearAll() {
     for (const t of _triggers) {
       if (t.priceLine && t.series) {
@@ -203,6 +244,7 @@ const ChartTriggers = (() => {
     _log('TRIGGER', `Monitor started (${intervalMs / 1000}s interval)`, '#29b6f6')
   }
 
+  /** Stop the oracle price monitoring interval. */
   function stopMonitor() {
     if (_monitorInterval) {
       clearInterval(_monitorInterval)
@@ -211,6 +253,11 @@ const ChartTriggers = (() => {
     _log('TRIGGER', 'Monitor stopped', '#ff9800')
   }
 
+  /**
+   * Check all active triggers against the current oracle price.
+   * Detects price crossings by comparing current price to _lastPrice.
+   * @private
+   */
   async function _checkTriggers() {
     // Get current price from Pyth
     let currentPrice = null
@@ -258,6 +305,13 @@ const ChartTriggers = (() => {
     }
   }
 
+  /**
+   * Fire a trigger: log it, execute the action, dim the visual line,
+   * send desktop notification, and persist state.
+   * @param {Object} trigger - The trigger to fire
+   * @param {number} currentPrice - Current oracle price that caused the crossing
+   * @private
+   */
   async function _fireTrigger(trigger, currentPrice) {
     const style = TRIGGER_STYLES[trigger.action] || TRIGGER_STYLES.alert
 
@@ -303,6 +357,13 @@ const ChartTriggers = (() => {
     }
   }
 
+  /**
+   * Execute the on-chain or dry-run action for a fired trigger.
+   * Routes through AgentExecutor if running, otherwise calls contracts directly.
+   * @param {Object} trigger - Trigger with action type and params
+   * @param {number} currentPrice - Oracle price at time of firing
+   * @private
+   */
   async function _executeAction(trigger, currentPrice) {
     const contracts = window.xLeverContracts
     const executor = window.AgentExecutor
@@ -405,6 +466,7 @@ const ChartTriggers = (() => {
     }
   }
 
+  /** Cancel interactive placement mode and restore the default cursor. */
   function cancelPlacement() {
     _placementMode = null
     const container = _chart?.chartElement()

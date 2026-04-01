@@ -1,5 +1,23 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     06-analytics-backtesting.html — Analytics & Backtesting
 
+     Backtesting and strategy analysis interface with sidebar + main layout:
+     - SIDEBAR (fixed left): Navigation (Heatmap, Liquidation Ladder, Drawdown,
+       Auto-Deleverage) + strategy details panel (underlying, leverage type,
+       rebalance, fees, oracle, fee split)
+     - MAIN CONTENT:
+       - Header with simulation ID, engine status, slippage setting
+       - Config panel (3/12): Asset selector, strategy type, leverage slider,
+         timeframe grid, risk assessment bar, Run Backtest button
+       - Performance chart (9/12): SVG line chart comparing LTAP Protocol vs
+         Daily Reset vs QQQ 1x vs Entry Deposit, with stats bar
+       - Performance comparison grid: 4 cards (1x, LTAP 2x, Daily Reset 2x, No Fees)
+       - Competitive benchmark table: Multi-strategy comparison
+       - Additional sections: drawdown analysis, correlation matrix, risk metrics
+
+     Also embedded as iframe in 08-admin-dashboard.html Analytics tab.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -86,11 +104,14 @@
     </style>
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-primary/30 selection:text-primary min-h-screen flex flex-col">
+<!-- ===== SCRIPTS: Judge mode and navigation ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('analytics');</script>
 <div class="flex flex-1 overflow-hidden">
-<!-- SideNavBar -->
+<!-- ===== SIDEBAR: Terminal Tools Navigation =====
+     Left panel with nav links (Heatmap, Liquidation Ladder, Drawdown Analysis,
+     Auto-Deleverage) and strategy details showing current backtest parameters. -->
 <aside class="hidden md:flex flex-col h-screen pt-4 bg-[#121316] border-r border-white/15 w-64 shrink-0">
 <div class="px-6 mb-8">
 <h3 class="font-['Space_Grotesk'] text-xs uppercase tracking-widest text-[#cdbdff] font-bold">Terminal Tools</h3>
@@ -152,9 +173,9 @@
 </div>
 </nav>
 </aside>
-<!-- Main Content -->
+<!-- ===== MAIN CONTENT: Analytics & Backtesting ===== -->
 <main class="flex-1 overflow-y-auto bg-surface p-6 pb-20 no-scrollbar">
-<!-- Header Section -->
+<!-- ===== HEADER: Page Title + Simulation ID + Engine Status ===== -->
 <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
 <div>
 <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface uppercase">Analytics &amp; Backtesting</h1>
@@ -175,9 +196,12 @@
 </div>
 </div>
 </header>
-<!-- Config Panel & Primary Chart Grid -->
+<!-- ===== SECTION: Strategy Config Panel (3/12) + Performance Chart (9/12) ===== -->
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-<!-- Config Panel -->
+<!-- ===== CONFIG PANEL: Backtest Parameters =====
+     Asset selector, strategy dropdown, leverage slider (-4x to +4x),
+     timeframe grid (1M to MAX), risk assessment gradient bar,
+     and Run Backtest button. -->
 <section class="lg:col-span-3 flex flex-col gap-1">
 <div class="bg-surface-container-low p-4 h-full">
 <h4 class="font-headline text-[10px] uppercase tracking-widest text-on-surface-variant mb-4 font-bold">Strategy Config</h4>
@@ -245,7 +269,10 @@
 </div>
 </div>
 </section>
-<!-- Performance Chart -->
+<!-- ===== CHART: Relative Performance Comparison =====
+     SVG chart with 4 overlaid series: LTAP Protocol (purple bold),
+     Daily Reset TQQQ-style (blue dashed), QQQ 1x base (gray dotted),
+     Entry Deposit (white dashed). Stats bar below with 8 metrics. -->
 <section class="lg:col-span-9 bg-surface-container-low p-4 flex flex-col relative overflow-hidden">
 <div class="flex justify-between items-start mb-6">
 <div class="flex gap-4 items-center">
@@ -326,7 +353,9 @@
 </div>
 </section>
 </div>
-<!-- Performance Comparison Grid -->
+<!-- ===== SECTION: Performance Comparison Cards =====
+     Four cards comparing: QQQ 1x base, QQQ 2x LTAP (highlighted),
+     QQQ 2x Daily Reset, QQQ 2x No Fees. Each with return % and bar. -->
 <section class="mb-8">
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 <div class="bg-surface-container-low p-4 border border-outline-variant/10">
@@ -351,8 +380,11 @@
 </div>
 </div>
 </section>
+<!-- ===== SECTION: Strategy Comparison Table + Monte Carlo Simulation ===== -->
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-<!-- Strategy Comparison Table -->
+<!-- ===== TABLE: Competitive Benchmark (8/12) =====
+     Multi-strategy comparison: LTAP Protocol, Mean Reversion, Grid,
+     Daily Reset (TQQQ), and Buy & Hold with Return/CAGR/Sharpe/DD/Vol columns. -->
 <section class="lg:col-span-8">
 <div class="bg-surface-container-low overflow-hidden">
 <div class="px-6 py-4 flex justify-between items-center bg-surface-container-highest/10 border-b border-outline-variant/10">
@@ -417,7 +449,9 @@
 </div>
 </div>
 </section>
-<!-- Monte Carlo -->
+<!-- ===== CHART: Monte Carlo Simulation (4/12) =====
+     n=1000 simulation with 95% confidence band, SVG fan chart,
+     expected median value, and Value at Risk (VaR) metrics. -->
 <section class="lg:col-span-4 flex flex-col">
 <div class="bg-surface-container-low p-4 h-full flex flex-col">
 <div class="flex justify-between items-center mb-6">
@@ -452,7 +486,8 @@
 </div>
 </main>
 </div>
-<!-- Footer -->
+<!-- ===== FOOTER: Terminal Status Bar =====
+     Network info (mainnet, block, gas), system status, docs, and API links. -->
 <footer class="flex justify-between items-center px-6 py-2 w-full bg-[#121316] border-t border-white/15 fixed bottom-0 z-50">
 <div class="flex items-center gap-6">
 <span class="text-[#00e475] font-['JetBrains_Mono'] text-[10px]">Network: Mainnet | Block: 18,432,109 | Gas: 12 Gwei</span>
@@ -463,9 +498,14 @@
 <a class="text-[#cac3d8] hover:text-[#cdbdff] underline font-['Space_Grotesk'] text-[10px] cursor-pointer" href="#">API</a>
 </div>
 </footer>
+<!-- ===== SCRIPTS: Core modules =====
+     wallet.js    — Reown wallet provider
+     contracts.js — Euler V2 contract reads
+     ux.js        — Shared UX (XAuthGate, XToast) -->
 <script type="module" src="wallet.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>
+<!-- ===== SCRIPTS: Page Initialization — Auth gate blocks content until wallet connected ===== -->
 <script>
 document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
 </script>

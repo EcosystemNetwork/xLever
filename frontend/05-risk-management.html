@@ -1,4 +1,23 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     05-risk-management.html — Risk Management Sentinel Console
+
+     Comprehensive risk monitoring dashboard with sidebar + main layout:
+     - SIDEBAR (fixed left): Nav links — State Monitor, Oracle Health,
+       Auto-Deleverage, Position Risk, Scenario Tester. Link to test harness.
+     - MAIN CONTENT:
+       1. Protocol Risk State Machine — 4 state cards (Normal/Warning/Restricted/Emergency)
+          with live engine indicator and active triggers panel
+       2. Risk Metrics Summary — VaR, Drawdown, Health Factor, Volatility, Utilization
+       3. Oracle Health — Primary/Secondary feeds with age, divergence bar
+          + Dynamic Leverage Caps ladder (4.0x/3.0x/1.5x/0.0x by risk state)
+       4. Auto-Deleverage Safety Cascade — 6 levels (0-5) from No Action to Liquidation
+          with drawdown triggers and current recommendation
+       5. Position Risk table (not shown in first 400 lines)
+       6. Scenario Tester (not shown in first 400 lines)
+
+     Powered by risk-engine.js for client-side risk state evaluation.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -85,11 +104,15 @@
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-primary/30 antialiased overflow-x-hidden">
 
+<!-- ===== SCRIPTS: Judge mode and navigation ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('risk');</script>
 
-<!-- SideNavBar -->
+<!-- ===== SIDEBAR: Risk Sentinel Navigation =====
+     Fixed left sidebar with section links: State Monitor, Oracle Health,
+     Auto-Deleverage, Position Risk, Scenario Tester.
+     Bottom link to risk-engine.test.html test harness. -->
 <aside class="fixed left-0 top-0 h-screen w-64 bg-[#0a0b0e] border-r border-[#1f1f23] pt-20 flex flex-col hidden lg:flex">
   <div class="px-6 mb-8">
     <h3 class="font-['DM_Sans'] text-xs font-medium uppercase tracking-widest text-[#7c4dff]">Risk Sentinel</h3>
@@ -121,12 +144,13 @@
   </div>
 </aside>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- MAIN CONTENT                                           -->
-<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ===== MAIN CONTENT ===== -->
 <main class="lg:ml-64 pt-24 pb-12 px-6" id="mainContent">
 
-  <!-- 1. Risk State Machine -->
+  <!-- ===== SECTION 1: Protocol Risk State Machine =====
+       Four state cards (Normal 4.0x / Warning 3.0x / Restricted 1.5x / Emergency 0.0x)
+       with animated pulse indicators. Active state is highlighted with color.
+       Below: Active Triggers panel showing reasons for current state. -->
   <section class="mb-6">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-headline text-lg tracking-tight uppercase">Protocol Risk State</h2>
@@ -193,7 +217,9 @@
     </div>
   </section>
 
-  <!-- 2. Risk Metrics Summary -->
+  <!-- ===== SECTION 2: Risk Metrics Summary Strip =====
+       Five metric cards: Portfolio VaR (95%), Drawdown, Health Factor,
+       Volatility (Annualized), Pool Utilization with progress bar. -->
   <header class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
     <div class="p-4 bg-surface-container-low border border-outline-variant rounded-lg">
       <div class="text-[10px] uppercase tracking-widest text-outline mb-1 font-medium">Portfolio VaR (95%)</div>
@@ -222,7 +248,11 @@
     </div>
   </header>
 
-  <!-- 3. Oracle Health + Dynamic Leverage Caps -->
+  <!-- ===== SECTION 3: Oracle Health + Dynamic Leverage Caps =====
+       Left panel: Primary (Chainlink) and Secondary (Pyth) oracle feeds with
+       prices, age indicators, and divergence bar (0% to 3% critical).
+       Right panel: Dynamic leverage ladder showing caps by risk state,
+       and reason for current cap. -->
   <section id="oracle-section" class="mb-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
     <div class="bg-surface-container-low border border-outline-variant rounded-lg p-6">
       <div class="flex items-center justify-between mb-4">
@@ -319,7 +349,10 @@
     </div>
   </section>
 
-  <!-- 4. Auto-Deleverage Cascade -->
+  <!-- ===== SECTION 4: Auto-Deleverage Safety Cascade =====
+       Six-level cascade grid: Level 0 (No Action, DD<10%) through
+       Level 5 (Liquidation, 100% close). Each shows reduction percentage
+       and drawdown trigger threshold. Bottom panel shows current recommendation. -->
   <section id="deleverage-section" class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
     <div class="flex items-center justify-between mb-6">
       <h2 class="font-headline text-lg tracking-tight uppercase">Auto-Deleverage Safety Cascade</h2>
@@ -398,7 +431,9 @@
     </div>
   </section>
 
-  <!-- 5. Position Risk Table -->
+  <!-- ===== SECTION 5: Position Risk Breakdown Table =====
+       Per-position risk view: Asset, Position Size, Margin Used, Utilization %,
+       Health Factor, Liquidation Price, Risk Level badge. Export CSV button. -->
   <section id="positions-section" class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg overflow-hidden">
     <div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
       <h2 class="font-headline text-lg tracking-tight uppercase">Position Risk Breakdown</h2>
@@ -470,7 +505,11 @@
     </div>
   </section>
 
-  <!-- 6. Interactive Scenario Tester -->
+  <!-- ===== SECTION 6: Interactive Scenario Tester =====
+       Simulate market conditions with 6 input sliders (Oracle Age, Oracle Divergence,
+       Drawdown, Health Factor, Volatility, Pool Utilization). Preset buttons for
+       Normal/Stressed/Oracle Fail scenarios. Live Pyth data loader button.
+       Playback table shows tick-by-tick state transitions. -->
   <section id="scenario-section" class="mb-6 bg-surface-container-low border border-outline-variant rounded-lg p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -557,7 +596,8 @@
 
 </main>
 
-<!-- Footer -->
+<!-- ===== FOOTER: Terminal Status Bar =====
+     Network info (mainnet, block, gas), test harness link, API docs, support. -->
 <footer class="fixed bottom-0 w-full flex justify-between items-center px-4 py-1 h-8 bg-[#1f1f23] border-t border-[#292a2d] z-50">
   <div class="flex items-center gap-4">
     <span class="font-['JetBrains_Mono'] text-[10px] uppercase tracking-tighter text-[#00e676]">Network: Mainnet | Block: 19482734 | Gas: 12 Gwei</span>
@@ -569,6 +609,14 @@
   </div>
 </footer>
 
+<!-- ===== SCRIPTS: Core modules =====
+     risk-engine.js — Client-side risk state machine (evaluate, deleverage, leverage caps)
+     wallet.js      — Reown wallet provider
+     pyth.js        — Pyth oracle price feeds
+     contracts.js   — Euler V2 contract reads
+     openbb.js      — OpenBB market data
+     risk-live.js   — Live risk banner with auto-refresh
+     ux.js          — Shared UX (XAuthGate, XToast) -->
 <script src="risk-engine.js"></script>
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
@@ -579,6 +627,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'block' }); });
 </script>
+<!-- ===== SCRIPTS: Risk Sentinel UI Logic =====
+     State card updates, oracle health display, deleverage level highlighting,
+     leverage cap ladder, scenario presets (Normal/Stressed/Oracle Fail),
+     live Pyth data loader, auto-refresh via RiskLive subscription,
+     and scenario playback timeline. -->
 <script>
 const STATE_COLORS = { NORMAL: '#00e676', WARNING: '#ffd740', RESTRICTED: '#ff9100', EMERGENCY: '#ff5252' };
 

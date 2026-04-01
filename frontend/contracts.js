@@ -497,16 +497,32 @@ export async function getOnChainOracleState() {
   }
 }
 
+/**
+ * Read the current maximum allowed leverage from the vault.
+ * Returns raw basis points (e.g., 40000 = 4.0x).
+ *
+ * @returns {Promise<number>} Max leverage in basis points (divide by 10000 for multiplier)
+ */
 export async function getMaxLeverage() {
   if (!ADDRESSES.vault) return 40000
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getMaxLeverage' })
 }
 
+/**
+ * Read the current funding rate from the vault.
+ *
+ * @returns {Promise<bigint>} Funding rate in basis points (positive = longs pay, negative = shorts pay)
+ */
 export async function getFundingRate() {
   if (!ADDRESSES.vault) return 0n
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getFundingRate' })
 }
 
+/**
+ * Read the junior tranche's total value and share price from the vault.
+ *
+ * @returns {Promise<{totalValue: bigint, sharePrice: bigint}>} Values in USDC base units (6 decimals)
+ */
 export async function getJuniorValue() {
   if (!ADDRESSES.vault) return { totalValue: 0n, sharePrice: 0n }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getJuniorValue' })
@@ -544,6 +560,15 @@ async function fetchPythUpdate() {
   return { updateData, fee }
 }
 
+/**
+ * Open a new leveraged position in the active vault.
+ * Automatically fetches Pyth oracle update, checks USDC allowance, and approves if needed.
+ *
+ * @param {string} amountUsdc — Deposit amount in USDC (human-readable, e.g., "100")
+ * @param {number} leverage — Leverage multiplier (e.g., 2.0 for 2x long, -1.5 for 1.5x short)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ * @throws {Error} If vault not deployed, USDC not set, or wallet not connected
+ */
 export async function openPosition(amountUsdc, leverage) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   if (!ADDRESSES.usdc) throw new Error('USDC address not set')
@@ -567,6 +592,15 @@ export async function openPosition(amountUsdc, leverage) {
   return waitForTx(hash)
 }
 
+/**
+ * Close (withdraw from) a leveraged position in the active vault.
+ * Fetches a Pyth oracle update and applies slippage tolerance.
+ *
+ * @param {string} amountUsdc — Amount to withdraw in USDC (human-readable)
+ * @param {number} [slippageBps=50] — Maximum slippage tolerance in basis points (default 0.5%)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ * @throws {Error} If vault not deployed or wallet not connected
+ */
 export async function closePosition(amountUsdc, slippageBps = 50) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
@@ -584,6 +618,14 @@ export async function closePosition(amountUsdc, slippageBps = 50) {
   return waitForTx(hash)
 }
 
+/**
+ * Adjust leverage on an existing position without depositing or withdrawing.
+ * Fetches a Pyth oracle update for accurate price execution.
+ *
+ * @param {number} newLeverage — Target leverage multiplier (e.g., 3.0 for 3x)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ * @throws {Error} If vault not deployed or wallet not connected
+ */
 export async function adjustLeverage(newLeverage) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
@@ -599,6 +641,14 @@ export async function adjustLeverage(newLeverage) {
   return waitForTx(hash)
 }
 
+/**
+ * Deposit USDC into the junior (first-loss) tranche of the active vault.
+ * Junior depositors earn yield from protocol fees in exchange for absorbing losses first.
+ *
+ * @param {string} amountUsdc — Deposit amount in USDC (human-readable, e.g., "500")
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ * @throws {Error} If vault not deployed, USDC not set, or wallet not connected
+ */
 export async function depositJunior(amountUsdc) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   if (!ADDRESSES.usdc) throw new Error('USDC address not set')
@@ -619,6 +669,13 @@ export async function depositJunior(amountUsdc) {
   return waitForTx(hash)
 }
 
+/**
+ * Withdraw from the junior tranche by redeeming shares.
+ *
+ * @param {string} shares — Number of junior shares to redeem (human-readable)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
+ * @throws {Error} If vault not deployed or wallet not connected
+ */
 export async function withdrawJunior(shares) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
@@ -637,6 +694,14 @@ export async function withdrawJunior(shares) {
 // ORACLE HEALTH
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Comprehensive oracle health check for the active asset's Pyth feed.
+ * Combines off-chain Hermes data with on-chain staleness check from the Pyth adapter.
+ *
+ * @returns {Promise<{price: number, conf: number, age: number, publishTime: number,
+ *   isStale: boolean, freshness: string, feedId: string, symbol: string,
+ *   onChainStale: boolean|null, confPercent: string}>} Oracle health snapshot
+ */
 export async function getOracleHealth() {
   const feedId = getActiveFeedId()
   const { price, conf, publishTime, symbol } = await getPriceForFeed(feedId)
@@ -660,6 +725,16 @@ export async function getOracleHealth() {
   }
 }
 
+/**
+ * Read a Pyth price directly from the on-chain Pyth adapter contract.
+ * Unlike getOracleHealth() which uses the off-chain Hermes API, this reads
+ * the price that the vault contract would actually use for execution.
+ *
+ * @param {string} [feedId] — Pyth feed ID (defaults to active asset's feed)
+ * @param {number} [maxAgeSec=300] — Maximum acceptable staleness in seconds
+ * @returns {Promise<{price: number, conf: number, publishTime: number}>} On-chain price data (8 decimal precision)
+ * @throws {Error} If Pyth adapter is not deployed
+ */
 export async function readOnChainPrice(feedId, maxAgeSec = 300) {
   if (!ADDRESSES.pythAdapter) throw new Error('Pyth adapter not deployed')
   const result = await getPublicClient().readContract({
@@ -720,6 +795,14 @@ export { txEvents }
 
 // Classifies raw errors into user-facing categories so the UI can
 // show distinct states for each failure mode.
+/**
+ * Classify a raw transaction error into a user-facing category.
+ * Parses error messages to distinguish wallet rejections, RPC failures,
+ * on-chain reverts, and unknown errors so the UI can show appropriate feedback.
+ *
+ * @param {Error} err — Raw error from viem or wallet provider
+ * @returns {{type: string, label: string, detail: string, icon: string, color: string}} Classified error with UI metadata
+ */
 export function classifyTxError(err) {
   const msg = (err?.shortMessage || err?.message || '').toLowerCase()
 
@@ -799,12 +882,24 @@ async function waitForTx(hash) {
   return { hash, receipt, explorerUrl }
 }
 
+/**
+ * Build a block explorer URL for a transaction hash on the active chain.
+ *
+ * @param {string} hash — Transaction hash (0x-prefixed)
+ * @returns {string} Full explorer URL (e.g., "https://explorer-sepolia.inkonchain.com/tx/0x...")
+ */
 export function getExplorerUrl(hash) {
   const config = getActiveChainConfig()
   const explorer = config?.chain?.blockExplorers?.default?.url || inkSepolia.blockExplorers.default.url
   return `${explorer}/tx/${hash}`
 }
 
+/**
+ * Build a block explorer URL for a contract or wallet address on the active chain.
+ *
+ * @param {string} address — Ethereum address (0x-prefixed)
+ * @returns {string} Full explorer URL
+ */
 export function getAddressExplorerUrl(address) {
   const config = getActiveChainConfig()
   const explorer = config?.chain?.blockExplorers?.default?.url || inkSepolia.blockExplorers.default.url
@@ -815,6 +910,14 @@ export function getAddressExplorerUrl(address) {
 // POSITION FORMATTING HELPERS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Format a raw on-chain position tuple into human-readable fields.
+ * Converts basis points to multipliers, raw amounts to formatted strings.
+ *
+ * @param {Object} pos — Raw position from getPosition() (depositAmount, leverageBps, entryTWAP, etc.)
+ * @returns {{deposit: string, leverage: number, leverageDisplay: string, isLong: boolean,
+ *   isShort: boolean, entryPrice: string, fees: string, isActive: boolean}|null} Formatted position, or null if inactive
+ */
 export function formatPosition(pos) {
   if (!pos || !pos.isActive) return null
   const leverageFloat = Number(pos.leverageBps) / 10000
@@ -830,6 +933,15 @@ export function formatPosition(pos) {
   }
 }
 
+/**
+ * Format a raw on-chain pool state tuple into human-readable fields.
+ * Converts raw BigInt amounts to formatted USD strings and computes derived ratios.
+ *
+ * @param {Object} pool — Raw pool state from getPoolState()
+ * @returns {{seniorTVL: string, juniorTVL: string, insurance: string, netExposure: string,
+ *   grossLong: string, grossShort: string, maxLeverage: number, state: string,
+ *   juniorRatio: number}|null} Formatted pool state, or null if no pool data
+ */
 export function formatPoolState(pool) {
   if (!pool) return null
   return {

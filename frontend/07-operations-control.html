@@ -1,5 +1,21 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     07-operations-control.html — Operations Control
 
+     System health and operations monitoring dashboard:
+     - SIDEBAR (fixed left): Navigation (System Health, Transaction Log,
+       Gas Optimizer, Risk Params), Force Sync button, Documentation/Support
+     - MAIN CONTENT:
+       - Header with system status badge, uptime %, active nodes count
+       - Health grid (4 cards): API Gateway, Oracle Price Feeds,
+         Smart Contracts, Database Cluster — each with status, metrics, mini graph
+       - Transaction history table (paginated, 8492 entries)
+       - Gas optimization panel with slow/standard/fast tiers and cost estimates
+       - Protocol governance panel (xLIP voting proposals with progress bars)
+       - System alerts feed (real-time warnings and notifications)
+
+     Also embedded as iframe in 08-admin-dashboard.html Operations tab.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -84,10 +100,13 @@
     </style>
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- ===== SCRIPTS: Judge mode and navigation ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('operations');</script>
-<!-- Side Navigation Shell -->
+<!-- ===== SIDEBAR: Operations Navigation =====
+     Fixed left sidebar with System Health (active), Transaction Log,
+     Gas Optimizer, Risk Params. Bottom: Force Sync button + support links. -->
 <aside class="fixed left-0 top-14 h-[calc(100vh-56px)] w-64 bg-[#1b1b1f] flex flex-col py-4 z-40 hidden md:flex">
 <div class="px-6 mb-8">
 <h2 class="text-[#e3e2e6] font-bold text-xs uppercase tracking-widest">Terminal</h2>
@@ -133,9 +152,9 @@
 </div>
 </div>
 </aside>
-<!-- Main Content Canvas -->
+<!-- ===== MAIN CONTENT: Operations Control ===== -->
 <main class="md:ml-64 pt-20 pb-12 px-6">
-<!-- Header Section -->
+<!-- ===== HEADER: System Status + Uptime + Active Nodes ===== -->
 <section class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
 <div>
 <h1 class="font-headline text-3xl font-bold tracking-tight mb-1">Operations Control</h1>
@@ -158,7 +177,10 @@
 </div>
 </div>
 </section>
-<!-- Health Grid -->
+<!-- ===== SECTION: System Health Grid =====
+     Four cards: API Gateway (latency + req/min), Oracle Price Feeds (sync status),
+     Smart Contracts (pending count + gas), Database Cluster (CPU/MEM usage).
+     Each card includes a mini sparkline graph image. -->
 <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
 <!-- API Gateway -->
 <div class="bg-surface-container p-4 rounded ghost-border flex flex-col justify-between h-32">
@@ -232,7 +254,9 @@
 </div>
 </section>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-<!-- Transaction History -->
+<!-- ===== SECTION: Transaction History Table =====
+     Paginated table showing tx hash, type (Trade/Deposit/Withdraw/Rebalance),
+     amount, asset, status (Confirmed/Pending/Failed), gas cost, and time. -->
 <div class="lg:col-span-2 bg-surface-container rounded ghost-border overflow-hidden">
 <div class="bg-surface-container-high px-6 py-3 flex justify-between items-center">
 <h3 class="text-xs font-bold uppercase tracking-widest">Transaction History</h3>
@@ -306,9 +330,11 @@
 </table>
 </div>
 </div>
-<!-- Side Panels Stack -->
+<!-- ===== SIDE PANELS: Gas Optimization + Governance + System Alerts ===== -->
 <div class="space-y-6">
-<!-- Gas Optimization -->
+<!-- ===== PANEL: Gas Optimization =====
+     Shows gas price tiers (Slow/Standard/Fast) and estimated costs
+     for common operations (Vault Deposit, Aggregator Swap, LP Stake). -->
 <div class="bg-surface-container rounded ghost-border overflow-hidden">
 <div class="bg-surface-container-high px-4 py-3 flex justify-between items-center">
 <h3 class="text-[10px] font-bold uppercase tracking-widest">Gas Optimization</h3>
@@ -348,7 +374,9 @@
 </ul>
 </div>
 </div>
-<!-- Governance -->
+<!-- ===== PANEL: Protocol Governance Proposals =====
+     Active proposals (xLIP-42) with voting progress bar (For/Against)
+     and past proposals (xLIP-41 passed). -->
 <div class="bg-surface-container rounded ghost-border overflow-hidden">
 <div class="bg-surface-container-high px-4 py-3">
 <h3 class="text-[10px] font-bold uppercase tracking-widest">Protocol Governance</h3>
@@ -378,7 +406,9 @@
 </div>
 </div>
 </div>
-<!-- Alerts & Notifications -->
+<!-- ===== PANEL: System Alerts & Notifications =====
+     Real-time feed of warnings and events (volatility alerts,
+     migration completions, etc.) with timestamps and IDs. -->
 <div class="bg-surface-container rounded ghost-border overflow-hidden">
 <div class="bg-surface-container-high px-4 py-3 flex justify-between items-center">
 <h3 class="text-[10px] font-bold uppercase tracking-widest">System Alerts</h3>
@@ -428,7 +458,8 @@
 </div>
 </div>
 </main>
-<!-- Footer Terminal -->
+<!-- ===== FOOTER: Protocol Status Bar =====
+     Shows protocol version, block number, uptime, node count, and connection status. -->
 <footer class="fixed bottom-0 w-full flex justify-between items-center px-4 h-8 bg-[#0d0e11] z-50 border-t border-outline-variant/10">
 <div class="flex gap-6 items-center">
 <span class="text-[10px] font-mono text-on-surface-variant uppercase tracking-widest">xLever Protocol © 2026</span>
@@ -444,6 +475,10 @@
 </div>
 </div>
 </footer>
+<!-- ===== SCRIPTS: Core modules =====
+     wallet.js    — Reown wallet provider
+     contracts.js — Euler V2 contract reads
+     ux.js        — Shared UX (XAuthGate, XToast) -->
 <script type="module" src="wallet.js"></script>
 <script type="module" src="contracts.js"></script>
 <script src="ux.js"></script>

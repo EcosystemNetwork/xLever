@@ -1,14 +1,44 @@
-// Junior Tranche Manager - Real-time on-chain data and multi-asset deposits
+/**
+ * @file junior-manager.js — Junior Tranche Manager
+ *
+ * Manages junior tranche (liquidity provider) deposits and withdrawals for xLever vaults.
+ * Junior depositors provide the risk capital that backs senior (leveraged) positions.
+ *
+ * Key responsibilities:
+ *   - Fetches comprehensive on-chain junior tranche data (TVL, share price, APY, exposure)
+ *   - Renders real-time pool health, fee breakdowns, and position metrics
+ *   - Handles USDC deposits into junior tranche with ERC-20 approval flow
+ *   - Handles share-based withdrawals from junior tranche
+ *   - Supports vault selection between wSPYx and wQQQx
+ *
+ * @module junior-manager
+ *
+ * @dependencies
+ *   - window.viem for parseUnits/formatUnits
+ *   - Global vars: publicClient, walletClient, connectedAddress, VAULT_ADDRESSES, VAULT_ABI, ERC20_ABI, JUNIOR_TRANCHE_ABI
+ *   - Functions: fetchBalances, showToast
+ */
 
-// Asset options for deposits - Junior tranche only accepts USDC
+/**
+ * Supported deposit assets. Junior tranche only accepts USDC.
+ * @type {Object<string, {address: string, decimals: number, symbol: string}>}
+ */
 const DEPOSIT_ASSETS = {
   USDC: { address: '0x6b57475467cd854d36Be7FB614caDa5207838943', decimals: 6, symbol: 'USDC' }
 };
 
+/** @type {string} Currently selected deposit asset (always 'USDC' for junior tranche) */
 let selectedDepositAsset = 'USDC';
-let selectedVault = 'wQQQx'; // Default vault for junior deposits
+/** @type {string} Currently selected vault for junior deposits ('wQQQx' or 'wSPYx') */
+let selectedVault = 'wQQQx';
 
-// Fetch comprehensive junior tranche data
+/**
+ * Fetch comprehensive junior tranche data from on-chain contracts.
+ * Reads pool state, junior value, user shares, funding rate, max leverage, and TWAP
+ * in parallel, then computes derived metrics (APY, utilization, exposure, ratios).
+ * @returns {Promise<Object|null>} Junior tranche data object with TVL, share price, APY,
+ *   exposure metrics, and fee estimates, or null if data is unavailable
+ */
 async function fetchJuniorData() {
   if (!publicClient || !connectedAddress) return null;
 
@@ -151,7 +181,13 @@ async function fetchJuniorData() {
   }
 }
 
-// Update all junior UI elements with real data
+/**
+ * Update all junior tranche UI elements with real on-chain data.
+ * Populates hero stats, deposit/withdraw info, pool composition bars,
+ * health metrics, fee breakdowns, and real-time share data.
+ * Shows "N/A" placeholders if data is unavailable.
+ * @returns {Promise<void>}
+ */
 async function updateJuniorPageUI() {
   const data = await fetchJuniorData();
   
@@ -240,14 +276,23 @@ async function updateJuniorPageUI() {
   console.log('✓ Junior page UI updated with real data');
 }
 
-// Format large numbers
+/**
+ * Format large numbers for display with K/M suffixes.
+ * @param {number} num - Number to format
+ * @returns {string} Formatted string (e.g., "1.50M", "25.3K", "123.45")
+ */
 function formatNumber(num) {
   if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
   return num.toFixed(2);
 }
 
-// Deposit with selected asset
+/**
+ * Deposit USDC into the junior tranche of the selected vault.
+ * Handles the full deposit flow: input validation, ERC-20 approval (infinite),
+ * deposit transaction, receipt confirmation, and UI refresh.
+ * @returns {Promise<void>}
+ */
 async function depositJuniorMultiAsset() {
   if (!walletClient || !connectedAddress) {
     showToast('Please connect your wallet first', 'error');
@@ -342,7 +387,12 @@ async function depositJuniorMultiAsset() {
   }
 }
 
-// Withdraw from junior tranche — burns shares and returns proportional USDC
+/**
+ * Withdraw from the junior tranche by burning shares.
+ * Burns the specified number of junior shares and returns proportional USDC.
+ * Handles input validation, transaction submission, receipt confirmation, and UI refresh.
+ * @returns {Promise<void>}
+ */
 async function withdrawJunior() {
   if (!walletClient || !connectedAddress) {
     showToast('Please connect your wallet first', 'error');
@@ -397,7 +447,11 @@ async function withdrawJunior() {
   }
 }
 
-// Read real health score from vault contract for junior health display
+/**
+ * Read the health score from the vault contract for the junior health display.
+ * The health score is stored as a basis-point value (e.g., 15000 = 1.50 health factor).
+ * @returns {Promise<number|null>} Health score as a decimal (e.g., 1.50), or null on failure
+ */
 async function fetchHealthScore() {
   if (!publicClient) return null;
 
@@ -421,7 +475,12 @@ async function fetchHealthScore() {
   }
 }
 
-// Update UI when asset selection changes
+/**
+ * Update the deposit UI when the selected asset or vault changes.
+ * Refreshes the input label, wallet balance display, deposit button text,
+ * and balance row label to match the currently selected asset.
+ * @returns {Promise<void>}
+ */
 async function updateAssetUI() {
   const depositContent = document.getElementById('depositContent');
   if (!depositContent) return;
@@ -465,7 +524,11 @@ async function updateAssetUI() {
   }
 }
 
-// Initialize junior page
+/**
+ * Initialize the junior tranche page.
+ * Creates the vault selector UI (SPY/QQQ), wires up deposit button handlers,
+ * and triggers initial UI updates with USDC balance data.
+ */
 function initJuniorPage() {
   // No asset selector needed - junior deposits only accept USDC
 

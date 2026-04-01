@@ -1,4 +1,23 @@
 <!DOCTYPE html>
+<!-- ============================================================================
+     09-lending-borrowing.html — Cross-Chain Lending & Borrowing
+
+     AI-managed supply and borrow interface for Euler V2 markets.
+     Three-column layout:
+     - LEFT (5/12): Euler V2 markets table (USDC, wQQQx, wSPYx, WETH) with
+       supply/borrow APYs, utilization bars, TVL. Agent strategy mode selector
+       (Yield/Leverage/Hedge/Monitor) with per-mode configuration panels.
+     - MIDDLE (4/12): User positions (supply + borrow), manual Supply/Borrow/Repay
+       tabbed panel with asset selection, amount inputs, APY previews.
+     - RIGHT (3/12): Health factor gauge with liquidation/warning/safe zones,
+       collateral/debt/net APY/liq price stats, agent activity log, session stats.
+
+     Features: Lending agent master toggle, dry-run mode toggle,
+     per-mode policy configs (min APY, health factor targets, hedge ratios),
+     health factor bar with gradient coloring.
+
+     Also embedded as iframe in 08-admin-dashboard.html Lending tab.
+     ============================================================================ -->
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -104,13 +123,16 @@ tailwind.config = {
 </head>
 <body class="bg-surface font-body text-on-surface antialiased">
 
+<!-- ===== SCRIPTS: Judge mode and navigation ===== -->
 <script src="judge-mode.js"></script>
 <script src="nav.js"></script>
 <script>XNav.init('lending');</script>
 
 <main class="pt-20 pb-16 px-6 max-w-[1600px] mx-auto min-h-screen">
 
-<!-- Lending Agent Status Bar -->
+<!-- ===== STATUS BAR: Lending Agent Connection =====
+     Shows agent status (idle/active), Euler V2 connection,
+     total supplied, total borrowed, and health factor. -->
 <div class="bg-surface-container-low border border-outline-variant/20 rounded-lg px-5 py-3 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
   <div class="flex items-center gap-4">
     <div class="flex items-center gap-2">
@@ -127,7 +149,7 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- Page Header -->
+<!-- ===== HEADER: Page Title + Agent Toggle + Dry Run Toggle ===== -->
 <header class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
   <div>
     <h1 class="text-2xl font-display font-bold text-on-surface">Lending & Borrowing</h1>
@@ -156,10 +178,12 @@ tailwind.config = {
 
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-  <!-- LEFT: Markets Overview + Agent Modes -->
+  <!-- ===== LEFT COLUMN (5/12): Markets Table + Agent Strategy Modes ===== -->
   <div class="lg:col-span-5 space-y-6">
 
-    <!-- Lending Markets Table -->
+    <!-- ===== SECTION: Euler V2 Lending Markets Table =====
+         Shows USDC, wQQQx, wSPYx, WETH markets with supply APY,
+         borrow APY, utilization bar, and TVL. Clickable rows to select market. -->
     <section>
       <div class="flex items-center gap-2 mb-3">
         <span class="material-symbols-outlined text-tertiary text-lg">account_balance</span>
@@ -265,7 +289,12 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Agent Strategy Mode Selector -->
+    <!-- ===== SECTION: Agent Strategy Mode Selector =====
+         Four mode cards in a 2x2 grid:
+         - Yield: Auto-supply for APY, rate arbitrage
+         - Leverage: Borrow for exposure, auto-manage health factor
+         - Hedge: Offset xLever risk via lending markets
+         - Monitor: Alerts only, no transactions -->
     <section>
       <div class="flex items-center gap-2 mb-3">
         <span class="material-symbols-outlined text-primary text-lg">smart_toy</span>
@@ -332,7 +361,12 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Policy Configuration -->
+    <!-- ===== SECTION: Policy Configuration Panel =====
+         Hidden by default. Per-mode configs:
+         - Yield: min supply APY, reserve balance, APY diff threshold
+         - Leverage: target HF, min HF, borrow asset, max loops
+         - Hedge: hedge ratio, hedge min HF
+         - Monitor: toggle switches for HF/APY/utilization/liquidation alerts -->
     <section id="lendingConfigPanel" class="hidden">
       <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
         <div class="bg-surface-container-high px-5 py-3 flex items-center justify-between border-b border-outline-variant/10">
@@ -484,10 +518,12 @@ tailwind.config = {
 
   </div>
 
-  <!-- MIDDLE: Your Positions + Supply/Borrow Panel -->
+  <!-- ===== MIDDLE COLUMN (4/12): User Positions + Manual Supply/Borrow/Repay ===== -->
   <div class="lg:col-span-4 space-y-6">
 
-    <!-- User Positions -->
+    <!-- ===== SECTION: User Positions =====
+         Supply positions (with total value) and Borrow positions (with total value).
+         Empty states shown when no active positions. -->
     <section>
       <div class="flex items-center gap-2 mb-3">
         <span class="material-symbols-outlined text-secondary text-lg">account_balance_wallet</span>
@@ -525,7 +561,10 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Manual Supply/Borrow Panel -->
+    <!-- ===== SECTION: Manual Supply/Borrow/Repay Tabbed Panel =====
+         Three tabs: Supply (asset selector, amount, APY preview, collateral factor),
+         Borrow (asset, amount, borrow limit, APY/HF preview),
+         Repay (asset, amount, outstanding debt). -->
     <section>
       <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
         <div class="flex border-b border-outline-variant/10">
@@ -630,10 +669,12 @@ tailwind.config = {
 
   </div>
 
-  <!-- RIGHT: Agent Log + Health Monitor -->
+  <!-- ===== RIGHT COLUMN (3/12): Health Gauge + Agent Log + Session Stats ===== -->
   <div class="lg:col-span-3 space-y-6">
 
-    <!-- Health Factor Gauge -->
+    <!-- ===== SECTION: Health Factor Gauge =====
+         Gradient bar (red to green) showing health factor.
+         Below: collateral, debt, net APY, liquidation price stats. -->
     <section>
       <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 p-5">
         <div class="flex items-center justify-between mb-4">
@@ -672,7 +713,9 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Agent Activity Log -->
+    <!-- ===== SECTION: Agent Activity Log =====
+         Terminal-style scrollable log showing agent actions and events.
+         Clear button to reset log entries. -->
     <section>
       <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl flex flex-col" style="max-height: 420px;">
         <div class="bg-surface-container-high px-4 py-2.5 border-b border-outline-variant/10 flex items-center justify-between shrink-0">
@@ -688,7 +731,8 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Agent Stats -->
+    <!-- ===== SECTION: Session Stats =====
+         Hidden until agent is activated. Shows action count, PnL, uptime, etc. -->
     <section id="lendingStatsSection" class="hidden">
       <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 p-4">
         <h4 class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-3">Session Stats</h4>
