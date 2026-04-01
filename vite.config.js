@@ -2,9 +2,12 @@
 import { defineConfig } from 'vite'
 // resolve constructs absolute paths for the multi-page entry points below
 import { resolve } from 'path'
+import tailwindcss from '@tailwindcss/vite'
+import wasm from 'vite-plugin-wasm'
 
 // Export the Vite config so the dev server and build process both use these settings
 export default defineConfig({
+  plugins: [tailwindcss(), wasm()],
   // Set the project root to the frontend directory so Vite resolves HTML and assets from there
   root: 'frontend',
   envDir: resolve(__dirname),
@@ -36,7 +39,9 @@ export default defineConfig({
           if (id.includes('wagmi') || id.includes('@wagmi')) return 'wagmi'
           if (id.includes('viem')) return 'viem'
           if (id.includes('@solana')) return 'solana'
+          if (id.includes('@kamino-finance') || id.includes('@orca-so')) return 'kamino'
           if (id.includes('@ton/')) return 'ton'
+          if (id.includes('@evaafi')) return 'evaa'
         }
       }
     }

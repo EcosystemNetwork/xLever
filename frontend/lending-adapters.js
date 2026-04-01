@@ -11,11 +11,38 @@
  */
 
 import { Connection, PublicKey, Transaction } from '@solana/web3.js'
-import { KaminoMarket, KaminoAction, VanillaObligation } from '@kamino-finance/klend-sdk'
-import BN from 'bn.js'
 import { Address, beginCell, toNano } from '@ton/core'
 import { TonClient } from '@ton/ton'
-import { getTonConnectSender, getLastSentBoc } from '@evaafi/sdk'
+
+// Heavy protocol SDKs are loaded dynamically to avoid WASM bundling issues
+// and reduce initial bundle size — they're only needed for write operations.
+let _kaminoSdk = null
+async function loadKaminoSdk() {
+  if (!_kaminoSdk) {
+    const mod = await import('@kamino-finance/klend-sdk')
+    const BN = (await import('bn.js')).default
+    _kaminoSdk = { KaminoMarket: mod.KaminoMarket, KaminoAction: mod.KaminoAction, VanillaObligation: mod.VanillaObligation, BN }
+  }
+  return _kaminoSdk
+}
+
+let _evaaSdk = null
+async function loadEvaaSdk() {
+  if (!_evaaSdk) {
+    const mod = await import('@evaafi/sdk')
+    _evaaSdk = {
+      EvaaMasterClassic: mod.EvaaMasterClassic,
+      MAINNET_POOL_CONFIG: mod.MAINNET_POOL_CONFIG,
+      TON_MAINNET: mod.TON_MAINNET,
+      JUSDT_MAINNET: mod.JUSDT_MAINNET,
+      JUSDC_MAINNET: mod.JUSDC_MAINNET,
+      STTON_MAINNET: mod.STTON_MAINNET,
+      getTonConnectSender: mod.getTonConnectSender,
+      getLastSentBoc: mod.getLastSentBoc,
+    }
+  }
+  return _evaaSdk
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CHAIN REGISTRY — canonical chain IDs used throughout the system
@@ -591,34 +618,10 @@ class KaminoAdapter extends ILendingAdapter {
     } catch { return 0 }
   }
 
-  // ─── Transaction methods ───────────────────────────────────
-  // Real Kamino Lending instructions require the @kamino-finance/klend-sdk
-  // which builds the full account layout for each operation:
-  //
-  //   Account keys for a deposit instruction (example):
-  //     [0] owner (signer, writable)        - wallet paying for the tx
-  //     [1] obligation PDA (writable)        - user's obligation account
-  //     [2] lending market (writable)        - KAMINO_CONFIG.mainMarket
-  //     [3] reserve (writable)               - the reserve being deposited into
-  //     [4] reserve liquidity supply (writable) - reserve's SPL token vault
-  //     [5] reserve collateral mint (writable)  - cToken mint for the reserve
-  //     [6] user source liquidity (writable) - user's SPL token account (source)
-  //     [7] user destination collateral (writable) - user's cToken account (dest)
-  //     [8] SPL Token program               - TokenkegQEqKKN4P7s...
-  //     [9] Lending program                  - KLend2g3cP87ber41G...
-  //    [10] System program                   - 11111111111111111...
-  //    [11] Rent sysvar                      - SysvarRent11111111...
-  //
-  // Withdraw, borrow, and repay have similar layouts with slight variations
-  // (e.g., borrow adds the fee receiver account, repay swaps source/dest).
-  //
-  // To integrate the real SDK:
-  //   1. npm install @kamino-finance/klend-sdk
-  //   2. Import KaminoMarket and KaminoAction
-  //   3. Replace _requireKaminoSdk() calls below with SDK instruction builders
-  //   4. The read methods (getMarkets, getPositions, getIdleBalance) already work
+  // ─── Transaction methods (Kamino Lending SDK) ───────────────
 
   async _loadMarket() {
+    const { KaminoMarket } = await loadKaminoSdk()
     const conn = this._getConnection()
     const market = await KaminoMarket.load(
       conn,
@@ -632,6 +635,7 @@ class KaminoAdapter extends ILendingAdapter {
   }
 
   async _buildAndSend(actionBuilder) {
+    const { KaminoAction, VanillaObligation } = await loadKaminoSdk()
     const provider = this._getProvider()
     if (!provider?.publicKey) throw new Error('Solana wallet not connected')
 
@@ -654,6 +658,7 @@ class KaminoAdapter extends ILendingAdapter {
   }
 
   async supply(asset, amount) {
+    const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
     const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
@@ -667,6 +672,7 @@ class KaminoAdapter extends ILendingAdapter {
   }
 
   async withdraw(asset, amount) {
+    const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
     const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
@@ -680,6 +686,7 @@ class KaminoAdapter extends ILendingAdapter {
   }
 
   async borrow(asset, amount) {
+    const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
     const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
@@ -693,6 +700,7 @@ class KaminoAdapter extends ILendingAdapter {
   }
 
   async repay(asset, amount) {
+    const { KaminoAction, BN } = await loadKaminoSdk()
     const config = KAMINO_CONFIG.markets[asset]
     if (!config) throw new Error(`Kamino market not found for ${asset}`)
     const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
@@ -850,80 +858,141 @@ class EvaaAdapter extends ILendingAdapter {
     return 0
   }
 
-  // ─── Transaction methods ───────────────────────────────────
-  // Real EVAA Protocol transactions use TL-B encoded internal messages.
-  // The EVAA SDK (@evaafi/sdk) builds the correct Cell payloads:
-  //
-  //   Supply (TON native):
-  //     Internal message to master contract with:
-  //       op: 0x1 (supply)  |  query_id: uint64  |  asset_id: uint256
-  //       amount: Coins     |  Forward TON value = deposit amount + gas
-  //
-  //   Supply (Jetton, e.g., USDT/USDC):
-  //     Jetton transfer to EVAA's jetton wallet with forward_payload:
-  //       op: 0xf8a7ea5 (jetton transfer)  |  query_id: uint64
-  //       amount: VarUint16  |  destination: EVAA master address
-  //       response_destination: sender  |  forward_ton_amount: ~0.3 TON gas
-  //       forward_payload: Cell{ op: 0x1, asset_id: uint256 }
-  //
-  //   Withdraw:
-  //     Internal message to user's EVAA position contract:
-  //       op: 0x2 (withdraw)  |  query_id: uint64  |  asset_id: uint256
-  //       amount: Coins  |  Forward TON: ~0.3 TON gas
-  //
-  //   Borrow:
-  //     Internal message to user's EVAA position contract:
-  //       op: 0x3 (borrow)  |  query_id: uint64  |  asset_id: uint256
-  //       amount: Coins  |  Forward TON: ~0.3 TON gas
-  //
-  //   Repay:
-  //     Same pattern as supply (native TON or jetton transfer with forward_payload)
-  //       op: 0x4 (repay)  |  asset_id: uint256  |  amount: Coins
-  //
-  // To integrate the real SDK:
-  //   1. npm install @evaafi/sdk
-  //   2. Import Evaa and openContract
-  //   3. Replace _requireEvaaSdk() calls below with SDK message builders
-  //   4. The read methods (getMarkets, getPositions, getIdleBalance) already work
+  // ─── Transaction methods (EVAA SDK) ─────────────────────────
 
-  /**
-   * Throws a clear error directing developers to install the EVAA SDK.
-   * All write methods delegate here until the SDK is integrated.
-   */
-  _requireEvaaSdk(operation) {
-    throw new Error(
-      `EVAA SDK required for mainnet transactions. ` +
-      `Cannot execute "${operation}" without @evaafi/sdk. ` +
-      `Install with: npm install @evaafi/sdk`
-    )
+  async _getPoolAsset(asset) {
+    const sdk = await loadEvaaSdk()
+    const map = {
+      TON: sdk.TON_MAINNET,
+      USDT: sdk.JUSDT_MAINNET,
+      USDC: sdk.JUSDC_MAINNET,
+      stTON: sdk.STTON_MAINNET,
+    }
+    const poolAsset = map[asset]
+    if (!poolAsset) throw new Error(`EVAA asset config not found for ${asset}`)
+    return poolAsset
+  }
+
+  async _getMaster() {
+    const { EvaaMasterClassic, MAINNET_POOL_CONFIG } = await loadEvaaSdk()
+    return new EvaaMasterClassic({ poolConfig: MAINNET_POOL_CONFIG })
+  }
+
+  async _getSender() {
+    const { getTonConnectSender } = await loadEvaaSdk()
+    const provider = this._getProvider()
+    if (!provider) throw new Error('TON wallet not connected')
+    return getTonConnectSender(provider)
   }
 
   async supply(asset, amount) {
+    const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    // TODO: Replace with Evaa.createSupplyMessage() from @evaafi/sdk
-    this._requireEvaaSdk('supply')
+    const poolAsset = await this._getPoolAsset(asset)
+    const sender = await this._getSender()
+    const userAddr = Address.parse(await this.getAddress())
+    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
+
+    const master = await this._getMaster()
+    const client = this._getTonClient()
+    const contract = client.open(master)
+
+    await contract.sendSupply(sender, toNano('0.3'), {
+      asset: poolAsset,
+      queryID: 0n,
+      includeUserCode: true,
+      amount: rawAmount,
+      userAddress: userAddr,
+      responseAddress: userAddr,
+      payload: beginCell().endCell(),
+    })
+
+    return sdk.getLastSentBoc()
   }
 
   async withdraw(asset, amount) {
+    const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    // TODO: Replace with Evaa.createWithdrawMessage() from @evaafi/sdk
-    this._requireEvaaSdk('withdraw')
+    const poolAsset = await this._getPoolAsset(asset)
+    const sender = await this._getSender()
+    const userAddr = Address.parse(await this.getAddress())
+    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
+
+    const master = await this._getMaster()
+    const client = this._getTonClient()
+    const contract = client.open(master)
+
+    await contract.sendWithdraw(sender, toNano('0.5'), {
+      queryID: 0n,
+      amount: rawAmount,
+      userAddress: userAddr,
+      includeUserCode: true,
+      asset: poolAsset,
+      payload: beginCell().endCell(),
+      amountToTransfer: rawAmount,
+      customPayloadSaturationFlag: false,
+      returnRepayRemainingsFlag: false,
+    })
+
+    return sdk.getLastSentBoc()
   }
 
   async borrow(asset, amount) {
+    const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    // TODO: Replace with Evaa.createBorrowMessage() from @evaafi/sdk
-    this._requireEvaaSdk('borrow')
+    const poolAsset = await this._getPoolAsset(asset)
+    const sender = await this._getSender()
+    const userAddr = Address.parse(await this.getAddress())
+    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
+
+    // EVAA borrow = supply-withdraw with 0 supply, withdraw the borrowed asset
+    const master = await this._getMaster()
+    const client = this._getTonClient()
+    const contract = client.open(master)
+
+    await contract.sendSupplyWithdraw(sender, toNano('0.5'), {
+      queryID: 0n,
+      supplyAmount: 0n,
+      supplyAsset: sdk.TON_MAINNET,
+      withdrawAmount: rawAmount,
+      withdrawAsset: poolAsset,
+      withdrawRecipient: userAddr,
+      includeUserCode: true,
+      payload: beginCell().endCell(),
+    })
+
+    return sdk.getLastSentBoc()
   }
 
   async repay(asset, amount) {
+    const sdk = await loadEvaaSdk()
     const config = EVAA_CONFIG.markets[asset]
     if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    // TODO: Replace with Evaa.createRepayMessage() from @evaafi/sdk
-    this._requireEvaaSdk('repay')
+    const poolAsset = await this._getPoolAsset(asset)
+    const sender = await this._getSender()
+    const userAddr = Address.parse(await this.getAddress())
+    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
+
+    // EVAA repay = supply the debt asset back (same as supply operation)
+    const master = await this._getMaster()
+    const client = this._getTonClient()
+    const contract = client.open(master)
+
+    await contract.sendSupply(sender, toNano('0.3'), {
+      asset: poolAsset,
+      queryID: 0n,
+      includeUserCode: true,
+      amount: rawAmount,
+      userAddress: userAddr,
+      responseAddress: userAddr,
+      payload: beginCell().endCell(),
+      returnRepayRemainingsFlag: true,
+    })
+
+    return sdk.getLastSentBoc()
   }
 
   explorerUrl(hash) {
