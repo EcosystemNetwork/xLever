@@ -86,6 +86,9 @@
 <body class="bg-background text-on-surface font-body selection:bg-primary/30 antialiased overflow-x-hidden">
 
 <!-- ═══════════════════════════════════════════════════════ -->
+<!-- LEVERAGE ENFORCEMENT BANNER (shown when risk restricts) -->
+<div id="leverageEnforcement" class="fixed top-14 left-0 right-0 z-50 bg-[#ff525220] border-b border-[#ff525240] px-6 py-2 font-mono text-xs text-[#ff5252] text-center uppercase tracking-widest" style="display:none"></div>
+
 <!-- RISK BANNER (full-width, fixed below nav)              -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div id="riskBanner" class="fixed top-14 left-0 right-0 z-40 state-transition" style="display:none">
@@ -638,6 +641,8 @@
 <script type="module" src="wallet.js"></script>
 <script type="module" src="pyth.js"></script>
 <script type="module" src="contracts.js"></script>
+<script type="module" src="openbb.js"></script>
+<script src="risk-live.js"></script>
 <script src="ux.js"></script>
 
 <script>
@@ -692,6 +697,46 @@ async function loadLivePythData() {
     XToast.show('Failed to fetch Pyth data: ' + e.message, 'error');
   }
 }
+
+// Auto-refresh: RiskLive pushes live data into sliders every 15s
+let _riskLiveStarted = false;
+function startRiskLiveAutoRefresh() {
+  if (_riskLiveStarted || !window.RiskLive) return;
+  _riskLiveStarted = true;
+  window.RiskLive.subscribe(function(state, inputs, oracle) {
+    if (!inputs) return;
+    // Push live values into sliders
+    document.getElementById('inputOracleAge').value = Math.min(Math.round(inputs.oracleAgeSec), 1200);
+    document.getElementById('inputOraclDiv').value = Math.round(inputs.oracleDivergence * 10000);
+    document.getElementById('inputDrawdown').value = Math.round(inputs.drawdown * 10000);
+    document.getElementById('inputHealth').value = Math.round(inputs.healthFactor * 100);
+    document.getElementById('inputVol').value = Math.round(inputs.volatility * 100);
+    document.getElementById('inputUtil').value = Math.round(inputs.utilization * 100);
+    updateFromSliders();
+
+    // Update oracle price display if available
+    if (oracle && oracle.price) {
+      var ageEl = document.getElementById('oraclePrimaryAge');
+      if (ageEl) ageEl.textContent = oracle.age + 's ago ($' + oracle.price.toFixed(2) + ' \u00b1' + oracle.confPercent + '%)';
+    }
+
+    // Enforce leverage restriction banner
+    if (state && (state.state === 'RESTRICTED' || state.state === 'EMERGENCY')) {
+      var cap = state.leverageCap;
+      var enforceEl = document.getElementById('leverageEnforcement');
+      if (enforceEl) {
+        enforceEl.style.display = 'block';
+        enforceEl.textContent = 'LEVERAGE RESTRICTED: Max ' + cap + 'x — ' + state.reasons[0]?.reason;
+      }
+    } else {
+      var enforceEl = document.getElementById('leverageEnforcement');
+      if (enforceEl) enforceEl.style.display = 'none';
+    }
+  });
+  window.RiskLive.start(15000);
+}
+// Start auto-refresh after modules are loaded
+setTimeout(startRiskLiveAutoRefresh, 2000);
 
 function updateFromSliders() {
   const inputs = getSliderInputs();

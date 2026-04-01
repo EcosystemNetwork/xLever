@@ -69,7 +69,7 @@ async function fetchBalances() {
     });
     document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4);
 
-    console.log('✓ Balances updated');
+    // console.log('✓ Balances updated');
   } catch (error) {
     console.error('Failed to fetch balances:', error);
   }
@@ -107,13 +107,13 @@ function initWalletListeners() {
       });
       updateWalletUI();
       await fetchBalances();
-      console.log('✓ Wallet connected:', connectedAddress);
+      // console.log('✓ Wallet connected:', connectedAddress);
     }
     if (event?.data?.event === 'DISCONNECT_SUCCESS') {
       connectedAddress = null;
       publicClient = null;
       updateWalletUI();
-      console.log('✓ Wallet disconnected');
+      // console.log('✓ Wallet disconnected');
     }
   });
 
@@ -240,7 +240,7 @@ async function fetchRealData(symbol, years) {
   // Try OpenBB first (primary analytics backbone), fall back to Yahoo
   try {
     const data = await fetchFromOpenBB(symbol, years);
-    console.log(`✓ Loaded ${data.length} days via OpenBB`);
+    // console.log(`✓ Loaded ${data.length} days via OpenBB`);
     return data;
   } catch (e) {
     console.warn('OpenBB unavailable, falling back to Yahoo:', e.message);
@@ -267,7 +267,7 @@ async function loadTickerData(ticker) {
     if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) {
       allData = JSON.parse(cached);
       dataLoading = false;
-      console.log(`✓ Loaded ${allData.length} days of ${ticker} data from cache`);
+      // console.log(`✓ Loaded ${allData.length} days of ${ticker} data from cache`);
     } else {
       allData = await fetchRealData(ticker, 25);
       dataLoading = false;
@@ -275,10 +275,10 @@ async function loadTickerData(ticker) {
       try {
         localStorage.setItem(cacheKey, JSON.stringify(allData));
         localStorage.setItem(cacheTimeKey, now.toString());
-        console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server (cached)`);
+        // console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server (cached)`);
       } catch (e) {
         console.warn('Failed to cache data:', e);
-        console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server`);
+        // console.log(`✓ Loaded ${allData.length} days of real ${ticker} data from local server`);
       }
     }
     
@@ -902,7 +902,7 @@ function getFiltered(period) {
 
 function updateAll() {
   const { data, years } = getFiltered(currentPeriod);
-  console.log(`Period: ${currentPeriod}, Data points: ${data.length}, Years: ${years}, First date: ${data[0]?.time}, Last date: ${data[data.length-1]?.time}`);
+  // console.log(`Period: ${currentPeriod}, Data points: ${data.length}, Years: ${years}, First date: ${data[0]?.time}, Last date: ${data[data.length-1]?.time}`);
   if (data.length < 2) return;
 
   const isShort = currentLeverage < 0;
@@ -926,7 +926,7 @@ function updateAll() {
   const dailyResetLine = dailyResetResult.data;
   const noFeeLine = noFeeResult.data;
   
-  console.log(`First lev value: ${levLine[0]?.value}, Last lev value: ${levLine[levLine.length-1]?.value}`);
+  // console.log(`First lev value: ${levLine[0]?.value}, Last lev value: ${levLine[levLine.length-1]?.value}`);
 
   const finalPnL = levLine[levLine.length - 1].value - levLine[0].value;
   const isProfitable = finalPnL >= 0;
@@ -1373,7 +1373,7 @@ chart.subscribeClick((param) => {
   
   if (clickedIndex >= 0) {
     entryDateIndex = clickedIndex;
-    console.log(`Entry date set to: ${data[clickedIndex].time} (index ${clickedIndex})`);
+    // console.log(`Entry date set to: ${data[clickedIndex].time} (index ${clickedIndex})`);
     updateAll();
   }
 });
@@ -1382,7 +1382,7 @@ chart.subscribeClick((param) => {
 chartEl.addEventListener('dblclick', () => {
   if (entryDateIndex !== 0) {
     entryDateIndex = 0;
-    console.log('Entry date reset to start');
+    // console.log('Entry date reset to start');
     updateAll();
   }
 });

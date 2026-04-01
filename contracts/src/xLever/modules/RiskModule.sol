@@ -165,7 +165,7 @@ contract RiskModule {
         }
 
         // Check 2: Junior tranche drawdown — first-loss buffer is eroding too fast
-        if (cb.lastJuniorValue > 0) {
+        if (cb.lastJuniorValue > 0 && juniorValue < cb.lastJuniorValue) {
             // Calculate how much junior NAV has dropped as a percentage of yesterday's value
             uint256 drawdownBps = (cb.lastJuniorValue - juniorValue) * 10000 / cb.lastJuniorValue;
             // Trip if drawdown exceeds threshold (default 20%)

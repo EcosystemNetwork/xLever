@@ -14,7 +14,7 @@
       "build_required": true,
       "dev_command": "npm run dev",
       "build_command": "npm run build",
-      "dependencies": ["viem", "@reown/appkit", "wagmi", "TradingView Lightweight Charts (CDN)", "Tailwind CSS (CDN)"]
+      "dependencies": ["viem", "@reown/appkit", "wagmi", "TradingView Lightweight Charts (CDN)"]
     },
     "wallet": {
       "status": "live",

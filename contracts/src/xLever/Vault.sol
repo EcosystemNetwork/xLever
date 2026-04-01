@@ -374,9 +374,9 @@ contract Vault is IVault {
     /// @notice Get carry rate
     // View function — returns annualized carry cost passed through from Euler borrowing
     function getCarryRate() external view returns (uint256 annualBps) {
-        // TODO: Get actual Euler borrow rate from on-chain IRM
-        // Placeholder: 3.5% annual borrow rate — will be replaced with live Euler V2 IRM query
-        uint256 eulerRate = 350; // 3.5% placeholder
+        // Hackathon: hardcoded 3.5% annual borrow rate stands in for the Euler V2 IRM on-chain query.
+        // Production deployment will call eulerVault.interestRate() here.
+        uint256 eulerRate = 350; // 3.5% annual bps
         // Carry = Euler borrow rate * netting ratio + protocol spread
         return feeEngine.calculateCarryRate(
             eulerRate,
@@ -390,19 +390,23 @@ contract Vault is IVault {
     /// @notice Pause protocol
     // Emergency brake — stops all deposits, leverage adjustments; withdrawals still allowed
     function pause() external onlyAdmin {
+        // Cache old state before overwriting so the event contains the correct transition
+        uint8 oldState = poolState.protocolState;
         // Set state to 2 (paused) — checked by whenActive modifier
         poolState.protocolState = 2;
         // Emit state change event for monitoring and indexer consumption
-        emit ProtocolStateChanged(poolState.protocolState, 2);
+        emit ProtocolStateChanged(oldState, 2);
     }
 
     /// @notice Unpause protocol
     // Restore normal operations after emergency conditions have been resolved
     function unpause() external onlyAdmin {
+        // Cache old state before overwriting so the event contains the correct transition
+        uint8 oldState = poolState.protocolState;
         // Set state back to 0 (active) — allows deposits and adjustments again
         poolState.protocolState = 0;
         // Emit state change event for monitoring and indexer consumption
-        emit ProtocolStateChanged(poolState.protocolState, 0);
+        emit ProtocolStateChanged(oldState, 0);
     }
 
     /// @notice Update fee configuration

@@ -207,13 +207,16 @@ contract PositionModule {
         // Ensure position exists — can't deleverage a closed position
         require(pos.isActive, "No position");
 
+        // Cache old leverage before overwriting so the event contains the correct transition
+        int32 oldLeverage = pos.leverageBps;
+
         // Force the new (lower) leverage — bypasses cooldown checks since this is an emergency
         pos.leverageBps = newLeverageBps;
         // Reset entry TWAP so PnL is calculated from the deleverage point forward
         pos.entryTWAP = oracle.getTWAP();
 
         // Emit adjustment event — same event as voluntary adjustment for consistent indexing
-        emit PositionAdjusted(user, pos.leverageBps, newLeverageBps);
+        emit PositionAdjusted(user, oldLeverage, newLeverageBps);
     }
 
     // Utility: absolute value of int32 — needed to compare leverage magnitudes regardless of direction

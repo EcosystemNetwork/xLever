@@ -77,12 +77,12 @@ contract EulerHedgingModule {
     /// @param initialCollateral Amount of asset to deposit as initial collateral
     /// @param targetLeverage Target leverage in basis points (e.g., 30000 = 3x)
     // Long = deposit asset as collateral, borrow USDC, use USDC to buy more asset
-    function openLongPosition(uint256 initialCollateral, uint256 targetLeverage) external {
+    function openLongPosition(uint256 initialCollateral, uint256 targetLeverage) external onlyOwner {
         // Enforce leverage bounds — minimum 1x (no leverage), maximum 4x per xLever design
         require(targetLeverage >= 10000 && targetLeverage <= 40000, "Invalid leverage");
 
         // Pull the initial asset collateral from the caller into this contract
-        asset.transferFrom(msg.sender, address(this), initialCollateral);
+        require(asset.transferFrom(msg.sender, address(this), initialCollateral), "Transfer failed");
 
         // Total position = collateral * leverage — this is the target notional exposure
         uint256 totalPosition = (initialCollateral * targetLeverage) / 10000;
@@ -116,12 +116,12 @@ contract EulerHedgingModule {
     /// @param initialCollateral Amount of USDC to deposit as initial collateral
     /// @param targetLeverage Target leverage in basis points (e.g., -30000 = 3x short)
     // Short = deposit USDC as collateral, borrow asset, sell asset for USDC
-    function openShortPosition(uint256 initialCollateral, uint256 targetLeverage) external {
+    function openShortPosition(uint256 initialCollateral, uint256 targetLeverage) external onlyOwner {
         // Enforce leverage bounds — same limits apply for shorts
         require(targetLeverage >= 10000 && targetLeverage <= 40000, "Invalid leverage");
 
         // Pull the initial USDC collateral from the caller into this contract
-        usdc.transferFrom(msg.sender, address(this), initialCollateral);
+        require(usdc.transferFrom(msg.sender, address(this), initialCollateral), "Transfer failed");
 
         // Total position = collateral * leverage — target short notional exposure
         uint256 totalPosition = (initialCollateral * targetLeverage) / 10000;
