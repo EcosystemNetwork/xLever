@@ -128,7 +128,13 @@ const JudgeMode = (() => {
     el.appendChild(badge);
   }
 
-  /** CSS injected only in judge mode */
+  /**
+   * Inject judge-mode-specific CSS rules into the document head.
+   * Adds styles for simulation labels, hides degen mode toggles,
+   * styles the "Live Demo" badge, step indicators, and testnet banner.
+   * Idempotent: skips injection if the style element already exists.
+   * @private
+   */
   function injectStyles() {
     if (document.getElementById('judge-mode-styles')) return;
     const style = document.createElement('style');
@@ -240,18 +246,31 @@ const JudgeMode = (() => {
     document.head.appendChild(style);
   }
 
-  /** Called by nav.js to filter pages */
+  /**
+   * Filter navigation pages to only those in the judge demo flow.
+   * Called by nav.js to restrict visible pages during demos.
+   * @param {Array<{id: string, label: string, href: string, mode: string|null}>} pages - Full page list
+   * @returns {Array<{id: string, label: string, href: string, mode: string|null}>} Filtered pages
+   */
   function filterPages(pages) {
     if (!isActive()) return pages;
     return pages.filter(p => JUDGE_PAGES.includes(p.id));
   }
 
-  /** Called by nav.js to get the mode toggle HTML */
+  /**
+   * Get the HTML for the "Live Demo" badge that replaces the Trade/Research toggle in nav.
+   * Called by nav.js when rendering the app navigation bar in judge mode.
+   * @returns {string} HTML string for the demo badge element
+   */
   function getNavBadge() {
     return '<div class="judge-demo-badge">Live Demo</div>';
   }
 
-  /** Add testnet banner to the page */
+  /**
+   * Add a fixed-position testnet warning banner at the bottom of the viewport.
+   * Reads "INK SEPOLIA TESTNET -- No real funds at risk". Idempotent.
+   * @private
+   */
   function addTestnetBanner() {
     if (!isActive()) return;
     if (document.querySelector('.judge-testnet-banner')) return;

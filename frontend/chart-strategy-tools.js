@@ -593,7 +593,9 @@ const ChartStrategyTools = (() => {
   }
 
   /**
-   * Let the main chart pass its existing markers so we merge, not overwrite.
+   * Set the base markers from the main chart (e.g., deleverage events) so that
+   * strategy markers are merged with them rather than overwriting.
+   * @param {Array<Object>} markers - Existing chart markers to preserve
    */
   function setBaseMarkers(markers) {
     _existingMarkers = markers || []
@@ -601,7 +603,12 @@ const ChartStrategyTools = (() => {
   }
 
   /**
-   * Add a single signal marker (for live agent use).
+   * Add a single signal marker to the chart (for live agent use).
+   * The marker is merged with existing markers and immediately applied.
+   * @param {number} time - Unix timestamp for the marker position
+   * @param {'buy'|'sell'|'info'} type - Signal type (determines icon and color)
+   * @param {string} [text] - Optional label text for the marker
+   * @returns {Object} The created marker object
    */
   function addSignal(time, type, text) {
     const marker = {
