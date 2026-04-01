@@ -145,6 +145,23 @@ function initWalletListeners() {
 initWalletListeners(); // Start the initialization loop — will retry until Reown modal is available
 
 // ═══════════════════════════════════════════════════════════
+// EVENT-BASED BALANCE & POSITION RELOAD
+// Subscribes to txEvents from contracts.js so balances update
+// only from confirmed chain state — no setTimeout polling.
+// ═══════════════════════════════════════════════════════════
+
+function initTxEventListeners() {
+  const contracts = window.xLeverContracts;
+  if (!contracts?.txEvents) return setTimeout(initTxEventListeners, 300);
+
+  contracts.txEvents.on('confirmed', () => {
+    // Reload balances from confirmed chain state
+    if (connectedAddress && publicClient) fetchBalances();
+  });
+}
+initTxEventListeners();
+
+// ═══════════════════════════════════════════════════════════
 // DATA LAYER
 // Synthetic data generator serves as offline fallback when
 // both OpenBB and Yahoo Finance APIs are unreachable.

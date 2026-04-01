@@ -84,7 +84,8 @@
           "BTGO": "0x0a66152096f37F83D41c56534022e746B159b052"
         }
       },
-      "contracts": ["Vault", "VaultFactory", "PythOracleAdapter"]
+      "contracts": ["VaultSimple (deployed)", "VaultFactory", "PythOracleAdapter"],
+      "note": "VaultSimple is the canonical deployed contract. The modular Vault.sol with 7 modules is in contracts/src/xLever/experimental/ and is not yet deployed."
     },
     "oracle": {
       "status": "live",
@@ -122,7 +123,7 @@
     "what_is_real": [
       "8-screen frontend with Bloomberg Terminal UI (Vite-bundled)",
       "Wallet connection via Reown AppKit on Ink Sepolia",
-      "Deployed contracts: Vault, VaultFactory, PythOracleAdapter",
+      "Deployed contracts: VaultSimple (33 asset vaults), VaultFactory, PythOracleAdapter",
       "Live Pyth Hermes oracle integration (6 price feeds)",
       "Deterministic risk sentinel engine with 4 states",
       "Backtesting engine with real market data",

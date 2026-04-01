@@ -23,6 +23,14 @@ interface IVault {
     event SlowWithdrawalQueued(address indexed user, uint256 amount, uint256 chunks);
     // Emitted when the protocol transitions between active/stressed/paused/emergency states
     event ProtocolStateChanged(uint8 oldState, uint8 newState);
+    // Emitted on every oracle update — carries separated price roles for frontend consumption
+    event OracleUpdate(
+        uint128 executionPrice,
+        uint128 displayPrice,
+        uint256 divergenceBps,
+        bool isFresh,
+        bool isCircuitBroken
+    );
 
     // User functions — all write paths accept Pyth priceUpdateData to ensure fresh prices
     // Open a leveraged position by depositing USDC — returns net position value after fees
@@ -52,6 +60,8 @@ interface IVault {
     function getPoolState() external view returns (DataTypes.PoolState memory);
     // Read current TWAP price and dynamic spread
     function getCurrentTWAP() external view returns (uint128 twap, uint16 spreadBps);
+    // Read full oracle state with separated price roles (execution, display, risk)
+    function getOracleState() external view returns (DataTypes.OracleState memory);
     // Read current dynamic leverage cap based on junior ratio
     function getMaxLeverage() external view returns (int32 maxLeverageBps);
     // Read current funding rate reflecting long/short imbalance

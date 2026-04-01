@@ -43,7 +43,7 @@ npm run dev
 
 - **Backtesting engine** ([frontend/app.js](frontend/app.js)): 1,400+ lines implementing the full LTAP leverage simulation — fixed-entry vs daily-reset comparison using real Yahoo Finance data via Python proxy, with circuit breakers, 5-level auto-deleverage, slippage modeling, and releveraging logic
 - **Pyth oracle integration** ([frontend/pyth.js](frontend/pyth.js)): Live Hermes client fetching price update data (QQQ, SPY, AAPL, NVDA, TSLA, ETH) for on-chain pull-oracle transactions with staleness and divergence checks
-- **Contract adapter** ([frontend/contracts.js](frontend/contracts.js)): viem-based interface for deployed Vault + ERC-20 + Pyth adapter contracts on Ink Sepolia — handles approve flows, Pyth fee estimation, position formatting
+- **Contract adapter** ([frontend/contracts.js](frontend/contracts.js)): viem-based interface for deployed VaultSimple + ERC-20 + Pyth adapter contracts on Ink Sepolia — handles approve flows, Pyth fee estimation, position formatting
 - **Risk engine** ([frontend/risk-engine.js](frontend/risk-engine.js)): Deterministic 4-state risk sentinel (NORMAL → WARNING → RESTRICTED → EMERGENCY) with auto-deleverage recommendations, oracle health checks, and scenario simulation runner
 - **AI agent executor** ([frontend/agent-executor.js](frontend/agent-executor.js)): Bounded smart-account automation with 3 policy modes (Safe, Target Exposure, Accumulation) — gathers live state from Pyth + on-chain + OpenBB, enforces permission boundaries in code
 - **OpenBB intelligence** ([frontend/openbb.js](frontend/openbb.js)): Market intelligence client providing real-time quotes, historical data, options chains, and curated dashboard context for agent decision-making
@@ -63,7 +63,7 @@ npm run dev
 |-----------|--------|---------|
 | Frontend (9 screens) | **Live** | Vite-bundled, Bloomberg Terminal aesthetic |
 | Wallet connection | **Live** | Reown AppKit — Ethereum, Ink Sepolia, Solana, TON |
-| Smart contracts | **Deployed** | Vault, VaultFactory, PythOracleAdapter on Ink Sepolia |
+| Smart contracts | **Deployed** | VaultSimple (33 asset vaults), VaultFactory, PythOracleAdapter on Ink Sepolia |
 | Pyth oracle | **Live** | Hermes price feeds for QQQ, SPY, AAPL, NVDA, TSLA, ETH |
 | Risk engine | **Live** | Deterministic 4-state sentinel with live oracle/position inputs |
 | Backtesting engine | **Live** | Real Yahoo Finance data, LTAP fixed-entry leverage simulation |
@@ -78,13 +78,16 @@ npm run dev
 
 ## Architecture
 
+> **Canonical contract: `VaultSimple.sol`** — deployed on Ink Sepolia with 33 asset vaults.
+> The full modular `Vault.sol` (with FeeEngine, EulerHedgingModule, RiskModule, JuniorTranche, TWAPOracle) is in `contracts/src/xLever/experimental/` and is **not yet deployed**. See [docs/LIVE-VS-PLANNED.md](docs/LIVE-VS-PLANNED.md) for the full breakdown.
+
 ```
 User Layer
-  Senior Users (-4x to +4x leverage)  ←→  Junior LPs (first-loss buffer)
-         │                                        │
-         ▼                                        ▼
-Core Protocol (Vault on Ink Sepolia)
-  Position Manager  │  Exposure Aggregator  │  Fee Engine  │  Risk Sentinel
+  Users (-4x to +4x leverage)
+         │
+         ▼
+Deployed Protocol (VaultSimple on Ink Sepolia)
+  Deposit / Withdraw / Adjust Leverage  │  Pyth Oracle Price Updates
          │
          ▼
 Oracle + Intelligence
@@ -92,20 +95,22 @@ Oracle + Intelligence
          │
          ▼
 External Protocols
-  Euler V2 Markets (EVC atomic looping)  │  xStocks (wQQQx, wSPYx)
+  Euler V2 Markets (EVC)  │  xStocks (wQQQx, wSPYx, 30+ assets)
 ```
 
-**How it works:**
-1. Senior users deposit USDC, pick leverage (-4x to +4x)
-2. Protocol handles lending/borrowing on Euler V2 atomically (single tx via EVC)
+**How VaultSimple works (what's live):**
+1. Users deposit USDC, pick leverage (-4x to +4x)
+2. Position tracked on-chain with Pyth oracle price at entry
 3. PnL = Deposit x Leverage x Price Change — no daily rebalancing, no volatility decay
-4. Junior LPs provide first-loss capital, earn 70% of fee revenue
-5. No liquidations — 5-level auto-deleverage cascade protects the system
-6. Risk sentinel monitors oracle freshness, drawdown, health factor, volatility, and pool utilization
+4. Risk sentinel runs client-side, monitoring oracle freshness, drawdown, and health
 
-**Fee model:** `0.5% + 0.5% x |leverage - 1|` annually
+**Planned (modular Vault, not yet deployed):**
+- Junior tranche first-loss capital + senior/junior split
+- Dynamic fee engine: `0.5% + 0.5% x |leverage - 1|` annually
+- Euler V2 EVC atomic looping for real hedging
+- On-chain 5-level auto-deleverage cascade
 
-**Auto-deleverage cascade:**
+**Auto-deleverage cascade (planned, client-side simulation live):**
 | Level | Trigger (Underlying DD) | Action |
 |-------|------------------------|--------|
 | 0 | < 10% | No action |
@@ -123,7 +128,7 @@ External Protocols
 |-------|-----------|
 | Frontend | Vite + Vanilla JS/CSS, TradingView Lightweight Charts |
 | Wallet | Reown AppKit (Ethereum, Ink Sepolia, Solana, TON) |
-| Contracts | Solidity, Euler V2 EVK + EVC, deployed on Ink Sepolia |
+| Contracts | Solidity (VaultSimple), Euler V2 EVK + EVC, deployed on Ink Sepolia |
 | Oracle | Pyth Network (Hermes pull-oracle) |
 | Intelligence | OpenBB Platform (market data, options, agent context) |
 | News | Real-time ingestion, analyst scoring, signal aggregation |
@@ -169,19 +174,13 @@ xLever/
 │
 ├── contracts/                          # Solidity smart contracts
 │   ├── src/xLever/                     # Core protocol contracts
-│   │   ├── Vault.sol                   # Main vault with module dispatch
-│   │   ├── VaultSimple.sol             # Lightweight vault (no fees/hedging)
+│   │   ├── VaultSimple.sol             # ★ DEPLOYED — canonical vault contract
 │   │   ├── VaultFactory.sol            # Deploy and register vaults
-│   │   ├── modules/                    # Protocol modules
-│   │   │   ├── PositionModule.sol      # User position tracking
-│   │   │   ├── EulerHedgingModule.sol  # Euler V2 EVC looping
-│   │   │   ├── FeeEngine.sol           # Dynamic fee calculation
-│   │   │   ├── RiskModule.sol          # Health monitor + auto-deleverage
-│   │   │   ├── JuniorTranche.sol       # First-loss capital pool
-│   │   │   ├── PythOracleAdapter.sol   # Pyth price feeds
-│   │   │   └── TWAPOracle.sol          # 15-min TWAP with dynamic spread
 │   │   ├── interfaces/                 # Contract interfaces
-│   │   └── libraries/DataTypes.sol     # Shared data structures
+│   │   ├── libraries/DataTypes.sol     # Shared data structures
+│   │   └── experimental/               # NOT DEPLOYED — planned modular architecture
+│   │       ├── Vault.sol               # Full vault with module dispatch
+│   │       └── modules/                # 7 protocol modules (FeeEngine, RiskModule, etc.)
 │   ├── script/                         # 23 Foundry deployment scripts
 │   ├── test/                           # Foundry tests
 │   ├── audits/                         # 13 security audit PDFs

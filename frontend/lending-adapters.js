@@ -305,6 +305,29 @@ class EulerV2Adapter extends ILendingAdapter {
     } catch { return 0 }
   }
 
+  /**
+   * Waits for a tx receipt, checks for reverts, and emits txEvents.
+   * Centralizes receipt validation so supply/withdraw/borrow/repay
+   * all get consistent revert detection and event-based reload.
+   */
+  async _waitAndValidate(pc, hash) {
+    const contracts = window.xLeverContracts
+    const url = this.explorerUrl(hash)
+    contracts?.txEvents?.emit('submitted', { hash, explorerUrl: url })
+
+    const receipt = await this._retry(() => pc.waitForTransactionReceipt({ hash }))
+    if (receipt.status === 'reverted') {
+      const err = new Error(`Transaction reverted (tx: ${hash})`)
+      err._txReverted = true
+      err.shortMessage = 'Transaction was mined but reverted on-chain.'
+      contracts?.txEvents?.emit('failed', { hash, receipt, error: contracts?.classifyTxError?.(err) })
+      throw err
+    }
+
+    contracts?.txEvents?.emit('confirmed', { hash, receipt })
+    return { success: true, hash, explorerUrl: url }
+  }
+
   async supply(asset, amount) {
     const contracts = window.xLeverContracts
     if (!contracts) throw new Error('Contracts not initialized')
@@ -326,8 +349,7 @@ class EulerV2Adapter extends ILendingAdapter {
     }
 
     const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'deposit', args: [amountWei, address], account: address, chain: this._viemChain() }))
-    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
-    return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
+    return this._waitAndValidate(pc, hash)
   }
 
   async withdraw(asset, amount) {
@@ -342,8 +364,7 @@ class EulerV2Adapter extends ILendingAdapter {
     const amountWei = BigInt(Math.floor(amount * (10 ** config.decimals)))
 
     const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'withdraw', args: [amountWei, address, address], account: address, chain: this._viemChain() }))
-    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
-    return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
+    return this._waitAndValidate(pc, hash)
   }
 
   async borrow(asset, amount) {
@@ -358,8 +379,7 @@ class EulerV2Adapter extends ILendingAdapter {
     const amountWei = BigInt(Math.floor(amount * (10 ** config.decimals)))
 
     const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'borrow', args: [amountWei, address], account: address, chain: this._viemChain() }))
-    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
-    return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
+    return this._waitAndValidate(pc, hash)
   }
 
   async repay(asset, amount) {
@@ -381,8 +401,7 @@ class EulerV2Adapter extends ILendingAdapter {
     }
 
     const hash = await this._retry(() => wc.writeContract({ address: config.vault, abi: EVAULT_ABI, functionName: 'repay', args: [amountWei, address], account: address, chain: this._viemChain() }))
-    await this._retry(() => pc.waitForTransactionReceipt({ hash }))
-    return { success: true, hash, explorerUrl: this.explorerUrl(hash) }
+    return this._waitAndValidate(pc, hash)
   }
 
   /**

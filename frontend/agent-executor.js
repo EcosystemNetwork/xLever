@@ -394,16 +394,15 @@ const AgentExecutor = (() => {
       // Live execution: log intent, then submit the transaction
       _log('EXECUTOR', `Adjusting leverage to ${action.targetLeverage}x. Reason: ${action.reason}`, action.severity)
       try {
-        // Call the contract wrapper's adjustLeverage method which builds and submits the TX
         const result = await contracts.adjustLeverage(action.targetLeverage)
-        // Log the transaction hash so the user can verify on a block explorer
+        const url = contracts.getExplorerUrl(result.hash)
         _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
-        // Log the outcome in agent voice for the chat panel
+        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
         _log('AGENT', `Leverage adjusted to ${action.targetLeverage}x.`, 'secondary')
         return true
       } catch (e) {
-        // Log the failure with the short message (e.g. "user rejected") if available
-        _log('SYSTEM', `TX failed: ${e.shortMessage || e.message}`, 'error')
+        const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }
+        _log('SYSTEM', `${classified.label}: ${classified.detail}`, 'error')
         return false
       }
     }
@@ -425,15 +424,15 @@ const AgentExecutor = (() => {
       // Live execution: close the entire position
       _log('EXECUTOR', `Closing position. Reason: ${action.reason}`, action.severity)
       try {
-        // Pass a very large number to withdraw all shares — the contract handles capping to actual balance
         const result = await contracts.closePosition('999999999')
-        // Log confirmation hash
+        const url = contracts.getExplorerUrl(result.hash)
         _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
-        // Inform the user that manual control is restored after the close
+        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
         _log('AGENT', 'Position closed. Manual control restored.', 'secondary')
         return true
       } catch (e) {
-        _log('SYSTEM', `TX failed: ${e.shortMessage || e.message}`, 'error')
+        const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }
+        _log('SYSTEM', `${classified.label}: ${classified.detail}`, 'error')
         return false
       }
     }
@@ -455,17 +454,16 @@ const AgentExecutor = (() => {
       // Live execution: open a new leveraged position
       _log('EXECUTOR', `Buying $${action.amount} QQQx at ${action.leverage}x. ${action.reason}`, action.severity)
       try {
-        // Open position with the specified dollar amount and leverage multiplier
         const result = await contracts.openPosition(String(action.amount), action.leverage)
-        // Log confirmation hash
+        const url = contracts.getExplorerUrl(result.hash)
         _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
-        // Log the completed buy in agent voice
+        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
         _log('AGENT', `Bought $${action.amount} QQQx at ${action.leverage}x.`, 'secondary')
-        // Record the timestamp so the DCA interval timer resets from this buy
         _lastCheckTime = Date.now()
         return true
       } catch (e) {
-        _log('SYSTEM', `TX failed: ${e.shortMessage || e.message}`, 'error')
+        const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }
+        _log('SYSTEM', `${classified.label}: ${classified.detail}`, 'error')
         return false
       }
     }

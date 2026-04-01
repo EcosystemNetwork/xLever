@@ -253,11 +253,25 @@ export const VAULT_ABI = [
   { type: 'function', name: 'getFundingRate', inputs: [], outputs: [{ name: 'rateBps', type: 'int256' }], stateMutability: 'view' },
   { type: 'function', name: 'getCarryRate', inputs: [], outputs: [{ name: 'annualBps', type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'getJuniorValue', inputs: [], outputs: [{ name: 'totalValue', type: 'uint256' }, { name: 'sharePrice', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getOracleState', inputs: [], outputs: [{
+    name: '', type: 'tuple', components: [
+      { name: 'executionPrice', type: 'uint128' },
+      { name: 'displayPrice', type: 'uint128' },
+      { name: 'riskPrice', type: 'uint128' },
+      { name: 'divergenceBps', type: 'uint256' },
+      { name: 'spreadBps', type: 'uint16' },
+      { name: 'isFresh', type: 'bool' },
+      { name: 'isCircuitBroken', type: 'bool' },
+      { name: 'lastUpdateTime', type: 'uint64' },
+      { name: 'updateCount', type: 'uint8' },
+    ]
+  }], stateMutability: 'view' },
 
   // Events
   { type: 'event', name: 'Deposit', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'leverage', type: 'int32' }, { name: 'isSenior', type: 'bool' }] },
   { type: 'event', name: 'Withdraw', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'pnl', type: 'uint256' }] },
   { type: 'event', name: 'LeverageAdjusted', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'oldLeverage', type: 'int32' }, { name: 'newLeverage', type: 'int32' }] },
+  { type: 'event', name: 'OracleUpdate', inputs: [{ name: 'executionPrice', type: 'uint128' }, { name: 'displayPrice', type: 'uint128' }, { name: 'divergenceBps', type: 'uint256' }, { name: 'isFresh', type: 'bool' }, { name: 'isCircuitBroken', type: 'bool' }] },
 ]
 
 export const PYTH_ADAPTER_ABI = [
@@ -370,6 +384,29 @@ export async function getPoolState() {
 export async function getTWAP() {
   if (!ADDRESSES.vault) return { twap: 0n, spreadBps: 0 }
   return getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getCurrentTWAP' })
+}
+
+/**
+ * Read full on-chain oracle state with separated price roles.
+ * Returns: { executionPrice, displayPrice, riskPrice, divergenceBps, spreadBps,
+ *            isFresh, isCircuitBroken, lastUpdateTime, updateCount }
+ */
+export async function getOnChainOracleState() {
+  if (!ADDRESSES.vault) return null
+  const raw = await getPublicClient().readContract({
+    address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState',
+  })
+  return {
+    executionPrice: Number(raw.executionPrice) / 1e8,
+    displayPrice: Number(raw.displayPrice) / 1e8,
+    riskPrice: Number(raw.riskPrice) / 1e8,
+    divergenceBps: Number(raw.divergenceBps),
+    spreadBps: Number(raw.spreadBps),
+    isFresh: raw.isFresh,
+    isCircuitBroken: raw.isCircuitBroken,
+    lastUpdateTime: Number(raw.lastUpdateTime),
+    updateCount: Number(raw.updateCount),
+  }
 }
 
 export async function getMaxLeverage() {
@@ -526,20 +563,87 @@ export async function readOnChainPrice(feedId, maxAgeSec = 300) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TRANSACTION EVENT SYSTEM
+// ═══════════════════════════════════════════════════════════════
+
+// Lightweight event emitter for transaction lifecycle.
+// Consumers subscribe via txEvents.on('confirmed', fn) to reload
+// balances/positions from confirmed chain state instead of polling.
+const txEvents = (() => {
+  const listeners = {}
+  return {
+    on(event, fn) {
+      (listeners[event] ||= []).push(fn)
+      return () => { listeners[event] = listeners[event].filter(f => f !== fn) }
+    },
+    emit(event, data) {
+      (listeners[event] || []).forEach(fn => { try { fn(data) } catch (e) { console.error('[txEvents]', e) } })
+    },
+  }
+})()
+
+export { txEvents }
+
+// ═══════════════════════════════════════════════════════════════
+// ERROR CLASSIFICATION
+// ═══════════════════════════════════════════════════════════════
+
+// Classifies raw errors into user-facing categories so the UI can
+// show distinct states for each failure mode.
+export function classifyTxError(err) {
+  const msg = (err?.shortMessage || err?.message || '').toLowerCase()
+
+  // Wallet rejected (user clicked "Reject" in MetaMask / WalletConnect)
+  if (msg.includes('user rejected') || msg.includes('user denied') || msg.includes('rejected the request')) {
+    return { type: 'wallet_rejected', label: 'Transaction Rejected', detail: 'You rejected the transaction in your wallet.', icon: 'block', color: '#ffd740' }
+  }
+  // RPC / network failure
+  if (msg.includes('rate limit') || msg.includes('too many requests') || msg.includes('econnreset') ||
+      msg.includes('fetch failed') || msg.includes('network') || msg.includes('timeout') || err?.code === 'TIMEOUT') {
+    return { type: 'rpc_failed', label: 'Network Error', detail: 'RPC request failed. Check your connection and try again.', icon: 'cloud_off', color: '#ff9100' }
+  }
+  // On-chain revert (receipt.status === 'reverted' or simulation revert)
+  if (msg.includes('reverted') || msg.includes('execution reverted') || err?._txReverted) {
+    return { type: 'tx_reverted', label: 'Transaction Reverted', detail: err?.shortMessage || 'The transaction was mined but reverted on-chain.', icon: 'cancel', color: '#ff5252' }
+  }
+  // Fallback: unknown error
+  return { type: 'unknown', label: 'Transaction Failed', detail: err?.shortMessage || err?.message || 'Unknown error', icon: 'error', color: '#ff5252' }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TX HELPERS
 // ═══════════════════════════════════════════════════════════════
 
 async function waitForTx(hash) {
+  // Emit submitted event as soon as the hash exists — the tx is in the mempool
+  txEvents.emit('submitted', { hash, explorerUrl: getExplorerUrl(hash) })
+
   const receipt = await getPublicClient().waitForTransactionReceipt({ hash })
+
+  // Check receipt status — 'reverted' means the tx was mined but failed on-chain
+  if (receipt.status === 'reverted') {
+    const err = new Error(`Transaction reverted (tx: ${hash})`)
+    err._txReverted = true
+    err.shortMessage = 'Transaction was mined but reverted on-chain.'
+    txEvents.emit('failed', { hash, receipt, error: classifyTxError(err) })
+    throw err
+  }
+
+  // Success — emit confirmed so listeners can reload balances from chain state
+  txEvents.emit('confirmed', { hash, receipt })
   return { hash, receipt }
 }
 
 export function getExplorerUrl(hash) {
-  return `${inkSepolia.blockExplorers.default.url}/tx/${hash}`
+  const config = getActiveChainConfig()
+  const explorer = config?.chain?.blockExplorers?.default?.url || inkSepolia.blockExplorers.default.url
+  return `${explorer}/tx/${hash}`
 }
 
 export function getAddressExplorerUrl(address) {
-  return `${inkSepolia.blockExplorers.default.url}/address/${address}`
+  const config = getActiveChainConfig()
+  const explorer = config?.chain?.blockExplorers?.default?.url || inkSepolia.blockExplorers.default.url
+  return `${explorer}/address/${address}`
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -585,8 +689,9 @@ window.xLeverContracts = {
   getBalance, getAllowance, approveToken,
   getPosition, getPositionValue, getPoolState, getTWAP, getMaxLeverage, getFundingRate, getJuniorValue,
   openPosition, closePosition, adjustLeverage, depositJunior, withdrawJunior,
-  getOracleHealth, readOnChainPrice,
+  getOracleHealth, readOnChainPrice, getOnChainOracleState,
   getExplorerUrl, getAddressExplorerUrl,
   formatPosition, formatPoolState,
   getPublicClient, getWalletClient,
+  txEvents, classifyTxError,
 }

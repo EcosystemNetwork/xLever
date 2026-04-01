@@ -123,6 +123,29 @@ library DataTypes {
         uint64 chunkInterval;       // Seconds between chunks (default: 15 min)
     }
 
+    /// @notice Oracle state — separated price roles for execution, display, and risk
+    // Consolidates all oracle-related data into a single read for frontends and risk systems
+    struct OracleState {
+        // Pyth spot price — used as the execution reference price for position open/close
+        uint128 executionPrice;
+        // TWAP smoothed price — used for UI display to filter noise
+        uint128 displayPrice;
+        // Risk reference price — execution price validated against TWAP divergence
+        uint128 riskPrice;
+        // Spot-TWAP divergence in basis points — measures potential manipulation risk
+        uint256 divergenceBps;
+        // Dynamic spread in basis points — widens with divergence
+        uint16 spreadBps;
+        // Whether the oracle has been updated within the staleness window
+        bool isFresh;
+        // Whether the circuit breaker has tripped due to excessive divergence
+        bool isCircuitBroken;
+        // Timestamp of the most recent oracle update
+        uint64 lastUpdateTime;
+        // Number of price samples collected (for TWAP reliability check)
+        uint8 updateCount;
+    }
+
     /// @notice Fee configuration
     // Tunable parameters for the fee model: 0.5% + 0.5% x |leverage - 1| annually
     struct FeeConfig {

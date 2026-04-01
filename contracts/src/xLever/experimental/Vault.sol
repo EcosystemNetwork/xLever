@@ -148,10 +148,8 @@ contract Vault is IVault {
 
         // Pull-oracle pattern: update Pyth price, read it, and push into TWAP buffer
         _updateOracleFromPyth(priceUpdateData);
-        // Ensure oracle data is fresh after update — reject stale prices
-        require(!oracle.isStale(), "Oracle stale");
-        // Ensure TWAP has enough data points to be reliable before allowing deposits
-        require(oracle.hasSufficientUpdates(), "Insufficient oracle updates");
+        // Validate oracle freshness, sufficiency, and circuit breaker before allowing trade
+        _requireOracleHealthy();
 
         // Transfer USDC from user to vault — must have prior approval
         require(usdc.transferFrom(msg.sender, address(this), amount), "Transfer failed");
@@ -161,8 +159,10 @@ contract Vault is IVault {
         // Calculate entry fee based on notional size and current TWAP divergence
         uint256 entryFee = feeEngine.calculateDynamicFee(notional, true);
 
-        // Read current TWAP to lock in the entry price for future PnL calculations
-        uint128 entryTWAP = oracle.getTWAP();
+        // Use Pyth execution price (spot) as the entry reference — not TWAP.
+        // This ensures position entry is priced at the actual market rate from Pyth,
+        // while TWAP remains available as a display/smoothing price.
+        uint128 entryTWAP = oracle.getSpotPrice();
 
         // Create or update user's position with net deposit (after fee) and entry TWAP
         positionModule.updatePosition(msg.sender, uint128(amount - entryFee), leverageBps, entryTWAP);
@@ -199,8 +199,9 @@ contract Vault is IVault {
     function withdraw(uint256 amount, uint256 minReceived, bytes[] calldata priceUpdateData) external payable nonReentrant returns (uint256 received) {
         // Update oracle before reading prices to ensure PnL is calculated on fresh data
         _updateOracleFromPyth(priceUpdateData);
-        // Ensure oracle data is fresh after update — reject stale prices
+        // Validate oracle freshness and circuit breaker before allowing withdrawal
         require(!oracle.isStale(), "Oracle stale");
+        require(!oracle.isCircuitBroken(), "Circuit breaker: price divergence too high");
         // Fetch user's position to validate and calculate withdrawal
         DataTypes.Position memory pos = positionModule.getPosition(msg.sender);
         // Ensure user actually has an open position to withdraw from
@@ -256,8 +257,9 @@ contract Vault is IVault {
     function adjustLeverage(int32 newLeverageBps, bytes[] calldata priceUpdateData) external payable whenActive nonReentrant {
         // Update oracle first so leverage adjustment uses fresh pricing
         _updateOracleFromPyth(priceUpdateData);
-        // Ensure oracle data is fresh after update — reject stale prices
+        // Validate oracle freshness and circuit breaker before allowing adjustment
         require(!oracle.isStale(), "Oracle stale");
+        require(!oracle.isCircuitBroken(), "Circuit breaker: price divergence too high");
         // Enforce leverage bounds on the new value
         require(newLeverageBps >= -40000 && newLeverageBps <= 40000, "Invalid leverage");
         // Enforce dynamic leverage cap based on current junior tranche ratio
@@ -464,7 +466,19 @@ contract Vault is IVault {
 
         // Pyth prices are int64 with variable exponent; adapter normalises to 8-decimal.
         // Push the normalised price into the TWAP circular buffer for smoothing.
-        oracle.updatePrice(uint128(uint64(pythPrice)));
+        uint128 normalizedPrice = uint128(uint64(pythPrice));
+        oracle.updatePrice(normalizedPrice);
+
+        // Emit oracle update event with separated price roles for frontend consumption
+        uint128 displayPrice = oracle.getTWAP();
+        uint256 divergence = oracle.getDivergence();
+        emit OracleUpdate(
+            normalizedPrice,       // executionPrice (Pyth spot)
+            displayPrice,          // displayPrice (TWAP)
+            divergence,
+            !oracle.isStale(),     // isFresh
+            oracle.isCircuitBroken()
+        );
 
         // Refund any excess ETH the caller sent beyond the required Pyth fee
         if (msg.value > fee) {
@@ -501,6 +515,20 @@ contract Vault is IVault {
         uint256 juniorRatio = juniorTranche.getJuniorRatio(poolState.totalSeniorDeposits);
         // Map junior ratio to a leverage cap — more first-loss buffer enables higher leverage
         poolState.currentMaxLeverageBps = uint32(riskModule.calculateMaxLeverage(juniorRatio));
+    }
+
+    /// @notice Get full oracle state with separated price roles
+    // View function — returns execution price, display price, risk price, divergence, and health
+    function getOracleState() external view returns (DataTypes.OracleState memory) {
+        return oracle.getOracleState();
+    }
+
+    /// @dev Internal: validate oracle is fresh, has sufficient updates, and circuit breaker is off
+    // Centralizes oracle health checks so all position-modifying paths share the same guards
+    function _requireOracleHealthy() internal view {
+        require(!oracle.isStale(), "Oracle stale");
+        require(oracle.hasSufficientUpdates(), "Insufficient oracle updates");
+        require(!oracle.isCircuitBroken(), "Circuit breaker: price divergence too high");
     }
 
     // Utility: absolute value of int256 — needed for net exposure calculations

@@ -281,131 +281,124 @@ const XModal = (() => {
     });
   }
 
-  // Replaces the modal buttons with a progress spinner, then shows success/failure
+  // Replaces the modal buttons with a progress spinner, then transitions through
+  // explicit pending/success/failure states based on receipt polling — no setTimeout
+  // is used for correctness (only for simulated demo path when vault is undeployed).
   async function showTransactionProgress(modal, details, sideColor, isLong) {
-    // Grab the button container so we can replace its contents with progress UI
     const actionsEl = modal.querySelector('#x-modal-actions');
-    // Reconstruct the side label since it's needed for status messages
     const sideLabel = isLong ? 'LONG' : 'SHORT';
-    // Check if the real contract adapter is available (set by contracts.js on window)
     const contracts = window.xLeverContracts;
-    // Determines whether to execute a real on-chain tx or run the simulated demo flow
     const isLive = contracts && contracts.ADDRESSES.vault;
 
-    // Replace action buttons with a spinner and status text
+    // ─── INITIAL PENDING STATE ───
     actionsEl.innerHTML = `
       <div style="width:100%; text-align:center; padding:8px 0;">
-        <!-- CSS-animated spinner colored to match the position direction -->
         <div id="x-tx-spinner" style="margin:0 auto 12px; width:36px; height:36px; border:3px solid #252833; border-top:3px solid ${sideColor}; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
-        <!-- Primary status line updated as the transaction progresses through stages -->
-        <div style="font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; color:#e3e2e6;" id="x-tx-status">Submitting Transaction...</div>
-        <!-- Secondary status line for more granular progress detail -->
-        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px;" id="x-tx-sub">Waiting for wallet signature</div>
+        <div style="font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; color:#e3e2e6;" id="x-tx-status">Waiting for Wallet...</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px;" id="x-tx-sub">Approve the transaction in your wallet</div>
+        <div id="x-tx-explorer" style="margin-top:8px;"></div>
       </div>
     `;
 
-    // Helper to update the two status text elements without re-rendering the whole section
     const updateStatus = (status, sub) => {
-      // Query by ID each time because the elements were injected via innerHTML
       const statusEl = document.getElementById('x-tx-status');
       const subEl = document.getElementById('x-tx-sub');
-      // Null-check in case the modal was closed mid-transaction
       if (statusEl) statusEl.textContent = status;
       if (subEl) subEl.textContent = sub;
     };
 
-    // Will hold the transaction hash from either the real or simulated path
+    // Shows explorer link as soon as a hash is available (even before confirmation)
+    const showExplorerLink = (hash, url) => {
+      const el = document.getElementById('x-tx-explorer');
+      if (el && url) {
+        el.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#7c4dff; text-decoration:underline;">View on Explorer: ${hash.slice(0, 10)}...${hash.slice(-6)}</a>`;
+      }
+    };
+
     let txHash = null;
-    // Will hold the block explorer URL if this was a real on-chain transaction
     let explorerUrl = null;
 
     if (isLive) {
       // ─── REAL TRANSACTION PATH ───
-      // Executes actual on-chain calls via the contracts adapter
+      // Listen for the 'submitted' event from contracts.js to update UI as soon
+      // as the tx hash is known (before waiting for receipt).
+      const unsub = contracts.txEvents.on('submitted', ({ hash, explorerUrl: url }) => {
+        txHash = hash;
+        explorerUrl = url;
+        updateStatus('Transaction Submitted', 'Waiting for on-chain confirmation...');
+        showExplorerLink(hash, url);
+      });
+
       try {
-        // First step: approve USDC spend (vault needs allowance before deposit)
-        updateStatus('Approving USDC...', 'Waiting for wallet signature');
-        // Second step: submit the leveraged deposit transaction
-        updateStatus('Opening Position...', 'Confirm in your wallet');
-        // Call the contract adapter which handles approve + deposit + Pyth oracle update
+        updateStatus('Approving USDC...', 'Approve the spend in your wallet');
         const result = await contracts.openPosition(
           details.size.toString(),
           details.leverage
         );
-        // Store the real transaction hash for the success screen
+        // If the submitted event didn't fire (shouldn't happen), capture hash here
         txHash = result.hash;
-        // Build the block explorer link so users can verify on-chain
-        explorerUrl = contracts.getExplorerUrl(txHash);
+        explorerUrl = explorerUrl || contracts.getExplorerUrl(txHash);
+        unsub(); // clean up listener
       } catch (err) {
-        // ─── ERROR STATE ─── show failure UI with the error message
+        unsub();
+        // ─── CLASSIFIED ERROR STATE ───
+        const classified = contracts.classifyTxError(err);
+        // Build explorer link for the error UI if we got a hash before failure
+        const errExplorerHtml = (txHash && explorerUrl)
+          ? `<a href="${explorerUrl}" target="_blank" rel="noopener" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#7c4dff; text-decoration:underline; display:inline-block; margin-top:8px;">View on Explorer</a>`
+          : '';
         actionsEl.innerHTML = `
           <div style="width:100%; text-align:center; padding:8px 0;">
-            <!-- Red error icon makes failure immediately obvious -->
-            <div style="width:48px; height:48px; border-radius:50%; background:#ff525215; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-              <span class="material-symbols-outlined" style="color:#ff5252; font-size:28px;">error</span>
+            <div style="width:48px; height:48px; border-radius:50%; background:${classified.color}15; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+              <span class="material-symbols-outlined" style="color:${classified.color}; font-size:28px;">${classified.icon}</span>
             </div>
-            <div style="font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:#ff5252;">Transaction Failed</div>
-            <!-- Show the specific error so users (or support) can diagnose the issue -->
-            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px; max-width:340px; word-break:break-all;">${escapeHTML(err.shortMessage || err.message)}</div>
-            <!-- Close button lets user dismiss the error and try again -->
+            <div style="font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:${classified.color};">${escapeHTML(classified.label)}</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:4px; max-width:340px; word-break:break-all;">${escapeHTML(classified.detail)}</div>
+            ${errExplorerHtml}
             <button id="x-modal-done" style="display:block; width:100%; margin-top:16px; padding:12px; border-radius:6px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; background:#1f1f23; border:1px solid #252833; color:#e3e2e6;">Close</button>
           </div>
         `;
-        // Wire up the close button
         document.getElementById('x-modal-done')?.addEventListener('click', close);
-        // Also show a toast so the error is visible even if the modal is dismissed
-        XToast.show('Transaction failed: ' + (err.shortMessage || err.message), 'error');
-        // Exit early -- don't show the success state
+        // Toast type varies by error classification
+        const toastType = classified.type === 'wallet_rejected' ? 'warning' : 'error';
+        XToast.show(classified.label + ': ' + classified.detail, toastType);
         return;
       }
     } else {
-      // ─── SIMULATED PATH (no vault deployed yet) ───
-      // Provides a realistic-feeling demo when the vault contract isn't deployed
+      // ─── SIMULATED PATH (no vault deployed) ───
+      // Hardcoded delays are acceptable here — this is demo-only UI animation,
+      // not correctness-critical transaction state.
       const steps = [
-        // Each step simulates a real transaction lifecycle stage with realistic timing
         { delay: 1200, status: 'Signing Transaction...', sub: 'Confirming in wallet' },
-        { delay: 2400, status: 'Broadcasting to Network...', sub: 'Tx submitted, awaiting confirmation' },
-        { delay: 3800, status: 'Confirming on Chain...', sub: 'Block confirmation 1/2' },
+        { delay: 1200, status: 'Broadcasting to Network...', sub: 'Tx submitted, awaiting confirmation' },
+        { delay: 1400, status: 'Confirming on Chain...', sub: 'Block confirmation 1/2' },
       ];
-      // Walk through each simulated step with timed delays
       for (const step of steps) {
-        // Calculate incremental delay between steps (not absolute) so timing feels natural
-        await new Promise(r => setTimeout(r, step.delay - (steps.indexOf(step) > 0 ? steps[steps.indexOf(step)-1].delay : 0)));
-        // Update the status text to show the current simulated stage
+        await new Promise(r => setTimeout(r, step.delay));
         updateStatus(step.status, step.sub);
       }
-      // Final pause before showing success, simulating block confirmation time
       await new Promise(r => setTimeout(r, 1200));
-      // Generate a fake tx hash so the success UI has something to display
       txHash = '0x' + generateFakeHash();
     }
 
     // ─── SUCCESS STATE ───
-    // Build the transaction hash display -- clickable link for real txs, plain text for simulated
     const txDisplay = explorerUrl
-      ? `<a href="${explorerUrl}" target="_blank" style="color:#7c4dff; text-decoration:underline;">Tx: ${txHash.slice(0, 10)}...${txHash.slice(-6)}</a>`
+      ? `<a href="${explorerUrl}" target="_blank" rel="noopener" style="color:#7c4dff; text-decoration:underline;">Tx: ${txHash.slice(0, 10)}...${txHash.slice(-6)}</a>`
       : `Tx: ${txHash}`;
 
-    // Replace the spinner with the success confirmation UI
     actionsEl.innerHTML = `
       <div style="width:100%; text-align:center; padding:8px 0;">
-        <!-- Filled check circle icon signals completion; colored to match the position direction -->
         <div style="width:48px; height:48px; border-radius:50%; background:${sideColor}15; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
           <span class="material-symbols-outlined" style="color:${sideColor}; font-size:28px; font-variation-settings:'FILL' 1;">check_circle</span>
         </div>
-        <!-- Clear success headline -->
         <div style="font-family:'DM Sans',sans-serif; font-size:16px; font-weight:700; color:#e3e2e6;">Position Opened</div>
-        <!-- Recap the position details so user can verify what was executed -->
         <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8fa3; margin-top:4px;">
           ${escapeHTML(details.asset)} ${sideLabel} ${Math.abs(details.leverage).toFixed(1)}x &middot; $${details.size.toLocaleString()}
         </div>
-        <!-- Transaction hash in a pill for quick copy/reference -->
         <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#555970; margin-top:8px; background:#0d0e11; padding:6px 12px; border-radius:4px; display:inline-block;">
           ${txDisplay}
         </div>
-        <!-- Badge indicates whether this was a real on-chain tx or a simulated demo -->
-        ${isLive ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#00e676; margin-top:6px;">VERIFIED ON-CHAIN</div>` : `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#ffd740; margin-top:6px;">SIMULATED (vault not deployed)</div>`}
-        <!-- Done button to dismiss the modal and return to the main UI -->
+        ${isLive ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#00e676; margin-top:6px;">CONFIRMED ON-CHAIN</div>` : `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#ffd740; margin-top:6px;">SIMULATED (vault not deployed)</div>`}
         <button id="x-modal-done" style="
           display:block; width:100%; margin-top:16px; padding:12px; border-radius:6px;
           font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700;
@@ -414,9 +407,7 @@ const XModal = (() => {
         ">Done</button>
       </div>
     `;
-    // Wire up the done button to close the modal
     document.getElementById('x-modal-done')?.addEventListener('click', close);
-    // Show a success toast so the notification persists even after the modal is closed
     XToast.show(`${escapeHTML(details.asset)} ${sideLabel} position opened successfully`, 'success');
   }
 

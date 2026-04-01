@@ -1,16 +1,21 @@
 # Smart Contracts Reference
 
-Complete reference for xLever's Solidity contracts deployed on Ink Sepolia.
+Complete reference for xLever's Solidity contracts.
+
+> **Canonical deployed contract: `VaultSimple.sol`** — 33 asset vaults on Ink Sepolia.
+> The full modular `Vault.sol` with 7 modules is in `contracts/src/xLever/experimental/` and is **not yet deployed**.
 
 ---
 
 ## Deployed Addresses (Ink Sepolia — Chain ID 763373)
 
+All vaults below are **VaultSimple** instances (lightweight, no fees/hedging modules).
+
 | Contract | Address | Role |
 |----------|---------|------|
 | EVC | `0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c` | Ethereum Vault Connector (atomic batch executor) |
-| QQQ Vault | `0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6` | Main vault for wQQQx leverage |
-| SPY Vault | `0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228` | Vault for wSPYx leverage |
+| QQQ Vault | `0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6` | VaultSimple for wQQQx leverage |
+| SPY Vault | `0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228` | VaultSimple for wSPYx leverage |
 | USDC | `0x6b57475467cd854d36Be7FB614caDa5207838943` | Base collateral (6 decimals) |
 | wQQQx | `0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9` | Wrapped Nasdaq-100 xStock |
 | wSPYx | `0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e` | Wrapped S&P 500 xStock |
@@ -36,6 +41,18 @@ Complete reference for xLever's Solidity contracts deployed on Ink Sepolia.
 ---
 
 ## Contract Hierarchy
+
+### Deployed (VaultSimple)
+
+```
+VaultFactory
+  |-- deploys --> VaultSimple (per asset)
+                    |-- deposit / withdraw / adjustLeverage
+                    |-- Pyth oracle price updates
+                    |-- No fees, no hedging modules, no junior tranche
+```
+
+### Planned (experimental/Vault.sol — not deployed)
 
 ```
 VaultFactory
@@ -63,7 +80,9 @@ Deploys and registers new asset vaults.
 | `getVault()` | asset address | vault address | Look up vault by asset |
 | `updateGlobalParams()` | params struct | -- | Update protocol-wide parameters |
 
-### Vault (Main Entry Point)
+### Vault (Planned — experimental/Vault.sol, not deployed)
+
+> The functions below describe the **planned** modular Vault interface. The deployed VaultSimple exposes a subset of these (deposit, withdraw, adjustLeverage) without fees or junior tranche.
 
 All write functions accept `priceUpdateData` (Pyth VAA bytes) and require `msg.value` for the Pyth update fee.
 
@@ -91,7 +110,7 @@ All write functions accept `priceUpdateData` (Pyth VAA bytes) and require `msg.v
 | `getCarryRate` | -- | uint256 | Current carry fee rate |
 | `getJuniorValue` | -- | uint256, uint256 | Junior tranche total value & share price |
 
-### Other Contracts
+### Other Contracts (Planned — in experimental/modules/, not deployed)
 
 | Contract | Purpose | Key Functions |
 |----------|---------|---------------|

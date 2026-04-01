@@ -14,6 +14,7 @@ const RiskLive = (() => {
   let _state = null        // Latest RiskEngine evaluation result
   let _inputs = null       // Latest raw inputs fed to RiskEngine
   let _oracleHealth = null // Latest oracle health snapshot
+  let _onChainOracle = null // Latest on-chain oracle state (separated prices)
   let _listeners = []      // Callbacks notified on every update
   let _peakPrice = 0       // Tracks peak QQQ price for drawdown calc
 
@@ -78,6 +79,37 @@ const RiskLive = (() => {
       console.warn('RiskLive: Contract state fetch failed:', e.message)
     }
 
+    // 2b. On-chain oracle state (separated prices, circuit breaker)
+    try {
+      const contracts = window.xLeverContracts
+      if (contracts && contracts.getOnChainOracleState) {
+        const oState = await contracts.getOnChainOracleState()
+        if (oState) {
+          _onChainOracle = oState
+          // Merge on-chain divergence into risk inputs
+          if (oState.divergenceBps > 0) {
+            inputs.oracleDivergence = Math.max(inputs.oracleDivergence, oState.divergenceBps / 10000)
+          }
+          // If circuit breaker is active on-chain, force health factor down
+          if (oState.isCircuitBroken) {
+            inputs.healthFactor = Math.min(inputs.healthFactor, 0.8)
+          }
+          // Enrich oracle health with on-chain data
+          if (_oracleHealth) {
+            _oracleHealth.executionPrice = oState.executionPrice
+            _oracleHealth.displayPrice = oState.displayPrice
+            _oracleHealth.divergenceBps = oState.divergenceBps
+            _oracleHealth.spreadBps = oState.spreadBps
+            _oracleHealth.isCircuitBroken = oState.isCircuitBroken
+            _oracleHealth.onChainFresh = oState.isFresh
+            _oracleHealth.updateCount = oState.updateCount
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('RiskLive: On-chain oracle state fetch failed:', e.message)
+    }
+
     // 3. OpenBB market context (non-blocking enrichment)
     try {
       const obb = window.xLeverOpenBB
@@ -138,6 +170,8 @@ const RiskLive = (() => {
     get state() { return _state },
     get inputs() { return _inputs },
     get oracleHealth() { return _oracleHealth },
+    /** On-chain oracle state with separated prices (execution, display, risk). */
+    get onChainOracle() { return _onChainOracle },
 
     /** Current leverage cap (safe default 4.0 if not evaluated yet). */
     get leverageCap() { return _state ? _state.leverageCap : 4.0 },
