@@ -470,7 +470,11 @@ tailwind.config = {
   <!-- ===== MIDDLE COLUMN (4/12): News Swarm + Signal Feed ===== -->
   <section class="lg:col-span-4 flex flex-col gap-4">
 
-    <!-- News Swarm Control -->
+    <!-- ===== SECTION: News Swarm Control Panel =====
+         Multi-agent news analysis pipeline. Shows swarm/Python agent/OpenClaw status,
+         queue/ingested/signals/verified/rejected/executed stats,
+         analyst weight sliders (Sentiment/Technical/Macro),
+         5min trend indicator, and start/stop controls. -->
     <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl">
       <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/20 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -573,7 +577,9 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- Recent Signals Feed -->
+    <!-- ===== SECTION: Signal Feed =====
+         Scrollable terminal showing timestamped signals from the news swarm.
+         Updated in real-time as news is ingested and analyzed. -->
     <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 shadow-2xl flex flex-col" style="min-height: 300px;">
       <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -589,7 +595,10 @@ tailwind.config = {
 
   </section>
 
-  <!-- RIGHT COLUMN: Execution Log -->
+  <!-- ===== RIGHT COLUMN (3/12): Execution Log + Agent Prompt =====
+       Terminal-style action log with timestamp entries.
+       Agent prompt input at bottom with quick-prompt buttons
+       (Reduce to 1x, Take profit, Risk status, Pause, Oracle, News, etc.) -->
   <section class="lg:col-span-3 flex flex-col h-full" style="min-height: 680px;">
     <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 flex flex-col shadow-2xl">
       <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">

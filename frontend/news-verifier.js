@@ -168,6 +168,18 @@ const NewsVerifier = (() => {
   // ═══════════════════════════════════════════════════════════════
   // Check if other sources are reporting the same story
 
+  /**
+   * Source corroboration — check if other news sources are reporting the same story.
+   * Extracts key terms from the headline and searches recent backend items for
+   * overlapping coverage from different sources.
+   *
+   * Corroboration threshold: 40% key term overlap from a different source.
+   * 2+ corroborating sources = fully verified; 1 = partially; 0 = single-source flag.
+   *
+   * @param {Object} newsItem - News item to verify
+   * @param {Object} check - Mutable check result object
+   * @returns {Promise<void>} Modifies check in place
+   */
   async function verifySource(newsItem, check) {
     // Check the news buffer for corroborating headlines
     const ingest = window.NewsIngest
@@ -235,6 +247,13 @@ const NewsVerifier = (() => {
     }
   }
 
+  /**
+   * Extract meaningful key terms from a headline for fuzzy matching.
+   * Strips stop words, punctuation, and short words (<=2 chars).
+   *
+   * @param {string} headline - News headline
+   * @returns {string[]} Array of lowercase key terms
+   */
   function extractKeyTerms(headline) {
     const stopWords = new Set([
       'the','a','an','is','are','was','were','be','been','being','have','has','had',
