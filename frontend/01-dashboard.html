@@ -21,6 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="tailwind.css">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -145,45 +146,25 @@
 <!-- ===== LEFT COLUMN: Performance Chart & Live Trades (2/3 width) ===== -->
 <div class="lg:col-span-8 space-y-6">
 <!-- ===== SECTION: Portfolio Performance Chart =====
-     CSS-rendered area chart with SVG overlay line. Timeframe toggle buttons
-     (1D/1W/1M/1Y/ALL) switch active view. Y-axis labels on right side. -->
+     Real-time area chart via lightweight-charts. Tracks portfolio value snapshots
+     in localStorage. Timeframe toggle buttons (1D/1W/1M/1Y/ALL) filter the data. -->
 <section class="bg-surface-container p-6 border border-outline-variant/15 rounded-lg">
 <div class="flex justify-between items-center mb-8">
 <div>
 <h2 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Performance History</h2>
 <p class="text-xs text-outline font-body">Aggregated equity across all vaults</p>
 </div>
-<div class="flex bg-surface-container-lowest p-1 rounded gap-1">
-<button class="px-3 py-1 text-[10px] font-mono bg-surface-container-highest text-primary rounded">1D</button>
-<button class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">1W</button>
-<button class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">1M</button>
-<button class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">1Y</button>
-<button class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">ALL</button>
+<div id="perfTimeframeBtns" class="flex bg-surface-container-lowest p-1 rounded gap-1">
+<button data-tf="1D" class="px-3 py-1 text-[10px] font-mono bg-surface-container-highest text-primary rounded">1D</button>
+<button data-tf="1W" class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">1W</button>
+<button data-tf="1M" class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">1M</button>
+<button data-tf="1Y" class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">1Y</button>
+<button data-tf="ALL" class="px-3 py-1 text-[10px] font-mono text-on-surface-variant hover:text-on-surface">ALL</button>
 </div>
 </div>
-<div class="h-[320px] w-full relative flex items-end justify-between gap-1 overflow-hidden">
-<!-- Simulated Chart Grid Lines -->
-<div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
-<div class="w-full h-px bg-outline"></div>
-<div class="w-full h-px bg-outline"></div>
-<div class="w-full h-px bg-outline"></div>
-<div class="w-full h-px bg-outline"></div>
-<div class="w-full h-px bg-outline"></div>
-</div>
-<!-- Visual Area Chart via CSS Gradients & Bars -->
-<div class="w-full h-full absolute inset-0 opacity-20 pointer-events-none" style="background: linear-gradient(180deg, rgba(205, 189, 255, 0.4) 0%, rgba(12, 13, 16, 0) 100%); clip-path: polygon(0% 80%, 10% 75%, 20% 85%, 30% 60%, 40% 65%, 50% 40%, 60% 45%, 70% 30%, 80% 35%, 90% 15%, 100% 20%, 100% 100%, 0% 100%);"></div>
-<div class="w-full h-full absolute inset-0 pointer-events-none" style="border-bottom: 2px solid transparent; background: linear-gradient(transparent 0%, transparent 100%); position: relative;">
-<svg class="w-full h-full overflow-visible" preserveaspectratio="none">
-<path d="M0,256 C50,240 100,272 150,192 C200,208 250,128 300,144 C350,96 400,112 450,48 C500,64 550,16 600,32" fill="none" stroke="#cdbdff" stroke-width="2" vector-effect="non-scaling-stroke"></path>
-</svg>
-</div>
-<!-- Data Labels Axis Y -->
-<div class="absolute right-0 top-0 h-full flex flex-col justify-between text-[10px] font-mono text-outline-variant pr-2 text-right">
-<span>-</span>
-<span>-</span>
-<span>-</span>
-<span>-</span>
-<span>-</span>
+<div id="perfChartContainer" class="h-[320px] w-full relative">
+<div id="perfChartEmpty" class="absolute inset-0 flex items-center justify-center text-on-surface-variant text-xs font-mono">
+Connect wallet to start tracking performance
 </div>
 </div>
 </section>
@@ -400,14 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => { clockEl.textContent = new Date().toISOString().slice(11, 19) + ' UTC'; }, 1000);
   }
 
-  // Timeframe toggle interactivity
-  const timeframeBtns = document.querySelectorAll('.bg-surface-container-lowest button');
-  timeframeBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      timeframeBtns.forEach(b => { b.classList.remove('bg-surface-container-highest', 'text-primary'); b.classList.add('text-on-surface-variant'); });
-      btn.classList.add('bg-surface-container-highest', 'text-primary'); btn.classList.remove('text-on-surface-variant');
-    });
-  });
+  // Timeframe toggle interactivity is handled by perfChart module below
 
   // View Full Logs button
   document.querySelectorAll('button').forEach(btn => {
@@ -545,5 +519,228 @@ XAuthGate.init({
     }
   } catch(e) { console.warn('Risk: Pyth fetch failed', e); }
 })();
+</script>
+<!-- ===== SCRIPTS: Performance History Chart =====
+     Tracks portfolio value snapshots in localStorage, renders with lightweight-charts.
+     Polls getPositionValue every 30s when wallet is connected. -->
+<script type="module">
+import { getPositionValue, getPoolState, getJuniorValue } from './contracts.js';
+
+const STORAGE_KEY = 'xlever_perf_history';
+const POLL_INTERVAL = 30_000; // 30 seconds
+
+// ─── localStorage persistence ───
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveHistory(data) {
+  // Cap at ~90 days of 30s intervals (~260k points). Prune oldest beyond that.
+  if (data.length > 260000) data = data.slice(data.length - 260000);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ─── Snapshot: record current portfolio value ───
+async function takeSnapshot() {
+  var wallet = window.xLeverWallet;
+  if (!wallet) return null;
+  var addr;
+  try {
+    var isConnected = typeof wallet.getIsConnectedState === 'function' ? wallet.getIsConnectedState() : wallet.getIsConnected?.();
+    if (!isConnected) return null;
+    addr = wallet.getAddress();
+  } catch { return null; }
+  if (!addr) return null;
+
+  try {
+    var result = await getPositionValue(addr);
+    var rawVal = Array.isArray(result) ? result[0] : (result && result.value != null ? result.value : 0n);
+    var val = Number(rawVal) / 1e6;
+    if (isNaN(val)) val = 0;
+
+    // Also grab pool TVL for protocol-level tracking
+    var pool = await getPoolState();
+    var tvl = 0;
+    if (pool) {
+      var senior = Number(pool.totalSeniorDeposits || 0n) / 1e6;
+      var junior = Number(pool.totalJuniorDeposits || 0n) / 1e6;
+      tvl = senior + junior;
+    }
+
+    var now = Math.floor(Date.now() / 1000);
+    return { time: now, value: val, tvl: tvl };
+  } catch (e) {
+    console.warn('PerfChart: snapshot failed', e);
+    return null;
+  }
+}
+
+// ─── Chart rendering ───
+var chart = null;
+var areaSeries = null;
+var currentTimeframe = 'ALL';
+
+function getTimeframeCutoff(tf) {
+  var now = Math.floor(Date.now() / 1000);
+  switch (tf) {
+    case '1D': return now - 86400;
+    case '1W': return now - 7 * 86400;
+    case '1M': return now - 30 * 86400;
+    case '1Y': return now - 365 * 86400;
+    default: return 0; // ALL
+  }
+}
+
+function filterData(history, tf) {
+  var cutoff = getTimeframeCutoff(tf);
+  var filtered = history.filter(function(p) { return p.time >= cutoff; });
+  // Downsample if too many points for chart rendering
+  if (filtered.length > 2000) {
+    var step = Math.ceil(filtered.length / 2000);
+    var sampled = [];
+    for (var i = 0; i < filtered.length; i += step) sampled.push(filtered[i]);
+    // Always include the last point
+    if (sampled[sampled.length - 1] !== filtered[filtered.length - 1]) sampled.push(filtered[filtered.length - 1]);
+    return sampled;
+  }
+  return filtered;
+}
+
+function initChart() {
+  var container = document.getElementById('perfChartContainer');
+  if (!container || typeof LightweightCharts === 'undefined') return;
+
+  chart = LightweightCharts.createChart(container, {
+    layout: {
+      background: { type: 'solid', color: 'transparent' },
+      textColor: '#938f99',
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 10,
+    },
+    grid: {
+      vertLines: { color: 'rgba(147, 143, 153, 0.08)' },
+      horzLines: { color: 'rgba(147, 143, 153, 0.08)' },
+    },
+    rightPriceScale: {
+      borderVisible: false,
+      scaleMargins: { top: 0.1, bottom: 0.05 },
+    },
+    timeScale: {
+      borderVisible: false,
+      timeVisible: true,
+      secondsVisible: false,
+    },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: { color: 'rgba(205, 189, 255, 0.3)', width: 1, style: 2 },
+      horzLine: { color: 'rgba(205, 189, 255, 0.3)', width: 1, style: 2 },
+    },
+    handleScroll: { vertTouchDrag: false },
+  });
+
+  areaSeries = chart.addAreaSeries({
+    lineColor: '#cdbdff',
+    topColor: 'rgba(205, 189, 255, 0.35)',
+    bottomColor: 'rgba(205, 189, 255, 0.02)',
+    lineWidth: 2,
+    priceFormat: { type: 'custom', formatter: function(p) { return '$' + p.toFixed(2); } },
+    crosshairMarkerBackgroundColor: '#cdbdff',
+    crosshairMarkerBorderColor: '#cdbdff',
+    crosshairMarkerRadius: 4,
+  });
+
+  // Resize observer
+  var ro = new ResizeObserver(function() { chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }); });
+  ro.observe(container);
+}
+
+function renderChart(history, tf) {
+  if (!chart || !areaSeries) return;
+  var data = filterData(history, tf);
+  var emptyEl = document.getElementById('perfChartEmpty');
+  if (data.length < 2) {
+    areaSeries.setData([]);
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Collecting data — chart populates as snapshots are recorded'; }
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  // Convert to lightweight-charts format (UTC timestamps)
+  var chartData = data.map(function(p) { return { time: p.time, value: p.value }; });
+  areaSeries.setData(chartData);
+  chart.timeScale().fitContent();
+}
+
+// ─── Timeframe buttons ───
+function setupTimeframeButtons() {
+  var btnContainer = document.getElementById('perfTimeframeBtns');
+  if (!btnContainer) return;
+  var btns = btnContainer.querySelectorAll('button[data-tf]');
+  btns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btns.forEach(function(b) { b.classList.remove('bg-surface-container-highest', 'text-primary'); b.classList.add('text-on-surface-variant'); });
+      btn.classList.add('bg-surface-container-highest', 'text-primary');
+      btn.classList.remove('text-on-surface-variant');
+      currentTimeframe = btn.getAttribute('data-tf');
+      renderChart(loadHistory(), currentTimeframe);
+    });
+  });
+}
+
+// ─── Main: initialize and start polling ───
+initChart();
+setupTimeframeButtons();
+
+// Render whatever history we already have
+var existing = loadHistory();
+if (existing.length >= 2) renderChart(existing, currentTimeframe);
+
+// Poll for new snapshots when wallet connects
+var pollTimer = null;
+function startPolling() {
+  if (pollTimer) return;
+  // Take an immediate snapshot
+  takeSnapshot().then(function(snap) {
+    if (snap && snap.value > 0) {
+      var history = loadHistory();
+      // Avoid duplicate timestamps (don't record more than once per 10s)
+      if (history.length === 0 || snap.time - history[history.length - 1].time >= 10) {
+        history.push(snap);
+        saveHistory(history);
+        renderChart(history, currentTimeframe);
+      }
+    }
+  });
+  pollTimer = setInterval(function() {
+    takeSnapshot().then(function(snap) {
+      if (snap && snap.value > 0) {
+        var history = loadHistory();
+        if (history.length === 0 || snap.time - history[history.length - 1].time >= 10) {
+          history.push(snap);
+          saveHistory(history);
+          renderChart(history, currentTimeframe);
+        }
+      }
+    });
+  }, POLL_INTERVAL);
+}
+
+// Hook into XAuthGate — start polling once wallet connects
+if (typeof XAuthGate !== 'undefined') {
+  var origOnConnect = XAuthGate._onConnect;
+  // Wait for XAuthGate to be ready, then hook
+  var hookInterval = setInterval(function() {
+    if (window.xLeverWallet) {
+      clearInterval(hookInterval);
+      try {
+        var isConnected = typeof window.xLeverWallet.getIsConnectedState === 'function'
+          ? window.xLeverWallet.getIsConnectedState()
+          : window.xLeverWallet.getIsConnected?.();
+        if (isConnected) startPolling();
+      } catch {}
+    }
+  }, 1000);
+  // Also listen for wallet events
+  window.addEventListener('xlever:wallet:connected', startPolling);
+}
 </script>
 </body></html>

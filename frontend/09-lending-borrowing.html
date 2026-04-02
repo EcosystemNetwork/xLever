@@ -864,6 +864,10 @@ function activateLendingPolicy(mode) {
   const policy = configs[mode]
   const dryRun = document.getElementById('dryRunToggle').checked
 
+  if (!window.xLeverLendingAgent) {
+    addLogEntry('error', 'System', 'Lending agent module not loaded');
+    return;
+  }
   window.xLeverLendingAgent.start(policy, {
     log: addLogEntry,
     onStats: updateStats,
@@ -1075,7 +1079,7 @@ function updateLabel(inputId, labelId, suffix, isDollar) {
 
 async function refreshMarketData() {
   try {
-    const res = await fetch('/api/lending/markets')
+    const res = await fetch('/api/lending/markets?chain=ink-sepolia')
     if (!res.ok) return
     const data = await res.json()
 
