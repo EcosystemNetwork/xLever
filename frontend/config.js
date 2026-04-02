@@ -26,7 +26,7 @@ export const CHAIN_ID = injected.chainId || 763373
  */
 export const CONTRACT_ADDRESSES = {
   evc:         '0x9B8d1851bCc06ac265c1c1ACaBD0F71E69DD312c',
-  usdc:        '0x6b57475467cd854d36Be7FB614caDa5207838943',
+  usdc:        '0xFabab97dCE620294D2B0b0e46C68964e326300Ac',
   wSPYx:       '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e',
   wQQQx:       '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
   spyVault:    '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',

@@ -17,14 +17,10 @@ contract DeployAllVaults is Script {
     }
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY_HEX", uint256(0));
-        if (deployerPrivateKey == 0) {
-            string memory pkStr = vm.envString("PRIVATE_KEY");
-            deployerPrivateKey = vm.parseUint(string.concat("0x", pkStr));
-        }
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943;
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac;
         address pythAdapter = 0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f;
 
         // Existing xStock token addresses

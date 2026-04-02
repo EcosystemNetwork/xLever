@@ -17,7 +17,7 @@ contract TestRealisticScenarios is Script { // end-to-end test simulating multip
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); // load deployer key from .env for signing test transactions
         address deployer = vm.addr(deployerPrivateKey); // derive deployer address -- simulates all traders from the same account
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC on Ink Sepolia -- deposit currency for all positions
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC on Ink Sepolia -- deposit currency for all positions
         address spyVault = 0x95822416e61Ad6b45Fc45c7540947b6eF080D5a1; // VaultSimple for wSPYx -- handles SPY leveraged positions
         address qqqVault = 0x1034259f355566fcE4571F792d239a99BBa1b9b4; // VaultSimple for wQQQx -- handles QQQ leveraged positions
 

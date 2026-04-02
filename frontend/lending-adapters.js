@@ -130,9 +130,9 @@ const EULER_ADDRESSES = {
   [CHAINS.INK_SEPOLIA]: {
     evc: '0x0C9a3dd6b8F28529d72d7f9cE918D493519EE383',
     eVaultFactory: '0x29a56a1b8214D9Cf7c5561811750D5cBDb45CC8e',
-    usdc: '0x6b57475467cd854d36Be7FB614caDa5207838943',
+    usdc: '0xFabab97dCE620294D2B0b0e46C68964e326300Ac',
     markets: {
-      USDC: { vault: '0x6b57475467cd854d36Be7FB614caDa5207838943', decimals: 6 },
+      USDC: { vault: '0xFabab97dCE620294D2B0b0e46C68964e326300Ac', decimals: 6 },
       wQQQx: { vault: '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9', decimals: 18 },
       wSPYx: { vault: '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e', decimals: 18 },
       WETH: { vault: null, decimals: 18 },
