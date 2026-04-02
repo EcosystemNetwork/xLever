@@ -19,7 +19,7 @@ contract TestLeverageLooping is Script { // integration test script that validat
         address spyHedging = 0xd0673BeB607CA2136b126d34ED0D3Ff7826c93EE; // V1 hedging module for wSPYx leverage looping
         address qqqHedging = 0x3Bc3c0D268455aD7eAe1432f57f3C24f42EdC7C8; // V1 hedging module for wQQQx leverage looping
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC on Ink Sepolia -- used for short position collateral
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC on Ink Sepolia -- used for short position collateral
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e; // wrapped SP500 on Ink Sepolia -- used for long position collateral
         address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9; // wrapped Nasdaq on Ink Sepolia -- used for short position asset
 

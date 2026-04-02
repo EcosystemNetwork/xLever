@@ -15,7 +15,7 @@ contract SupplyLiquidity is Script { // seeds the USDC vault with lending liquid
         address deployer = vm.addr(deployerPrivateKey); // derive deployer address for deposit recipient and logging
 
         address usdcVault = 0x014ba821525Be6eDd25F3eE7C6A37274382c8047; // V2 USDC vault that lends USDC to leveraged traders
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC token on Ink Sepolia -- the asset being supplied
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC token on Ink Sepolia -- the asset being supplied
 
         console.log("=== Supplying Liquidity to USDC Vault ==="); // visual header for this operation
         console.log("Deployer:", deployer); // confirm which address is supplying

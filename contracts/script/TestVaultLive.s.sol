@@ -15,7 +15,7 @@ contract TestVaultLive is Script { // live integration test that validates Vault
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); // load deployer key from .env for signing test transactions
         address deployer = vm.addr(deployerPrivateKey); // derive deployer address -- acts as the test trader
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC on Ink Sepolia -- deposit currency
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC on Ink Sepolia -- deposit currency
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e; // wrapped SP500 token for reference logging
         address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9; // wrapped Nasdaq token for reference logging
         address spyVault = 0x95822416e61Ad6b45Fc45c7540947b6eF080D5a1; // VaultSimple for wSPYx leveraged positions

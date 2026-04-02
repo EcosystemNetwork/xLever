@@ -22,7 +22,7 @@ interface IVaultSimple {
 
 contract SeedTestData is Script {
     // ── Ink Sepolia addresses ──
-    address constant USDC = 0x6b57475467cd854d36Be7FB614caDa5207838943;
+    address constant USDC = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac;
 
     // Vault addresses from VAULT_REGISTRY
     address constant QQQ_VAULT  = 0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6;

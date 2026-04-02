@@ -24,7 +24,7 @@
  * @type {Object<string, {address: string, decimals: number, symbol: string}>}
  */
 const DEPOSIT_ASSETS = {
-  USDC: { address: '0x6b57475467cd854d36Be7FB614caDa5207838943', decimals: 6, symbol: 'USDC' }
+  USDC: { address: '0xFabab97dCE620294D2B0b0e46C68964e326300Ac', decimals: 6, symbol: 'USDC' }
 };
 
 /** @type {string} Currently selected deposit asset (always 'USDC' for junior tranche) */

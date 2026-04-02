@@ -15,7 +15,7 @@ import {RiskModule} from "../src/xLever/modules/RiskModule.sol";
 contract DeploySimple is Script {
     function run() external {
         // Token addresses on Ink Sepolia
-        address usdc  = 0x6b57475467cd854d36Be7FB614caDa5207838943;
+        address usdc  = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac;
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e;
         address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9;
 

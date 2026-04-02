@@ -30,7 +30,7 @@ CHAINS = {
     "ink-sepolia": {
         "id": 763373,
         "rpc": "https://rpc-gel-sepolia.inkonchain.com",
-        "usdc": "0x6b57475467cd854d36Be7FB614caDa5207838943",
+        "usdc": "0xFabab97dCE620294D2B0b0e46C68964e326300Ac",
         "pyth": "0x2880aB155794e7179c9eE2e38200202908C17B43",
         "vaults": {
             "QQQ": "0xDEC80165b7F26e0EEA3c4fCF9a2B8E3D25a4f792",
@@ -71,7 +71,7 @@ CHAINS = {
     "eth-sepolia": {
         "id": 11155111,
         "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
-        "usdc": "0x6b57475467cd854d36Be7FB614caDa5207838943",
+        "usdc": "0xFabab97dCE620294D2B0b0e46C68964e326300Ac",
         "pyth": "0x2880aB155794e7179c9eE2e38200202908C17B43",
         "vaults": {
             "QQQ": "0x5f212222a7d4dF8E0BE74A1a0595783D94324E8f",

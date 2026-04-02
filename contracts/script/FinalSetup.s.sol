@@ -17,7 +17,7 @@ contract FinalSetup is Script { // final configuration step: sets bidirectional 
         address usdcVault = 0x014ba821525Be6eDd25F3eE7C6A37274382c8047; // V2 USDC vault with oracle support -- lenders deposit USDC here
         address spyVault = 0xe39b100a33f7C861088A9C16642534dd29cDf83d; // V2 wSPYx vault -- collateral vault for SPY-leveraged positions
         address qqqVault = 0xfC78951DcffdD8bDa662Aa7D9c697bE55d53712A; // V2 wQQQx vault -- collateral vault for QQQ-leveraged positions
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC token on Ink Sepolia
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC token on Ink Sepolia
 
         console.log("=== Final Oracle Setup Complete ==="); // header summarizing what this script accomplishes
         console.log("\nDeployed Components:"); // log all deployed component addresses for operator cross-reference

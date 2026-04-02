@@ -66,7 +66,7 @@ EULER_VAULT_SELECTORS = {
 EULER_VAULT_CONFIG = {
     "ink-sepolia": {
         "USDC": {
-            "vault": "0x6b57475467cd854d36Be7FB614caDa5207838943",
+            "vault": "0xFabab97dCE620294D2B0b0e46C68964e326300Ac",
             "decimals": 6,
             "collateralFactor": 0.85,
             "liquidationThreshold": 0.90,

@@ -19,7 +19,7 @@ contract TestLeverageLoopingV2 is Script { // V2 integration test: validates lev
         address spyHedging = 0x268f782B6755F70902930C629A14F3c351C44BE9; // V2 hedging module for wSPYx -- wired to oracle-enabled vaults
         address qqqHedging = 0xcA012c47B8B82512244C2D4eBaf1A8Ca66aA80Ff; // V2 hedging module for wQQQx -- wired to oracle-enabled vaults
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC on Ink Sepolia -- stablecoin used in leverage operations
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC on Ink Sepolia -- stablecoin used in leverage operations
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e; // wrapped SP500 on Ink Sepolia -- leveraged asset
 
         address usdcVault = 0x014ba821525Be6eDd25F3eE7C6A37274382c8047; // V2 USDC vault with oracle -- lending pool for USDC borrows

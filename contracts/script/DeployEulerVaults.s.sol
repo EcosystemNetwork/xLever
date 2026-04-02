@@ -15,7 +15,7 @@ contract DeployEulerVaults is Script { // deploys three Euler vaults (USDC, wSPY
         address evaultImpl = 0xd821A7D919e007b6b39925f672f1219dB4865Fba; // EVault implementation -- all proxies delegatecall into this
         address irm = 0xE91A4B01632a7D281fb3eB0E83Ad9D5F0305d48f; // IRMLinearKink -- interest rate model for all vaults
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC on Ink Sepolia -- lending/borrowing base asset
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC on Ink Sepolia -- lending/borrowing base asset
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e; // wrapped SP500 token -- leveraged trading asset
         address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9; // wrapped Nasdaq token -- leveraged trading asset
 

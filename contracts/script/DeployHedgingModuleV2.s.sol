@@ -14,7 +14,7 @@ contract DeployHedgingModuleV2 is Script { // deploys V2 hedging modules wired t
         address spyVault = 0xe39b100a33f7C861088A9C16642534dd29cDf83d; // V2 wSPYx vault with oracle -- enables oracle-based LTV enforcement
         address qqqVault = 0xfC78951DcffdD8bDa662Aa7D9c697bE55d53712A; // V2 wQQQx vault with oracle -- enables oracle-based LTV enforcement
 
-        address usdc = 0x6b57475467cd854d36Be7FB614caDa5207838943; // USDC token on Ink Sepolia
+        address usdc = 0xFabab97dCE620294D2B0b0e46C68964e326300Ac; // USDC token on Ink Sepolia
         address wSPYx = 0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e; // wrapped SP500 token on Ink Sepolia
         address wQQQx = 0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9; // wrapped Nasdaq token on Ink Sepolia
 

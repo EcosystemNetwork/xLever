@@ -193,7 +193,7 @@ async function main() {
   // ─── Step 5: Seed deposits on QQQ vault (uses old USDC) ───
   header('Step 5: Seed QQQ Vault Deposits')
 
-  const OLD_USDC = '0x6b57475467cd854d36Be7FB614caDa5207838943'
+  const OLD_USDC = '0xFabab97dCE620294D2B0b0e46C68964e326300Ac'
   const oldBal = await publicClient.readContract({ address: OLD_USDC, abi: ERC20_ABI, functionName: 'balanceOf', args: [account.address] })
   log(`Old USDC balance: ${formatUnits(oldBal, 6)}`)
 
