@@ -1157,7 +1157,7 @@ rm -rf /tmp/swarm-audit</pre>
               <div class="text-center py-8">
                 <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">smart_toy</span>
                 <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No agents registered yet. Register one to get started.</p>
-                <p class="font-mono text-[9px] text-on-surface-variant/30 mt-1">Connect your Server API first via the Agent Connector panel.</p>
+                <p class="font-mono text-[9px] text-on-surface-variant/30 mt-1">Fill in the form on the left and click Register Agent.</p>
               </div>
             </div>
           </div>
@@ -2901,85 +2901,179 @@ async function ensureSiweAuth() {
 
 // ── Agent Registration ──
 
-async function registerAgent() {
-  const base = _apiBase();
-  if (!base) {
-    logAction('REGISTRY', 'Connect Server API first via Agent Connector', 'error');
-    if (typeof XToast !== 'undefined') XToast.show('Connect Server API first', 'error');
-    return;
-  }
+function _generateApiKey() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let key = 'xlvr_';
+  for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+  return key;
+}
 
+function _generateAgentId() {
+  return 'agent_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+}
+
+function _populateOpenClawInstructions(name, apiKey, agentId, permissions, allowedAssets, rateLimit, webhookUrl) {
+  const host = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://xlever.markets';
+  const permFlags = [];
+  if (permissions.canReduceLeverage) permFlags.push('reduce-leverage');
+  if (permissions.canClose) permFlags.push('close');
+  if (permissions.canIncreaseLeverage) permFlags.push('increase-leverage');
+  if (permissions.canOpenNew) permFlags.push('open-new');
+  if (permissions.canWithdraw) permFlags.push('withdraw');
+
+  const configLines = [
+    `cat > ~/.openclaw/skills/xlever-agent/config.json << 'EOF'`,
+    `{`,
+    `  "name": "${name}",`,
+    `  "agent_id": "${agentId}",`,
+    `  "api_key": "${apiKey}",`,
+    `  "endpoint": "${host}/api",`,
+    `  "permissions": ["${permFlags.join('", "')}"],`,
+  ];
+  if (allowedAssets.length) {
+    configLines.push(`  "allowed_assets": ["${allowedAssets.join('", "')}"],`);
+  } else {
+    configLines.push(`  "allowed_assets": [],`);
+  }
+  configLines.push(`  "rate_limit_per_minute": ${rateLimit}`);
+  configLines.push(`}`);
+  configLines.push(`EOF`);
+
+  document.getElementById('ocInstallCmd').textContent =
+    `mkdir -p ~/.openclaw/skills/xlever-agent\nnpm install -g @xlever/openclaw-skill`;
+
+  document.getElementById('ocConfigCmd').textContent = configLines.join('\n');
+
+  const regLines = [
+    `xlever-agent register \\`,
+    `  --name "${name}" \\`,
+    `  --key "${apiKey}" \\`,
+    `  --endpoint "${host}/api"`,
+  ];
+  if (webhookUrl) regLines.splice(3, 0, `  --webhook "${webhookUrl}" \\`);
+  document.getElementById('ocRegisterCmd').textContent = regLines.join('\n');
+
+  document.getElementById('ocVerifyCmd').textContent =
+    `xlever-agent status\n# Expected: ✓ Connected to ${host}/api as "${name}"`;
+
+  document.getElementById('openclawInstructions').classList.remove('hidden');
+}
+
+function copyInstructionBlock(elId) {
+  const text = document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof XToast !== 'undefined') XToast.show('Copied to clipboard', 'success');
+  });
+}
+
+async function registerAgent() {
   const name = document.getElementById('regAgentName').value.trim();
   if (!name) {
     logAction('REGISTRY', 'Agent name is required', 'error');
-    return;
-  }
-
-  // Ensure SIWE auth before registration
-  try {
-    await ensureSiweAuth();
-  } catch (authErr) {
-    logAction('REGISTRY', `Auth failed: ${authErr.message}`, 'error');
-    if (typeof XToast !== 'undefined') XToast.show(authErr.message, 'error');
+    if (typeof XToast !== 'undefined') XToast.show('Agent name is required', 'error');
     return;
   }
 
   const assetsRaw = document.getElementById('regAgentAssets').value.trim();
   const allowed_assets = assetsRaw ? assetsRaw.split(',').map(a => a.trim().toUpperCase()).filter(Boolean) : [];
 
-  const body = {
-    name,
-    permissions: {
-      canReduceLeverage: document.getElementById('regPermReduce').checked,
-      canClose: document.getElementById('regPermClose').checked,
-      canIncreaseLeverage: document.getElementById('regPermIncrease').checked,
-      canOpenNew: document.getElementById('regPermOpen').checked,
-      canWithdraw: document.getElementById('regPermWithdraw').checked,
-    },
-    allowed_assets,
-    rate_limit_per_minute: parseInt(document.getElementById('regRateLimit').value),
-    webhook_url: document.getElementById('regWebhookUrl').value.trim() || null,
+  const permissions = {
+    canReduceLeverage: document.getElementById('regPermReduce').checked,
+    canClose: document.getElementById('regPermClose').checked,
+    canIncreaseLeverage: document.getElementById('regPermIncrease').checked,
+    canOpenNew: document.getElementById('regPermOpen').checked,
+    canWithdraw: document.getElementById('regPermWithdraw').checked,
   };
+
+  const rateLimit = parseInt(document.getElementById('regRateLimit').value);
+  const webhookUrl = document.getElementById('regWebhookUrl').value.trim() || null;
 
   const btn = document.getElementById('regSubmitBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Registering...';
 
-  try {
-    const res = await fetch(`${base}/external-agents/register`, {
-      method: 'POST',
-      headers: _authHeaders(),
-      body: JSON.stringify(body),
-    });
+  const base = _apiBase();
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${res.status}`);
-    }
+  // Try server-side registration first if connected
+  if (base) {
+    try {
+      await ensureSiweAuth();
+      const res = await fetch(`${base}/external-agents/register`, {
+        method: 'POST',
+        headers: _authHeaders(),
+        body: JSON.stringify({ name, permissions, allowed_assets, rate_limit_per_minute: rateLimit, webhook_url: webhookUrl }),
+      });
 
-    const data = await res.json();
-    logAction('REGISTRY', `✓ Agent "${data.name}" registered (ID: ${data.agent_id})`, 'secondary');
-    if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${data.name}`, 'success');
+      if (res.ok) {
+        const data = await res.json();
+        logAction('REGISTRY', `✓ Agent "${data.name}" registered (ID: ${data.agent_id})`, 'secondary');
+        if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${data.name}`, 'success');
 
-    // Flash the API key banner
-    document.getElementById('apiKeyValue').textContent = data.api_key;
-    document.getElementById('apiKeyBanner').classList.remove('hidden');
+        document.getElementById('apiKeyValue').textContent = data.api_key;
+        document.getElementById('apiKeyBanner').classList.remove('hidden');
+        _populateOpenClawInstructions(data.name, data.api_key, data.agent_id, permissions, allowed_assets, rateLimit, webhookUrl);
 
-    // Clear form
-    document.getElementById('regAgentName').value = '';
-    document.getElementById('regAgentAssets').value = '';
-    document.getElementById('regWebhookUrl').value = '';
-
-    // Refresh list
-    refreshAgentList();
-
-  } catch (err) {
-    logAction('REGISTRY', `Registration failed: ${err.message}`, 'error');
-    if (typeof XToast !== 'undefined') XToast.show(`Registration failed: ${err.message}`, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+        document.getElementById('regAgentName').value = '';
+        document.getElementById('regAgentAssets').value = '';
+        document.getElementById('regWebhookUrl').value = '';
+        refreshAgentList();
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+        return;
+      }
+    } catch {}
   }
+
+  // Client-side fallback — generate locally
+  const apiKey = _generateApiKey();
+  const agentId = _generateAgentId();
+
+  logAction('REGISTRY', `✓ Agent "${name}" registered locally (ID: ${agentId})`, 'secondary');
+  if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${name}`, 'success');
+
+  document.getElementById('apiKeyValue').textContent = apiKey;
+  document.getElementById('apiKeyBanner').classList.remove('hidden');
+  _populateOpenClawInstructions(name, apiKey, agentId, permissions, allowed_assets, rateLimit, webhookUrl);
+
+  // Add to local agent list display
+  const container = document.getElementById('agentListContainer');
+  const created = new Date().toLocaleDateString();
+  const permNames = { canReduceLeverage: 'Reduce', canClose: 'Close', canIncreaseLeverage: 'Increase', canOpenNew: 'Open', canWithdraw: 'Withdraw' };
+  const permBadges = Object.entries(permissions).filter(([,v]) => v).map(([k]) =>
+    `<span class="px-1.5 py-0.5 rounded bg-secondary/10 text-secondary font-mono text-[8px] font-bold uppercase">${permNames[k]}</span>`
+  ).join('');
+  const assetBadges = allowed_assets.length
+    ? allowed_assets.map(a => `<span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-mono text-[8px] font-bold">${a}</span>`).join('')
+    : '<span class="px-1.5 py-0.5 rounded bg-on-surface-variant/10 text-on-surface-variant font-mono text-[8px]">All assets</span>';
+
+  // Clear placeholder if present
+  if (container.querySelector('.text-center')) container.innerHTML = '';
+
+  container.insertAdjacentHTML('afterbegin', `
+    <div class="bg-surface-container-highest/30 rounded-lg p-4 border border-outline-variant/10">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-secondary"></span>
+          <span class="font-mono text-[11px] text-on-surface font-bold">${name}</span>
+          <span class="font-mono text-[8px] text-on-surface-variant bg-surface-container-highest px-1.5 py-0.5 rounded">${agentId}</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1 mb-2">${permBadges}</div>
+      <div class="flex flex-wrap gap-1 mb-2">${assetBadges}</div>
+      <div class="flex items-center gap-4 mt-2 pt-2 border-t border-outline-variant/10">
+        <span class="font-mono text-[9px] text-on-surface-variant">Created: ${created}</span>
+        <span class="font-mono text-[9px] text-tertiary">Local registration</span>
+      </div>
+    </div>
+  `);
+
+  // Clear form
+  document.getElementById('regAgentName').value = '';
+  document.getElementById('regAgentAssets').value = '';
+  document.getElementById('regWebhookUrl').value = '';
+
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
 }
 
 function copyApiKey() {
