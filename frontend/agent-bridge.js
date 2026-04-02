@@ -107,14 +107,19 @@ const AgentBridge = (() => {
       }
 
       _ws.onclose = () => {
+        const wasConnected = _connected
         _connected = false
-        _log('BRIDGE', 'Disconnected from Python agent', 'yellow-500')
+        if (wasConnected) {
+          _log('BRIDGE', 'Disconnected from Python agent', 'yellow-500')
+        }
         notifySubscribers('disconnected', {})
         scheduleReconnect()
       }
 
-      _ws.onerror = (err) => {
-        _log('BRIDGE', `WebSocket error: ${err.message || 'Connection failed'}`, 'error')
+      _ws.onerror = () => {
+        if (_reconnectAttempts === 0) {
+          _log('BRIDGE', `WebSocket error: Connection to ${CONFIG.WS_URL} failed`, 'error')
+        }
       }
 
     } catch (err) {
@@ -153,7 +158,9 @@ const AgentBridge = (() => {
 
     _reconnectAttempts++
     _reconnectTimer = setTimeout(() => {
-      _log('BRIDGE', `Reconnecting... (attempt ${_reconnectAttempts})`, 'on-surface-variant')
+      if (_reconnectAttempts <= 2) {
+        _log('BRIDGE', `Reconnecting... (attempt ${_reconnectAttempts}/${CONFIG.MAX_RECONNECT_ATTEMPTS})`, 'on-surface-variant')
+      }
       connect({ log: _log })
     }, CONFIG.RECONNECT_INTERVAL)
   }

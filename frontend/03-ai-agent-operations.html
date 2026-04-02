@@ -24,8 +24,8 @@
 <link rel="stylesheet" href="tailwind.css">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script>
-tailwind.config = {
+<script id="tailwind-config">
+if (typeof tailwind !== 'undefined') tailwind.config = {
   darkMode: "class",
   theme: {
     extend: {
@@ -1189,7 +1189,7 @@ rm -rf /tmp/swarm-audit</pre>
           <span class="material-symbols-outlined text-primary text-base">admin_panel_settings</span>
           <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Pre-flight Permission Check</span>
         </div>
-        <div class="p-5 space-y-4">
+        <form class="p-5 space-y-4" onsubmit="event.preventDefault(); checkPermissions();" autocomplete="off">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Action Type</label>
@@ -1219,11 +1219,11 @@ rm -rf /tmp/swarm-audit</pre>
             <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">API Key <span class="text-on-surface-variant/50">(for external agent check)</span></label>
             <input type="password" id="permCheckApiKey" placeholder="xlvr_..." class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
           </div>
-          <button class="w-full py-3 rounded-lg bg-tertiary-container text-on-tertiary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2" onclick="checkPermissions()">
+          <button type="submit" class="w-full py-3 rounded-lg bg-tertiary-container text-on-tertiary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-base">verified_user</span>
             Check Permissions
           </button>
-        </div>
+        </form>
       </div>
 
       <!-- Permission Result -->
@@ -3034,8 +3034,9 @@ async function rotateAgentKey(agentId) {
   const base = _apiBase();
   if (!base) return;
   try {
+    await ensureSiweAuth();
     const res = await fetch(`${base}/external-agents/${agentId}/rotate-key`, {
-      method: 'POST', credentials: 'include',
+      method: 'POST', headers: _authHeaders(),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -3051,15 +3052,16 @@ async function toggleAgentActive(agentId, activate) {
   const base = _apiBase();
   if (!base) return;
   try {
+    await ensureSiweAuth();
     if (activate) {
       await fetch(`${base}/external-agents/${agentId}`, {
-        method: 'PATCH', credentials: 'include',
-        headers: _apiHeaders(),
+        method: 'PATCH',
+        headers: _authHeaders(),
         body: JSON.stringify({ is_active: true }),
       });
     } else {
       await fetch(`${base}/external-agents/${agentId}`, {
-        method: 'DELETE', credentials: 'include',
+        method: 'DELETE', headers: _authHeaders(),
       });
     }
     logAction('REGISTRY', `Agent ${agentId} ${activate ? 'activated' : 'deactivated'}`, activate ? 'secondary' : 'yellow-500');
@@ -3073,8 +3075,9 @@ async function deleteAgent(agentId) {
   const base = _apiBase();
   if (!base) return;
   try {
+    await ensureSiweAuth();
     await fetch(`${base}/external-agents/${agentId}`, {
-      method: 'DELETE', credentials: 'include',
+      method: 'DELETE', headers: _authHeaders(),
     });
     logAction('REGISTRY', `Agent ${agentId} deactivated`, 'error');
     refreshAgentList();
@@ -3093,8 +3096,9 @@ async function refreshHITLQueue() {
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="material-symbols-outlined text-on-surface-variant/50 animate-spin">progress_activity</span></div>';
 
   try {
+    const headers = _siweToken ? { 'Authorization': `Bearer ${_siweToken}` } : {};
     const res = await fetch(`${base}/agent/pending`, {
-      credentials: 'include',
+      headers,
       signal: AbortSignal.timeout(8000),
     });
 
@@ -3172,8 +3176,8 @@ async function approveHITL(decisionId) {
   if (!base) return;
   try {
     const res = await fetch(`${base}/agent/approve/${decisionId}`, {
-      method: 'POST', credentials: 'include',
-      headers: _apiHeaders(),
+      method: 'POST',
+      headers: _authHeaders(),
       body: JSON.stringify({}),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -3190,8 +3194,8 @@ async function rejectHITL(decisionId) {
   if (!base) return;
   try {
     const res = await fetch(`${base}/agent/reject/${decisionId}`, {
-      method: 'POST', credentials: 'include',
-      headers: _apiHeaders(),
+      method: 'POST',
+      headers: _authHeaders(),
       body: JSON.stringify({ reason: 'Rejected from HITL Queue UI' }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -3211,8 +3215,8 @@ async function setHITLMode(mode) {
   }
   try {
     const res = await fetch(`${base}/agent/mode`, {
-      method: 'POST', credentials: 'include',
-      headers: _apiHeaders(),
+      method: 'POST',
+      headers: _authHeaders(),
       body: JSON.stringify({ mode }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -3243,8 +3247,9 @@ async function refreshRunsList() {
     if (status) url.searchParams.set('status', status);
     url.searchParams.set('limit', '20');
 
+    const runHeaders = _siweToken ? { 'Authorization': `Bearer ${_siweToken}` } : {};
     const res = await fetch(url, {
-      credentials: 'include',
+      headers: runHeaders,
       signal: AbortSignal.timeout(8000),
     });
 
@@ -3336,7 +3341,7 @@ async function stopRun(runId) {
   if (!base) return;
   try {
     const res = await fetch(`${base}/agents/runs/${runId}/stop`, {
-      method: 'POST', credentials: 'include',
+      method: 'POST', headers: _authHeaders(),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     logAction('RUNS', `Run #${runId} stopped`, 'yellow-500');
@@ -3381,8 +3386,8 @@ async function checkPermissions() {
     } else if (base) {
       // Browser session permission check
       const res = await fetch(`${base}/agents/permissions/check`, {
-        method: 'POST', credentials: 'include',
-        headers: _apiHeaders(),
+        method: 'POST',
+        headers: _authHeaders(),
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(8000),
       });
