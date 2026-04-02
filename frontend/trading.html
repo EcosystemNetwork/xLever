@@ -281,23 +281,14 @@
       <div class="panel-title">Strategy Details</div>
       <div class="strategy-card">
         <div class="row"><span class="row-label">Underlying</span><span class="row-value" id="underlyingName">QQQ (Nasdaq-100)</span></div>
-        <div class="row"><span class="row-label">Leverage Type</span><span class="row-value">Constant from Entry</span></div>
-        <div class="row"><span class="row-label">Rebalance</span><span class="row-value">On User Adjust</span></div>
-        <div class="row"><span class="row-label">Annual Fee</span><span class="row-value" id="annualFee">1.0% APR</span></div>
-        <div class="row"><span class="row-label">Fee Split</span><span class="row-value">70% Buffer / 20% Insurance / 10% Protocol</span></div>
-        <div class="row"><span class="row-label">Max Leverage</span><span class="row-value">±3.5× (dynamic based on buffer ratio)</span></div>
-        <div class="row"><span class="row-label">Oracle</span><span class="row-value">15-min TWAP (Pyth)</span></div>
+        <div class="row"><span class="row-label">Leverage Type</span><span class="row-value">Fixed from Entry</span></div>
+        <div class="row"><span class="row-label">Vault</span><span class="row-value">VaultSimple (no fees)</span></div>
+        <div class="row"><span class="row-label">Max Leverage</span><span class="row-value">±3.5×</span></div>
+        <div class="row"><span class="row-label">Oracle</span><span class="row-value">Pyth (Hermes pull)</span></div>
+        <div class="row"><span class="row-label">Settlement</span><span class="row-value">USDC</span></div>
       </div>
     </div>
-    <div class="panel-section">
-      <div class="panel-title">Buffer Tranche (Junior)</div>
-      <div class="strategy-card">
-        <div class="row"><span class="row-label">Pool Composition</span><span class="row-value" id="juniorRatio">65% Senior / 35% Junior</span></div>
-        <div class="row"><span class="row-label">Junior APY (est)</span><span class="row-value positive" id="juniorAPY">0.0%</span></div>
-        <div class="row"><span class="row-label">Insurance Fund</span><span class="row-value" id="insuranceFund">$0</span></div>
-        <div class="row"><span class="row-label">Buffer Health</span><span class="row-value" id="bufferHealth">—</span></div>
-      </div>
-    </div>
+    <!-- Junior tranche not deployed in VaultSimple — panel removed -->
     <div class="panel-section">
       <div class="panel-title">Performance Comparison</div>
       <div class="comparison-grid">

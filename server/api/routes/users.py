@@ -20,10 +20,13 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 # POST /api/users/ — register a wallet or return existing user (idempotent upsert)
 @router.post("/", response_model=UserOut)
-async def create_or_get_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Register a wallet address or return existing user (SIWE auth layer goes here)."""
+async def create_or_get_user(body: UserCreate, db: AsyncSession = Depends(get_db), authenticated_wallet: str = Depends(require_auth)):
+    """Register a wallet address or return existing user (requires SIWE auth)."""
     # Normalize to lowercase — Ethereum addresses are case-insensitive but we store consistently
     addr = body.wallet_address.lower()
+    # Enforce that users can only create/get their own wallet records
+    if addr != authenticated_wallet:
+        raise HTTPException(403, "You can only create or access your own wallet record")
     # Check if this wallet is already registered
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()

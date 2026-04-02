@@ -1,20 +1,21 @@
 /**
- * xLever LTAP Backtesting Engine & Trading Terminal
+ * xLever Trading Terminal
  * ──────────────────────────────────────────────────
  * Main application module for the xLever trading terminal (02-trading-terminal.html).
- * Combines:
  *
+ * Live mode:
  *  - Wallet connection via Reown AppKit (connect, disconnect, session restore)
  *  - On-chain balance reads (ETH, USDC, wQQQx, wSPYx) via viem
- *  - Junior tranche deposit/withdraw UI (senior/junior tab switching)
- *  - LTAP backtesting engine: "constant leverage from entry" protocol simulation
- *    with auto-deleverage cascades, circuit breakers, and releveraging logic
- *  - Multi-source OHLCV data pipeline: OpenBB -> Yahoo Finance -> synthetic fallback
+ *  - Position management via modular Vault contracts on Ink Sepolia
+ *  - Real-time Pyth oracle price feeds
+ *
+ * Research mode:
+ *  - Backtesting engine with historical OHLCV data
+ *  - Multi-source data pipeline: OpenBB -> Yahoo Finance -> synthetic fallback
  *  - TradingView Lightweight Charts rendering (area, candlestick, line)
- *  - Portfolio stats: CAGR, Sharpe, max drawdown, vol, fee drag analysis
- *  - Comparison grid: LTAP vs daily-reset (TQQQ-style) vs no-fee
- *  - Custom bidirectional leverage slider with degen mode (up to +/-100x)
- *  - Live/Research mode toggle with on-chain state polling
+ *  - Portfolio stats: CAGR, Sharpe, max drawdown, vol
+ *  - Comparison grid: fixed-entry vs daily-reset (TQQQ-style)
+ *  - Custom bidirectional leverage slider
  *
  * Dependencies:
  *  - window.xLeverContracts (contracts.js) — vault reads/writes
@@ -138,7 +139,7 @@ async function fetchBalances() {
     document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4); // Same 18-decimal format as wQQQx
 
   } catch (error) {
-    console.error('Failed to fetch balances:', error); // Non-fatal: UI still works, user just sees stale balances
+
   }
 }
 
@@ -164,7 +165,7 @@ async function fetchJuniorPosition(vaultAddress) {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      console.log('Vault does not support junior tranche:', vaultAddress);
+
       return null;
     }
 
@@ -205,7 +206,7 @@ async function fetchJuniorPosition(vaultAddress) {
       totalValue: parseFloat(formatUnits(totalValue, 6))
     };
   } catch (error) {
-    console.log('Junior tranche not available for vault:', vaultAddress);
+
     return null;
   }
 }
@@ -232,7 +233,7 @@ async function updateJuniorUI() {
       document.getElementById('juniorTVL').textContent = 'Not Available';
       document.getElementById('juniorPositionWithdraw').textContent = 'Not Available';
       document.getElementById('poolUtilization').textContent = 'N/A';
-      console.log('⚠️ Junior tranche not available on deployed vaults');
+
       return;
     }
 
@@ -261,9 +262,9 @@ async function updateJuniorUI() {
     }
     document.getElementById('poolUtilization').textContent = `${utilization}%`;
 
-    console.log('✓ Junior UI updated');
+
   } catch (error) {
-    console.error('Failed to update junior UI:', error);
+
   }
 }
 
@@ -301,12 +302,12 @@ async function depositJunior() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.\n\nSee DeployFullVault.s.sol script.');
+      alert('Junior tranche deposits are not enabled on the current vaults.');
       return;
     }
 
     // First approve USDC
-    console.log('Approving USDC...');
+
     const approveTx = await walletClient.writeContract({
       address: TOKEN_ADDRESSES.USDC,
       abi: ERC20_ABI,
@@ -316,11 +317,11 @@ async function depositJunior() {
       chain: publicClient.chain
     });
 
-    console.log('Waiting for approval confirmation...');
+
     await publicClient.waitForTransactionReceipt({ hash: approveTx });
 
     // Then deposit
-    console.log('Depositing to junior tranche...');
+
     const depositTx = await walletClient.writeContract({
       address: vaultAddress,
       abi: VAULT_ABI,
@@ -330,7 +331,7 @@ async function depositJunior() {
       chain: publicClient.chain
     });
 
-    console.log('Waiting for deposit confirmation...');
+
     await publicClient.waitForTransactionReceipt({ hash: depositTx });
 
     alert('✓ Junior deposit successful!');
@@ -342,7 +343,7 @@ async function depositJunior() {
     // Clear input
     document.getElementById('depositAmount').value = '';
   } catch (error) {
-    console.error('Junior deposit failed:', error);
+
     alert('Deposit failed: ' + (error.message || 'Unknown error'));
   }
 }
@@ -378,7 +379,7 @@ async function withdrawJunior() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.');
+      alert('Junior tranche withdrawals are not enabled on the current vaults.');
       return;
     }
 
@@ -1924,49 +1925,12 @@ function updateAll() { // Master render function — called on every user intera
   document.getElementById('compNoFee').className = 'comp-return ' + cls(noFeeStats.totalReturn); // Color based on profit/loss
   document.getElementById('compNoFeeTicker').textContent = `${currentTicker} ${signedDisplay}× (No Fees)`; // "(No Fees)" label clarifies this is a hypothetical comparison
 
-  const annualFee = getLTAPFee(absMag); // Calculate the annual fee for the current leverage level — displayed in the fee info panel
-  document.getElementById('annualFee').textContent = (annualFee * 100).toFixed(1) + '% APR'; // Show fee as percentage APR — e.g., "1.0% APR" for 2x leverage
+  // Simulated fee/tranche economics removed — VaultSimple has no fees or junior tranche
+  const annualFee = getLTAPFee(absMag); // kept for backtest comparison only
+  const annualFeeEl = document.getElementById('annualFee');
+  if (annualFeeEl) annualFeeEl.textContent = (annualFee * 100).toFixed(1) + '% APR';
 
-  const totalPool = 10000000; // Assume $10M total vault pool for illustrative fee economics — used only for the junior tranche APY estimate display
-  const juniorRatio = 0.35; // 35% of the pool is junior tranche (first-loss capital) — this ratio determines how much fee income junior depositors earn
-  const juniorDeposits = totalPool * juniorRatio; // Dollar amount in the junior tranche — fee income denominator
-  const seniorDeposits = totalPool * (1 - juniorRatio); // Dollar amount in the senior tranche — these are the leveraged positions paying fees
-  const totalAnnualFees = seniorDeposits * annualFee; // Total fees collected from all senior (leveraged) positions per year
-  const juniorAnnualShare = totalAnnualFees * 0.70; // 70% of fees flow to junior depositors as yield — they bear first-loss risk so they get the lion's share
-  const insuranceAnnualShare = totalAnnualFees * 0.20; // 20% of fees go to the insurance fund — builds a safety buffer for extreme events beyond the junior tranche
-  const juniorAPY = juniorDeposits > 0 ? (juniorAnnualShare / juniorDeposits) * 100 : 0; // Junior tranche APY: their fee income divided by their deposits — higher leverage = higher APY for junior depositors
-  const insuranceAccumulated = insuranceAnnualShare * years; // Total insurance fund accumulation over the backtest period — shows how large the safety buffer grows over time
-
-  document.getElementById('juniorRatio').textContent = `${((1-juniorRatio)*100).toFixed(0)}% Senior / ${(juniorRatio*100).toFixed(0)}% Junior`; // Display the vault composition ratio
-  document.getElementById('juniorAPY').textContent = '+' + juniorAPY.toFixed(1) + '%'; // Junior tranche yield — always positive since it comes from fee income
-  document.getElementById('insuranceFund').textContent = '$' + (insuranceAccumulated / 1000).toFixed(0) + 'k'; // Insurance fund size in thousands — shows the accumulated safety buffer
-
-  const absLev = absMag; // Alias for readability in the buffer requirement calculation
-  let requiredBuffer = 0.20; // Base buffer requirement: 20% junior ratio minimum for leverage up to 1.5x
-  if (absLev > 1.5) requiredBuffer = 0.22; // Higher leverage requires larger junior buffer to absorb potential losses — 22% for >1.5x
-  if (absLev > 2.0) requiredBuffer = 0.25; // 25% buffer for >2x — each step up increases the required first-loss capital
-  if (absLev > 2.5) requiredBuffer = 0.28; // 28% for >2.5x — approaching aggressive territory
-  if (absLev > 3.0) requiredBuffer = 0.30; // 30% for >3x — high leverage needs substantial protection
-  if (absLev > 3.5) requiredBuffer = 0.33; // 33% for >3.5x — near-maximum leverage requires the largest buffer
-
-  let dynamicMax = 3.5; // Dynamic maximum leverage cap — reduces when junior tranche is too thin relative to senior
-  if (juniorRatio < 0.40) dynamicMax = 3.0; // Cap at 3x if junior ratio drops below 40% — insufficient first-loss capital for 3.5x exposure
-  if (juniorRatio < 0.30) dynamicMax = 2.0; // Cap at 2x for <30% — conservative limit when buffer is thin
-  if (juniorRatio < 0.20) dynamicMax = 1.5; // Cap at 1.5x for <20% — near-minimum buffer, only allow minimal leverage
-
-  const bufferHealthy = juniorRatio >= requiredBuffer; // Check if the current junior ratio meets the minimum for the selected leverage
-  const bufferEl = document.getElementById('bufferHealth'); // Buffer health indicator element in the risk panel
-
-  if (absLev > dynamicMax) { // Leverage exceeds the dynamic cap based on current junior ratio — warn the user
-    bufferEl.textContent = '⚠ Exceeds Dynamic Cap (' + dynamicMax.toFixed(1) + '×)'; // Show the actual cap so user knows what's allowed
-    bufferEl.className = 'row-value negative'; // Red warning — this leverage level wouldn't be permitted on-chain
-  } else if (bufferHealthy) { // Junior ratio meets the requirement for the current leverage — all good
-    bufferEl.textContent = '✓ Healthy';
-    bufferEl.className = 'row-value positive'; // Green — buffer is sufficient for this leverage level
-  } else { // Junior ratio is below the requirement — the vault would need more first-loss capital
-    bufferEl.textContent = '⚠ Undercapitalized';
-    bufferEl.className = 'row-value negative'; // Red — leverage is technically allowed but buffer is thin
-  }
+  // Buffer health display removed — junior tranche not deployed in VaultSimple
 
   document.querySelectorAll('.notch-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.lev) === currentLeverage)); // Highlight the quick-select leverage button that matches the current slider value
 
@@ -2512,34 +2476,7 @@ function onLiveStateUpdate(state) {
   document.getElementById('livePoolTVL').textContent = fmtUSD(econ.totalPool);
   document.getElementById('liveDataSource').textContent = econ.source || 'contract';
 
-  // ── Live Buffer Tranche panel ──
-  document.getElementById('liveJuniorRatio').textContent =
-    `${(econ.seniorRatio * 100).toFixed(0)}% Senior / ${(econ.juniorRatio * 100).toFixed(0)}% Junior`;
-  document.getElementById('liveJuniorTVL').textContent = fmtUSD(econ.juniorTotalValue);
-  document.getElementById('liveInsuranceFund').textContent = fmtUSD(econ.insuranceFund);
-  document.getElementById('liveJuniorSharePrice').textContent =
-    econ.juniorSharePrice != null ? '$' + econ.juniorSharePrice.toFixed(4) : '—';
-
-  // Buffer health based on live junior ratio from contract
-  const liveBufferEl = document.getElementById('liveBufferHealth');
-  const absMag = Math.abs(currentLeverage);
-  let requiredBuffer = 0.20;
-  if (absMag > 1.5) requiredBuffer = 0.22;
-  if (absMag > 2.0) requiredBuffer = 0.25;
-  if (absMag > 2.5) requiredBuffer = 0.28;
-  if (absMag > 3.0) requiredBuffer = 0.30;
-  if (absMag > 3.5) requiredBuffer = 0.33;
-
-  if (econ.juniorRatio >= requiredBuffer) {
-    liveBufferEl.textContent = 'Healthy';
-    liveBufferEl.className = 'row-value positive';
-  } else if (econ.totalPool === 0) {
-    liveBufferEl.textContent = 'No deposits';
-    liveBufferEl.className = 'row-value';
-  } else {
-    liveBufferEl.textContent = 'Undercapitalized';
-    liveBufferEl.className = 'row-value negative';
-  }
+  // Live buffer tranche panel removed — junior tranche not deployed in VaultSimple
 
   // ── Live data source info ──
   const rpcInfo = document.getElementById('liveRpcInfo');

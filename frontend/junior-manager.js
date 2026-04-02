@@ -53,7 +53,6 @@ async function fetchJuniorData() {
     }).catch(() => null);
 
     if (!juniorTrancheAddress) {
-      console.log('⚠️ Junior tranche not available');
       return null;
     }
 
@@ -112,7 +111,6 @@ async function fetchJuniorData() {
     ]);
 
     if (!window.viem) {
-      console.error('window.viem not loaded yet — cannot fetch junior data');
       return null;
     }
     const { formatUnits } = window.viem;
@@ -140,7 +138,6 @@ async function fetchJuniorData() {
       const rawLeverage = totalExposureValue / totalSeniorTVL;
       // Sanity check: leverage should be between 0 and 4 for this protocol
       avgLeverage = (rawLeverage > 0 && rawLeverage <= 4) ? rawLeverage : 0;
-      console.log(`Debug avgLeverage: totalExposure=${totalExposureValue}, seniorTVL=${totalSeniorTVL}, raw=${rawLeverage}, final=${avgLeverage}`);
     }
     
     // Fee rates from on-chain FeeEngine (fall back to defaults if contract read failed)
@@ -198,7 +195,6 @@ async function fetchJuniorData() {
       baseFeeRate,
     };
   } catch (error) {
-    console.error('Error fetching junior data:', error);
     return null;
   }
 }
@@ -295,7 +291,6 @@ async function updateJuniorPageUI() {
   if (userSharesEl) userSharesEl.textContent = data.userShares.toFixed(2);
   if (maxLeverageEl) maxLeverageEl.textContent = `${data.maxLeverage.toFixed(1)}×`;
 
-  console.log('✓ Junior page UI updated with real data');
 }
 
 /**
@@ -354,7 +349,6 @@ async function depositJuniorMultiAsset() {
     });
 
     if (currentAllowance < amount) {
-      console.log(`Approving ${asset.symbol} (infinite approval)...`);
       const MAX_UINT256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
       
       const approveTx = await walletClient.writeContract({
@@ -370,11 +364,9 @@ async function depositJuniorMultiAsset() {
 
       await publicClient.waitForTransactionReceipt({ hash: approveTx });
     } else {
-      console.log(`✓ ${asset.symbol} already approved, skipping...`);
     }
 
     // Deposit
-    console.log(`Depositing ${asset.symbol} to junior tranche...`);
     const depositTx = await walletClient.writeContract({
       address: vaultAddress,
       abi: VAULT_ABI,
@@ -386,9 +378,7 @@ async function depositJuniorMultiAsset() {
       maxPriorityFeePerGas: 1000000000n
     });
 
-    console.log('Waiting for deposit confirmation...');
     const receipt = await publicClient.waitForTransactionReceipt({ hash: depositTx });
-    console.log('✓ Deposit confirmed:', receipt);
 
     showToast(`✓ Successfully deposited ${depositAmount} ${asset.symbol}!`, 'success');
     
@@ -396,15 +386,12 @@ async function depositJuniorMultiAsset() {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Refresh UI
-    console.log('Refreshing balances and UI...');
     await fetchBalances();
     await updateAssetUI();
     await updateJuniorPageUI();
-    
+
     document.getElementById('depositAmount').value = '';
-    console.log('✓ UI refreshed');
   } catch (error) {
-    console.error('Junior deposit failed:', error);
     showToast(`Deposit failed: ${error.shortMessage || error.message}`, 'error');
   }
 }
@@ -432,7 +419,6 @@ async function withdrawJunior() {
     const shares = parseUnits(withdrawShares, 6);
     const vaultAddress = VAULT_ADDRESSES[selectedVault];
 
-    console.log(`Withdrawing ${withdrawShares} shares from junior tranche...`);
     const withdrawTx = await walletClient.writeContract({
       address: vaultAddress,
       abi: [{
@@ -450,9 +436,7 @@ async function withdrawJunior() {
       maxPriorityFeePerGas: 1000000000n,
     });
 
-    console.log('Waiting for withdrawal confirmation...');
     const receipt = await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
-    console.log('Withdrawal confirmed:', receipt);
 
     showToast(`Successfully withdrew ${withdrawShares} junior shares!`, 'success');
 
@@ -464,7 +448,6 @@ async function withdrawJunior() {
     const el = document.getElementById('withdrawShares');
     if (el) el.value = '';
   } catch (error) {
-    console.error('Junior withdrawal failed:', error);
     showToast(`Withdrawal failed: ${error.shortMessage || error.message}`, 'error');
   }
 }
@@ -528,7 +511,6 @@ async function updateAssetUI() {
       });
       balanceDisplay.textContent = parseFloat(formatUnits(balance, asset.decimals)).toFixed(4);
     } catch (error) {
-      console.error('Error fetching balance:', error);
       balanceDisplay.textContent = '0.00';
     }
   }
@@ -597,7 +579,6 @@ function initJuniorPage() {
   // Initialize UI with USDC balance
   updateAssetUI();
 
-  console.log('✓ Junior page initialized - USDC only');
 }
 
 // Export functions

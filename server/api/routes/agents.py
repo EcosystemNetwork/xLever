@@ -156,11 +156,15 @@ async def get_agent_run(run_id: int, db: AsyncSession = Depends(get_db)):
 # POST /api/agents/{wallet_address}/runs — start a new AI agent run for a wallet
 @router.post("/{wallet_address}/runs", response_model=AgentRunOut)
 async def create_agent_run(
-    wallet_address: str, body: AgentRunCreate, db: AsyncSession = Depends(get_db)
+    wallet_address: str, body: AgentRunCreate, db: AsyncSession = Depends(get_db),
+    authenticated_wallet: str = Depends(require_auth),
 ):
     """Start a new AI agent run."""
     # Normalize to lowercase because wallet addresses are stored in lowercase
     addr = wallet_address.lower()
+    # Enforce that users can only create agent runs for their own wallet
+    if addr != authenticated_wallet:
+        raise HTTPException(403, "You can only create agent runs for your own wallet")
     # Look up the user — agents must be tied to a registered wallet
     result = await db.execute(select(User).where(User.wallet_address == addr))
     user = result.scalar_one_or_none()

@@ -5,7 +5,7 @@
 <h1 align="center">xLever</h1>
 <p align="center">
   <strong>Fixed-Entry Leverage on Tokenized Assets</strong><br/>
-  -4x to +4x leverage on 33 tokenized equities, ETFs & commodities via Euler V2 EVK
+  -3.5x to +3.5x leverage on 33 tokenized equities, ETFs & commodities via Euler V2 EVK
 </p>
 
 <p align="center">
@@ -37,8 +37,8 @@ No daily rebalancing. No volatility decay. Max loss = your deposit.
 
 1. **Connect** your wallet to Ink Sepolia via [xlever.markets](https://xlever.markets)
 2. **Deposit** USDC into any of 33 asset vaults (QQQ, SPY, AAPL, NVDA, TSLA, and 28 more)
-3. **Set leverage** from -4x (short) to +4x (long) using the slider
-4. **Monitor** your position with real-time Pyth oracle prices, AI-powered risk alerts, and backtesting tools
+3. **Set leverage** from -3.5x (short) to +3.5x (long) using the slider
+4. **Monitor** your position with real-time Pyth oracle prices and backtesting tools
 5. **Withdraw** anytime — PnL is calculated from your entry price, not daily closes
 
 ---
@@ -49,85 +49,54 @@ No daily rebalancing. No volatility decay. Max loss = your deposit.
 # Prerequisites: Node.js 18+, Python 3.10+
 
 # 1. Clone & install
-git clone https://github.com/your-org/xlever.git && cd xlever
+git clone https://github.com/madschristensen99/xLever.git && cd xLever
 npm install
 
-# 2. Configure environment
-cp .env.example .env    # fill in API keys (Pyth, OpenBB, etc.)
-
-# 3. Start the data proxy (Yahoo Finance for backtesting)
+# 2. Start the data proxy (Yahoo Finance for backtesting charts)
 cd server && python3 server.py &
 cd ..
 
-# 4. Launch the frontend
+# 3. Launch the frontend
 npm run dev
 # → http://localhost:3000
 ```
 
-### Optional: Full Backend (positions, auth, lending APIs)
-
-```bash
-# Start PostgreSQL + Redis
-docker compose up -d
-
-# Install Python deps & run FastAPI
-cd server && pip install -r requirements.txt
-uvicorn api.main:app --port 8080
-```
-
 ---
 
-## Platform Overview
-
-xLever is a 10-screen Bloomberg-terminal-style platform:
-
-| # | Screen | What You Can Do |
-|---|--------|----------------|
-| 0 | **Landing** | Connect wallet, see protocol overview, 1Y comparison chart |
-| 1 | **Dashboard** | View portfolio PnL, asset allocation, protocol health metrics |
-| 2 | **Trading Terminal** | Open/close positions, TradingView charts, -4x to +4x leverage |
-| 3 | **AI Agent** | Run autonomous trading agents in 3 policy modes |
-| 4 | **Vault Management** | Deposit/withdraw, view tranche structure, Euler V2 health |
-| 5 | **Risk Management** | Monitor 4-state risk sentinel, circuit breakers, auto-deleverage |
-| 6 | **Analytics** | Backtest LTAP vs daily-reset strategies with real market data |
-| 7 | **Operations** | Transaction history, protocol state, emergency controls |
-| 8 | **Admin** | Platform stats, activity charts, user management |
-| 9 | **Lending** | Cross-chain lending markets (Euler V2 / Kamino / EVAA) |
-
-> See the full [User Guide](docs/USER-GUIDE.md) for detailed walkthroughs of each screen.
-
----
-
-## Architecture
+## Architecture (what's actually running)
 
 ```
-                         xlever.markets
-                              │
-                 ┌────────────┼────────────┐
-                 │            │            │
-          ┌──────┴──────┐ ┌───┴───┐ ┌──────┴──────┐
-          │  Frontend   │ │ Data  │ │  FastAPI    │
-          │  Vite SPA   │ │ Proxy │ │  Backend    │
-          │  10 screens │ │ :8000 │ │  :8080      │
-          └──────┬──────┘ └───────┘ └──────┬──────┘
-                 │                         │
-     ┌───────────┼───────────┐        PostgreSQL
-     │           │           │        + Redis
-  ┌──┴──┐  ┌────┴────┐  ┌───┴───┐
-  │Reown│  │  Pyth   │  │  AI   │
-  │Wallet│  │ Oracle  │  │ Agent │
-  │AppKit│  │ Hermes  │  │ 3 modes│
-  └──┬──┘  └────┬────┘  └───┬───┘
-     │          │            │
-     └──────────┼────────────┘
-                │
-  ┌─────────────┼─────────────┐
-  │    Ink Sepolia (live)     │
-  │    33 VaultSimple vaults  │
-  │    EVC + PythOracleAdapter│
-  │    USDC + wQQQx/wSPYx    │
-  └───────────────────────────┘
+                     xlever.markets
+                          │
+             ┌────────────┼────────────┐
+             │            │            │
+      ┌──────┴──────┐ ┌───┴───┐       │
+      │  Frontend   │ │ Data  │       │
+      │  Vite SPA   │ │ Proxy │       │
+      │  10 screens │ │ :8000 │       │
+      └──────┬──────┘ └───────┘       │
+             │                        │
+ ┌───────────┼───────────┐            │
+ │           │           │            │
+┌──┴──┐  ┌────┴────┐  ┌───┴───┐      │
+│Reown│  │  Pyth   │  │  AI   │      │
+│Wallet│  │ Oracle  │  │ Agent │      │
+│AppKit│  │ Hermes  │  │client │      │
+└──┬──┘  └────┬────┘  └───────┘      │
+   │          │                       │
+   └──────────┼───────────────────────┘
+              │
+┌─────────────┼─────────────┐
+│    Ink Sepolia (live)     │
+│    33 modular Vaults      │
+│    EVC + PythOracleAdapter│
+│    USDC + tokenized assets│
+└───────────────────────────┘
 ```
+
+The **Data Proxy** (`server/server.py`, port 8000) is a lightweight Yahoo Finance CORS proxy used only for backtesting chart data. All trading operations go directly from the browser to the blockchain via viem.
+
+> **Note:** A FastAPI backend with PostgreSQL exists in `server/api/` but is **not deployed** in production. The live site is frontend-only with direct on-chain interactions.
 
 ---
 
@@ -146,17 +115,17 @@ xLever is a 10-screen Bloomberg-terminal-style platform:
 
 **33 assets supported:** QQQ, SPY, VUG, VGK, VXUS, SGOV, SMH, XLE, XOP, ITA, AAPL, NVDA, TSLA, DELL, SMCI, ANET, VRT, SNDK, KLAC, LRCX, AMAT, TER, CEG, GEV, SMR, ETN, PWR, APLD, SLV, PPLT, PALL, STRK, BTGO
 
-Full vault addresses: [`deployment.json`](deployment.json) | [`frontend/contracts.js`](frontend/contracts.js)
+Full vault addresses: [`deployment.json`](deployment.json)
 
 ### Ethereum Sepolia — 33 vaults mirrored
 
 Full mirror deployment on Chain ID 11155111. Frontend supports chain switching.
 
-### Solana (Devnet) — Ready to deploy
+### Solana (Devnet) — Code written, not deployed
 
 Anchor program at [`solana/`](solana/). Mirrors EVM vault logic with Pyth oracle integration.
 
-### TON (Testnet) — Ready to deploy
+### TON (Testnet) — Code written, not deployed
 
 Tact contracts at [`ton/`](ton/). All 33 Pyth feed IDs pre-configured.
 
@@ -164,19 +133,21 @@ Tact contracts at [`ton/`](ton/). All 33 Pyth feed IDs pre-configured.
 
 ## Smart Contracts
 
-| Contract | Status | Description |
-|----------|--------|-------------|
-| **VaultSimple** | Deployed | Deposit, withdraw, adjust leverage, Pyth pricing |
-| **Modular Vault** | Designed | 7 modules: PositionModule, FeeEngine, EulerHedgingModule, RiskModule, TWAPOracle, JuniorTranche, PythOracleAdapter |
+The deployed vaults use the **modular Vault** architecture (via `DeploySimple.s.sol`), with 5 pre-deployed modules per vault:
 
-The modular vault exceeds deployment size limits and is planned for mainnet via proxy patterns. See [Live vs Planned](docs/LIVE-VS-PLANNED.md).
+| Module | Purpose |
+|--------|---------|
+| **TWAPOracle** | 15-min TWAP from Pyth with circuit breaker |
+| **PositionModule** | Position tracking and PnL calculation |
+| **FeeEngine** | Dynamic fee calculation |
+| **JuniorTranche** | First-loss capital layer (module deployed, not yet funded) |
+| **RiskModule** | Health scoring and auto-deleverage triggers |
+
+A simplified `VaultSimple.sol` also exists for local testing (no oracle, no modules).
 
 ```bash
 # Run contract tests
 cd contracts && forge test
-
-# Looping tests
-forge test --match-contract VaultWithLoopingTest -vv
 ```
 
 ---
@@ -185,7 +156,7 @@ forge test --match-contract VaultWithLoopingTest -vv
 
 ### Frontend Agent ([`agent-executor.js`](frontend/agent-executor.js))
 
-Three bounded policy modes running client-side:
+Three bounded policy modes running **client-side** (dry-run by default):
 
 | Mode | Behavior | Can Open Positions? |
 |------|----------|-------------------|
@@ -195,26 +166,41 @@ Three bounded policy modes running client-side:
 
 ### Backend Agent ([`agent/`](agent/))
 
-Autonomous Python agent with 8 safety guardrails, 4 human-in-the-loop modes, Tavily market intelligence, and a backtesting framework. REST API at `/api/autonomous/*`.
-
-### News Intelligence Pipeline
-
-Real-time market intelligence via SSE streaming, multi-analyst sentiment scoring, source verification, and weighted signal aggregation.
+Python agent code exists but is **not deployed** in the live demo.
 
 ---
 
 ## Risk Management
 
-Four-state deterministic sentinel (client-side FSM):
+Four-state deterministic sentinel (**client-side FSM**, not enforced on-chain):
 
 | State | Max Leverage | Behavior |
 |-------|-------------|----------|
 | **NORMAL** | 4.0x | Full operations |
-| **WARNING** | 3.0x | Dynamic fees, elevated monitoring |
+| **WARNING** | 3.0x | Elevated monitoring |
 | **RESTRICTED** | 1.5x | New positions paused |
 | **EMERGENCY** | 0.0x | Withdrawals only |
 
-Transitions based on oracle staleness, price divergence, drawdown, health factor, volatility, and pool utilization. See [Risk Engine docs](docs/RISK-ENGINE.md).
+---
+
+## What's Live vs What's Not
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| 33 modular Vault contracts | **Live on-chain** | Ink Sepolia + Ethereum Sepolia |
+| Pyth oracle prices | **Live** | Real-time Hermes feeds for 30+ assets |
+| Wallet & transactions | **Live** | Real on-chain via Reown AppKit |
+| TradingView charts | **Live** | Real market data via Pyth |
+| Backtesting engine | **Live** | Historical OHLCV from Yahoo Finance (research mode) |
+| Data proxy server | **Live** | Yahoo Finance CORS proxy for backtesting |
+| Risk sentinel | **Client-side only** | Browser FSM, not enforced on-chain |
+| AI agent | **Client-side, dry-run default** | Real tx opt-in, requires private key |
+| FastAPI backend | **Code exists, not deployed** | PostgreSQL + Redis, 66+ endpoints |
+| Junior tranche funding | **Not active** | Module deployed but no junior LPs |
+| Auto-deleverage | **In contract, not triggered** | Requires junior tranche activity |
+| Solana/TON vaults | **Code written, not deployed** | Ready for future deployment |
+| SIWE authentication | **Code exists, not deployed** | Requires FastAPI backend |
+| News intelligence | **Code exists, not deployed** | Requires FastAPI backend |
 
 ---
 
@@ -222,56 +208,12 @@ Transitions based on oracle staleness, price divergence, drawdown, health factor
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Vite 8, Vanilla JS (ES modules), TradingView Lightweight Charts v4 |
-| Styling | Tailwind CSS 4, Bloomberg Terminal aesthetic |
-| Wallet | Reown AppKit v1.8 (Ethereum, Ink Sepolia, Solana, TON) |
-| Blockchain | viem v2, wagmi v3, @solana/web3.js, @ton/ton |
-| Contracts | Solidity ^0.8.0, Foundry, Euler V2 EVK + EVC |
+| Frontend | Vite, Vanilla JS (ES modules), TradingView Lightweight Charts v4 |
+| Styling | Tailwind CSS, Bloomberg Terminal aesthetic |
+| Wallet | Reown AppKit (Ethereum, Ink Sepolia, Solana, TON) |
+| Blockchain | viem, Solidity ^0.8.0, Foundry, Euler V2 EVK + EVC |
 | Oracle | Pyth Network (Hermes pull-oracle, 30+ feeds) |
-| Backend | Python FastAPI, PostgreSQL 16, Redis 7 |
-| Intelligence | OpenBB Platform, Tavily AI, LLM Analyst |
-| Auth | SIWE (Sign-In with Ethereum) |
-
----
-
-## API Reference
-
-**Data Proxy** ([`server/server.py`](server/server.py) — port 8000): Yahoo Finance CORS proxy for backtesting.
-
-**FastAPI Backend** ([`server/api/main.py`](server/api/main.py) — port 8080):
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/auth/siwe` | Wallet-based authentication |
-| `GET /api/positions/{wallet}` | Position history & tracking |
-| `GET /api/lending/markets` | Multi-chain lending market data |
-| `GET /api/lending/positions/{wallet}` | Cross-chain lending positions |
-| `GET/POST /api/agents/{wallet}/runs` | Agent execution history |
-| `GET /api/openbb/quote/{symbol}` | Real-time quotes via OpenBB |
-| `GET /api/news/trending` | Trending news & sentiment |
-| `SSE /api/news/stream` | Real-time news stream |
-| `GET /api/prices/{symbol}` | Real-time + historical prices |
-| `GET /api/alerts` | Risk alert management |
-| `GET /api/admin/stats` | Platform statistics |
-| `GET /api/live/oracle` | Live oracle feeds |
-| `GET /api/live/risk` | Live risk state |
-
----
-
-## What's Real vs Simulated
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| Smart contracts (33 vaults) | **Live** | Deployed on Ink Sepolia + Ethereum Sepolia |
-| Pyth oracle prices | **Live** | Real-time Hermes feeds for 30+ assets |
-| Backtesting data | **Live** | Historical OHLCV from Yahoo Finance |
-| Wallet & transactions | **Live** | Real on-chain via Reown AppKit |
-| TradingView charts | **Live** | Real market data |
-| Risk sentinel | **Client-side** | Deterministic FSM, not enforced on-chain |
-| AI agent | **Dry-run default** | Real tx opt-in, requires private key |
-| Junior tranche | **Designed** | In experimental contracts, not deployed |
-| Auto-deleverage | **Designed** | In experimental contracts, not deployed |
-| Solana/TON vaults | **Ready** | Programs written, not yet deployed |
+| Data proxy | Python HTTP server (Yahoo Finance CORS proxy) |
 
 ---
 
@@ -279,51 +221,19 @@ Transitions based on oracle staleness, price divergence, drawdown, health factor
 
 ```
 xLever/
-├── frontend/              # Vite SPA — 10 HTML screens, 34 JS modules
-├── contracts/             # Solidity — VaultSimple (deployed) + experimental modules
-├── server/                # Python data proxy + FastAPI backend
-├── agent/                 # Autonomous Python AI agent (14 subdirectories)
+├── frontend/              # Vite SPA — 10 HTML screens, JS modules
+├── contracts/             # Solidity — modular Vault (deployed) + VaultSimple (testing)
+├── server/
+│   ├── server.py          # Data proxy (Yahoo Finance CORS) — deployed
+│   └── api/               # FastAPI backend — code exists, not deployed
+├── agent/                 # Python AI agent — code exists, not deployed
 ├── solana/                # Anchor program (Solana port)
 ├── ton/                   # Tact contracts (TON port)
 ├── docs/                  # Documentation suite
-│   ├── USER-GUIDE.md      # End-user walkthrough
-│   ├── GETTING-STARTED.md # Quick start for new users
-│   ├── PROTOCOL.md        # Core protocol mechanics
-│   ├── SMART-CONTRACTS.md # Contract reference & addresses
-│   ├── FRONTEND.md        # UI architecture & modules
-│   ├── RISK-ENGINE.md     # Risk sentinel & auto-deleverage
-│   ├── API-INTEGRATIONS.md# Oracle, data, backend APIs
-│   ├── MULTI-CHAIN-LENDING.md # Cross-chain lending adapters
-│   ├── DEPLOYMENT.md      # Build & deployment guide
-│   ├── LIVE-VS-PLANNED.md # Deployed vs designed
-│   ├── FAQ.md             # Frequently asked questions
-│   ├── GLOSSARY.md        # Protocol terminology
-│   └── TROUBLESHOOTING.md # Common issues & solutions
 ├── deployment.json        # Machine-readable vault manifest
 ├── vite.config.js         # Vite multi-page build config
-└── docker-compose.yml     # PostgreSQL + Redis orchestration
+└── docker-compose.yml     # PostgreSQL + Redis (for local FastAPI dev)
 ```
-
----
-
-## Documentation
-
-| Doc | For | Link |
-|-----|-----|------|
-| **User Guide** | End users | [docs/USER-GUIDE.md](docs/USER-GUIDE.md) |
-| **Getting Started** | New users | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) |
-| **FAQ** | Everyone | [docs/FAQ.md](docs/FAQ.md) |
-| **Glossary** | Everyone | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
-| **Troubleshooting** | Users & devs | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
-| **Protocol Mechanics** | Developers | [docs/PROTOCOL.md](docs/PROTOCOL.md) |
-| **Smart Contracts** | Developers | [docs/SMART-CONTRACTS.md](docs/SMART-CONTRACTS.md) |
-| **Frontend Guide** | Developers | [docs/FRONTEND.md](docs/FRONTEND.md) |
-| **Risk Engine** | Developers | [docs/RISK-ENGINE.md](docs/RISK-ENGINE.md) |
-| **API Integrations** | Developers | [docs/API-INTEGRATIONS.md](docs/API-INTEGRATIONS.md) |
-| **Multi-Chain Lending** | Developers | [docs/MULTI-CHAIN-LENDING.md](docs/MULTI-CHAIN-LENDING.md) |
-| **Deployment** | DevOps | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| **Architecture** | Developers | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| **Live vs Planned** | Everyone | [docs/LIVE-VS-PLANNED.md](docs/LIVE-VS-PLANNED.md) |
 
 ---
 
@@ -333,7 +243,6 @@ xLever/
 |------|---------|
 | Claude Code | Code generation, architecture design, documentation |
 | Stitch MCP | UI/UX design system and screen generation |
-| Perplexity API | Real-time market intelligence (in-app integration) |
 
 All AI-generated code was reviewed and integrated by the team.
 

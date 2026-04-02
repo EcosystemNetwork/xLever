@@ -160,7 +160,7 @@
 <script>XNav.init('trading');</script>
 
 <!-- ═══ MAIN LAYOUT: Chart + Order Panel ═══ -->
-<div class="flex h-[calc(100vh-200px)] overflow-hidden" style="margin-top:60px">
+<div class="flex h-[calc(100vh-72px-8rem-2rem)] overflow-hidden" style="margin-top:72px">
 <main class="flex-grow flex flex-col md:flex-row overflow-hidden bg-background">
 
 <!-- ===== CHART AREA (70% width) =====
@@ -466,14 +466,14 @@
 
 <!-- Fee + oracle info (compact) -->
 <div class="flex justify-between text-[10px] text-outline">
-<span>Fee: <span class="mono text-on-surface" id="annual-fee-display">0% APR</span></span>
-<span>Oracle: <span class="mono text-on-surface">TWAP (Pyth)</span></span>
+<span>Fee: <span class="mono text-on-surface" id="annual-fee-display">None (VaultSimple)</span></span>
+<span>Oracle: <span class="mono text-on-surface">Pyth</span></span>
 </div>
 
-<!-- No liquidation badge (compact inline) -->
+<!-- Vault info badge -->
 <div class="flex items-center gap-2 text-[10px] text-primary">
 <span class="material-symbols-outlined text-[14px]" data-icon="verified_user">verified_user</span>
-<span class="font-medium">No liquidation risk — socialized via Junior tranche</span>
+<span class="font-medium">Max loss = your deposit (no debt positions)</span>
 </div>
 
 <!-- Vault Readiness Panel -->
@@ -508,45 +508,12 @@ Open Position
   <span class="material-symbols-outlined text-[14px] group-open:rotate-180 transition-transform">expand_more</span>
 </summary>
 <div class="px-5 pb-3 space-y-1.5">
-<div class="flex justify-between text-[10px]"><span class="text-outline">Leverage Type</span><span class="mono text-on-surface">Constant from Entry</span></div>
-<div class="flex justify-between text-[10px]"><span class="text-outline">Fee Split</span><span class="mono text-on-surface text-right" id="feeSplitDisplay">- / - / -</span></div>
-<div class="flex justify-between text-[10px]"><span class="text-outline">Rebalance</span><span class="mono text-on-surface">On User Adjust</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Leverage Type</span><span class="mono text-on-surface">Fixed from Entry</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Vault Type</span><span class="mono text-on-surface">VaultSimple (no fees)</span></div>
+<div class="flex justify-between text-[10px]"><span class="text-outline">Settlement</span><span class="mono text-on-surface">USDC</span></div>
 </div>
 </details>
-<details class="group border-t border-outline-variant/5">
-<summary class="flex items-center justify-between px-5 py-2.5 cursor-pointer text-[10px] uppercase font-bold text-outline tracking-wider hover:text-on-surface transition-colors">
-  <span>Tranche Health</span>
-  <span class="material-symbols-outlined text-[14px] group-open:rotate-180 transition-transform">expand_more</span>
-</summary>
-<div class="px-5 pb-3 space-y-1.5">
-<div class="flex justify-between text-[10px]"><span class="text-outline">Pool Structure</span><span class="mono text-on-surface" id="poolStructureDisplay">0% Senior / 0% Junior</span></div>
-<div class="flex justify-between text-[10px]"><span class="text-outline">Junior APY</span><span class="mono text-tertiary font-bold">Dynamic</span></div>
-<div class="flex justify-between text-[10px]"><span class="text-outline">Buffer Health</span><span class="mono text-tertiary font-bold">Healthy</span></div>
-<div class="flex justify-between text-[10px]"><span class="text-outline">Insurance Fund</span><span class="mono text-on-surface" id="insuranceFundDisplay">$0</span></div>
-</div>
-</details>
-<details class="group border-t border-outline-variant/5">
-<summary class="flex items-center justify-between px-5 py-2.5 cursor-pointer text-[10px] uppercase font-bold text-outline tracking-wider hover:text-on-surface transition-colors">
-  <span>Order Book</span>
-  <span class="mono text-[10px] text-outline mr-auto ml-2" id="orderBookSpread">Spread: -</span>
-  <span class="material-symbols-outlined text-[14px] group-open:rotate-180 transition-transform">expand_more</span>
-</summary>
-<div class="px-5 pb-3">
-<div class="flex flex-col h-28 overflow-hidden font-mono text-[9px]">
-<div class="flex-grow flex flex-col-reverse justify-end">
-<div class="flex justify-between py-0.5"><span class="text-error" id="askPrice1">-</span><span class="text-outline" id="askSize1">-</span></div>
-<div class="flex justify-between py-0.5"><span class="text-error" id="askPrice2">-</span><span class="text-outline" id="askSize2">-</span></div>
-</div>
-<div class="bg-surface-container-highest/30 py-1 px-2 flex justify-center items-center border-y border-outline-variant/10">
-<span class="mono text-xs font-bold text-tertiary" id="orderBookMidPrice">-</span>
-</div>
-<div class="flex-grow flex flex-col justify-start">
-<div class="flex justify-between py-0.5"><span class="text-tertiary" id="bidPrice1">-</span><span class="text-outline" id="bidSize1">-</span></div>
-<div class="flex justify-between py-0.5"><span class="text-tertiary" id="bidPrice2">-</span><span class="text-outline" id="bidSize2">-</span></div>
-</div>
-</div>
-</div>
-</details>
+<!-- Tranche Health and Order Book removed — not part of shipped VaultSimple flow -->
 <!-- Buying power (moved from removed sidebar) -->
 <div class="px-5 py-3 border-t border-outline-variant/5">
 <div class="flex justify-between text-[10px] text-outline">
@@ -597,41 +564,12 @@ Open Position
 <th class="px-4 py-2">Leverage</th>
 <th class="px-4 py-2">Entry</th>
 <th class="px-4 py-2">Mark</th>
-<th class="px-4 py-2">P/L (Socialized)</th>
+<th class="px-4 py-2">P/L</th>
 <th class="px-4 py-2 text-right">Action</th>
 </tr>
 </thead>
 <tbody class="mono text-[11px]" id="positionsTbody">
-<tr class="hover:bg-surface-container transition-colors group">
-<td class="px-4 py-2.5 font-headline font-bold text-on-surface">QQQx 3×</td>
-<td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
-<td class="px-4 py-2.5 text-on-surface">10,000.00 USDC</td>
-<td class="px-4 py-2.5 text-outline">+2.00x</td>
-<td class="px-4 py-2.5 text-outline">$0.00</td>
-<td class="px-4 py-2.5 text-on-surface">$0.00</td>
-<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
-<td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
-</tr>
-<tr class="hover:bg-surface-container transition-colors group border-t border-outline-variant/5">
-<td class="px-4 py-2.5 font-headline font-bold text-on-surface">NVDAx 2×</td>
-<td class="px-4 py-2.5"><span class="bg-error/10 text-error px-1.5 py-0.5 rounded-sm font-bold">SHORT</span></td>
-<td class="px-4 py-2.5 text-on-surface">5,450.00 USDC</td>
-<td class="px-4 py-2.5 text-outline">-4.00x</td>
-<td class="px-4 py-2.5 text-outline">$0.00</td>
-<td class="px-4 py-2.5 text-on-surface">$0.00</td>
-<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
-<td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
-</tr>
-<tr class="hover:bg-surface-container transition-colors group border-t border-outline-variant/5">
-<td class="px-4 py-2.5 font-headline font-bold text-on-surface">SPYx 2×</td>
-<td class="px-4 py-2.5"><span class="bg-tertiary/10 text-tertiary px-1.5 py-0.5 rounded-sm font-bold">LONG</span></td>
-<td class="px-4 py-2.5 text-on-surface">8,000.00 USDC</td>
-<td class="px-4 py-2.5 text-outline">+2.00x</td>
-<td class="px-4 py-2.5 text-outline">$0.00</td>
-<td class="px-4 py-2.5 text-on-surface">$0.00</td>
-<td class="px-4 py-2.5 text-on-surface font-bold">$0.00 <span class="text-[9px] ml-1">(0%)</span></td>
-<td class="px-4 py-2.5 text-right"><button class="bg-surface-container-highest px-3 py-1 hover:text-white rounded-sm text-[10px] uppercase font-bold">Adjust</button></td>
-</tr>
+<!-- Real positions populated from contract reads when wallet connected -->
 </tbody>
 </table>
 </div>

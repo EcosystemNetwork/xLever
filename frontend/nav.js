@@ -3,7 +3,6 @@
  */
 const XNav = (() => {
   const PAGES = [
-    { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html' },
     { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html' },
     { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html' },
     { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html' },

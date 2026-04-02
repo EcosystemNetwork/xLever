@@ -723,18 +723,9 @@ const XLeverage = (() => {
     }
   }
 
-  // Updates the annual fee display based on the current leverage magnitude
+  // VaultSimple has no fees — fee display is static
   function updateOrderDetails() {
-    // Find the fee display element
-    const feeEl = document.getElementById('annual-fee-display');
-    if (feeEl) {
-      // Fee scales with leverage: base 0.5% at 1x, +0.5% per additional 1x
-      const absLev = Math.abs(currentLeverage);
-      // No fee at 0x leverage; otherwise compute the tiered fee rate
-      const fee = absLev <= 0 ? 0 : (0.5 + 0.5 * (absLev - 1)).toFixed(1);
-      // Display as annual percentage rate
-      feeEl.textContent = `${fee}% APR`;
-    }
+    // No-op: VaultSimple charges no fees, display stays as "None (VaultSimple)"
   }
 
   // Expose init and a getter for the current leverage value

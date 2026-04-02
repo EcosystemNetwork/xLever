@@ -595,10 +595,91 @@ tailwind.config = {
 
   </section>
 
-  <!-- ===== RIGHT COLUMN (3/12): Agent Chat + Action Log ===== -->
+  <!-- ===== RIGHT COLUMN (3/12): Agent Connector + Prompt Channel + Action Log ===== -->
   <section class="lg:col-span-3 flex flex-col h-full" style="min-height: 680px;">
 
-    <!-- Agent Chat Window -->
+    <!-- ===== SECTION: Agent Connector Panel =====
+         Connection management for all agent backends:
+         Server API, Python Agent WebSocket, Swarm Protocol, OpenClaw AI.
+         Shows live status, allows connect/disconnect, endpoint override. -->
+    <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 shadow-2xl mb-2">
+      <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between cursor-pointer" onclick="toggleConnectorPanel()">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-sm">cable</span>
+          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Agent Connector</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" id="connectorMasterDot" style="background:#948ea1"></span>
+          <span class="font-mono text-[9px] uppercase" id="connectorMasterLabel">0/4 Online</span>
+          <span class="material-symbols-outlined text-on-surface-variant text-sm transition-transform" id="connectorChevron">expand_more</span>
+        </div>
+      </div>
+      <div id="connectorBody" class="p-3 space-y-2">
+
+        <!-- Server API -->
+        <div class="flex items-center gap-2 p-2 bg-surface-container-highest/20 rounded">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" id="connServerDot" style="background:#948ea1"></span>
+          <div class="flex-1 min-w-0">
+            <span class="font-mono text-[10px] text-on-surface font-bold block">Server API</span>
+            <span class="font-mono text-[9px] text-on-surface-variant truncate block" id="connServerUrl">—</span>
+          </div>
+          <button class="px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors" id="connServerBtn" onclick="toggleServerConnection()">Connect</button>
+        </div>
+
+        <!-- Python Agent WebSocket -->
+        <div class="flex items-center gap-2 p-2 bg-surface-container-highest/20 rounded">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" id="connPythonDot" style="background:#948ea1"></span>
+          <div class="flex-1 min-w-0">
+            <span class="font-mono text-[10px] text-on-surface font-bold block">Python Agent</span>
+            <span class="font-mono text-[9px] text-on-surface-variant truncate block" id="connPythonUrl">—</span>
+          </div>
+          <button class="px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors" id="connPythonBtn" onclick="togglePythonConnection()">Connect</button>
+        </div>
+
+        <!-- Swarm Protocol -->
+        <div class="flex items-center gap-2 p-2 bg-surface-container-highest/20 rounded">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" id="connSwarmDot" style="background:#948ea1"></span>
+          <div class="flex-1 min-w-0">
+            <span class="font-mono text-[10px] text-on-surface font-bold block">Swarm Protocol</span>
+            <span class="font-mono text-[9px] text-on-surface-variant truncate block" id="connSwarmUrl">—</span>
+          </div>
+          <button class="px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors" id="connSwarmBtn" onclick="toggleSwarmConnection()">Connect</button>
+        </div>
+
+        <!-- OpenClaw AI -->
+        <div class="flex items-center gap-2 p-2 bg-surface-container-highest/20 rounded">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" id="connClawDot" style="background:#948ea1"></span>
+          <div class="flex-1 min-w-0">
+            <span class="font-mono text-[10px] text-on-surface font-bold block">OpenClaw AI</span>
+            <span class="font-mono text-[9px] text-on-surface-variant truncate block" id="connClawUrl">—</span>
+          </div>
+          <button class="px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors" id="connClawBtn" onclick="toggleClawConnection()">Connect</button>
+        </div>
+
+        <!-- Endpoint Override -->
+        <details class="mt-1">
+          <summary class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider cursor-pointer hover:text-on-surface">Override Endpoints</summary>
+          <div class="mt-2 space-y-1.5">
+            <div>
+              <label class="font-mono text-[8px] text-on-surface-variant uppercase block mb-0.5">Server API</label>
+              <input type="text" id="endpointServer" placeholder="http://localhost:8080/api" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded px-2 py-1 font-mono text-[10px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="font-mono text-[8px] text-on-surface-variant uppercase block mb-0.5">Python Agent WS</label>
+              <input type="text" id="endpointPython" placeholder="ws://localhost:8765" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded px-2 py-1 font-mono text-[10px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="font-mono text-[8px] text-on-surface-variant uppercase block mb-0.5">OpenClaw URL</label>
+              <input type="text" id="endpointClaw" placeholder="http://localhost:3000/chat" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded px-2 py-1 font-mono text-[10px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
+            </div>
+            <button class="w-full py-1.5 rounded bg-surface-container-highest hover:bg-surface-bright text-[9px] font-mono font-bold uppercase transition-colors" onclick="applyEndpointOverrides()">Apply & Reconnect</button>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+    <!-- Agent Chat / Prompt Channel -->
     <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 flex flex-col shadow-2xl" style="min-height: 420px;">
       <!-- Chat Header -->
       <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
@@ -1648,6 +1729,330 @@ function connectOpenClaw(url) {
 
 // Initialize Swarm connector after page loads
 document.addEventListener('DOMContentLoaded', initSwarmConnector);
+
+// ═══════════════════════════════════════════════════════════
+// AGENT CONNECTOR PANEL
+// ═══════════════════════════════════════════════════════════
+
+const ConnectorState = {
+  server: { connected: false, url: null },
+  python: { connected: false, url: null },
+  swarm: { connected: false, url: null },
+  claw: { connected: false, url: null },
+  collapsed: false,
+  healthInterval: null,
+};
+
+function toggleConnectorPanel() {
+  ConnectorState.collapsed = !ConnectorState.collapsed;
+  document.getElementById('connectorBody').classList.toggle('hidden', ConnectorState.collapsed);
+  document.getElementById('connectorChevron').textContent = ConnectorState.collapsed ? 'expand_more' : 'expand_less';
+}
+
+function updateConnectorMaster() {
+  const online = [ConnectorState.server, ConnectorState.python, ConnectorState.swarm, ConnectorState.claw].filter(c => c.connected).length;
+  document.getElementById('connectorMasterLabel').textContent = `${online}/4 Online`;
+  const dot = document.getElementById('connectorMasterDot');
+  dot.style.background = online === 0 ? '#948ea1' : online < 3 ? '#ffa726' : '#05e777';
+}
+
+function setConnectorStatus(key, connected, url) {
+  ConnectorState[key].connected = connected;
+  ConnectorState[key].url = url || ConnectorState[key].url;
+  const dotEl = document.getElementById(`conn${key.charAt(0).toUpperCase() + key.slice(1)}Dot`);
+  const urlEl = document.getElementById(`conn${key.charAt(0).toUpperCase() + key.slice(1)}Url`);
+  const btnEl = document.getElementById(`conn${key.charAt(0).toUpperCase() + key.slice(1)}Btn`);
+  if (dotEl) dotEl.style.background = connected ? '#05e777' : '#948ea1';
+  if (urlEl) urlEl.textContent = url || (connected ? 'Connected' : '—');
+  if (btnEl) {
+    btnEl.textContent = connected ? 'Disconnect' : 'Connect';
+    btnEl.className = connected
+      ? 'px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors'
+      : 'px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors';
+  }
+  updateConnectorMaster();
+}
+
+// ── Server API ──
+async function toggleServerConnection() {
+  if (ConnectorState.server.connected) {
+    ConnectorState.server.connected = false;
+    setConnectorStatus('server', false);
+    logAction('CONNECTOR', 'Disconnected from Server API', 'yellow-500');
+    return;
+  }
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+  const override = document.getElementById('endpointServer')?.value.trim();
+  const baseUrl = override || (isLocal ? 'http://localhost:8080/api' : 'https://api.xlever.markets/api');
+  logAction('CONNECTOR', `Connecting to Server API at ${baseUrl}...`, 'primary');
+  try {
+    const res = await fetch(`${baseUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(5000) }).catch(() => null);
+    if (res && res.ok) {
+      ConnectorState.server.baseUrl = baseUrl;
+      setConnectorStatus('server', true, baseUrl);
+      logAction('CONNECTOR', `✓ Server API connected — ${baseUrl}`, 'secondary');
+    } else {
+      // Try the agents endpoint as fallback health check
+      const res2 = await fetch(`${baseUrl}/agents/health`, { method: 'GET', signal: AbortSignal.timeout(5000) }).catch(() => null);
+      if (res2 && (res2.ok || res2.status === 404)) {
+        ConnectorState.server.baseUrl = baseUrl;
+        setConnectorStatus('server', true, baseUrl);
+        logAction('CONNECTOR', `✓ Server API connected (no /health) — ${baseUrl}`, 'secondary');
+      } else {
+        setConnectorStatus('server', false, baseUrl);
+        logAction('CONNECTOR', `✗ Server API unreachable at ${baseUrl}`, 'error');
+      }
+    }
+  } catch (err) {
+    setConnectorStatus('server', false, baseUrl);
+    logAction('CONNECTOR', `✗ Server API error: ${err.message}`, 'error');
+  }
+}
+
+// ── Python Agent WebSocket ──
+function togglePythonConnection() {
+  if (ConnectorState.python.connected) {
+    if (window.AgentBridge) AgentBridge.disconnect();
+    setConnectorStatus('python', false);
+    logAction('CONNECTOR', 'Disconnected from Python Agent', 'yellow-500');
+    return;
+  }
+  const override = document.getElementById('endpointPython')?.value.trim();
+  if (override && window.AgentBridge) {
+    // Reconnect with custom URL — AgentBridge handles this via its CONFIG
+    window.AgentBridge._overrideWsUrl = override;
+  }
+  initPythonAgentBridge();
+  logAction('CONNECTOR', 'Attempting Python Agent connection...', 'primary');
+}
+
+// ── Swarm Protocol ──
+function toggleSwarmConnection() {
+  if (ConnectorState.swarm.connected) {
+    if (window.SwarmConnector) SwarmConnector.disconnect();
+    swarmConnected = false;
+    setConnectorStatus('swarm', false);
+    logAction('CONNECTOR', 'Disconnected from Swarm Protocol', 'yellow-500');
+    return;
+  }
+  initSwarmConnector();
+  logAction('CONNECTOR', 'Attempting Swarm connection...', 'primary');
+}
+
+// ── OpenClaw AI ──
+async function toggleClawConnection() {
+  if (ConnectorState.claw.connected) {
+    setConnectorStatus('claw', false);
+    logAction('CONNECTOR', 'Disconnected from OpenClaw AI', 'yellow-500');
+    return;
+  }
+  const override = document.getElementById('endpointClaw')?.value.trim();
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+  const clawUrl = override || (isLocal ? 'http://localhost:3000/chat' : null);
+  if (!clawUrl) {
+    logAction('CONNECTOR', 'No OpenClaw URL configured', 'error');
+    return;
+  }
+  logAction('CONNECTOR', `Connecting to OpenClaw at ${clawUrl}...`, 'primary');
+  try {
+    const res = await fetch(clawUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'ping', history: [] }),
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
+    if (res && (res.ok || res.status < 500)) {
+      if (window.SwarmBridge) window.SwarmBridge.setOpenClawUrl(clawUrl);
+      setConnectorStatus('claw', true, clawUrl);
+      logAction('CONNECTOR', `✓ OpenClaw AI connected — ${clawUrl}`, 'secondary');
+    } else {
+      setConnectorStatus('claw', false, clawUrl);
+      logAction('CONNECTOR', `✗ OpenClaw unreachable at ${clawUrl}`, 'error');
+    }
+  } catch (err) {
+    setConnectorStatus('claw', false, clawUrl);
+    logAction('CONNECTOR', `✗ OpenClaw error: ${err.message}`, 'error');
+  }
+}
+
+function applyEndpointOverrides() {
+  // Disconnect all then reconnect with new endpoints
+  if (ConnectorState.server.connected) toggleServerConnection();
+  if (ConnectorState.python.connected) togglePythonConnection();
+  if (ConnectorState.swarm.connected) toggleSwarmConnection();
+  if (ConnectorState.claw.connected) toggleClawConnection();
+
+  logAction('CONNECTOR', 'Applying endpoint overrides...', 'primary');
+
+  // Reconnect all with updated endpoints
+  setTimeout(() => {
+    toggleServerConnection();
+    togglePythonConnection();
+    toggleSwarmConnection();
+    toggleClawConnection();
+  }, 500);
+}
+
+// ── Connector status sync from AgentBridge/SwarmConnector events ──
+function syncConnectorStatuses() {
+  // Sync Python Agent
+  if (window.AgentBridge) {
+    const origInit = initPythonAgentBridge;
+    // Hook into existing bridge events for connector panel sync
+    AgentBridge.subscribe?.('connected', () => {
+      const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+      setConnectorStatus('python', true, isLocal ? 'ws://localhost:8765' : `wss://${window.location.host}/ws/agent`);
+    });
+    AgentBridge.subscribe?.('disconnected', () => {
+      setConnectorStatus('python', false);
+    });
+  }
+
+  // Sync Swarm from existing initSwarmConnector
+  // (already sets swarmConnected flag — we monitor it)
+  if (ConnectorState.healthInterval) clearInterval(ConnectorState.healthInterval);
+  ConnectorState.healthInterval = setInterval(() => {
+    // Swarm status sync
+    if (swarmConnected && !ConnectorState.swarm.connected) {
+      setConnectorStatus('swarm', true, 'swarmprotocol.fun');
+    } else if (!swarmConnected && ConnectorState.swarm.connected) {
+      setConnectorStatus('swarm', false);
+    }
+    // Python agent sync
+    if (pythonAgentConnected && !ConnectorState.python.connected) {
+      const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+      setConnectorStatus('python', true, isLocal ? 'ws://localhost:8765' : `wss://${window.location.host}/ws/agent`);
+    } else if (!pythonAgentConnected && ConnectorState.python.connected) {
+      setConnectorStatus('python', false);
+    }
+  }, 3000);
+}
+
+document.addEventListener('DOMContentLoaded', syncConnectorStatuses);
+
+// ═══════════════════════════════════════════════════════════
+// PROMPT CHANNEL — Server API Integration
+// Routes agent chat to server endpoints when connected
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Send a command to the server agent API.
+ * Used by the prompt channel when the server is connected.
+ */
+async function serverAgentCommand(action, params = {}) {
+  if (!ConnectorState.server.connected || !ConnectorState.server.baseUrl) return null;
+  const base = ConnectorState.server.baseUrl;
+  try {
+    switch (action) {
+      case 'status': {
+        const res = await fetch(`${base}/agent/status`, { signal: AbortSignal.timeout(5000) });
+        return res.ok ? await res.json() : null;
+      }
+      case 'start': {
+        const res = await fetch(`${base}/agent/start`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+        return res.ok ? await res.json() : null;
+      }
+      case 'stop': {
+        const res = await fetch(`${base}/agent/stop`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+        return res.ok ? await res.json() : null;
+      }
+      case 'mode': {
+        const res = await fetch(`${base}/agent/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: params.mode }),
+          signal: AbortSignal.timeout(5000),
+        });
+        return res.ok ? await res.json() : null;
+      }
+      case 'pending': {
+        const res = await fetch(`${base}/agent/pending`, { signal: AbortSignal.timeout(5000) });
+        return res.ok ? await res.json() : null;
+      }
+      case 'approve': {
+        const res = await fetch(`${base}/agent/approve/${params.id}`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+        return res.ok ? await res.json() : null;
+      }
+      case 'reject': {
+        const res = await fetch(`${base}/agent/reject/${params.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: params.reason || 'Rejected from UI' }),
+          signal: AbortSignal.timeout(5000),
+        });
+        return res.ok ? await res.json() : null;
+      }
+      case 'runs': {
+        const wallet = params.wallet || '0x0000000000000000000000000000000000000000';
+        const res = await fetch(`${base}/agents/${wallet}/runs`, { signal: AbortSignal.timeout(5000) });
+        return res.ok ? await res.json() : null;
+      }
+      case 'permissions': {
+        const res = await fetch(`${base}/agents/permissions/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+          signal: AbortSignal.timeout(5000),
+        });
+        return res.ok ? await res.json() : null;
+      }
+      default:
+        return null;
+    }
+  } catch (err) {
+    logAction('API', `${action} failed: ${err.message}`, 'error');
+    return null;
+  }
+}
+
+// Enhance processLocalFallback to use server API when available
+const _origLocalFallback = processLocalFallback;
+processLocalFallback = function(prompt) {
+  const lower = prompt.toLowerCase();
+
+  // Route through server API when connected
+  if (ConnectorState.server.connected) {
+    // Agent status
+    if (lower.includes('status') || lower.includes('health')) {
+      return serverAgentCommand('status').then(data => {
+        if (!data) return _origLocalFallback(prompt);
+        return `**Agent Status (Server)**\nRunning: ${data.running ? 'Yes' : 'No'}\nMode: ${data.mode || 'N/A'}\nDecisions: ${data.total_decisions || 0}\nTrades: ${data.total_trades || 0}`;
+      });
+    }
+    // Pending decisions
+    if (lower.includes('pending') || lower.includes('decision') || lower.includes('approval')) {
+      return serverAgentCommand('pending').then(data => {
+        if (!data || !data.length) return 'No pending decisions from the AI agent.';
+        return `**${data.length} Pending Decision(s):**\n` + data.map(d =>
+          `- ${d.action} ${d.asset || 'SPY'} @ ${d.leverage}x (confidence: ${d.confidence}%) — ID: ${d.id}`
+        ).join('\n');
+      });
+    }
+    // Start/stop agent
+    if (lower.includes('start agent') || lower === 'start') {
+      return serverAgentCommand('start').then(data => data ? 'Python AI agent started via server.' : 'Failed to start agent.');
+    }
+    if (lower.includes('stop agent') || (lower === 'stop' && !lower.includes('position'))) {
+      return serverAgentCommand('stop').then(data => data ? 'Python AI agent stopped.' : 'Failed to stop agent.');
+    }
+    // Set mode
+    const modeMatch = lower.match(/mode\s+(safe|target|accumulate|autonomous|approval)/);
+    if (modeMatch) {
+      return serverAgentCommand('mode', { mode: modeMatch[1] }).then(data => data ? `Agent mode set to: ${modeMatch[1]}` : 'Failed to set mode.');
+    }
+    // Runs history
+    if (lower.includes('runs') || lower.includes('history')) {
+      return serverAgentCommand('runs', {}).then(data => {
+        if (!data || !data.length) return 'No agent runs found.';
+        return `**${data.length} Agent Run(s):**\n` + data.slice(0, 5).map(r =>
+          `- Run ${r.id}: ${r.status} | ${r.mode} | ${r.action_count || 0} actions`
+        ).join('\n');
+      });
+    }
+  }
+
+  return _origLocalFallback(prompt);
+};
 
 // ═══════════════════════════════════════════════════════════
 // TEST NEWS INJECTION

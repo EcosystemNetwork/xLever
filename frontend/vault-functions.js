@@ -48,15 +48,11 @@ async function depositToVault(asset, amountUSDC, leverageBps) {
   contracts.setActiveAsset(ticker);
 
   const leverage = leverageBps / 10000;
-  console.log(`Depositing ${amountUSDC} USDC to ${asset} vault with ${leverage}x leverage`);
-
   // contracts.openPosition emits submitted/pending/confirmed/failed events
   const { hash, receipt, explorerUrl } = await contracts.openPosition(
     amountUSDC.toString(),
     leverage
   );
-
-  console.log('✓ Deposit confirmed:', hash);
 
   // Refresh from confirmed chain state
   await fetchBalances();
@@ -86,13 +82,10 @@ async function withdrawFromVault(asset, amountUSDC) {
   const ticker = asset === 'wSPYx' ? 'SPY' : asset === 'wQQQx' ? 'QQQ' : asset;
   contracts.setActiveAsset(ticker);
 
-  console.log(`Withdrawing ${amountUSDC} USDC from ${asset} vault`);
 
   const { hash, receipt, explorerUrl } = await contracts.closePosition(
     amountUSDC.toString()
   );
-
-  console.log('✓ Withdrawal confirmed:', hash);
 
   // Refresh from confirmed chain state
   await fetchBalances();
@@ -120,18 +113,9 @@ async function fetchPosition(asset) {
       args: [connectedAddress]
     });
 
-    console.log(`Position in ${asset}:`, position);
-
-    if (position.isActive) {
-      const { formatUnits } = window.viem;
-      const depositAmount = formatUnits(position.depositAmount, 6);
-      const leverage = position.leverageBps / 100;
-      console.log(`Active position: ${depositAmount} USDC at ${leverage}x leverage`);
-    }
 
     return position;
   } catch (error) {
-    console.error('Failed to fetch position:', error);
     return null;
   }
 }

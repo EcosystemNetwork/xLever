@@ -691,6 +691,7 @@ async def get_lending_positions(
             "supplies": [],
             "borrows": [],
             "healthFactor": None,
+            "source": "placeholder",
             "totalCollateralUsd": 0,
             "totalDebtUsd": 0,
             "netApy": 0,
@@ -750,6 +751,7 @@ async def get_rate_history(
             "utilization": market["utilization"],
         },
         "history": [],
+        "note": "Historical rate data not yet available",
     }
 
 

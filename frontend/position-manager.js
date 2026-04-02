@@ -66,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
       b.classList.toggle('active', b.dataset.ticker === ticker);
     });
 
-    console.log('Selected asset:', assetCode);
   }
 
   // Asset button click handlers
@@ -90,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
         b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
       });
 
-      console.log('Selected asset:', assetCode);
     });
   });
 
@@ -109,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
         b.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
       });
 
-      console.log('Selected asset from ticker:', assetCode);
     });
   });
 });
@@ -131,7 +128,6 @@ async function ensureCorrectNetwork() {
     }
     return true;
   } catch (error) {
-    console.error('Network check failed:', error);
     return false;
   }
 }
@@ -207,7 +203,6 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     const ticker = selectedAsset === 'wSPYx' ? 'SPY' : 'QQQ';
     contracts.setActiveAsset(ticker);
 
-    console.log(`Opening position: ${amount} USDC @ ${currentLeverage}x on ${selectedAsset}`);
 
     // contracts.openPosition handles: allowance check → approve → deposit → waitForTx
     // All receipt polling and retry logic is in contracts.js
@@ -224,7 +219,6 @@ document.getElementById('openPositionBtn')?.addEventListener('click', async () =
     showToast(`Position opened! ${amount} USDC @ ${currentLeverage}x\nTx: ${result.hash.slice(0, 10)}...`, 'success', 6000);
     amountInput.value = '';
   } catch (error) {
-    console.error('Failed to open position:', error);
     const classified = contracts.classifyTxError(error);
     if (classified.type === 'wallet_rejected') {
       setButtonState(btn, 'rejected');
@@ -278,7 +272,6 @@ async function loadUserPositions() {
           });
         }
       } catch (error) {
-        console.error(`Error loading ${asset} position:`, error);
       }
     }
 
@@ -293,7 +286,6 @@ async function loadUserPositions() {
     document.getElementById('positionsList').style.display = 'block';
 
     if (!window.viem) {
-      console.error('window.viem not loaded yet — cannot render positions');
       return;
     }
     const { formatUnits } = window.viem;
@@ -342,7 +334,6 @@ async function loadUserPositions() {
     });
 
   } catch (error) {
-    console.error('Failed to load positions:', error);
   }
 }
 
@@ -365,7 +356,6 @@ window.closePosition = async function(asset, vaultAddress) {
   const pendingToast = showToast('Closing position...', 'pending', 0);
 
   try {
-    console.log(`Closing ${asset} position...`);
 
     // Read position to get the amount
     const position = await publicClient.readContract({
@@ -427,7 +417,6 @@ window.closePosition = async function(asset, vaultAddress) {
     showToast(`Position closed! Tx: ${result.hash.slice(0, 10)}...`, 'success', 6000);
   } catch (error) {
     if (pendingToast) XToast.dismiss(pendingToast);
-    console.error('Failed to close position:', error);
     const classified = contracts.classifyTxError(error);
     if (classified.type === 'wallet_rejected') {
       showToast('Close rejected in wallet', 'warning');

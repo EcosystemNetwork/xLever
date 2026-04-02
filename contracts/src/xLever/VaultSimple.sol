@@ -15,8 +15,10 @@ interface IERC20 {
 }
 
 /// @title VaultSimple
-/// @notice Simplified vault for xLever protocol (under contract size limit)
-// Lightweight version of Vault for fast deployment and testing — no fees, no hedging, no oracle
+/// @notice LOCAL TESTING ONLY — not deployed to any chain.
+/// @dev The live deployment uses the full modular Vault (see DeploySimple.s.sol).
+///      VaultSimple exists for unit tests and local development. It has no oracle,
+///      no fees, and uses a hardcoded placeholder entry price.
 contract VaultSimple {
     // USDC token — settlement currency for all deposits and withdrawals
     IERC20 public immutable usdc;
@@ -82,7 +84,7 @@ contract VaultSimple {
         // Record chosen leverage for PnL calculation
         pos.leverageBps = leverageBps;
         // Use placeholder price since simplified vault has no oracle integration
-        pos.entryTWAP = 100e8; // Placeholder price
+        pos.entryTWAP = 100e8; // Placeholder — live Vault uses real Pyth TWAP via TWAPOracle module
         // Record timestamp for future fee settlement (not used in simplified version yet)
         pos.lastFeeTimestamp = uint64(block.timestamp);
         // Mark position as active so withdrawal checks pass

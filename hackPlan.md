@@ -1,22 +1,30 @@
 # xLever Hackathon Plan
 
 ## Project Overview
-Leveraged Tokenized Asset Protocol (LTAP) - enabling continuous leverage from -4× to +4× on tokenized assets (starting with xQQQ on xStocks) without liquidation risk.
+Leveraged Tokenized Asset Protocol (LTAP) — enabling fixed-entry leverage from -4× to +4× on tokenized assets without daily rebalancing or volatility decay.
 
-## Current Status
-✅ **Core Implementation Complete**
-- Protocol architecture documented (`protocol.md`)
-- Frontend fully built (9 interactive screens)
-- Backend server + full FastAPI application
-- Wallet integration (4 chains via Reown AppKit)
-- Smart contracts deployed to Ink Sepolia
-- Pyth oracle integration live
-- Risk engine + 4-state sentinel operational
-- AI agent executor with 3 policy modes
-- Multi-agent coordinator (swarm orchestration)
-- News intelligence pipeline (ingestion, analysts, signals)
-- OpenBB market intelligence integration
-- Admin dashboard with activity analytics
+## Current Status (what's actually live)
+
+### Deployed & Working
+- 33 modular Vault contracts on Ink Sepolia (+ Ethereum Sepolia mirror)
+- 5 modules per vault: TWAPOracle, PositionModule, FeeEngine, JuniorTranche, RiskModule
+- Pyth oracle integration (real-time Hermes feeds for 30+ assets)
+- Frontend: 10-screen SPA with wallet connection, trading terminal, backtesting
+- Data proxy: Yahoo Finance CORS proxy for backtesting charts
+- Wallet: Reown AppKit (Ink Sepolia + Ethereum Sepolia)
+- AI agent executor: 3 policy modes, client-side, dry-run by default
+
+### Code-Complete but NOT Deployed
+- FastAPI backend (66+ endpoints, PostgreSQL, Redis, SIWE auth)
+- Python autonomous agent (`agent/` directory)
+- News intelligence pipeline (ingestion, analysts, SSE streaming)
+- Solana Anchor program (`solana/`)
+- TON Tact contracts (`ton/`)
+
+### Designed but NOT Active
+- Junior tranche (module deployed but not funded — no junior LPs)
+- Auto-deleverage (in contract, never triggered)
+- Euler V2 hedging layer (designed, not deployed)
 
 ---
 

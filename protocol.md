@@ -1,5 +1,12 @@
 # Leveraged Tokenized Asset Protocol (LTAP)
 
+> **Implementation status:** This document describes the **target architecture**. The current
+> live deployment uses the modular Vault with 5 modules (TWAPOracle, PositionModule, FeeEngine,
+> JuniorTranche, RiskModule) on Ink Sepolia. However, the junior tranche is not funded,
+> auto-deleverage has not been triggered, and the Euler V2 hedging layer is not active.
+> The backend (FastAPI, PostgreSQL, Redis) is code-complete but not deployed.
+> See [README.md](README.md#whats-live-vs-whats-not) for the current live vs planned status.
+
 ## Architecture Document
 
 ### Executive Summary
