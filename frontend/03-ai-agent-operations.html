@@ -711,12 +711,13 @@ tailwind.config = {
       <!-- Quick Action Chips -->
       <div class="px-3 py-2 border-t border-outline-variant/10">
         <div class="flex flex-wrap gap-1.5" id="chatQuickPrompts">
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('What is my current exposure?')">Exposure</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Agent status')">Status</button>
           <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Risk status')">Risk</button>
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Oracle prices for QQQ and SPY')">Prices</button>
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('What assets can I trade?')">Assets</button>
-          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Set mode to safe')">Safe Mode</button>
-          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Close all positions')">Close All</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Pending decisions')">Pending</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Show agent runs history')">Runs</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Start agent')">Start</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Set mode safe')">Safe Mode</button>
+          <button class="px-2 py-1 bg-error/10 hover:bg-error/20 border border-error/10 rounded-full text-[9px] font-mono text-error transition-colors" onclick="sendChatMessage('Stop agent')">Stop</button>
         </div>
       </div>
 

@@ -863,7 +863,7 @@ async function fetchRealData(symbol, years) { // Fetch OHLCV data from Yahoo Fin
   try {
     return await fetchFromYahoo(symbol, years);
   } catch (error) {
-    console.error('Error fetching real data:', error);
+
     throw error; // Re-throw so loadTickerData's catch block can activate the synthetic fallback
   }
 }
