@@ -24,6 +24,16 @@ const XNav = (() => {
     return PAGES.filter(p => p.mode === mode || p.mode === null);
   }
 
+  function injectFavicon() {
+    if (!document.querySelector('link[rel="icon"]')) {
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      link.type = 'image/png';
+      link.href = 'public/xlogo.png';
+      document.head.appendChild(link);
+    }
+  }
+
   function init(activePageId) {
     _activePageId = activePageId;
     _isLanding = (activePageId === null);
@@ -32,6 +42,7 @@ const XNav = (() => {
     const mode = getMode();
     document.body.classList.add(`mode-${mode}`);
 
+    injectFavicon();
     injectNavStyles();
     renderNav(activePageId);
     renderMobileDrawer(activePageId);
@@ -75,16 +86,14 @@ const XNav = (() => {
         z-index: 50;
       }
       #xnav .nav-logo {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: -0.04em;
         text-decoration: none;
         display: flex;
         align-items: center;
       }
-      #xnav .nav-logo .x { color: #e3e2e6; }
-      #xnav .nav-logo .lever { color: #7c4dff; }
+      #xnav .nav-logo img {
+        height: 28px;
+        width: auto;
+      }
 
       #xnav .nav-link {
         font-family: 'DM Sans', sans-serif;
@@ -250,7 +259,7 @@ const XNav = (() => {
     if (_isLanding) {
       nav.innerHTML = `
         <div class="nav-left">
-          <a href="index.html" class="nav-logo"><span class="x">x</span><span class="lever">Lever</span></a>
+          <a href="index.html" class="nav-logo"><img src="public/logowors.png" alt="xLever"></a>
           <div class="nav-links desktop-only">
             <a class="nav-link" href="#features">Features</a>
             <a class="nav-link" href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
@@ -275,7 +284,7 @@ const XNav = (() => {
 
       nav.innerHTML = `
         <div class="nav-left">
-          <a href="index.html" class="nav-logo"><span class="x">x</span><span class="lever">Lever</span></a>
+          <a href="index.html" class="nav-logo"><img src="public/logowors.png" alt="xLever"></a>
           ${modeToggle}
           <div class="nav-links" id="navLinks">
             ${visiblePages.map(p => navLink(p, p.id === activeId)).join('')}
