@@ -8,9 +8,14 @@ Quick reference for reviewers and contributors.
 
 | Component | Contract / Location | Network | Notes |
 |-----------|-------------------|---------|-------|
-| **VaultSimple** | `contracts/src/xLever/VaultSimple.sol` | Ink Sepolia | 33 asset vaults deployed — deposit, withdraw, adjust leverage |
-| **VaultFactory** | `contracts/src/xLever/VaultFactory.sol` | Ink Sepolia | Deploys and registers VaultSimple instances |
-| **PythOracleAdapter** | `contracts/src/xLever/experimental/modules/PythOracleAdapter.sol` | Ink Sepolia | Pyth pull-oracle adapter for price updates |
+| **Vault (modular)** | `contracts/src/xLever/Vault.sol` | Ink Sepolia | 33 asset vaults deployed with 5 modules each |
+| **VaultFactory** | `contracts/src/xLever/VaultFactory.sol` | Ink Sepolia | Deploys and registers modular Vault instances |
+| **TWAPOracle** | `contracts/src/xLever/modules/TWAPOracle.sol` | Ink Sepolia | 15-min TWAP from Pyth with circuit breaker |
+| **PositionModule** | `contracts/src/xLever/modules/PositionModule.sol` | Ink Sepolia | Position tracking and PnL calculation |
+| **FeeEngine** | `contracts/src/xLever/modules/FeeEngine.sol` | Ink Sepolia | Dynamic fee calculation |
+| **JuniorTranche** | `contracts/src/xLever/modules/JuniorTranche.sol` | Ink Sepolia | First-loss capital layer (deployed, not yet funded) |
+| **RiskModule** | `contracts/src/xLever/modules/RiskModule.sol` | Ink Sepolia | Health scoring and auto-deleverage triggers |
+| **PythOracleAdapter** | `contracts/src/xLever/modules/PythOracleAdapter.sol` | Ink Sepolia | Pyth pull-oracle adapter for price updates |
 | **EVC** | Euler V2 core | Ink Sepolia | Ethereum Vault Connector for atomic operations |
 | **Ethereum Sepolia Mirror** | Euler V2 core + 33 VaultSimple | Ethereum Sepolia | Full mirror of Ink Sepolia deployment (Chain ID 11155111) |
 | **Frontend** | `frontend/` (10 screens) | xlever.markets | Vite SPA, Bloomberg Terminal aesthetic |
@@ -33,31 +38,24 @@ Full address list in `deployment.json` and `frontend/contracts.js`.
 
 | Component | Location | Status | Blocker |
 |-----------|----------|--------|---------|
-| **Vault.sol** (modular) | `contracts/src/xLever/experimental/Vault.sol` | Designed | Contract size exceeds deployment limits |
-| **PositionModule** | `experimental/modules/PositionModule.sol` | Designed | Needs modular Vault deployment |
-| **FeeEngine** | `experimental/modules/FeeEngine.sol` | Designed | Needs modular Vault deployment |
-| **EulerHedgingModule** | `experimental/modules/EulerHedgingModule.sol` | Designed | Needs modular Vault deployment |
-| **RiskModule** | `experimental/modules/RiskModule.sol` | Designed | Needs modular Vault deployment |
-| **TWAPOracle** | `experimental/modules/TWAPOracle.sol` | Designed | Needs modular Vault deployment |
-| **JuniorTranche** | `experimental/modules/JuniorTranche.sol` | Designed | Needs modular Vault deployment |
+| **EulerHedgingModule** | `contracts/src/xLever/modules/EulerHedgingModule.sol` | Designed | EVC atomic looping integration pending |
 | **Kamino adapter** (Solana) | `frontend/lending-adapters.js` | Code written | SDK installed, needs full integration testing |
 | **EVAA adapter** (TON) | `frontend/lending-adapters.js` | Code written | SDK installed, TL-B encoding needs verification |
+| **Solana Vaults** | `solana/` | Code complete | Devnet deployment ready |
+| **TON Vaults** | `ton/` | Code complete | Testnet deployment ready |
+| **FastAPI Backend** | `server/api/` | Code complete | Production hosting pending |
+| **Junior tranche funding** | — | Module deployed | No junior LPs yet |
 
-### What the modular Vault adds over VaultSimple
+### What's not yet active in the deployed modules
 
-| Feature | VaultSimple (live) | Modular Vault (planned) |
-|---------|-------------------|------------------------|
-| Deposit/withdraw/leverage | Yes | Yes |
-| Pyth oracle pricing | Yes | Yes |
-| Dynamic fee engine | No | Yes — `0.5% + 0.5% x \|leverage - 1\|` annually |
-| Euler V2 hedging | No | Yes — EVC atomic looping |
-| On-chain auto-deleverage | No | Yes — 5-level cascade |
-| Junior tranche (first-loss) | No | Yes — ERC-4626 compatible |
-| 15-min TWAP oracle | No | Yes — dynamic spread pricing |
-| Circuit breaker | No | Yes — daily volume limits |
+| Feature | Status |
+|---------|--------|
+| Junior tranche (first-loss) | Module deployed, not yet funded — no junior LPs |
+| Auto-deleverage cascade | In RiskModule, triggers when junior tranche is active |
+| Euler V2 hedging | EulerHedgingModule not yet deployed |
 
 ---
 
-## Migration Path
+## VaultSimple (Testing Only)
 
-**VaultSimple → Modular Vault** is planned for mainnet deployment. The modular architecture requires either proxy patterns (BeaconProxy/diamond) or splitting modules into standalone contracts to fit within deployment size limits.
+`VaultSimple.sol` is retained for local testing — no oracle, no modules. It is **not deployed** to any chain. The live deployment uses the full modular Vault.

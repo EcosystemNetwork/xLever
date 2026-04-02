@@ -27,7 +27,7 @@
 - [ ] All 7 screens load without errors
 - [ ] Data server (`server.py`) starts cleanly
 - [ ] Backtesting works with real QQQ/SPY data
-- [ ] Leverage slider works -4x to +4x
+- [ ] Leverage slider works -3.5x to +3.5x
 - [ ] Charts render with TradingView
 - [ ] localStorage caching works (survives page reload)
 - [ ] No console errors in browser
@@ -48,7 +48,7 @@
 
 ## Consistency Check
 
-- [ ] Leverage range says -4x to +4x everywhere (not 10x)
+- [ ] Leverage range says -3.5x to +3.5x everywhere (not 10x)
 - [ ] "Euler V2 EVK" referenced consistently (not Euler V1)
 - [ ] Fee formula matches: `0.5% + 0.5% x |leverage - 1|`
 - [ ] Team names match across all docs

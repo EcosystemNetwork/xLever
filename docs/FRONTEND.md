@@ -24,7 +24,7 @@ xLever's frontend is a Vite-bundled multi-page app with 10 screens, Bloomberg Te
 |---|------|--------|---------|
 | 0 | `index.html` | Landing Page | Protocol overview, connect wallet, feature cards, 1Y comparison chart |
 | 1 | `01-dashboard.html` | Portfolio Dashboard | PnL display, asset allocation, protocol health metrics, Pyth oracle status |
-| 2 | `02-trading-terminal.html` | Trading Terminal | Real TradingView chart (QQQ/SPY), -4x to +4x leverage slider, order entry, position sizing |
+| 2 | `02-trading-terminal.html` | Trading Terminal | Real TradingView chart (QQQ/SPY), -3.5x to +3.5x leverage slider, order entry, position sizing |
 | 3 | `03-ai-agent-operations.html` | AI Agent Control | Agent status, policy modes (Safe/Target/Accumulation), bounded execution, decision log |
 | 4 | `04-vault-management.html` | Vault Management | Senior/Junior tranche visualization, Euler V2 health factor, deposit/withdraw UI |
 | 5 | `05-risk-management.html` | Risk Management | Risk sentinel state display, circuit breakers, auto-deleverage triggers, oracle staleness |
@@ -239,7 +239,7 @@ Guided demo mode that overrides navigation to show a curated numbered-step flow 
 
 ### Leverage Slider
 
-Interactive slider from -4x to +4x with notch buttons at key levels (-4, -3, -2, -1, 0, +1, +2, +3, +4). Color transitions from red (short) through neutral to green (long).
+Interactive slider from -3.5x to +3.5x with notch buttons at key levels (-4, -3, -2, -1, 0, +1, +2, +3, +4). Color transitions from red (short) through neutral to green (long).
 
 ### Risk Meter
 

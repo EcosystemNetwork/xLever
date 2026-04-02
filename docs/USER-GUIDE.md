@@ -214,7 +214,7 @@ xLever's full design includes a two-tranche system:
 
 | Tranche | Role | Risk/Reward |
 |---------|------|-------------|
-| **Senior** | Leverage users (-4x to +4x) | Higher risk, leveraged returns |
+| **Senior** | Leverage users (-3.5x to +3.5x) | Higher risk, leveraged returns |
 | **Junior** | First-loss LP capital | Earns fees but absorbs losses first |
 
 > **Note:** The junior tranche is designed but not yet deployed. Current vaults use the VaultSimple contract.
@@ -286,7 +286,7 @@ Backtest xLever's fixed-entry leverage (LTAP) against traditional daily-reset le
 
 1. **Select an asset** — any of the 33 supported assets
 2. **Choose a date range** — from 1 month to 25 years of data
-3. **Set leverage** — -4x to +4x
+3. **Set leverage** — -3.5x to +3.5x
 4. **Click Run Backtest**
 
 The system pulls real historical OHLCV data from Yahoo Finance and calculates:
@@ -411,7 +411,7 @@ xLever fixes leverage at your **entry price**:
 ### Key Rules
 
 - **Max loss = your deposit.** You cannot lose more than you put in.
-- **Leverage range:** -4x to +4x (reduced in WARNING/RESTRICTED states)
+- **Leverage range:** -3.5x to +3.5x (reduced in WARNING/RESTRICTED states)
 - **Short positions** (-1x to -4x) profit when the asset price goes down
 - **Long positions** (+1x to +4x) profit when the asset price goes up
 

@@ -21,7 +21,7 @@ Run locally: `npm run dev` then open `http://localhost:3000`
 
 ### Wallet + Contract Layer
 - **`wallet.js`** — Reown AppKit with wagmi adapter, dark themed, xLever branding. Supports Ethereum mainnet, Ink Sepolia, Solana, TON
-- **`ux.js`** — Toast notifications, trade confirmation modal (with real tx flow when vault is deployed, simulated otherwise), interactive leverage slider (-4x to +4x with drag), skeleton loading
+- **`ux.js`** — Toast notifications, trade confirmation modal (with real tx flow when vault is deployed, simulated otherwise), interactive leverage slider (-3.5x to +3.5x with drag), skeleton loading
 - **`contracts.js`** — Full viem adapter for your Vault contracts. Already has:
   - Ink Sepolia chain config
   - ABIs matching `Vault.sol` and `VaultSimple.sol` exactly (including Pyth priceUpdateData params)

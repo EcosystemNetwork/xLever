@@ -1,6 +1,6 @@
 # xLever — Submission Guide
 
-> Fixed-entry leverage (-4x to +4x) on 33 tokenized assets, built on Euler V2 EVK.
+> Fixed-entry leverage (-3.5x to +3.5x) on 33 tokenized assets, built on Euler V2 EVK.
 > Live demo: [xlever.markets](https://xlever.markets)
 
 ---
@@ -11,7 +11,7 @@ These components are deployed and functional. A judge can verify each one.
 
 | Component | What it does | How to verify |
 |-----------|-------------|---------------|
-| **33 VaultSimple contracts** | Deposit USDC, adjust leverage -4x to +4x, withdraw | [QQQ Vault on Ink Sepolia Explorer](https://explorer-sepolia.inkonchain.com/address/0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6) |
+| **33 modular Vault contracts** | Deposit USDC, adjust leverage -3.5x to +3.5x, withdraw | [QQQ Vault on Ink Sepolia Explorer](https://explorer-sepolia.inkonchain.com/address/0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6) |
 | **Pyth Oracle (30+ feeds)** | Real-time price updates via Hermes pull-oracle | Connect wallet on trading screen, prices update live |
 | **9-screen frontend** | Bloomberg-terminal-style SPA (Vite + Vanilla JS) | Visit [xlever.markets](https://xlever.markets) |
 | **Wallet connection** | Reown AppKit connecting to Ink Sepolia | Click "Connect Wallet" on landing page |
@@ -118,7 +118,7 @@ A judge can verify the live product in under 3 minutes:
 1. Navigate to **Trading Terminal** (Screen 2)
 2. Select an asset (e.g., QQQ)
 3. Observe live Pyth price feed updating in real-time
-4. Use the leverage slider to set -4x to +4x
+4. Use the leverage slider to set -3.5x to +3.5x
 5. Enter USDC amount and submit transaction
 6. Confirm in wallet — transaction hits VaultSimple on Ink Sepolia
 
@@ -162,11 +162,11 @@ A judge can verify the live product in under 3 minutes:
           v         v
     +-----+---------+-----+
     |  Ink Sepolia (live)  |      - - - - - - - - - - - - -
-    |  33 VaultSimple      |      :  Planned (not deployed) :
-    |  EVC                 |      :  Modular Vault.sol      :
-    |  PythOracleAdapter   |      :  Junior Tranche         :
-    |  USDC + wQQQx/wSPYx  |      :  On-chain auto-delever :
-    +----------------------+      :  Solana / TON vaults    :
+    |  33 modular Vaults   |      :  Planned (not deployed) :
+    |  EVC + 5 modules     |      :  EulerHedgingModule    :
+    |  PythOracleAdapter   |      :  Junior tranche funding:
+    |  USDC + wQQQx/wSPYx  |      :  Solana / TON vaults  :
+    +----------------------+      :                        :
                                   :  Euler V2 hedging       :
                                   - - - - - - - - - - - - -
 ```

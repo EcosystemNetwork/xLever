@@ -113,7 +113,7 @@ A Solana lending and liquidity protocol. xLever includes a lending adapter for c
 ## L
 
 ### Leverage (in xLever context)
-A multiplier (-4x to +4x) applied to your deposit to amplify exposure. Positive values are long (profit when price rises), negative values are short (profit when price falls).
+A multiplier (-3.5x to +3.5x) applied to your deposit to amplify exposure. Positive values are long (profit when price rises), negative values are short (profit when price falls).
 
 ### LTAP (Leveraged Tokenized Asset Protocol)
 The formal name for xLever's approach to leverage: tokenized assets with fixed-entry leverage, no daily rebalancing, and max loss limited to the deposit.
@@ -179,7 +179,7 @@ xLever's 4-state deterministic state machine (NORMAL → WARNING → RESTRICTED 
 AI agent policy mode that only monitors for stop-loss conditions and sends risk alerts. The most restrictive mode — can only reduce leverage or close positions, never open or increase.
 
 ### Senior Tranche
-In xLever's two-tranche design, the senior tranche consists of leverage users (-4x to +4x). Senior users are protected by the junior tranche's first-loss capital buffer.
+In xLever's two-tranche design, the senior tranche consists of leverage users (-3.5x to +3.5x). Senior users are protected by the junior tranche's first-loss capital buffer.
 
 ### Sharpe Ratio
 A risk-adjusted return metric calculated as (return - risk-free rate) / standard deviation. Used in the backtesting engine to evaluate strategy quality. Higher is better.

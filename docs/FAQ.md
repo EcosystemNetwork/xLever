@@ -6,7 +6,7 @@
 
 ### What is xLever?
 
-xLever is a leveraged tokenized asset protocol (LTAP) that provides fixed-entry leverage from -4x to +4x on 33 tokenized assets including equities (AAPL, NVDA, TSLA), ETFs (QQQ, SPY), and commodities (SLV, PPLT). It's built on Euler V2 EVK smart contracts deployed on Ink Sepolia.
+xLever is a leveraged tokenized asset protocol (LTAP) that provides fixed-entry leverage from -3.5x to +3.5x on 33 tokenized assets including equities (AAPL, NVDA, TSLA), ETFs (QQQ, SPY), and commodities (SLV, PPLT). It's built on Euler V2 EVK smart contracts deployed on Ink Sepolia.
 
 ### How is xLever different from leveraged ETFs like TQQQ?
 
@@ -34,7 +34,7 @@ No real money is involved. xLever uses testnet tokens that are free and have no 
 
 1. Connect your wallet on [xlever.markets](https://xlever.markets)
 2. Go to the Trading Terminal (Screen 2)
-3. Select an asset, set leverage (-4x to +4x), enter USDC amount
+3. Select an asset, set leverage (-3.5x to +3.5x), enter USDC amount
 4. Submit and confirm the transaction in your wallet
 
 See the [Getting Started guide](GETTING-STARTED.md) for a detailed walkthrough.
@@ -142,17 +142,13 @@ Withdraw your funds if possible. The EMERGENCY state indicates critical risk con
 
 ## Vaults & Smart Contracts
 
-### What is VaultSimple?
-
-VaultSimple is the deployed smart contract that manages your leveraged positions. It handles deposits, withdrawals, leverage adjustments, and PnL calculations using Pyth oracle prices.
-
 ### What is the modular Vault?
 
-The full-featured vault design includes 7 modules (position management, dynamic fees, Euler V2 hedging, risk management, TWAP oracle, junior tranche, Pyth adapter). It's fully designed and coded but exceeds Solidity deployment size limits — it will be deployed using proxy patterns in the future.
+The deployed vault architecture uses 5 modules per vault: TWAPOracle (15-min TWAP from Pyth), PositionModule (position tracking & PnL), FeeEngine (dynamic fees), JuniorTranche (first-loss capital), and RiskModule (health scoring & auto-deleverage). All 33 asset vaults on Ink Sepolia use this architecture. `VaultSimple.sol` is retained for local testing only.
 
 ### What is the junior tranche?
 
-The junior tranche is a **first-loss capital buffer** in xLever's two-tranche design. Junior LPs deposit capital that absorbs losses before senior (leverage) users are affected. In return, junior LPs earn fees. This feature is designed but not yet deployed.
+The junior tranche is a **first-loss capital buffer** in xLever's two-tranche design. Junior LPs deposit capital that absorbs losses before senior (leverage) users are affected. In return, junior LPs earn fees. The JuniorTranche module is deployed but not yet funded — no junior LPs have deposited yet.
 
 ### Are the contracts audited?
 

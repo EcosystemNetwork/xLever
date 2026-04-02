@@ -1,12 +1,14 @@
-# Experimental — Modular Vault Architecture
+# Experimental Archive — Previous Modular Vault Iterations
 
-These contracts represent the **planned production architecture** for xLever. They are **not deployed** and are under active development.
+These contracts are **archived copies** of earlier iterations of the modular vault architecture. The canonical modular Vault and its 5 modules are now deployed from `contracts/src/xLever/`.
 
 ## What's here
 
+Archived versions of contracts that have since been finalized and deployed:
+
 | Contract | Purpose |
 |----------|---------|
-| `Vault.sol` | Full modular vault with module dispatch (replaces VaultSimple) |
+| `Vault.sol` | Earlier modular vault iteration |
 | `modules/PositionModule.sol` | User position tracking and PnL |
 | `modules/FeeEngine.sol` | Dynamic fee calculation |
 | `modules/EulerHedgingModule.sol` | Euler V2 EVC atomic looping |
@@ -15,18 +17,6 @@ These contracts represent the **planned production architecture** for xLever. Th
 | `modules/PythOracleAdapter.sol` | Pyth pull-oracle wrapper |
 | `modules/JuniorTranche.sol` | First-loss capital pool (ERC-4626) |
 
-## Why not deployed?
+## What's live?
 
-The full modular Vault exceeds contract size limits when compiled as a single deployment. Production deployment requires either:
-
-1. Proxy pattern (BeaconProxy / diamond)
-2. Splitting modules into standalone contracts with cross-contract calls
-3. Solidity optimizer tuning + function selector optimization
-
-## What's live instead?
-
-**`VaultSimple.sol`** (in the parent directory) is the canonical deployed contract on Ink Sepolia. It provides core deposit/withdraw/leverage functionality without fees, hedging modules, or junior tranche logic.
-
-## Migration path
-
-VaultSimple → Modular Vault is planned for mainnet. The modular contracts here define the target architecture.
+The canonical **modular Vault** (`contracts/src/xLever/Vault.sol`) with 5 modules is deployed on Ink Sepolia (33 vaults). `VaultSimple.sol` is retained for local testing only.

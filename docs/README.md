@@ -2,7 +2,7 @@
 
 **Leveraged Tokenized Asset Protocol (LTAP)**
 
-Continuous leverage from **-4x to +4x** on 33 tokenized assets, built on **Euler V2 EVK** — zero liquidation risk, zero volatility decay.
+Continuous leverage from **-3.5x to +3.5x** on 33 tokenized assets, built on **Euler V2 EVK** — zero liquidation risk, zero volatility decay.
 
 **Live at [xlever.markets](https://xlever.markets)**
 
@@ -53,7 +53,7 @@ uvicorn api.main:app --port 8080
 
 ## What is xLever?
 
-xLever is a **Leveraged Tokenized Asset Protocol** that enables continuous leverage from **-4x to +4x** on tokenized assets (xStocks like wQQQx, wSPYx, and 31 more) without liquidation risk for users.
+xLever is a **Leveraged Tokenized Asset Protocol** that enables continuous leverage from **-3.5x to +3.5x** on tokenized assets (xStocks like wQQQx, wSPYx, and 31 more) without liquidation risk for users.
 
 ### Key Differentiators
 
@@ -66,7 +66,7 @@ xLever is a **Leveraged Tokenized Asset Protocol** that enables continuous lever
 ### How It Works
 
 **For Senior Users (Leverage Traders):**
-1. Deposit USDC, pick leverage (-4x to +4x)
+1. Deposit USDC, pick leverage (-3.5x to +3.5x)
 2. Protocol handles all lending/borrowing on Euler V2 behind the scenes
 3. PnL = Deposit x Leverage x (Price Change %)
 4. Increase, decrease, or exit at any time
@@ -88,10 +88,10 @@ Traditional leveraged lending liquidates individual users. xLever instead social
 
 ```
 User Layer
-  Senior Users (-4x to +4x)     Junior LPs (first-loss buffer)
+  Senior Users (-3.5x to +3.5x)     Junior LPs (first-loss buffer)
          |                               |
          v                               v
-Protocol Layer (33 VaultSimple contracts on Ink Sepolia)
+Protocol Layer (33 modular Vault contracts on Ink Sepolia)
   Position Manager  |  Fee Engine  |  Exposure Aggregator
          |
          v
@@ -147,22 +147,46 @@ xLever/
 │   ├── risk-engine.js                 # Risk sentinel FSM
 │   ├── openbb.js                      # OpenBB intelligence client
 │   ├── agent-executor.js              # Bounded AI agent automation
+│   ├── agent-bridge.js                # Agent ↔ backend bridge
 │   ├── agent-coordinator.js           # Multi-agent swarm coordinator
+│   ├── swarm-bridge.js                # Swarm communication bridge
+│   ├── swarm-connector.js             # Swarm network connector
 │   ├── news-ingest.js                 # News aggregation pipeline
 │   ├── news-analysts.js               # Multi-analyst sentiment scoring
 │   ├── news-verifier.js               # Source credibility verification
 │   ├── signal-aggregator.js           # Weighted signal generation
 │   ├── position-manager.js            # Position tracking & PnL
 │   ├── llm-analyst.js                 # LLM-powered analysis
+│   ├── junior-manager.js              # Junior tranche management
+│   ├── vault-functions.js             # Vault interaction helpers
+│   ├── oracle-health.js               # Oracle staleness monitoring
+│   ├── risk-live.js                   # Live risk data feeds
+│   ├── live-state.js                  # Live protocol state
+│   ├── chart-strategy-tools.js        # Chart strategy overlays
+│   ├── chart-triggers.js              # Chart-based trade triggers
+│   ├── judge-mode.js                  # Judge mode evaluation
+│   ├── mode-switch.js                 # UI mode switching
+│   ├── config.js                      # App configuration
+│   ├── assets.js                      # Asset definitions
+│   ├── nav.js                         # Navigation component
+│   ├── toast.js                       # Toast notifications
+│   ├── viem-shim.js                   # viem compatibility shim
+│   ├── ws-broadcast.js                # WebSocket broadcasting
 │   ├── ux.js                          # UX layer (toasts, modals, slider)
-│   └── styles.css                     # Global styles
+│   ├── styles.css                     # Global styles
+│   ├── tailwind.css                   # Tailwind base styles
+│   ├── junior-styles.css              # Junior tranche styles
+│   └── modal-styles.css               # Modal component styles
 ├── contracts/                         # Solidity smart contracts
 │   └── src/xLever/
-│       ├── VaultSimple.sol            # Deployed — 33 vaults on Ink Sepolia
+│       ├── Vault.sol                  # Deployed — 33 modular vaults on Ink Sepolia
+│       ├── VaultSimple.sol            # Local testing only (no oracle, no modules)
 │       ├── VaultFactory.sol           # Deploys & registers vaults
 │       ├── VaultWithLooping.sol       # EVC recursive looping variant
 │       ├── VaultWithHedging.sol       # Hedging-enabled variant
-│       └── experimental/modules/      # Modular vault components (planned)
+│       ├── modules/                   # Deployed vault modules (TWAPOracle, PositionModule, FeeEngine, JuniorTranche, RiskModule)
+│       ├── interfaces/                # Contract interfaces
+│       └── libraries/                 # Shared libraries (DataTypes)
 ├── server/                            # Data proxy & API
 │   ├── server.py                      # Python CORS proxy (Yahoo Finance)
 │   ├── api/main.py                    # FastAPI backend

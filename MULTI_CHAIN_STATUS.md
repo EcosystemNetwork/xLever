@@ -19,7 +19,7 @@ Full mirror deployment. Frontend supports chain switching via `switchChain(11155
 ### Solana (Devnet)
 - Full Anchor program at `solana/`
 - 12 Rust source files, mirrors the EVM vault logic exactly
-- Pyth oracle integration, -4x to +4x leverage, matching fee model
+- Pyth oracle integration, -3.5x to +3.5x leverage, matching fee model
 - **To deploy:**
   ```bash
   cd solana && anchor build && anchor deploy --provider.cluster devnet

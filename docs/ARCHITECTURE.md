@@ -29,7 +29,7 @@
    |                  |
    | EVC              |  <-- Euler V2 core
    | VaultFactory     |  <-- Deploys vaults
-   | 33 VaultSimple   |  <-- Deposit/withdraw/leverage
+   | 33 modular Vaults |  <-- Deposit/withdraw/leverage
    | PythOracleAdapter|  <-- On-chain price feed
    | USDC, wQQQx,     |
    | wSPYx + 31 more  |
@@ -43,20 +43,16 @@
 | Frontend | Vite 8, Vanilla JS, Tailwind, TradingView | `frontend/index.html` (10 screens) |
 | Wallet | Reown AppKit v1.8.19 | `frontend/wallet.js` |
 | Oracle | Pyth Hermes pull-oracle | `frontend/pyth.js` + PythOracleAdapter contract |
-| Contracts | Solidity, Foundry, Euler V2 EVK | `contracts/src/xLever/VaultSimple.sol` |
+| Contracts | Solidity, Foundry, Euler V2 EVK | `contracts/src/xLever/Vault.sol` (modular, 5 modules) |
 | Backtesting | Client-side LTAP simulation | `frontend/app.js` |
 | Risk Sentinel | Client-side 4-state FSM | `frontend/risk-engine.js` |
 | AI Agent | Bounded policy executor (JS) | `frontend/agent-executor.js` |
 | Data Server | Python HTTP proxy | `server/server.py` |
 
-## Designed but Not Deployed (Dashed)
+## Designed but Not Deployed
 
-| Component | Tech | Location | Blocker |
-|-----------|------|----------|---------|
-| Modular Vault | Solidity, 7 modules | `contracts/src/xLever/experimental/` | Exceeds deployment size limit |
-| Junior Tranche | ERC-4626 first-loss capital | `experimental/modules/JuniorTranche.sol` | Needs modular Vault |
-| On-chain Auto-Deleverage | 5-level cascade | `experimental/Vault.sol` | Needs modular Vault |
-| Euler V2 Hedging | EVC atomic looping | `experimental/modules/EulerHedgingModule.sol` | Needs modular Vault |
+| Component | Tech | Location | Status |
+|-----------|------|----------|--------|
 | Solana Vaults | Anchor program | `solana/` | Code complete, devnet deploy ready |
 | TON Vaults | Tact contracts | `ton/` | Code complete, testnet deploy ready |
 | FastAPI Backend | Python, PostgreSQL, Redis | `server/api/` | Production hosting pending |
@@ -96,8 +92,8 @@ User connects wallet (Reown AppKit)
 
 ## Key Architectural Decisions
 
-1. **VaultSimple over modular Vault** — Shipped a minimal vault that fits deployment limits rather than waiting for proxy patterns.
-2. **Client-side risk engine** — 4-state FSM runs in browser for demo; on-chain enforcement deferred to modular Vault.
+1. **Modular Vault architecture** — 33 vaults deployed with 5 modules each (TWAPOracle, PositionModule, FeeEngine, JuniorTranche, RiskModule). VaultSimple retained for local testing only.
+2. **Client-side risk engine** — 4-state FSM runs in browser; on-chain RiskModule deployed but client-side FSM is primary UX layer.
 3. **Pyth pull-oracle** — Users pay for price updates, ensuring freshness without keeper infrastructure.
 4. **Vanilla JS over React** — Faster iteration, no build complexity beyond Vite.
 5. **Multi-page SPA** — Each screen is its own HTML file, sharing JS modules. Simpler than client-side routing.

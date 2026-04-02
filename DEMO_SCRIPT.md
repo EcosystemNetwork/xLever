@@ -20,7 +20,7 @@
 **Visual:** Landing page ([index.html](frontend/index.html)), scroll through feature cards
 
 **Script:**
-> "xLever is a leveraged tokenized asset protocol built on Euler V2. Users pick any leverage from -4x to +4x. There's no liquidation risk — a junior tranche of LP capital absorbs losses first. And because leverage is fixed at entry, not rebalanced daily, you keep your edge in trending markets."
+> "xLever is a leveraged tokenized asset protocol built on Euler V2. Users pick any leverage from -3.5x to +3.5x. There's no liquidation risk — a junior tranche of LP capital absorbs losses first. And because leverage is fixed at entry, not rebalanced daily, you keep your edge in trending markets."
 
 ---
 
