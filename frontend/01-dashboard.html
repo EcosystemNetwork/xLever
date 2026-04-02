@@ -417,7 +417,7 @@ async function loadProtocolHealth() {
     else if (buffer > 15) { $('bufferLabel').className = 'font-mono text-[10px] text-[#ffd740]'; $('bufferBar').className = 'h-full bg-[#ffd740]'; }
     else { $('bufferLabel').className = 'font-mono text-[10px] text-error'; $('bufferBar').className = 'h-full bg-error'; }
     $('allocTotal').textContent = fmt(total);
-  } catch(e) { console.warn('Dashboard: pool state failed', e); }
+  } catch(e) { }
 }
 
 async function loadMaxLeverage() {
@@ -425,7 +425,7 @@ async function loadMaxLeverage() {
     var lev = await getMaxLeverage();
     var val = Number(lev) / 10000;
     $('protocolMaxLev').textContent = val.toFixed(1) + 'x';
-  } catch(e) { console.warn('Dashboard: max leverage failed', e); }
+  } catch(e) { }
 }
 
 async function loadBlockAndGas() {
@@ -435,7 +435,7 @@ async function loadBlockAndGas() {
     $('footerBlock').textContent = 'Block: ' + block.toString();
     var gas = await client.getGasPrice();
     $('footerGas').textContent = 'Gas: ' + (Number(gas) / 1e9).toFixed(1) + ' Gwei';
-  } catch(e) { console.warn('Dashboard: block/gas failed', e); }
+  } catch(e) { }
 }
 
 async function loadUserData() {
@@ -470,7 +470,7 @@ async function loadUserData() {
       $('kpiPnlPct').textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
       $('kpiPnlPct').className = 'text-[10px] font-mono mb-1.5 ' + (pnlPct >= 0 ? 'text-tertiary' : 'text-error');
     }
-  } catch(e) { console.warn('Dashboard: position value failed', e); }
+  } catch(e) { }
 
   // Total ROI: compare current value to initial deposit from getPosition
   try {
@@ -484,7 +484,7 @@ async function loadUserData() {
         $('kpiROI').className = 'font-mono text-2xl font-semibold ' + (roi >= 0 ? 'text-tertiary' : 'text-error');
       }
     }
-  } catch(e) { console.warn('Dashboard: ROI calc failed', e); }
+  } catch(e) { }
 }
 
 function loadAgentCount() {
@@ -502,7 +502,7 @@ XAuthGate.init({
   mode: 'block',
   onConnect: function() {
     Promise.allSettled([loadProtocolHealth(), loadMaxLeverage(), loadBlockAndGas(), loadUserData()])
-      .then(() => { loadAgentCount(); console.log('Dashboard data loaded'); });
+      .then(() => { loadAgentCount(); });
     // Re-check agent count periodically since agents can start/stop anytime
     setInterval(loadAgentCount, 5000);
   }
@@ -517,7 +517,7 @@ XAuthGate.init({
       var inputs = { oracleAgeSec: window.xLeverPyth.oracleAge(p.publishTime), oracleDivergence: 0, drawdown: 0, healthFactor: 2.0, volatility: 0.2, utilization: 0.3 };
       if (typeof RiskEngine !== 'undefined') RiskEngine.evaluate(inputs);
     }
-  } catch(e) { console.warn('Risk: Pyth fetch failed', e); }
+  } catch(e) { }
 })();
 </script>
 <!-- ===== SCRIPTS: Performance History Chart =====
@@ -570,7 +570,6 @@ async function takeSnapshot() {
     var now = Math.floor(Date.now() / 1000);
     return { time: now, value: val, tvl: tvl };
   } catch (e) {
-    console.warn('PerfChart: snapshot failed', e);
     return null;
   }
 }

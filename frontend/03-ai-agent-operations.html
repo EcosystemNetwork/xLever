@@ -116,6 +116,14 @@ tailwind.config = {
   .log-entry { animation: fadeIn 0.3s ease-out; }
   .pulse-ring { animation: pulseRing 2s ease-out infinite; }
   @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
+  .agent-tab { color: #948ea1; background: transparent; border-bottom: 2px solid transparent; }
+  .agent-tab:hover { color: #cdbdff; background: rgba(124,77,255,0.04); }
+  .agent-tab.active { color: #cdbdff; border-bottom-color: #7c4dff; background: rgba(124,77,255,0.08); }
+  .agent-card { transition: all 0.2s; }
+  .agent-card:hover { border-color: rgba(124,77,255,0.3); }
+  .hitl-card { animation: fadeIn 0.3s ease-out; }
+  .perm-allowed { color: #05e777; }
+  .perm-blocked { color: #ffb4ab; }
 </style>
 </head>
 <body class="bg-surface font-body text-on-surface antialiased">
@@ -702,8 +710,8 @@ tailwind.config = {
             <span class="material-symbols-outlined text-on-primary-container" style="font-size: 14px;">smart_toy</span>
           </div>
           <div class="bg-surface-container-highest/40 rounded-lg rounded-tl-sm px-3 py-2 max-w-[85%]">
-            <p class="font-mono text-[11px] text-on-surface leading-relaxed">Welcome to xLever Agent. I can help you manage leverage positions, check risk, get oracle prices, and execute trades across 33 assets.</p>
-            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Try: "What's my exposure?" or "Go 2x long QQQ"</p>
+            <p class="font-mono text-[11px] text-on-surface leading-relaxed">Welcome to xLever Agent. Use the <strong>Agent Connector</strong> panel above to connect backends, then send commands here.</p>
+            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Try: "agent status", "pending decisions", "start agent", or "set mode safe"</p>
           </div>
         </div>
       </div>
@@ -754,6 +762,273 @@ tailwind.config = {
 
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     AGENTIC SUITE — Full agent management below the main grid
+     Tabs: Registry | HITL Queue | Runs & Actions | Permissions
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="mt-6">
+
+  <!-- Tab Navigation -->
+  <div class="flex items-center gap-1 mb-4 border-b border-outline-variant/20 pb-px">
+    <button class="agent-tab active px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider rounded-t-lg transition-colors" data-tab="registry" onclick="switchAgentTab('registry')">
+      <span class="material-symbols-outlined text-sm align-middle mr-1">app_registration</span>Agent Registry
+    </button>
+    <button class="agent-tab px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider rounded-t-lg transition-colors" data-tab="hitl" onclick="switchAgentTab('hitl')">
+      <span class="material-symbols-outlined text-sm align-middle mr-1">approval</span>HITL Queue
+      <span class="ml-1 px-1.5 py-0.5 rounded-full bg-error/20 text-error text-[9px] font-bold hidden" id="hitlBadge">0</span>
+    </button>
+    <button class="agent-tab px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider rounded-t-lg transition-colors" data-tab="runs" onclick="switchAgentTab('runs')">
+      <span class="material-symbols-outlined text-sm align-middle mr-1">history</span>Runs & Actions
+    </button>
+    <button class="agent-tab px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider rounded-t-lg transition-colors" data-tab="perms" onclick="switchAgentTab('perms')">
+      <span class="material-symbols-outlined text-sm align-middle mr-1">admin_panel_settings</span>Permissions
+    </button>
+  </div>
+
+  <!-- ═══ TAB: Agent Registry ═══ -->
+  <div class="agent-tab-content" id="tab-registry">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Register New Agent Form -->
+      <div class="lg:col-span-4">
+        <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+          <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-base">add_circle</span>
+            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Register External Agent</span>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Agent Name</label>
+              <input type="text" id="regAgentName" placeholder="e.g. OpenClaw-Trading-v1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="100">
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Permissions</label>
+              <div class="space-y-2 bg-surface-container-highest/20 rounded-lg p-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="regPermReduce" checked class="accent-primary w-3.5 h-3.5">
+                  <span class="font-mono text-[10px] text-on-surface">Can reduce leverage</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="regPermClose" checked class="accent-primary w-3.5 h-3.5">
+                  <span class="font-mono text-[10px] text-on-surface">Can close positions</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="regPermIncrease" class="accent-primary w-3.5 h-3.5">
+                  <span class="font-mono text-[10px] text-on-surface">Can increase leverage</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="regPermOpen" class="accent-primary w-3.5 h-3.5">
+                  <span class="font-mono text-[10px] text-on-surface">Can open new positions</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="regPermWithdraw" class="accent-error w-3.5 h-3.5">
+                  <span class="font-mono text-[10px] text-error">Can withdraw funds</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Allowed Assets <span class="text-on-surface-variant/50">(comma-separated, blank = all)</span></label>
+              <input type="text" id="regAgentAssets" placeholder="QQQ, SPY, ETH, BTC" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Rate Limit <span class="text-on-surface-variant/50">(actions/min)</span></label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1" max="60" value="10" class="slider-track flex-1" id="regRateLimit" oninput="document.getElementById('regRateLimitVal').textContent=this.value+'/min'">
+                <span class="font-mono text-xs text-on-surface w-14 text-right" id="regRateLimitVal">10/min</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Webhook URL <span class="text-on-surface-variant/50">(optional)</span></label>
+              <input type="text" id="regWebhookUrl" placeholder="https://your-server.com/webhook" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+            </div>
+
+            <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2" onclick="registerAgent()" id="regSubmitBtn">
+              <span class="material-symbols-outlined text-base">app_registration</span>
+              Register Agent
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registered Agents List -->
+      <div class="lg:col-span-8">
+        <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+          <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-secondary text-base">groups</span>
+              <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Registered Agents</span>
+            </div>
+            <button class="font-mono text-[9px] text-primary hover:text-primary/80 uppercase tracking-wider flex items-center gap-1" onclick="refreshAgentList()">
+              <span class="material-symbols-outlined text-sm">refresh</span>Refresh
+            </button>
+          </div>
+          <div class="p-5">
+            <!-- API Key Flash Banner (shown once after registration) -->
+            <div id="apiKeyBanner" class="hidden mb-4 p-4 bg-secondary/10 border border-secondary/30 rounded-lg">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-secondary text-xl">key</span>
+                <div class="flex-1">
+                  <p class="font-mono text-[11px] text-secondary font-bold uppercase mb-1">API Key — Save This Now (Shown Only Once)</p>
+                  <div class="flex items-center gap-2 bg-surface-container-highest rounded px-3 py-2 mt-1">
+                    <code class="font-mono text-xs text-on-surface flex-1 break-all select-all" id="apiKeyValue">—</code>
+                    <button class="px-2 py-1 bg-secondary/20 text-secondary rounded text-[9px] font-bold hover:bg-secondary/30" onclick="copyApiKey()">Copy</button>
+                  </div>
+                  <p class="font-mono text-[9px] text-on-surface-variant mt-1">Use this key in the <code>X-API-Key</code> header for external agent requests.</p>
+                </div>
+                <button class="text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('apiKeyBanner').classList.add('hidden')">
+                  <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Agent Cards -->
+            <div id="agentListContainer" class="space-y-3">
+              <div class="text-center py-8">
+                <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">smart_toy</span>
+                <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No agents registered yet. Register one to get started.</p>
+                <p class="font-mono text-[9px] text-on-surface-variant/30 mt-1">Connect your Server API first via the Agent Connector panel.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ TAB: HITL Queue ═══ -->
+  <div class="agent-tab-content hidden" id="tab-hitl">
+    <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+      <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-base">approval</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Human-in-the-Loop Decision Queue</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <select id="hitlModeSelect" class="bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-1.5 font-mono text-[10px] text-on-surface" onchange="setHITLMode(this.value)">
+            <option value="autonomous">Autonomous</option>
+            <option value="approval_required" selected>Approval Required</option>
+            <option value="approval_above_threshold">Above Threshold</option>
+            <option value="notifications_only">Notifications Only</option>
+          </select>
+          <button class="font-mono text-[9px] text-primary hover:text-primary/80 uppercase tracking-wider flex items-center gap-1" onclick="refreshHITLQueue()">
+            <span class="material-symbols-outlined text-sm">refresh</span>Refresh
+          </button>
+        </div>
+      </div>
+      <div class="p-5">
+        <div id="hitlQueueContainer" class="space-y-3">
+          <div class="text-center py-8">
+            <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">check_circle</span>
+            <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No pending decisions. Your agents are behaving.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: Runs & Actions ═══ -->
+  <div class="agent-tab-content hidden" id="tab-runs">
+    <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+      <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary text-base">history</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Agent Runs & Action History</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <select id="runsFilterStatus" class="bg-surface-container-highest border border-outline-variant/20 rounded px-3 py-1.5 font-mono text-[10px] text-on-surface" onchange="refreshRunsList()">
+            <option value="">All Statuses</option>
+            <option value="running">Running</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+            <option value="stopped">Stopped</option>
+          </select>
+          <button class="font-mono text-[9px] text-primary hover:text-primary/80 uppercase tracking-wider flex items-center gap-1" onclick="refreshRunsList()">
+            <span class="material-symbols-outlined text-sm">refresh</span>Refresh
+          </button>
+        </div>
+      </div>
+      <div class="p-5">
+        <div id="runsListContainer" class="space-y-3">
+          <div class="text-center py-8">
+            <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">history</span>
+            <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No agent runs yet. Start an agent to see history here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: Permissions Checker ═══ -->
+  <div class="agent-tab-content hidden" id="tab-perms">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Permission Test -->
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-base">admin_panel_settings</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Pre-flight Permission Check</span>
+        </div>
+        <div class="p-5 space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Action Type</label>
+              <select id="permCheckAction" class="w-full bg-surface-container-highest border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface">
+                <option value="buy">Buy (Open New)</option>
+                <option value="close">Close</option>
+                <option value="close-partial">Close Partial</option>
+                <option value="adjust">Adjust Leverage</option>
+                <option value="deleverage">Deleverage</option>
+                <option value="withdraw">Withdraw</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Asset</label>
+              <input type="text" id="permCheckAsset" value="QQQ" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Current Leverage</label>
+              <input type="number" id="permCheckCurrentLev" value="2.0" step="0.1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Target Leverage</label>
+              <input type="number" id="permCheckTargetLev" value="1.5" step="0.1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface focus:outline-none focus:border-primary/50">
+            </div>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">API Key <span class="text-on-surface-variant/50">(for external agent check)</span></label>
+            <input type="password" id="permCheckApiKey" placeholder="xlvr_..." class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
+          </div>
+          <button class="w-full py-3 rounded-lg bg-tertiary-container text-on-tertiary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2" onclick="checkPermissions()">
+            <span class="material-symbols-outlined text-base">verified_user</span>
+            Check Permissions
+          </button>
+        </div>
+      </div>
+
+      <!-- Permission Result -->
+      <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+        <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center gap-2">
+          <span class="material-symbols-outlined text-secondary text-base">fact_check</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Result</span>
+        </div>
+        <div class="p-5" id="permResultContainer">
+          <div class="text-center py-8">
+            <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">rule</span>
+            <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">Run a check to see if an action would be permitted.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
 </main>
 
 <!-- ===== FOOTER: Terminal Status Bar ===== -->
@@ -764,9 +1039,9 @@ tailwind.config = {
     <span class="hidden lg:block font-mono text-[10px] uppercase tracking-widest text-slate-500">Block: 19482734</span>
   </div>
   <div class="flex items-center gap-4">
-    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="#">Docs</a>
-    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="#">API Status</a>
-    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="#">Support</a>
+    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
+    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="https://github.com/madschristensen99/xLever" target="_blank">GitHub</a>
+    <a class="font-mono text-[10px] uppercase tracking-widest text-slate-500 hover:text-white transition-colors" href="https://github.com/madschristensen99/xLever/issues" target="_blank">Support</a>
   </div>
 </footer>
 
@@ -2062,6 +2337,638 @@ processLocalFallback = function(prompt) {
 
   return _origLocalFallback(prompt);
 };
+
+// ═══════════════════════════════════════════════════════════
+// AGENTIC SUITE — Registry, HITL, Runs, Permissions
+// ═══════════════════════════════════════════════════════════
+
+function switchAgentTab(tabId) {
+  document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.agent-tab-content').forEach(c => c.classList.add('hidden'));
+  document.querySelector(`.agent-tab[data-tab="${tabId}"]`)?.classList.add('active');
+  document.getElementById(`tab-${tabId}`)?.classList.remove('hidden');
+}
+
+function _apiBase() {
+  return ConnectorState.server.baseUrl || null;
+}
+
+function _apiHeaders(apiKey) {
+  const h = { 'Content-Type': 'application/json' };
+  if (apiKey) h['X-API-Key'] = apiKey;
+  return h;
+}
+
+// ── Agent Registration ──
+
+async function registerAgent() {
+  const base = _apiBase();
+  if (!base) {
+    logAction('REGISTRY', 'Connect Server API first via Agent Connector', 'error');
+    if (typeof XToast !== 'undefined') XToast.show('Connect Server API first', 'error');
+    return;
+  }
+
+  const name = document.getElementById('regAgentName').value.trim();
+  if (!name) {
+    logAction('REGISTRY', 'Agent name is required', 'error');
+    return;
+  }
+
+  const assetsRaw = document.getElementById('regAgentAssets').value.trim();
+  const allowed_assets = assetsRaw ? assetsRaw.split(',').map(a => a.trim().toUpperCase()).filter(Boolean) : [];
+
+  const body = {
+    name,
+    permissions: {
+      canReduceLeverage: document.getElementById('regPermReduce').checked,
+      canClose: document.getElementById('regPermClose').checked,
+      canIncreaseLeverage: document.getElementById('regPermIncrease').checked,
+      canOpenNew: document.getElementById('regPermOpen').checked,
+      canWithdraw: document.getElementById('regPermWithdraw').checked,
+    },
+    allowed_assets,
+    rate_limit_per_minute: parseInt(document.getElementById('regRateLimit').value),
+    webhook_url: document.getElementById('regWebhookUrl').value.trim() || null,
+  };
+
+  const btn = document.getElementById('regSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Registering...';
+
+  try {
+    const res = await fetch(`${base}/external-agents/register`, {
+      method: 'POST',
+      headers: _apiHeaders(),
+      body: JSON.stringify(body),
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    logAction('REGISTRY', `✓ Agent "${data.name}" registered (ID: ${data.agent_id})`, 'secondary');
+    if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${data.name}`, 'success');
+
+    // Flash the API key banner
+    document.getElementById('apiKeyValue').textContent = data.api_key;
+    document.getElementById('apiKeyBanner').classList.remove('hidden');
+
+    // Clear form
+    document.getElementById('regAgentName').value = '';
+    document.getElementById('regAgentAssets').value = '';
+    document.getElementById('regWebhookUrl').value = '';
+
+    // Refresh list
+    refreshAgentList();
+
+  } catch (err) {
+    logAction('REGISTRY', `Registration failed: ${err.message}`, 'error');
+    if (typeof XToast !== 'undefined') XToast.show(`Registration failed: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+  }
+}
+
+function copyApiKey() {
+  const key = document.getElementById('apiKeyValue').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    if (typeof XToast !== 'undefined') XToast.show('API key copied to clipboard', 'success');
+  });
+}
+
+// ── Agent List ──
+
+async function refreshAgentList() {
+  const base = _apiBase();
+  if (!base) return;
+
+  const container = document.getElementById('agentListContainer');
+  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="material-symbols-outlined text-on-surface-variant/50 animate-spin">progress_activity</span></div>';
+
+  try {
+    const res = await fetch(`${base}/external-agents/`, {
+      credentials: 'include',
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        container.innerHTML = '<div class="text-center py-6"><p class="font-mono text-[11px] text-error">Authentication required — connect your wallet first.</p></div>';
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const agents = await res.json();
+    if (!agents.length) {
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">smart_toy</span>
+          <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No agents registered yet.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = agents.map(a => renderAgentCard(a)).join('');
+
+  } catch (err) {
+    container.innerHTML = `<div class="text-center py-6"><p class="font-mono text-[11px] text-error">Failed to load agents: ${err.message}</p></div>`;
+  }
+}
+
+function renderAgentCard(agent) {
+  const statusColor = agent.is_active ? 'text-secondary' : 'text-error';
+  const statusLabel = agent.is_active ? 'ACTIVE' : 'INACTIVE';
+  const statusDot = agent.is_active ? '#05e777' : '#ff5252';
+  const permBadges = Object.entries(agent.permissions || {}).map(([k, v]) => {
+    const label = k.replace('can', '').replace(/([A-Z])/g, ' $1').trim();
+    return `<span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${v ? 'bg-secondary/10 text-secondary' : 'bg-error/10 text-error/50'}">${v ? '✓' : '✗'} ${label}</span>`;
+  }).join(' ');
+  const assetBadges = (agent.allowed_assets || []).length
+    ? agent.allowed_assets.map(a => `<span class="px-1.5 py-0.5 bg-tertiary-container/20 text-tertiary rounded text-[8px] font-bold">${a}</span>`).join(' ')
+    : '<span class="text-[9px] text-on-surface-variant/50">All assets</span>';
+  const lastUsed = agent.last_used_at ? new Date(agent.last_used_at).toLocaleString() : 'Never';
+  const created = new Date(agent.created_at).toLocaleDateString();
+
+  return `
+    <div class="agent-card bg-surface-container-highest/20 rounded-lg border border-outline-variant/10 p-4">
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-primary-container/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-xl">smart_toy</span>
+          </div>
+          <div>
+            <h4 class="font-bold text-on-surface text-sm">${agent.name}</h4>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="w-2 h-2 rounded-full" style="background:${statusDot}"></span>
+              <span class="font-mono text-[9px] ${statusColor} font-bold uppercase">${statusLabel}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">ID: ${agent.id}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">Rate: ${agent.rate_limit_per_minute}/min</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button class="px-2 py-1 rounded bg-surface-container-highest hover:bg-surface-bright text-[9px] font-mono font-bold uppercase transition-colors" onclick="rotateAgentKey(${agent.id})" title="Rotate API Key">
+            <span class="material-symbols-outlined text-sm">key</span>
+          </button>
+          <button class="px-2 py-1 rounded bg-surface-container-highest hover:bg-surface-bright text-[9px] font-mono font-bold uppercase transition-colors" onclick="toggleAgentActive(${agent.id}, ${!agent.is_active})" title="${agent.is_active ? 'Deactivate' : 'Activate'}">
+            <span class="material-symbols-outlined text-sm">${agent.is_active ? 'pause' : 'play_arrow'}</span>
+          </button>
+          ${agent.is_active ? '' : `<button class="px-2 py-1 rounded bg-error/10 hover:bg-error/20 text-error text-[9px] font-mono font-bold uppercase transition-colors" onclick="deleteAgent(${agent.id})" title="Delete"><span class="material-symbols-outlined text-sm">delete</span></button>`}
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1 mb-2">${permBadges}</div>
+      <div class="flex flex-wrap gap-1 mb-2">${assetBadges}</div>
+      <div class="flex items-center gap-4 mt-2 pt-2 border-t border-outline-variant/10">
+        <span class="font-mono text-[9px] text-on-surface-variant">Created: ${created}</span>
+        <span class="font-mono text-[9px] text-on-surface-variant">Last used: ${lastUsed}</span>
+        ${agent.webhook_url ? '<span class="font-mono text-[9px] text-tertiary">Webhook: ✓</span>' : ''}
+      </div>
+    </div>`;
+}
+
+async function rotateAgentKey(agentId) {
+  const base = _apiBase();
+  if (!base) return;
+  try {
+    const res = await fetch(`${base}/external-agents/${agentId}/rotate-key`, {
+      method: 'POST', credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    document.getElementById('apiKeyValue').textContent = data.api_key;
+    document.getElementById('apiKeyBanner').classList.remove('hidden');
+    logAction('REGISTRY', `Key rotated for agent ${agentId}`, 'secondary');
+  } catch (err) {
+    logAction('REGISTRY', `Key rotation failed: ${err.message}`, 'error');
+  }
+}
+
+async function toggleAgentActive(agentId, activate) {
+  const base = _apiBase();
+  if (!base) return;
+  try {
+    if (activate) {
+      await fetch(`${base}/external-agents/${agentId}`, {
+        method: 'PATCH', credentials: 'include',
+        headers: _apiHeaders(),
+        body: JSON.stringify({ is_active: true }),
+      });
+    } else {
+      await fetch(`${base}/external-agents/${agentId}`, {
+        method: 'DELETE', credentials: 'include',
+      });
+    }
+    logAction('REGISTRY', `Agent ${agentId} ${activate ? 'activated' : 'deactivated'}`, activate ? 'secondary' : 'yellow-500');
+    refreshAgentList();
+  } catch (err) {
+    logAction('REGISTRY', `Toggle failed: ${err.message}`, 'error');
+  }
+}
+
+async function deleteAgent(agentId) {
+  const base = _apiBase();
+  if (!base) return;
+  try {
+    await fetch(`${base}/external-agents/${agentId}`, {
+      method: 'DELETE', credentials: 'include',
+    });
+    logAction('REGISTRY', `Agent ${agentId} deactivated`, 'error');
+    refreshAgentList();
+  } catch (err) {
+    logAction('REGISTRY', `Delete failed: ${err.message}`, 'error');
+  }
+}
+
+// ── HITL Queue ──
+
+async function refreshHITLQueue() {
+  const base = _apiBase();
+  if (!base) return;
+
+  const container = document.getElementById('hitlQueueContainer');
+  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="material-symbols-outlined text-on-surface-variant/50 animate-spin">progress_activity</span></div>';
+
+  try {
+    const res = await fetch(`${base}/agent/pending`, {
+      credentials: 'include',
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const decisions = await res.json();
+
+    // Update badge
+    const badge = document.getElementById('hitlBadge');
+    if (decisions.length > 0) {
+      badge.textContent = decisions.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+
+    if (!decisions.length) {
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">check_circle</span>
+          <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No pending decisions.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = decisions.map(d => renderHITLCard(d)).join('');
+
+  } catch (err) {
+    container.innerHTML = `<div class="text-center py-6"><p class="font-mono text-[11px] text-error">Failed to load queue: ${err.message}</p></div>`;
+  }
+}
+
+function renderHITLCard(decision) {
+  const urgencyColors = { low: 'text-on-surface-variant', medium: 'text-tertiary', high: 'text-yellow-500', critical: 'text-error' };
+  const urgencyColor = urgencyColors[decision.urgency] || 'text-on-surface-variant';
+  const timeRemaining = decision.time_remaining_seconds != null ? `${Math.floor(decision.time_remaining_seconds)}s` : '—';
+  const dirColor = ['BUY', 'LONG', 'OPEN_LONG'].includes(decision.action) ? 'text-secondary' : 'text-error';
+  const confidence = decision.confidence != null ? `${(decision.confidence * 100).toFixed(0)}%` : '—';
+
+  return `
+    <div class="hitl-card bg-surface-container-highest/20 rounded-lg border border-outline-variant/10 p-4">
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-yellow-500 text-xl">pending_actions</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold ${dirColor} text-sm">${decision.action || 'UNKNOWN'}</span>
+              <span class="font-bold text-on-surface text-sm">${decision.asset || 'SPY'}</span>
+              <span class="font-mono text-[9px] ${urgencyColor} font-bold uppercase px-1.5 py-0.5 rounded bg-surface-container-highest">${decision.urgency || 'MEDIUM'}</span>
+            </div>
+            <div class="flex items-center gap-3 mt-0.5">
+              <span class="font-mono text-[9px] text-on-surface-variant">Leverage: ${decision.leverage || '—'}x</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">Confidence: ${confidence}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">Timeout: ${timeRemaining}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">ID: ${decision.id}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="px-4 py-2 rounded-lg bg-secondary/20 text-secondary text-xs font-bold hover:bg-secondary/30 transition-colors flex items-center gap-1" onclick="approveHITL('${decision.id}')">
+            <span class="material-symbols-outlined text-sm">check</span>Approve
+          </button>
+          <button class="px-4 py-2 rounded-lg bg-error/20 text-error text-xs font-bold hover:bg-error/30 transition-colors flex items-center gap-1" onclick="rejectHITL('${decision.id}')">
+            <span class="material-symbols-outlined text-sm">close</span>Reject
+          </button>
+        </div>
+      </div>
+      ${decision.reasoning ? `<div class="bg-surface-container-highest/30 rounded p-3 mt-2"><p class="font-mono text-[10px] text-on-surface-variant leading-relaxed">${decision.reasoning}</p></div>` : ''}
+    </div>`;
+}
+
+async function approveHITL(decisionId) {
+  const base = _apiBase();
+  if (!base) return;
+  try {
+    const res = await fetch(`${base}/agent/approve/${decisionId}`, {
+      method: 'POST', credentials: 'include',
+      headers: _apiHeaders(),
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    logAction('HITL', `✓ Decision ${decisionId} approved`, 'secondary');
+    if (typeof XToast !== 'undefined') XToast.show('Decision approved', 'success');
+    refreshHITLQueue();
+  } catch (err) {
+    logAction('HITL', `Approve failed: ${err.message}`, 'error');
+  }
+}
+
+async function rejectHITL(decisionId) {
+  const base = _apiBase();
+  if (!base) return;
+  try {
+    const res = await fetch(`${base}/agent/reject/${decisionId}`, {
+      method: 'POST', credentials: 'include',
+      headers: _apiHeaders(),
+      body: JSON.stringify({ reason: 'Rejected from HITL Queue UI' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    logAction('HITL', `✗ Decision ${decisionId} rejected`, 'error');
+    if (typeof XToast !== 'undefined') XToast.show('Decision rejected', 'warning');
+    refreshHITLQueue();
+  } catch (err) {
+    logAction('HITL', `Reject failed: ${err.message}`, 'error');
+  }
+}
+
+async function setHITLMode(mode) {
+  const base = _apiBase();
+  if (!base) {
+    logAction('HITL', 'Connect Server API first', 'error');
+    return;
+  }
+  try {
+    const res = await fetch(`${base}/agent/mode`, {
+      method: 'POST', credentials: 'include',
+      headers: _apiHeaders(),
+      body: JSON.stringify({ mode }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    logAction('HITL', `Agent HITL mode set to: ${mode}`, 'primary');
+  } catch (err) {
+    logAction('HITL', `Set mode failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Runs & Actions ──
+
+async function refreshRunsList() {
+  const base = _apiBase();
+  if (!base) return;
+
+  const container = document.getElementById('runsListContainer');
+  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="material-symbols-outlined text-on-surface-variant/50 animate-spin">progress_activity</span></div>';
+
+  const status = document.getElementById('runsFilterStatus').value;
+
+  try {
+    // Try external agent runs endpoint first, fall back to wallet-based
+    let runs = [];
+
+    // Try the wallet-based endpoint
+    const wallet = window.xLeverWallet?.address || '0x0000000000000000000000000000000000000000';
+    const url = new URL(`${base}/agents/${wallet}/runs`);
+    if (status) url.searchParams.set('status', status);
+    url.searchParams.set('limit', '20');
+
+    const res = await fetch(url, {
+      credentials: 'include',
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (res.ok) {
+      runs = await res.json();
+    }
+
+    if (!runs.length) {
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">history</span>
+          <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No agent runs found.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = runs.map(r => renderRunCard(r)).join('');
+
+  } catch (err) {
+    container.innerHTML = `<div class="text-center py-6"><p class="font-mono text-[11px] text-error">Failed to load runs: ${err.message}</p></div>`;
+  }
+}
+
+function renderRunCard(run) {
+  const statusColors = { running: 'text-secondary', completed: 'text-primary', failed: 'text-error', stopped: 'text-yellow-500' };
+  const statusColor = statusColors[run.status] || 'text-on-surface-variant';
+  const statusDots = { running: '#05e777', completed: '#cdbdff', failed: '#ff5252', stopped: '#ffa726' };
+  const pnlColor = (run.total_pnl || 0) >= 0 ? 'text-secondary' : 'text-error';
+  const pnlStr = (run.total_pnl || 0) >= 0 ? `+$${(run.total_pnl || 0).toFixed(2)}` : `-$${Math.abs(run.total_pnl || 0).toFixed(2)}`;
+  const started = new Date(run.started_at).toLocaleString();
+  const ended = run.ended_at ? new Date(run.ended_at).toLocaleString() : '—';
+
+  const actionsHTML = (run.actions || []).slice(0, 10).map(a => {
+    const aColor = a.success ? 'text-secondary' : 'text-error';
+    const time = new Date(a.executed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    return `
+      <div class="flex items-center gap-3 py-1.5 border-b border-outline-variant/5 last:border-0">
+        <span class="font-mono text-[9px] text-on-surface-variant w-16">${time}</span>
+        <span class="font-mono text-[10px] ${aColor} font-bold w-20">${a.action_type}</span>
+        <span class="font-mono text-[10px] text-on-surface w-12">${a.asset || '—'}</span>
+        <span class="font-mono text-[10px] text-on-surface-variant w-12">${a.leverage ? a.leverage + 'x' : '—'}</span>
+        <span class="font-mono text-[9px] text-on-surface-variant flex-1 truncate">${a.reason || '—'}</span>
+        ${a.tx_hash ? `<span class="font-mono text-[8px] text-tertiary truncate w-24">${a.tx_hash.slice(0,10)}...</span>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="bg-surface-container-highest/20 rounded-lg border border-outline-variant/10 overflow-hidden">
+      <div class="p-4 flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-tertiary-container/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-tertiary text-xl">route</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-on-surface text-sm">Run #${run.id}</span>
+              <span class="w-2 h-2 rounded-full" style="background:${statusDots[run.status] || '#948ea1'}"></span>
+              <span class="font-mono text-[9px] ${statusColor} font-bold uppercase">${run.status}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant bg-surface-container-highest px-1.5 py-0.5 rounded">${run.strategy}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">${run.asset}</span>
+            </div>
+            <div class="flex items-center gap-4 mt-0.5">
+              <span class="font-mono text-[9px] text-on-surface-variant">Started: ${started}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">Ended: ${ended}</span>
+              <span class="font-mono text-[9px] text-on-surface-variant">Trades: ${run.total_trades || 0}</span>
+              <span class="font-mono text-[9px] ${pnlColor} font-bold">PnL: ${pnlStr}</span>
+              ${run.max_drawdown != null ? `<span class="font-mono text-[9px] text-error">Max DD: ${run.max_drawdown}%</span>` : ''}
+            </div>
+          </div>
+        </div>
+        ${run.status === 'running' ? `<button class="px-3 py-1.5 rounded bg-error/10 text-error text-[9px] font-bold hover:bg-error/20 flex items-center gap-1" onclick="stopRun(${run.id})"><span class="material-symbols-outlined text-sm">stop</span>Stop</button>` : ''}
+      </div>
+      ${(run.actions || []).length ? `
+        <div class="border-t border-outline-variant/10 px-4 py-2">
+          <div class="flex items-center gap-3 py-1 mb-1">
+            <span class="font-mono text-[8px] text-on-surface-variant/50 uppercase w-16">Time</span>
+            <span class="font-mono text-[8px] text-on-surface-variant/50 uppercase w-20">Action</span>
+            <span class="font-mono text-[8px] text-on-surface-variant/50 uppercase w-12">Asset</span>
+            <span class="font-mono text-[8px] text-on-surface-variant/50 uppercase w-12">Lev</span>
+            <span class="font-mono text-[8px] text-on-surface-variant/50 uppercase flex-1">Reason</span>
+          </div>
+          ${actionsHTML}
+        </div>` : ''}
+    </div>`;
+}
+
+async function stopRun(runId) {
+  const base = _apiBase();
+  if (!base) return;
+  try {
+    const res = await fetch(`${base}/agents/runs/${runId}/stop`, {
+      method: 'POST', credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    logAction('RUNS', `Run #${runId} stopped`, 'yellow-500');
+    refreshRunsList();
+  } catch (err) {
+    logAction('RUNS', `Stop failed: ${err.message}`, 'error');
+  }
+}
+
+// ── Permissions Checker ──
+
+async function checkPermissions() {
+  const base = _apiBase();
+  const apiKey = document.getElementById('permCheckApiKey').value.trim();
+  const container = document.getElementById('permResultContainer');
+
+  const body = {
+    action_type: document.getElementById('permCheckAction').value,
+    asset: document.getElementById('permCheckAsset').value.trim().toUpperCase(),
+    current_leverage: parseFloat(document.getElementById('permCheckCurrentLev').value) || null,
+    target_leverage: parseFloat(document.getElementById('permCheckTargetLev').value) || null,
+  };
+
+  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="material-symbols-outlined text-on-surface-variant/50 animate-spin">progress_activity</span></div>';
+
+  try {
+    let result;
+
+    if (apiKey && base) {
+      // External agent permission check
+      const res = await fetch(`${base}/external-agents/permissions/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      result = await res.json();
+    } else if (base) {
+      // Browser session permission check
+      const res = await fetch(`${base}/agents/permissions/check`, {
+        method: 'POST', credentials: 'include',
+        headers: _apiHeaders(),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      result = await res.json();
+    } else {
+      // Offline: simulate against local PERMISSIONS
+      const mode = STATE.activeMode || 'safe';
+      const perms = {
+        safe: { canIncreaseLeverage: false, canOpenNew: false, canWithdraw: false, canReduceLeverage: true, canClose: true },
+        target: { canIncreaseLeverage: true, canOpenNew: false, canWithdraw: false, canReduceLeverage: true, canClose: false },
+        accumulate: { canIncreaseLeverage: false, canOpenNew: true, canWithdraw: false, canReduceLeverage: false, canClose: false },
+      }[mode];
+
+      const actionPermMap = {
+        buy: 'canOpenNew', close: 'canClose', 'close-partial': 'canClose', withdraw: 'canWithdraw',
+        adjust: body.target_leverage > body.current_leverage ? 'canIncreaseLeverage' : 'canReduceLeverage',
+        deleverage: 'canReduceLeverage',
+      };
+      const needed = actionPermMap[body.action_type];
+      const permitted = perms[needed] || false;
+      result = { permitted, agent: 'local', action_type: body.action_type, asset: body.asset, permissions: perms, reason: permitted ? '' : `${needed} is false in ${mode} mode` };
+    }
+
+    // Render result
+    const icon = result.permitted ? 'check_circle' : 'block';
+    const color = result.permitted ? 'perm-allowed' : 'perm-blocked';
+    const label = result.permitted ? 'PERMITTED' : 'BLOCKED';
+
+    let permGrid = '';
+    if (result.permissions) {
+      permGrid = Object.entries(result.permissions).map(([k, v]) => {
+        const label = k.replace('can', '').replace(/([A-Z])/g, ' $1').trim();
+        return `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm ${v ? 'perm-allowed' : 'perm-blocked'}">${v ? 'check_circle' : 'block'}</span><span class="font-mono text-[10px] text-on-surface">${label}</span></div>`;
+      }).join('');
+    }
+
+    container.innerHTML = `
+      <div class="text-center mb-4">
+        <span class="material-symbols-outlined ${color} text-5xl">${icon}</span>
+        <p class="font-mono text-lg font-bold ${color} mt-2">${label}</p>
+        ${result.reason ? `<p class="font-mono text-[11px] text-on-surface-variant mt-1">${result.reason}</p>` : ''}
+      </div>
+      <div class="bg-surface-container-highest/20 rounded-lg p-4 space-y-3">
+        <div class="grid grid-cols-2 gap-2">
+          <div><span class="font-mono text-[9px] text-on-surface-variant uppercase">Action</span><p class="font-mono text-xs text-on-surface font-bold">${result.action_type}</p></div>
+          <div><span class="font-mono text-[9px] text-on-surface-variant uppercase">Asset</span><p class="font-mono text-xs text-on-surface font-bold">${result.asset}</p></div>
+          <div><span class="font-mono text-[9px] text-on-surface-variant uppercase">Agent</span><p class="font-mono text-xs text-on-surface font-bold">${result.agent || '—'}</p></div>
+        </div>
+        ${permGrid ? `<div class="pt-2 border-t border-outline-variant/10"><p class="font-mono text-[9px] text-on-surface-variant uppercase mb-2">Agent Permissions</p><div class="grid grid-cols-2 gap-1.5">${permGrid}</div></div>` : ''}
+      </div>`;
+
+    logAction('PERMS', `${body.action_type} ${body.asset}: ${label}`, result.permitted ? 'secondary' : 'error');
+
+  } catch (err) {
+    container.innerHTML = `<div class="text-center py-6"><p class="font-mono text-[11px] text-error">${err.message}</p></div>`;
+  }
+}
+
+// ── Auto-refresh on tab switch ──
+function _onTabSwitch(tabId) {
+  if (tabId === 'registry') refreshAgentList();
+  if (tabId === 'hitl') refreshHITLQueue();
+  if (tabId === 'runs') refreshRunsList();
+}
+
+const _origSwitchTab = switchAgentTab;
+switchAgentTab = function(tabId) {
+  _origSwitchTab(tabId);
+  if (ConnectorState.server.connected) _onTabSwitch(tabId);
+};
+
+// ── Poll HITL queue when connected ──
+let _hitlPollInterval = null;
+function startHITLPolling() {
+  if (_hitlPollInterval) clearInterval(_hitlPollInterval);
+  _hitlPollInterval = setInterval(() => {
+    if (ConnectorState.server.connected) refreshHITLQueue();
+  }, 10000);
+}
+document.addEventListener('DOMContentLoaded', startHITLPolling);
 
 // ═══════════════════════════════════════════════════════════
 // TEST NEWS INJECTION

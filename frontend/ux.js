@@ -1005,7 +1005,7 @@ const XAuthGate = (() => {
       var w = window.xLeverWallet;
       if (!w) {
         if (++attempts >= maxAttempts) {
-          console.warn('[XAuthGate] Reown AppKit not available after 15s, stopping poll');
+
           return;
         }
         return setTimeout(check, 300);

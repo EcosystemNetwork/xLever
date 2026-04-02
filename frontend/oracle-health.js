@@ -130,7 +130,7 @@ const OracleHealthBadge = (() => {
     autoStart(selector) {
       this.mount(selector)
       if (!_el) {
-        console.warn('OracleHealthBadge: selector not found:', selector)
+
         return this
       }
 

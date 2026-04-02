@@ -574,7 +574,6 @@ async function loadStats() {
     document.getElementById('statActiveAgents').textContent = fmt(s.active_agents);
     document.getElementById('statTotalAlerts').textContent = fmt(s.total_alerts);
   } catch (e) {
-    console.error('Failed to load stats:', e);
   }
 }
 
@@ -611,7 +610,6 @@ async function loadDailyChart() {
         </div>`;
     }).join('');
   } catch (e) {
-    console.error('Failed to load daily chart:', e);
     document.getElementById('dailyChart').innerHTML = '<div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">Failed to load</div>';
   }
 }
@@ -641,7 +639,6 @@ async function loadHourlyChart() {
         </div>`;
     }).join('');
   } catch (e) {
-    console.error('Failed to load hourly chart:', e);
     document.getElementById('hourlyChart').innerHTML = '<div class="flex-1 flex items-center justify-center h-full text-on-surface-variant text-xs">Failed to load</div>';
   }
 }
@@ -679,7 +676,6 @@ async function loadUsers() {
       </tr>
     `).join('');
   } catch (e) {
-    console.error('Failed to load users:', e);
     document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-on-surface-variant text-xs">Failed to load</td></tr>';
   }
 }
@@ -713,7 +709,6 @@ async function loadSessions() {
       </div>
     `).join('');
   } catch (e) {
-    console.error('Failed to load sessions:', e);
     document.getElementById('sessionsList').innerHTML = '<div class="px-5 py-4 text-center text-on-surface-variant text-xs">Failed to load</div>';
   }
 }

@@ -30,7 +30,7 @@ class VerifyRequest(BaseModel):
 @router.get("/nonce")
 async def get_nonce():
     """Generate a fresh nonce for SIWE message construction."""
-    return {"nonce": create_nonce()}
+    return {"nonce": await create_nonce()}
 
 
 @router.post("/verify")
@@ -42,7 +42,7 @@ async def verify(body: VerifyRequest, response: Response):
         raise HTTPException(status_code=400, detail="Invalid SIWE message format")
 
     # Verify the nonce was issued by us and hasn't been used
-    if not consume_nonce(siwe_msg.nonce):
+    if not await consume_nonce(siwe_msg.nonce):
         raise HTTPException(status_code=400, detail="Invalid or expired nonce. Request a new one.")
 
     # Verify the cryptographic signature matches the claimed address
@@ -53,7 +53,7 @@ async def verify(body: VerifyRequest, response: Response):
 
     # Create session and set cookie
     wallet = siwe_msg.address.lower()
-    token = create_session(wallet)
+    token = await create_session(wallet)
 
     response.set_cookie(
         key=SESSION_COOKIE_NAME,

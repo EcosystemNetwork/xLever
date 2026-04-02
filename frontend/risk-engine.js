@@ -529,7 +529,7 @@ const RiskEngine = (() => {
       };
     } catch (e) {
       // Fall back to local evaluation with whatever data is available
-      console.warn('RiskEngine.fromContract() failed, falling back to local evaluate:', e.message);
+
       return null;
     }
   }

@@ -429,7 +429,7 @@ class EulerV2Adapter extends ILendingAdapter {
           err?.message?.includes('fetch failed')
         if (!isRetryable || attempt === maxAttempts - 1) throw err
         const delay = delays[attempt] || delays[delays.length - 1]
-        console.warn(`[EulerV2] RPC call failed (attempt ${attempt + 1}/${maxAttempts}), retrying in ${delay}ms...`, err.message)
+
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }

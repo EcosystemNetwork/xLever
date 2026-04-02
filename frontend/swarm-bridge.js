@@ -48,7 +48,7 @@ const SwarmBridge = (() => {
     // Swarm hub endpoint
     SWARM_HUB: 'https://swarmprotocol.fun',
     // xLever API base (same as AgentBridge)
-    API_BASE: isLocal ? 'http://localhost:8080/api' : 'https://api.xlever.markets/api',
+    API_BASE: '/api',
     // Swarm agent identity (set during register())
     AGENT_ID: null,
     AGENT_NAME: 'xLever-Agent',
@@ -56,7 +56,7 @@ const SwarmBridge = (() => {
     // Polling interval for daemon mode (ms)
     DAEMON_INTERVAL: 10000,
     // OpenClaw runtime endpoint (when bridging TO an OpenClaw instance)
-    OPENCLAW_URL: isLocal ? 'http://localhost:3000/chat' : null,
+    OPENCLAW_URL: isLocal ? '/api/openclaw/chat' : null,
   }
 
   // ═══════════════════════════════════════════════════════════════

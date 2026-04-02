@@ -87,7 +87,7 @@ const RiskLive = (() => {
         }
       }
     } catch (e) {
-      console.warn('RiskLive: Pyth fetch failed:', e.message)
+
     }
 
     // 2. On-chain pool state
@@ -105,7 +105,7 @@ const RiskLive = (() => {
         }
       }
     } catch (e) {
-      console.warn('RiskLive: Contract state fetch failed:', e.message)
+
     }
 
     // 2b. On-chain oracle state (separated prices, circuit breaker)
@@ -137,7 +137,7 @@ const RiskLive = (() => {
       }
     } catch (e) {
       if (!_oracleWarnLogged) {
-        console.warn('RiskLive: On-chain oracle state fetch failed:', e.message)
+
         _oracleWarnLogged = true
       }
     }

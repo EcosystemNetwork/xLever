@@ -342,7 +342,7 @@ const XNav = (() => {
         // Switch contracts module to the new chain
         const numericId = typeof newNetwork.id === 'number' ? newNetwork.id : parseInt(newNetwork.id, 10);
         if (CHAIN_NAMES[numericId] && window.xLeverContracts?.switchChain) {
-          try { window.xLeverContracts.switchChain(numericId); } catch (e) { console.warn('[nav] switchChain failed:', e); }
+          try { window.xLeverContracts.switchChain(numericId); } catch (e) { /* swallow */ }
         }
 
         const registry = window.xLeverLendingAdapters;

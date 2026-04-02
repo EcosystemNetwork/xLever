@@ -139,7 +139,7 @@ async function fetchBalances() {
     document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4); // Same 18-decimal format as wQQQx
 
   } catch (error) {
-
+    // Non-fatal: UI still works, user just sees stale balances
   }
 }
 
@@ -921,19 +921,19 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
         localStorage.setItem(cacheKey, JSON.stringify(allData)); // Persist to localStorage so subsequent page loads are instant
         localStorage.setItem(cacheTimeKey, now.toString()); // Record cache time for the 24-hour staleness check
       } catch (e) {
-        console.warn('Failed to cache data:', e); // localStorage might be full (5MB limit) or disabled — data still works, just won't cache
+
       }
     }
 
     entryDateIndex = 0; // Reset backtest entry point when switching tickers — previous entry index is meaningless for a different dataset
     updateAll(); // Re-render the chart and stats with the new ticker data
   } catch (error) {
-    console.error('Failed to load data, using generated data:', error); // Both OpenBB and Yahoo failed — degrade gracefully to synthetic data
+
     allData = generateQQQData(25); // Generate 25 years of synthetic QQQ-like data as final fallback so the UI still works offline
     dataLoading = false; // Even synthetic data counts as "loaded"
     entryDateIndex = 0; // Reset entry point for consistency
     updateAll(); // Render with synthetic data — user sees a working chart rather than a blank screen
-    console.warn('Using generated fallback data for', ticker);
+
   }
 }
 
@@ -2268,7 +2268,7 @@ document.getElementById('degenModeBtn').addEventListener('click', () => {
   if (!isLocal && !isDegenMode) {
     if (window.showToast) showToast('Degen mode is disabled in production', 'error');
     else if (window.XToast) XToast.show('Degen mode is disabled in production', 'error', 3000);
-    console.warn('Degen mode blocked: production environment');
+
     return;
   }
 
@@ -2284,7 +2284,7 @@ document.getElementById('degenModeBtn').addEventListener('click', () => {
     updateDegenModeUI();
     btn.textContent = 'NORMAL MODE';
     btn.classList.add('normal-mode-active');
-    console.log('🚀 DEGEN MODE ACTIVATED - 100x LEVERAGE UNLOCKED');
+
   } else {
     MIN_LEV = NORMAL_MIN;
     MAX_LEV = NORMAL_MAX;
@@ -2292,7 +2292,7 @@ document.getElementById('degenModeBtn').addEventListener('click', () => {
     updateNormalModeUI();
     btn.textContent = '🚀 DEGEN MODE';
     btn.classList.remove('normal-mode-active');
-    console.log('✓ Normal mode restored');
+
   }
 
   setSliderPos(currentLeverage);

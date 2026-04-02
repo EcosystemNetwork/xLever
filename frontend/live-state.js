@@ -45,7 +45,7 @@ async function fetchLiveSummary() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return await resp.json();
   } catch (e) {
-    console.warn('[live-state] summary fetch failed:', e.message);
+
     return null;
   }
 }
@@ -62,7 +62,7 @@ async function fetchLivePosition(symbol, userAddress) {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return await resp.json();
   } catch (e) {
-    console.warn(`[live-state] position fetch failed for ${symbol}:`, e.message);
+
     return null;
   }
 }

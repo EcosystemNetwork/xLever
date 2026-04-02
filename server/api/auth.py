@@ -7,6 +7,8 @@ Flow: frontend calls /api/auth/nonce → user signs message → /api/auth/verify
 Also supports API key authentication for external agents (OpenClaw, AutoGPT, etc.).
 """
 import hashlib
+import json
+import logging
 import os
 import re
 import secrets
@@ -19,6 +21,39 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db
+from .config import get_settings
+
+logger = logging.getLogger("xlever.auth")
+
+
+# ─── Redis Connection ─────────────────────────────────────────
+# Sessions and nonces are stored in Redis so they survive server restarts
+# and work across multiple worker processes.
+
+_redis = None
+
+
+async def _get_redis():
+    """Lazy-init Redis connection."""
+    global _redis
+    if _redis is not None:
+        return _redis
+    try:
+        import redis.asyncio as aioredis
+        settings = get_settings()
+        _redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        await _redis.ping()
+        logger.info("Redis session store connected")
+        return _redis
+    except Exception as exc:
+        logger.warning("Redis unavailable (%s), falling back to in-memory sessions", exc)
+        return None
+
+
+# ─── In-memory fallback (used when Redis is unavailable) ──────
+
+_mem_sessions: dict[str, dict] = {}
+_mem_nonces: dict[str, datetime] = {}
 
 
 # ─── Admin API Key Auth ───────────────────────────────────────
@@ -51,77 +86,92 @@ def validate_wallet_address(wallet_address: str) -> str:
     return wallet_address.lower()
 
 
-# ─── SIWE Session Store ──────────────────────────────────────
-# In-memory session store. For production, swap with Redis or DB-backed sessions.
+# ─── SIWE Session Store (Redis-backed with in-memory fallback) ─
 
 _SESSION_TTL = timedelta(hours=24)
+_NONCE_TTL = timedelta(minutes=5)
 SESSION_COOKIE_NAME = "xlever_session"
 
-# {session_token: {"wallet": "0x...", "expires": datetime}}
-_sessions: dict[str, dict] = {}
 
-# {nonce: expires_at} — nonces are single-use and expire after 5 minutes
-_nonces: dict[str, datetime] = {}
-
-
-def create_nonce() -> str:
+async def create_nonce() -> str:
     """Generate a cryptographically random nonce for SIWE message signing."""
     nonce = secrets.token_urlsafe(32)
-    _nonces[nonce] = datetime.now(timezone.utc) + timedelta(minutes=5)
-    _cleanup_nonces()
+    r = await _get_redis()
+    if r:
+        await r.setex(f"nonce:{nonce}", int(_NONCE_TTL.total_seconds()), "1")
+    else:
+        _mem_nonces[nonce] = datetime.now(timezone.utc) + _NONCE_TTL
+        _cleanup_mem_nonces()
     return nonce
 
 
-def consume_nonce(nonce: str) -> bool:
+async def consume_nonce(nonce: str) -> bool:
     """Validate and consume a nonce (single-use). Returns True if valid."""
-    _cleanup_nonces()
-    expires = _nonces.pop(nonce, None)
-    if expires is None:
-        return False
-    return datetime.now(timezone.utc) < expires
+    r = await _get_redis()
+    if r:
+        result = await r.delete(f"nonce:{nonce}")
+        return result > 0
+    else:
+        _cleanup_mem_nonces()
+        expires = _mem_nonces.pop(nonce, None)
+        if expires is None:
+            return False
+        return datetime.now(timezone.utc) < expires
 
 
-def create_session(wallet_address: str) -> str:
+async def create_session(wallet_address: str) -> str:
     """Create a new session for an authenticated wallet. Returns session token."""
     token = secrets.token_urlsafe(48)
-    _sessions[token] = {
-        "wallet": wallet_address.lower(),
-        "expires": datetime.now(timezone.utc) + _SESSION_TTL,
-    }
-    _cleanup_sessions()
+    session_data = {"wallet": wallet_address.lower()}
+    r = await _get_redis()
+    if r:
+        await r.setex(f"session:{token}", int(_SESSION_TTL.total_seconds()), json.dumps(session_data))
+    else:
+        _mem_sessions[token] = {
+            **session_data,
+            "expires": datetime.now(timezone.utc) + _SESSION_TTL,
+        }
+        _cleanup_mem_sessions()
     return token
 
 
-def get_session_wallet(token: str) -> Optional[str]:
+async def get_session_wallet(token: str) -> Optional[str]:
     """Look up the wallet address for a session token. Returns None if invalid/expired."""
-    session = _sessions.get(token)
-    if not session:
-        return None
-    if datetime.now(timezone.utc) > session["expires"]:
-        _sessions.pop(token, None)
-        return None
-    return session["wallet"]
+    r = await _get_redis()
+    if r:
+        data = await r.get(f"session:{token}")
+        if not data:
+            return None
+        return json.loads(data).get("wallet")
+    else:
+        session = _mem_sessions.get(token)
+        if not session:
+            return None
+        if datetime.now(timezone.utc) > session["expires"]:
+            _mem_sessions.pop(token, None)
+            return None
+        return session["wallet"]
 
 
-def _cleanup_nonces():
-    """Remove expired nonces."""
+def _cleanup_mem_nonces():
+    """Remove expired nonces from in-memory fallback."""
     now = datetime.now(timezone.utc)
-    expired = [k for k, v in _nonces.items() if now > v]
+    expired = [k for k, v in _mem_nonces.items() if now > v]
     for k in expired:
-        del _nonces[k]
+        del _mem_nonces[k]
 
 
-def _cleanup_sessions():
-    """Remove expired sessions."""
+def _cleanup_mem_sessions():
+    """Remove expired sessions from in-memory fallback."""
     now = datetime.now(timezone.utc)
-    expired = [k for k, v in _sessions.items() if now > v["expires"]]
+    expired = [k for k, v in _mem_sessions.items() if now > v["expires"]]
     for k in expired:
-        del _sessions[k]
+        del _mem_sessions[k]
 
 
 # ─── FastAPI Dependencies ─────────────────────────────────────
 
-def require_auth(
+async def require_auth(
     request: Request,
     xlever_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE_NAME),
 ) -> str:
@@ -135,7 +185,7 @@ def require_auth(
     if not token:
         raise HTTPException(status_code=401, detail="Authentication required. Sign in with your wallet.")
 
-    wallet = get_session_wallet(token)
+    wallet = await get_session_wallet(token)
     if not wallet:
         raise HTTPException(status_code=401, detail="Session expired or invalid. Please sign in again.")
 
@@ -233,7 +283,7 @@ async def require_auth_or_agent(
     if not token:
         raise HTTPException(status_code=401, detail="Authentication required. Use wallet session or X-API-Key.")
 
-    wallet = get_session_wallet(token)
+    wallet = await get_session_wallet(token)
     if not wallet:
         raise HTTPException(status_code=401, detail="Session expired or invalid.")
 

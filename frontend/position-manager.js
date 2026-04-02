@@ -162,6 +162,9 @@ function setButtonState(btn, state, extra) {
 // ═══════════════════════════════════════════════════════════
 
 document.getElementById('openPositionBtn')?.addEventListener('click', async () => {
+  // Validate chain before any transaction
+  if (!(await ensureCorrectNetwork())) return;
+
   const amountInput = document.getElementById('positionAmountInput');
   const amount = amountInput?.value;
   const selectedAsset = document.querySelector('.asset-btn.active')?.dataset.asset || 'wQQQx';
@@ -345,6 +348,9 @@ window.closePosition = async function(asset, vaultAddress) {
   if (!confirm(`Are you sure you want to close your ${asset} position?`)) {
     return;
   }
+
+  // Validate chain before any transaction
+  if (!(await ensureCorrectNetwork())) return;
 
   const contracts = window.xLeverContracts;
   if (!contracts) {

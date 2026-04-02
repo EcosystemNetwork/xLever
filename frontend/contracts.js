@@ -312,7 +312,7 @@ export async function getBalance(tokenAddress, userAddress) {
     const decimals = await pc.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' })
     return { raw: balance, formatted: formatUnits(balance, decimals), decimals }
   } catch (err) {
-    console.error('getBalance failed:', err.message)
+
     return { raw: 0n, formatted: '0', decimals: 18 }
   }
 }
@@ -451,7 +451,7 @@ async function fetchPythUpdate() {
     const result = await getPriceForFeed(feedId)
     updateData = result.updateData
   } catch (err) {
-    console.error('Pyth price fetch failed:', err.message)
+
     throw new Error('Failed to fetch oracle price update. Please try again.')
   }
 
@@ -463,7 +463,7 @@ async function fetchPythUpdate() {
         functionName: 'getUpdateFee', args: [updateData],
       })
       fee = fee + (fee / 10n) // 10% buffer
-    } catch (err) { console.warn('getUpdateFee failed, using default 0.001 ETH:', err.message) }
+    } catch (err) { /* swallow */ }
   }
   return { updateData, fee }
 }
@@ -772,7 +772,7 @@ export async function getOracleHealth() {
         address: ADDRESSES.pythAdapter, abi: PYTH_ADAPTER_ABI,
         functionName: 'isStale', args: [feedId, 300n],
       })
-    } catch (err) { console.warn('PythAdapter.isStale check failed:', err.message) }
+    } catch (err) { /* swallow */ }
   }
 
   return {
@@ -838,7 +838,7 @@ const txEvents = (() => {
       return () => { listeners[event] = listeners[event].filter(f => f !== fn) }
     },
     emit(event, data) {
-      (listeners[event] || []).forEach(fn => { try { fn(data) } catch (e) { console.error('[txEvents]', e) } })
+      (listeners[event] || []).forEach(fn => { try { fn(data) } catch (e) { /* swallow */ } })
     },
   }
 })()
@@ -911,7 +911,7 @@ async function waitForTx(hash) {
       })
       break // got a receipt
     } catch (pollErr) {
-      console.warn(`[waitForTx] attempt ${attempt + 1}/${MAX_RETRIES + 1} failed:`, pollErr.message)
+
       if (attempt === MAX_RETRIES) {
         // All retries exhausted — emit failed and throw
         const classified = classifyTxError(pollErr)

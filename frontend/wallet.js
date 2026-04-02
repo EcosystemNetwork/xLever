@@ -10,7 +10,7 @@ import { inkSepolia, ethSepolia } from './contracts.js'
 // Reown Cloud project ID authorizes our app with WalletConnect relay servers
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID
 if (!projectId) {
-  console.warn('[xLever] VITE_REOWN_PROJECT_ID not set — wallet connection will fail. Set it in your .env file.')
+  // VITE_REOWN_PROJECT_ID not set — wallet connection will fail
 }
 
 // EVM-only: Ink Sepolia (primary) + Ethereum Sepolia
