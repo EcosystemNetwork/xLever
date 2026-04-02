@@ -21,6 +21,14 @@
  *   - Functions: fetchBalances (from app.js)
  */
 
+// Local escapeHTML — prevents XSS in innerHTML templates.
+// Mirrors app.js escapeHTML but defined locally so this file has no load-order dependency.
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
 // ═══════════════════════════════════════════════════════════
 // POSITION MANAGEMENT — receipt-driven, no hardcoded waits
 // ═══════════════════════════════════════════════════════════
@@ -283,6 +291,10 @@ async function loadUserPositions() {
     document.getElementById('noPositions').style.display = 'none';
     document.getElementById('positionsList').style.display = 'block';
 
+    if (!window.viem) {
+      console.error('window.viem not loaded yet — cannot render positions');
+      return;
+    }
     const { formatUnits } = window.viem;
     const positionsList = document.getElementById('positionsList');
 
@@ -313,13 +325,20 @@ async function loadUserPositions() {
               </div>
             </div>
           </div>
-          <button onclick="closePosition('${pos.asset}', '${pos.vaultAddress}')"
+          <button data-close-asset="${escapeHTML(pos.asset)}" data-close-vault="${escapeHTML(pos.vaultAddress)}"
                   style="width: 100%; padding: 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: #ef4444; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s;">
             Close Position
           </button>
         </div>
       `;
     }).join('');
+
+    // Attach close handlers via event delegation (no inline onclick — XSS-safe)
+    positionsList.querySelectorAll('[data-close-asset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        closePosition(btn.dataset.closeAsset, btn.dataset.closeVault);
+      });
+    });
 
   } catch (error) {
     console.error('Failed to load positions:', error);
@@ -385,6 +404,10 @@ window.closePosition = async function(asset, vaultAddress) {
     // Pyth update, slippage (minReceived=0), and error classification.
 
     // Use formatUnits to get the USDC string for contracts.closePosition
+    if (!window.viem) {
+      showToast('Libraries not loaded yet — please try again', 'error');
+      return;
+    }
     const { formatUnits } = window.viem;
     const amountStr = formatUnits(position.depositAmount, 6);
 

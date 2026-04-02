@@ -1,11 +1,15 @@
 # APIRouter groups agent endpoints; Depends injects DB; HTTPException for errors; Query validates params
 from fastapi import APIRouter, Depends, HTTPException, Query
 # select builds SQL queries for fetching agent runs and users
-from sqlalchemy import select
+from sqlalchemy import select, func
 # AsyncSession type for the injected DB session
 from sqlalchemy.ext.asyncio import AsyncSession
 # selectinload eagerly loads child actions in a single query to avoid N+1 problems
 from sqlalchemy.orm import selectinload
+# Pydantic for request validation
+from pydantic import BaseModel, Field
+import time
+import logging
 
 # get_db yields a scoped async DB session per request
 from ..database import get_db
@@ -13,9 +17,121 @@ from ..database import get_db
 from ..models import AgentRun, AgentAction, AgentStatus, User
 # Request/response schemas for agent run creation and serialization
 from ..schemas import AgentRunCreate, AgentRunOut
+# Auth dependency for wallet ownership verification
+from ..auth import require_auth
+
+logger = logging.getLogger("xlever.agents")
 
 # Prefix all routes with /agents; tag groups them in Swagger docs
 router = APIRouter(prefix="/agents", tags=["agents"])
+
+
+# ═══════════════════════════════════════════════════════════════
+# SERVER-SIDE PERMISSION ENFORCEMENT
+# Mirrors the client-side PERMISSIONS from agent-executor.js
+# so that a compromised frontend cannot bypass policy boundaries.
+# ═══════════════════════════════════════════════════════════════
+
+PERMISSIONS = {
+    "safe": {
+        "canIncreaseLeverage": False,
+        "canOpenNew": False,
+        "canWithdraw": False,
+        "canReduceLeverage": True,
+        "canClose": True,
+    },
+    "target": {
+        "canIncreaseLeverage": True,
+        "canOpenNew": False,
+        "canWithdraw": False,
+        "canReduceLeverage": True,
+        "canClose": False,
+    },
+    "accumulate": {
+        "canIncreaseLeverage": False,
+        "canOpenNew": True,
+        "canWithdraw": False,
+        "canReduceLeverage": False,
+        "canClose": False,
+    },
+}
+
+# Rate limiting: max 6 actions per minute per wallet
+_action_timestamps: dict[str, list[float]] = {}
+MAX_ACTIONS_PER_MINUTE = 6
+MIN_ACTION_INTERVAL_SEC = 5
+
+
+def _check_rate_limit(wallet: str):
+    """Enforce rate limits: max 6 actions/minute, min 5s between actions."""
+    now = time.time()
+    timestamps = _action_timestamps.get(wallet, [])
+    # Remove timestamps older than 60s
+    timestamps = [t for t in timestamps if now - t < 60]
+    if len(timestamps) >= MAX_ACTIONS_PER_MINUTE:
+        raise HTTPException(429, f"Rate limit: max {MAX_ACTIONS_PER_MINUTE} agent actions per minute")
+    if timestamps and (now - timestamps[-1]) < MIN_ACTION_INTERVAL_SEC:
+        raise HTTPException(429, f"Rate limit: min {MIN_ACTION_INTERVAL_SEC}s between agent actions")
+    timestamps.append(now)
+    _action_timestamps[wallet] = timestamps
+
+
+def _validate_action_permissions(mode: str, action_type: str, current_leverage: float | None, target_leverage: float | None):
+    """
+    Server-side enforcement of policy permissions.
+    Raises HTTPException if the action violates the policy mode's boundaries.
+    """
+    perms = PERMISSIONS.get(mode)
+    if not perms:
+        raise HTTPException(400, f"Unknown agent mode: {mode}")
+
+    if action_type in ("deleverage", "adjust"):
+        if target_leverage is not None and current_leverage is not None:
+            if target_leverage > current_leverage and not perms["canIncreaseLeverage"]:
+                raise HTTPException(
+                    403,
+                    f"BLOCKED: leverage increase not permitted in '{mode}' mode"
+                )
+            if target_leverage < current_leverage and not perms["canReduceLeverage"]:
+                raise HTTPException(
+                    403,
+                    f"BLOCKED: leverage reduction not permitted in '{mode}' mode"
+                )
+    elif action_type == "close":
+        if not perms["canClose"]:
+            raise HTTPException(403, f"BLOCKED: close not permitted in '{mode}' mode")
+    elif action_type == "buy":
+        if not perms["canOpenNew"]:
+            raise HTTPException(403, f"BLOCKED: new positions not permitted in '{mode}' mode")
+    elif action_type == "withdraw":
+        if not perms["canWithdraw"]:
+            raise HTTPException(403, f"BLOCKED: withdraw not permitted in '{mode}' mode")
+
+
+# ═══════════════════════════════════════════════════════════════
+# AGENT ACTION SCHEMAS
+# ═══════════════════════════════════════════════════════════════
+
+class AgentActionRequest(BaseModel):
+    """Request schema for submitting an agent action for server-side validation and recording."""
+    action_type: str = Field(pattern=r"^(deleverage|adjust|close|buy|close-partial|withdraw)$")
+    asset: str | None = None
+    leverage: float | None = None
+    target_leverage: float | None = None
+    current_leverage: float | None = None
+    amount: float | None = None
+    reason: str = ""
+    tx_hash: str | None = None
+    price_at_action: float | None = None
+    dry_run: bool = True
+
+
+class AgentActionResponse(BaseModel):
+    """Response after validating and recording an agent action."""
+    permitted: bool
+    action_id: int | None = None
+    message: str
+    dry_run: bool
 
 
 # GET /api/agents/runs/{run_id} — get a specific agent run with all its actions
@@ -114,8 +230,6 @@ async def stop_agent_run(run_id: int, db: AsyncSession = Depends(get_db)):
     if run.status != AgentStatus.RUNNING:
         raise HTTPException(400, f"Agent is {run.status}, not running")
 
-    # Import func here to avoid circular import issues at module level
-    from sqlalchemy import func
     # Transition the agent to stopped state
     run.status = AgentStatus.STOPPED
     # Record the stop time using server-side now() for consistency
@@ -125,3 +239,168 @@ async def stop_agent_run(run_id: int, db: AsyncSession = Depends(get_db)):
     # Refresh to get the server-generated ended_at timestamp value
     await db.refresh(run)
     return run
+
+
+# ═══════════════════════════════════════════════════════════════
+# AGENT ACTION SUBMISSION — Server-side permission enforcement
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.post("/runs/{run_id}/actions", response_model=AgentActionResponse)
+async def submit_agent_action(
+    run_id: int,
+    body: AgentActionRequest,
+    wallet: str = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Validate and record an agent action with server-side permission enforcement.
+    The frontend submits proposed actions here BEFORE executing on-chain.
+    This ensures a compromised frontend cannot bypass policy boundaries.
+    """
+    # Fetch the run and verify ownership
+    result = await db.execute(select(AgentRun).where(AgentRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if not run:
+        raise HTTPException(404, "Agent run not found")
+    if run.wallet_address != wallet:
+        raise HTTPException(403, "You can only submit actions for your own agent runs")
+    if run.status != AgentStatus.RUNNING:
+        raise HTTPException(400, f"Agent run is {run.status}, not running — cannot submit actions")
+
+    # Extract the policy mode from the run config
+    mode = (run.config or {}).get("mode", run.strategy)
+    if mode not in PERMISSIONS:
+        raise HTTPException(400, f"Unknown agent mode '{mode}' — must be safe, target, or accumulate")
+
+    # Enforce rate limits
+    _check_rate_limit(wallet)
+
+    # Enforce permission boundaries server-side
+    _validate_action_permissions(
+        mode=mode,
+        action_type=body.action_type,
+        current_leverage=body.current_leverage,
+        target_leverage=body.target_leverage,
+    )
+
+    # If dry-run, return permitted without recording
+    if body.dry_run:
+        return AgentActionResponse(
+            permitted=True,
+            action_id=None,
+            message=f"Action '{body.action_type}' permitted by '{mode}' policy (dry-run)",
+            dry_run=True,
+        )
+
+    # Record the action in the database
+    action = AgentAction(
+        run_id=run_id,
+        action_type=body.action_type,
+        asset=body.asset or run.asset,
+        leverage=body.target_leverage or body.leverage,
+        amount=body.amount,
+        reason=body.reason,
+        success=True,
+        tx_hash=body.tx_hash,
+        price_at_action=body.price_at_action,
+    )
+    db.add(action)
+
+    # Update run counters
+    run.total_trades = (run.total_trades or 0) + 1
+    await db.commit()
+    await db.refresh(action)
+
+    logger.info(f"Agent action recorded: run={run_id} type={body.action_type} wallet={wallet[:10]}...")
+
+    return AgentActionResponse(
+        permitted=True,
+        action_id=action.id,
+        message=f"Action '{body.action_type}' validated and recorded",
+        dry_run=False,
+    )
+
+
+@router.post("/runs/{run_id}/actions/{action_id}/result")
+async def update_action_result(
+    run_id: int,
+    action_id: int,
+    success: bool = True,
+    tx_hash: str | None = None,
+    error: str | None = None,
+    pnl: float | None = None,
+    wallet: str = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update an action with its on-chain result (success/failure, tx hash, PnL).
+    Called by the frontend after the transaction confirms or reverts.
+    """
+    result = await db.execute(
+        select(AgentAction).where(AgentAction.id == action_id, AgentAction.run_id == run_id)
+    )
+    action = result.scalar_one_or_none()
+    if not action:
+        raise HTTPException(404, "Action not found")
+
+    # Verify ownership via the parent run
+    run_result = await db.execute(select(AgentRun).where(AgentRun.id == run_id))
+    run = run_result.scalar_one_or_none()
+    if not run or run.wallet_address != wallet:
+        raise HTTPException(403, "Not authorized")
+
+    action.success = success
+    if tx_hash:
+        action.tx_hash = tx_hash
+    if error:
+        action.error = error
+
+    # Update run PnL if provided
+    if pnl is not None and run:
+        run.total_pnl = float(run.total_pnl or 0) + pnl
+
+    await db.commit()
+    return {"updated": True, "action_id": action_id}
+
+
+# ═══════════════════════════════════════════════════════════════
+# PERMISSION CHECK ENDPOINT — Pre-flight validation
+# ═══════════════════════════════════════════════════════════════
+
+
+class PermissionCheckRequest(BaseModel):
+    mode: str = Field(pattern=r"^(safe|target|accumulate)$")
+    action_type: str = Field(pattern=r"^(deleverage|adjust|close|buy|close-partial|withdraw)$")
+    current_leverage: float | None = None
+    target_leverage: float | None = None
+
+
+@router.post("/permissions/check")
+async def check_permissions(body: PermissionCheckRequest):
+    """
+    Pre-flight permission check without recording anything.
+    Returns whether an action would be allowed under the given policy mode.
+    Used by the frontend to grey out buttons and show explanations.
+    """
+    try:
+        _validate_action_permissions(
+            mode=body.mode,
+            action_type=body.action_type,
+            current_leverage=body.current_leverage,
+            target_leverage=body.target_leverage,
+        )
+        return {
+            "permitted": True,
+            "mode": body.mode,
+            "action_type": body.action_type,
+            "permissions": PERMISSIONS[body.mode],
+        }
+    except HTTPException as e:
+        return {
+            "permitted": False,
+            "mode": body.mode,
+            "action_type": body.action_type,
+            "reason": e.detail,
+            "permissions": PERMISSIONS[body.mode],
+        }

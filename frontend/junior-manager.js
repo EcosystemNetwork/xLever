@@ -111,6 +111,10 @@ async function fetchJuniorData() {
       }).catch(() => null)
     ]);
 
+    if (!window.viem) {
+      console.error('window.viem not loaded yet — cannot fetch junior data');
+      return null;
+    }
     const { formatUnits } = window.viem;
 
     // Calculate metrics

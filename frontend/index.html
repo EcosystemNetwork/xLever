@@ -753,14 +753,19 @@
 </div>
 <!-- ===== END: Legacy Main App Container ===== -->
 
-<script type="module" src="wallet.js"></script>
-<script type="module" src="contracts.js"></script>
+<!-- Independent scripts (no module deps) — load immediately -->
 <script src="toast.js"></script>
 <script src="live-state.js"></script>
-<script src="app.js"></script>
-<script src="vault-functions.js"></script>
-<script src="position-manager.js"></script>
-<script src="junior-manager.js"></script>
+
+<!-- Modules export to window.* (wallet, contracts, viem) — deferred by spec -->
+<script type="module" src="wallet.js"></script>
+<script type="module" src="contracts.js"></script>
+
+<!-- App scripts deferred so they execute AFTER modules have exported to window -->
+<script defer src="app.js"></script>
+<script defer src="vault-functions.js"></script>
+<script defer src="position-manager.js"></script>
+<script defer src="junior-manager.js"></script>
 <script>
 // Initialize junior page when switching to it
 document.addEventListener('DOMContentLoaded', () => {

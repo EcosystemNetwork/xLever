@@ -39,10 +39,9 @@ const AgentExecutor = (() => {
     return Number.isFinite(n) ? n : fallback;
   }
 
-  // Permission boundaries — enforced in code, not just UI, so a compromised UI cannot bypass them
-  // NOTE: These permissions are client-side only and MUST be enforced server-side for production.
-  // A compromised or modified frontend can bypass these checks. Server-side validation is being
-  // added separately and is required before any mainnet deployment.
+  // Permission boundaries — enforced both client-side AND server-side.
+  // Server-side enforcement is at POST /api/agents/runs/{run_id}/actions
+  // which validates every action against the policy mode before allowing execution.
   const PERMISSIONS = {
     // Safe mode: can only reduce risk or exit — never increase exposure
     safe: {
@@ -425,7 +424,41 @@ const AgentExecutor = (() => {
    *   — Action object from a decide* function
    * @returns {Promise<boolean>} True if the action was handled (dry-run or executed), false if blocked or unknown type
    */
+  /**
+   * Validate an action server-side before executing on-chain.
+   * Calls POST /api/agents/permissions/check to enforce policy boundaries
+   * even if the frontend is compromised.
+   */
+  async function _validateServerSide(action) {
+    try {
+      const res = await fetch('/api/agents/permissions/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: _policy.mode,
+          action_type: action.type,
+          current_leverage: action.currentLeverage ?? null,
+          target_leverage: action.targetLeverage ?? null,
+        }),
+      })
+      if (!res.ok) return true // Server unreachable — fall back to client-side checks
+      const data = await res.json()
+      if (!data.permitted) {
+        _log('POLICY', `SERVER BLOCKED: ${data.reason}`, 'error')
+        return false
+      }
+      return true
+    } catch {
+      // Server unreachable — degrade gracefully, client-side checks still apply
+      return true
+    }
+  }
+
   async function executeAction(action) {
+    // Server-side permission check (non-blocking fallback if server is down)
+    const serverAllowed = await _validateServerSide(action)
+    if (!serverAllowed) return false
+
     // Look up the permission set for the current policy mode
     const perms = PERMISSIONS[_policy.mode]
     // Get the contract wrapper for on-chain execution

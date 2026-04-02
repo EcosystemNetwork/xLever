@@ -58,7 +58,7 @@ const TOKEN_ADDRESSES = window.xLeverContracts
 // Vault contract addresses — sourced from config via contracts.js
 const VAULT_ADDRESSES = window.xLeverContracts
   ? { wSPYx: window.xLeverContracts.ADDRESSES.spyVault, wQQQx: window.xLeverContracts.ADDRESSES.qqqVault }
-  : { wSPYx: '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd', wQQQx: '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b' };
+  : { wSPYx: '0x94CaA35F38FD11AeBBB385E9f07520FAFaD7570F', wQQQx: '0xDEC80165b7F26e0EEA3c4fCF9a2B8E3D25a4f792' };
 
 // ABIs — single source of truth is contracts.js, accessed via window.xLeverContracts
 // Fallback inline ABIs only used if contracts.js hasn't loaded yet (shouldn't happen in normal flow)
@@ -847,18 +847,11 @@ async function fetchFromYahoo(symbol, years) { // Fallback data source — Yahoo
  * @returns {Promise<Array<{time: string, open: number, high: number, low: number, close: number}>>} OHLCV array
  * @throws {Error} If both OpenBB and Yahoo fail — caller should use generateQQQData() as final fallback
  */
-async function fetchRealData(symbol, years) { // Orchestrator: tries data sources in priority order to maximize data quality and availability
-  // Try OpenBB first because it provides higher-quality, pre-cleaned institutional data
+async function fetchRealData(symbol, years) { // Fetch OHLCV data from Yahoo Finance via FastAPI proxy
   try {
-    const data = await fetchFromOpenBB(symbol, years);
-    return data; // Success — return OpenBB data without trying Yahoo
-  } catch (e) {
-    console.warn('OpenBB unavailable, falling back to Yahoo:', e.message); // Log but don't crash — Yahoo fallback handles this gracefully
-  }
-  try {
-    return await fetchFromYahoo(symbol, years); // Second attempt: Yahoo Finance via local proxy or wrapsynth API
+    return await fetchFromYahoo(symbol, years);
   } catch (error) {
-    console.error('Error fetching real data:', error); // Both sources failed — caller will fall back to generateQQQData synthetic data
+    console.error('Error fetching real data:', error);
     throw error; // Re-throw so loadTickerData's catch block can activate the synthetic fallback
   }
 }
@@ -882,10 +875,22 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
     const now = Date.now(); // Current time for cache age comparison
     const cacheMaxAge = 24 * 60 * 60 * 1000; // 24-hour cache TTL — daily OHLCV data only changes once per trading day, so 24h is optimal
 
+    let cacheValid = false;
     if (cached && cacheTime && (now - parseInt(cacheTime)) < cacheMaxAge) { // Use cache if it exists and is less than 24 hours old
-      allData = JSON.parse(cached); // Deserialize the cached OHLCV array — avoids a network round-trip on page reload
-      dataLoading = false; // Data is ready for rendering
-    } else { // Cache is missing or stale — fetch fresh data from APIs
+      try {
+        const parsed = JSON.parse(cached); // Deserialize the cached OHLCV array — avoids a network round-trip on page reload
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          allData = parsed;
+          dataLoading = false; // Data is ready for rendering
+          cacheValid = true;
+        }
+      } catch (e) {
+        console.warn('Corrupt cache for', ticker, '— fetching fresh data'); // Malformed JSON in localStorage — clear it and refetch
+        localStorage.removeItem(cacheKey);
+        localStorage.removeItem(cacheTimeKey);
+      }
+    }
+    if (!cacheValid) { // Cache is missing, stale, or corrupt — fetch fresh data from APIs
       allData = await fetchRealData(ticker, 25); // Fetch 25 years of history — the maximum timeframe our UI supports ("25Y" and "MAX" buttons)
       dataLoading = false; // Data arrived successfully
 
@@ -2272,6 +2277,15 @@ if (howItWorksBtn) {
 // ═══════════════════════════════════════════════════
 
 document.getElementById('degenModeBtn').addEventListener('click', () => {
+  // Block degen mode in production — only allow on localhost/dev environments
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+  if (!isLocal && !isDegenMode) {
+    if (window.showToast) showToast('Degen mode is disabled in production', 'error');
+    else if (window.XToast) XToast.show('Degen mode is disabled in production', 'error', 3000);
+    console.warn('Degen mode blocked: production environment');
+    return;
+  }
+
   isDegenMode = !isDegenMode;
   document.body.classList.toggle('degen-mode', isDegenMode);
 

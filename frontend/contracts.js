@@ -91,7 +91,7 @@ export function getActiveChainConfig() { return CHAIN_CONFIGS[activeChainId] }
 
 export const ADDRESSES = {
   ...CONTRACT_ADDRESSES,
-  vault: CONTRACT_ADDRESSES.qqqVault || '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b',  // Active vault (switches with asset)
+  vault: CONTRACT_ADDRESSES.qqqVault || '0xDEC80165b7F26e0EEA3c4fCF9a2B8E3D25a4f792',  // Active vault (switches with asset)
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -118,13 +118,15 @@ contract DeployAllVaults is Script {
 
     function _createVault(
         VaultFactory factory,
-        address deployer,
+        address,
         string memory symbol,
         bytes32 feedId_
     ) internal {
-        // Uses deployer as placeholder xStock token address.
-        // Replace with real ERC-20 xStock tokens when available.
-        address vault = factory.createVault(deployer, feedId_);
+        // Derive a unique placeholder token address from the symbol hash
+        // so VaultFactory doesn't reject duplicates. Replace with real
+        // ERC-20 xStock tokens when available.
+        address placeholderToken = address(uint160(uint256(keccak256(abi.encodePacked("xLever:", symbol)))));
+        address vault = factory.createVault(placeholderToken, feedId_);
         console.log(string.concat(symbol, " Vault: "), vault);
     }
 }
