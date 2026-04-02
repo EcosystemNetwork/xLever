@@ -7,7 +7,7 @@ const XNav = (() => {
     { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html' },
     { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html' },
     { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html' },
-    { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html' },
+    // { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html' },
   ];
 
   let _activePageId = null;
