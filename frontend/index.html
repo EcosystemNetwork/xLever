@@ -746,36 +746,8 @@
 </div>
 <!-- ===== END: Legacy Main App Container ===== -->
 
-<!-- Independent scripts (no module deps) — load immediately -->
-<script src="toast.js"></script>
-<script src="live-state.js"></script>
-
-<!-- Modules export to window.* (wallet, contracts, viem) — deferred by spec -->
-<script type="module" src="wallet.js"></script>
-<script type="module" src="contracts.js"></script>
-
-<!-- App scripts deferred so they execute AFTER modules have exported to window -->
-<script defer src="app.js"></script>
-<script defer src="vault-functions.js"></script>
-<script defer src="position-manager.js"></script>
-<script defer src="junior-manager.js"></script>
-<script>
-// Initialize junior page when switching to it
-document.addEventListener('DOMContentLoaded', () => {
-  const juniorBtn = document.getElementById('juniorBtn');
-  if (juniorBtn) {
-    juniorBtn.addEventListener('click', () => {
-      setTimeout(() => {
-        if (typeof initJuniorPage === 'function') {
-          initJuniorPage();
-        }
-        if (typeof updateJuniorPageUI === 'function') {
-          updateJuniorPageUI();
-        }
-      }, 100);
-    });
-  }
-});
-</script>
+<!-- Wallet and app scripts are NOT loaded on the landing page to prevent
+     the wallet extension from popping up automatically on page load.
+     These scripts are loaded on the trading terminal pages instead. -->
 </body>
 </html>
