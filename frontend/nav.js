@@ -6,6 +6,11 @@ const XNav = (() => {
     { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html',              mode: 'trade' },
     { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html',       mode: 'trade' },
     { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html',    mode: 'research' },
+    { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html',       mode: 'trade' },
+    { id: 'risk',       label: 'Risk',        href: '05-risk-management.html',        mode: 'trade' },
+    { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html',  mode: 'research' },
+    { id: 'operations', label: 'Operations',  href: '07-operations-control.html',     mode: 'research' },
+    { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html',      mode: 'trade' },
     { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html',        mode: null },
   ];
 
@@ -355,9 +360,7 @@ const XNav = (() => {
 
   const CHAIN_NAMES = {
     763373: 'Ink Sepolia',
-    1: 'Ethereum',
-    'solana:mainnet': 'Solana',
-    'ton:mainnet': 'TON',
+    11155111: 'Ethereum Sepolia',
   };
 
   function updateNetworkBadge(name) {

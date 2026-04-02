@@ -2,7 +2,7 @@
  * xLever Lending Agent — Multi-Chain Automated Lending & Borrowing
  * ────────────────────────────────────────────────────────────────
  * Chain-agnostic lending automation powered by the adapter registry:
- *  1. Monitors lending markets across Euler V2, Kamino, and EVAA
+ *  1. Monitors lending markets across Euler V2 (EVM chains)
  *  2. Auto-supplies idle capital for yield on the active chain
  *  3. Manages borrow positions for leverage optimization
  *  4. Monitors health factors and auto-repays to prevent liquidation
@@ -10,7 +10,7 @@
  *  6. Cross-chain opportunity detection via aggregated market view
  *
  * Four policy modes: Yield, Leverage, Hedge, Monitor-Only
- * Works on: Ink Sepolia (Euler V2), Ethereum (Euler V2), Solana (Kamino), TON (EVAA)
+ * Works on: Ink Sepolia (Euler V2), Ethereum Sepolia (Euler V2)
  */
 
 const LendingAgent = (() => {
@@ -539,8 +539,6 @@ const LendingAgent = (() => {
     const stables = {
       'ink-sepolia': 'USDC',
       'ethereum': 'USDC',
-      'solana': 'USDC',
-      'ton': 'USDT',
     }
     return stables[chain] || 'USDC'
   }
@@ -679,7 +677,7 @@ const LendingAgent = (() => {
   /**
    * Switch the agent to a different chain without restarting.
    * The next tick will gather state from the new chain's adapter.
-   * @param {string} chain - Chain identifier from CHAINS enum (e.g., 'ink-sepolia', 'solana')
+   * @param {string} chain - Chain identifier from CHAINS enum (e.g., 'ink-sepolia', 'ethereum')
    * @throws {Error} If the adapter registry is not initialized
    */
   function switchChain(chain) {
@@ -704,9 +702,7 @@ const LendingAgent = (() => {
   // Chain config display names for logging
   const CHAIN_CONFIG_NAMES = {
     'ink-sepolia': 'Ink Sepolia (Euler V2)',
-    'ethereum': 'Ethereum (Euler V2)',
-    'solana': 'Solana (Kamino)',
-    'ton': 'TON (EVAA)',
+    'ethereum': 'Ethereum Sepolia (Euler V2)',
   }
 
   return {

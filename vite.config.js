@@ -45,10 +45,6 @@ export default defineConfig({
           if (id.includes('@reown/appkit')) return 'wallet-sdk'
           if (id.includes('wagmi') || id.includes('@wagmi')) return 'wagmi'
           if (id.includes('viem')) return 'viem'
-          if (id.includes('@solana')) return 'solana'
-          if (id.includes('@kamino-finance') || id.includes('@orca-so')) return 'kamino'
-          if (id.includes('@ton/')) return 'ton'
-          if (id.includes('@evaafi')) return 'evaa'
         }
       }
     }

@@ -13,43 +13,7 @@ if (!projectId) {
   console.warn('[xLever] VITE_REOWN_PROJECT_ID not set — wallet connection will fail. Set it in your .env file.')
 }
 
-// Define Solana as a custom chain — xLever targets Solana for cross-chain leverage positions via Wormhole bridging
-const solana = {
-  // CAIP-2 chain identifier — Reown uses this format for non-EVM chains
-  id: 'solana:mainnet',
-  // Display name shown in the wallet modal network picker
-  name: 'Solana',
-  // SOL has 9 decimals (lamports), unlike ETH's 18 — critical for correct balance display
-  nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
-  // Public Solana mainnet RPC — rate-limited but sufficient for wallet connection and balance checks
-  rpcUrls: {
-    default: { http: ['https://api.mainnet-beta.solana.com'] },
-  },
-  // Solscan is the most widely-used Solana explorer for transaction verification
-  blockExplorers: {
-    default: { name: 'Solscan', url: 'https://solscan.io' },
-  },
-}
-
-// Define TON as a custom chain — xLever targets TON for its large retail user base (Telegram integration)
-const ton = {
-  // CAIP-2 chain identifier for TON mainnet
-  id: 'ton:mainnet',
-  // Display name for the network selector
-  name: 'TON',
-  // Toncoin uses 9 decimals (nanotons), matching Solana's precision model
-  nativeCurrency: { name: 'Toncoin', symbol: 'TON', decimals: 9 },
-  // TON Center public JSON-RPC endpoint — serves as the default gateway for wallet interactions
-  rpcUrls: {
-    default: { http: ['https://toncenter.com/api/v2/jsonRPC'] },
-  },
-  // Tonscan is the primary TON block explorer for user-facing tx links
-  blockExplorers: {
-    default: { name: 'Tonscan', url: 'https://tonscan.org' },
-  },
-}
-
-// Use only Ink Sepolia for now to avoid connection issues with multi-chain setup
+// EVM-only: Ink Sepolia is the primary chain
 const networks = [inkSepolia]
 
 // Create Wagmi adapter — this translates Reown modal events into wagmi-compatible hooks and providers
@@ -76,7 +40,7 @@ const metadata = {
 const modal = createAppKit({
   // Wagmi adapter enables EVM chain interactions through standard wagmi hooks
   adapters: [wagmiAdapter],
-  // Register all supported networks so users can switch between mainnet, Ink Sepolia, Solana, and TON
+  // Register supported EVM networks
   networks,
   // Pass metadata so wallets display xLever branding in their connection prompts
   metadata,

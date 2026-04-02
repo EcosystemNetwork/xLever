@@ -19,7 +19,7 @@
     "wallet": {
       "status": "live",
       "provider": "Reown AppKit",
-      "chains": ["Ethereum Mainnet", "Ink Sepolia (763373)", "Solana", "TON"],
+      "chains": ["Ink Sepolia (763373)", "Ethereum Sepolia (11155111)"],
       "contract_chain": "Ink Sepolia (763373)",
       "rpc": "https://rpc-gel-sepolia.inkonchain.com"
     },

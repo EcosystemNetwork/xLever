@@ -891,7 +891,18 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
       }
     }
     if (!cacheValid) { // Cache is missing, stale, or corrupt — fetch fresh data from APIs
-      allData = await fetchRealData(ticker, 25); // Fetch 25 years of history — the maximum timeframe our UI supports ("25Y" and "MAX" buttons)
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          allData = await fetchRealData(ticker, 25); // Fetch 25 years of history — the maximum timeframe our UI supports ("25Y" and "MAX" buttons)
+          lastError = null;
+          break;
+        } catch (e) {
+          lastError = e;
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // Backoff: 1s, 2s
+        }
+      }
+      if (lastError) throw lastError;
       dataLoading = false; // Data arrived successfully
 
       try {
@@ -910,7 +921,7 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
     dataLoading = false; // Even synthetic data counts as "loaded"
     entryDateIndex = 0; // Reset entry point for consistency
     updateAll(); // Render with synthetic data — user sees a working chart rather than a blank screen
-    showToast('Error loading live data. Using generated data as fallback.', 'warning', 6000);
+    console.warn('Using generated fallback data for', ticker);
   }
 }
 

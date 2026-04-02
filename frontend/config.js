@@ -155,26 +155,6 @@ export const CHAIN_VAULT_REGISTRIES = {
 }
 
 /**
- * Solana vault program IDs — maps ticker symbol to on-chain program address.
- * Kamino adapter uses these for position management on Solana.
- * Override via window.__XLEVER_CONFIG__.solanaVaults
- * @type {Object<string, string>}
- */
-export const SOLANA_VAULT_REGISTRY = injected.solanaVaults || Object.fromEntries(
-  Object.keys(INK_SEPOLIA_VAULTS).map(sym => [sym, `xlever_${sym.toLowerCase()}_solana`])
-)
-
-/**
- * TON vault contract addresses — maps ticker symbol to TON contract address.
- * EVAA adapter uses these for position management on TON.
- * Override via window.__XLEVER_CONFIG__.tonVaults
- * @type {Object<string, string>}
- */
-export const TON_VAULT_REGISTRY = injected.tonVaults || Object.fromEntries(
-  Object.keys(INK_SEPOLIA_VAULTS).map(sym => [sym, `xlever_${sym.toLowerCase()}_ton`])
-)
-
-/**
  * RPC URLs per chain. Override via window.__XLEVER_CONFIG__.rpcUrls
  * @type {Object<number, string>}
  */

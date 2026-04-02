@@ -1,62 +1,10 @@
 /**
- * xLever Multi-Chain Lending Adapters
+ * xLever Lending Adapters
  * ────────────────────────────────────────────────────────────────
- * Chain-agnostic interface with protocol-specific implementations:
- *  - Euler V2 (Ink Sepolia + Ethereum Mainnet)
- *  - Kamino Finance (Solana)
- *  - EVAA Protocol (TON)
- *
- * Each adapter implements the ILendingAdapter interface so the
- * LendingAgent can operate identically across all chains.
+ * Euler V2 adapter for EVM chains (Ink Sepolia + Ethereum Sepolia).
+ * Implements the ILendingAdapter interface so the LendingAgent
+ * can operate identically across supported EVM chains.
  */
-
-import { Connection, PublicKey, Transaction } from '@solana/web3.js'
-import { Address, beginCell, toNano } from '@ton/core'
-import { TonClient } from '@ton/ton'
-import { SOLANA_VAULT_REGISTRY, TON_VAULT_REGISTRY } from './config.js'
-
-// Heavy protocol SDKs are loaded dynamically to avoid WASM bundling issues
-// and reduce initial bundle size -- they're only needed for write operations.
-
-/** @type {Object|null} Cached Kamino SDK module exports */
-let _kaminoSdk = null
-/**
- * Lazily load the Kamino Finance lending SDK (@kamino-finance/klend-sdk).
- * Caches the module on first load to avoid repeated dynamic imports.
- * @returns {Promise<{KaminoMarket: any, KaminoAction: any, VanillaObligation: any, BN: any}>}
- */
-async function loadKaminoSdk() {
-  if (!_kaminoSdk) {
-    const mod = await import('@kamino-finance/klend-sdk')
-    const BN = (await import('bn.js')).default
-    _kaminoSdk = { KaminoMarket: mod.KaminoMarket, KaminoAction: mod.KaminoAction, VanillaObligation: mod.VanillaObligation, BN }
-  }
-  return _kaminoSdk
-}
-
-/** @type {Object|null} Cached EVAA SDK module exports */
-let _evaaSdk = null
-/**
- * Lazily load the EVAA Protocol SDK (@evaafi/sdk) for TON lending operations.
- * Caches the module on first load.
- * @returns {Promise<Object>} EVAA SDK exports including EvaaMasterClassic, pool configs, and asset constants
- */
-async function loadEvaaSdk() {
-  if (!_evaaSdk) {
-    const mod = await import('@evaafi/sdk')
-    _evaaSdk = {
-      EvaaMasterClassic: mod.EvaaMasterClassic,
-      MAINNET_POOL_CONFIG: mod.MAINNET_POOL_CONFIG,
-      TON_MAINNET: mod.TON_MAINNET,
-      JUSDT_MAINNET: mod.JUSDT_MAINNET,
-      JUSDC_MAINNET: mod.JUSDC_MAINNET,
-      STTON_MAINNET: mod.STTON_MAINNET,
-      getTonConnectSender: mod.getTonConnectSender,
-      getLastSentBoc: mod.getLastSentBoc,
-    }
-  }
-  return _evaaSdk
-}
 
 // ═══════════════════════════════════════════════════════════════
 // CHAIN REGISTRY — canonical chain IDs used throughout the system
@@ -65,8 +13,6 @@ async function loadEvaaSdk() {
 export const CHAINS = {
   INK_SEPOLIA: 'ink-sepolia',
   ETHEREUM: 'ethereum',
-  SOLANA: 'solana',
-  TON: 'ton',
 }
 
 export const CHAIN_CONFIG = {
@@ -79,28 +25,12 @@ export const CHAIN_CONFIG = {
     nativeCurrency: 'ETH',
   },
   [CHAINS.ETHEREUM]: {
-    name: 'Ethereum',
-    chainId: 1,
+    name: 'Ethereum Sepolia',
+    chainId: 11155111,
     protocol: 'euler-v2',
-    rpc: 'https://eth.llamarpc.com',
-    explorer: 'https://etherscan.io',
+    rpc: 'https://ethereum-sepolia-rpc.publicnode.com',
+    explorer: 'https://sepolia.etherscan.io',
     nativeCurrency: 'ETH',
-  },
-  [CHAINS.SOLANA]: {
-    name: 'Solana',
-    chainId: 'solana:mainnet',
-    protocol: 'kamino',
-    rpc: 'https://api.mainnet-beta.solana.com',
-    explorer: 'https://solscan.io',
-    nativeCurrency: 'SOL',
-  },
-  [CHAINS.TON]: {
-    name: 'TON',
-    chainId: 'ton:mainnet',
-    protocol: 'evaa',
-    rpc: 'https://toncenter.com/api/v2/jsonRPC',
-    explorer: 'https://tonscan.org',
-    nativeCurrency: 'TON',
   },
 }
 
@@ -142,7 +72,7 @@ export const CHAIN_CONFIG = {
 
 /**
  * Abstract base class defining the interface every chain lending adapter must implement.
- * Subclasses: EulerV2Adapter (EVM), KaminoAdapter (Solana), EvaaAdapter (TON).
+ * Subclasses: EulerV2Adapter (Ink Sepolia, Ethereum Sepolia).
  * @abstract
  */
 class ILendingAdapter {
@@ -521,631 +451,6 @@ class EulerV2Adapter extends ILendingAdapter {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// KAMINO ADAPTER (Solana)
-// Uses @solana/web3.js + Kamino Lending SDK for supply/borrow
-// ═══════════════════════════════════════════════════════════════
-
-// Kamino Lending program and market addresses on Solana mainnet
-const KAMINO_CONFIG = {
-  lendingProgram: 'KLend2g3cP87ber41GJ3WVkTMWVMeM6moVsoDPGVDNR6',
-  mainMarket: '7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF',
-  markets: {
-    USDC: {
-      mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      reserve: 'D6q6wuQSrifJKZYpR1M8R4YawnLDzrkH8b38tNPoS2yt',
-      decimals: 6,
-      collateralFactor: 0.85,
-      liquidationThreshold: 0.90,
-    },
-    SOL: {
-      mint: 'So11111111111111111111111111111111111111112',
-      reserve: 'd4A2prbA2nCUQC27b7D79iFKfUZVtahtz5JHzAMhQ7i',
-      decimals: 9,
-      collateralFactor: 0.75,
-      liquidationThreshold: 0.85,
-    },
-    USDT: {
-      mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-      reserve: 'H3t6qZ1JkguCNTi6SEVa7cDGXNTkLKJHEQT9zh8fP2Cz',
-      decimals: 6,
-      collateralFactor: 0.80,
-      liquidationThreshold: 0.88,
-    },
-    JitoSOL: {
-      mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
-      reserve: 'EVbyPKrHdEYjkwijMVKS2jSJFNHfDKdUGmT4VTRn6WkP',
-      decimals: 9,
-      collateralFactor: 0.70,
-      liquidationThreshold: 0.80,
-    },
-  },
-}
-
-/**
- * Kamino Finance lending adapter for Solana.
- * Uses @solana/web3.js for RPC calls and the Kamino Lending SDK for
- * building deposit/withdraw/borrow/repay transactions.
- * @extends ILendingAdapter
- */
-class KaminoAdapter extends ILendingAdapter {
-  constructor() {
-    super(CHAINS.SOLANA)
-    this._connection = null
-    this._wallet = null
-    this.vaults = SOLANA_VAULT_REGISTRY
-  }
-
-  get protocolName() { return 'Kamino Finance' }
-
-  getVaultForAsset(symbol) { return this.vaults[symbol] || null }
-
-  isReady() {
-    return !!this._getProvider()
-  }
-
-  _getProvider() {
-    // Phantom, Solflare, or any Solana wallet injected by Reown AppKit
-    return window.solana || window.phantom?.solana || null
-  }
-
-  _getConnection() {
-    if (!this._connection) {
-      this._connection = new Connection(this.config.rpc, 'confirmed')
-    }
-    return this._connection
-  }
-
-  async getAddress() {
-    const provider = this._getProvider()
-    if (!provider?.publicKey) return null
-    return provider.publicKey.toString()
-  }
-
-  async getMarkets() {
-    // Fetch from xLever backend which caches Kamino on-chain data
-    try {
-      const res = await fetch(`/api/lending/markets?chain=${this.chain}`)
-      if (res.ok) return await res.json()
-    } catch { /* fall through */ }
-
-    // Fallback: return static config with estimated rates
-    const markets = {}
-    for (const [symbol, config] of Object.entries(KAMINO_CONFIG.markets)) {
-      markets[symbol] = {
-        symbol,
-        supplyApy: 0,
-        borrowApy: 0,
-        utilization: 0,
-        totalSupply: 0,
-        totalBorrow: 0,
-        collateralFactor: config.collateralFactor,
-        liquidationThreshold: config.liquidationThreshold,
-        decimals: config.decimals,
-      }
-    }
-    return markets
-  }
-
-  async getPositions(address) {
-    const position = {
-      chain: this.chain,
-      protocol: 'kamino',
-      supplies: [],
-      borrows: [],
-      healthFactor: null,
-      totalCollateralUsd: 0,
-      totalDebtUsd: 0,
-      netApy: 0,
-    }
-
-    try {
-      const res = await fetch(`/api/lending/positions/${address}?chain=${this.chain}`)
-      if (res.ok) {
-        const data = await res.json()
-        position.supplies = data.supplies || []
-        position.borrows = data.borrows || []
-        position.healthFactor = data.healthFactor
-        position.totalCollateralUsd = data.totalCollateralUsd || 0
-        position.totalDebtUsd = data.totalDebtUsd || 0
-        position.netApy = data.netApy || 0
-      }
-    } catch { /* degrade gracefully */ }
-
-    return position
-  }
-
-  async getIdleBalance(address) {
-    const conn = this._getConnection()
-    if (!conn || !address) return 0
-
-    try {
-      const usdcMint = new PublicKey(KAMINO_CONFIG.markets.USDC.mint)
-      const ownerPk = new PublicKey(address)
-      const tokenAccounts = await conn.getParsedTokenAccountsByOwner(ownerPk, { mint: usdcMint })
-      if (tokenAccounts.value.length > 0) {
-        return tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount || 0
-      }
-      return 0
-    } catch { return 0 }
-  }
-
-  // ─── Transaction methods (Kamino Lending SDK) ───────────────
-
-  /**
-   * Load the Kamino lending market from on-chain state.
-   * @returns {Promise<KaminoMarket>} Initialized Kamino market instance
-   * @throws {Error} If the market fails to load from the Solana RPC
-   * @private
-   */
-  async _loadMarket() {
-    const { KaminoMarket } = await loadKaminoSdk()
-    const conn = this._getConnection()
-    const market = await KaminoMarket.load(
-      conn,
-      new PublicKey(KAMINO_CONFIG.mainMarket),
-      400,
-      new PublicKey(KAMINO_CONFIG.lendingProgram),
-      true
-    )
-    if (!market) throw new Error('Failed to load Kamino market')
-    return market
-  }
-
-  /**
-   * Build a Kamino lending transaction, sign it with the wallet provider,
-   * send it to the Solana network, and wait for confirmation.
-   * @param {Function} actionBuilder - Async function: (market, ownerPk, obligation) => KaminoAction
-   * @returns {Promise<string>} Transaction signature
-   * @throws {Error} If wallet is not connected or transaction fails
-   * @private
-   */
-  async _buildAndSend(actionBuilder) {
-    const { KaminoAction, VanillaObligation } = await loadKaminoSdk()
-    const provider = this._getProvider()
-    if (!provider?.publicKey) throw new Error('Solana wallet not connected')
-
-    const market = await this._loadMarket()
-    const owner = provider.publicKey
-    const obligation = new VanillaObligation(new PublicKey(KAMINO_CONFIG.lendingProgram))
-
-    const action = await actionBuilder(market, owner, obligation)
-    const ixs = KaminoAction.actionToIxs(action)
-    const conn = this._getConnection()
-    const { blockhash } = await conn.getLatestBlockhash('confirmed')
-
-    const tx = new Transaction({ recentBlockhash: blockhash, feePayer: owner })
-    tx.add(...ixs)
-
-    const signed = await provider.signTransaction(tx)
-    const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: false })
-    await conn.confirmTransaction(sig, 'confirmed')
-    return sig
-  }
-
-  /**
-   * Supply an asset to Kamino lending market.
-   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Transaction signature
-   */
-  async supply(asset, amount) {
-    const { KaminoAction, BN } = await loadKaminoSdk()
-    const config = KAMINO_CONFIG.markets[asset]
-    if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
-    return this._buildAndSend((market, owner, obligation) =>
-      KaminoAction.buildDepositTxns(
-        market, rawAmount, new PublicKey(config.mint), owner, obligation,
-        false, undefined, 0, true, false,
-        { skipInitialization: false, skipLutCreation: false }
-      )
-    )
-  }
-
-  /**
-   * Withdraw a previously supplied asset from Kamino lending market.
-   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Transaction signature
-   */
-  async withdraw(asset, amount) {
-    const { KaminoAction, BN } = await loadKaminoSdk()
-    const config = KAMINO_CONFIG.markets[asset]
-    if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
-    return this._buildAndSend((market, owner, obligation) =>
-      KaminoAction.buildWithdrawTxns(
-        market, rawAmount, new PublicKey(config.mint), owner, obligation,
-        false, undefined, 0, true, false,
-        { skipInitialization: false, skipLutCreation: false }
-      )
-    )
-  }
-
-  /**
-   * Borrow an asset from Kamino lending market against deposited collateral.
-   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Transaction signature
-   */
-  async borrow(asset, amount) {
-    const { KaminoAction, BN } = await loadKaminoSdk()
-    const config = KAMINO_CONFIG.markets[asset]
-    if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
-    return this._buildAndSend((market, owner, obligation) =>
-      KaminoAction.buildBorrowTxns(
-        market, rawAmount, new PublicKey(config.mint), owner, obligation,
-        false, undefined, 0, true, false,
-        { skipInitialization: false, skipLutCreation: false }
-      )
-    )
-  }
-
-  /**
-   * Repay a borrowed asset on Kamino lending market.
-   * @param {string} asset - Asset symbol (e.g., 'USDC', 'SOL')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Transaction signature
-   */
-  async repay(asset, amount) {
-    const { KaminoAction, BN } = await loadKaminoSdk()
-    const config = KAMINO_CONFIG.markets[asset]
-    if (!config) throw new Error(`Kamino market not found for ${asset}`)
-    const rawAmount = new BN(Math.floor(amount * 10 ** config.decimals))
-    const conn = this._getConnection()
-    const slot = await conn.getSlot('confirmed')
-    return this._buildAndSend((market, owner, obligation) =>
-      KaminoAction.buildRepayTxns(
-        market, rawAmount, new PublicKey(config.mint), owner, obligation,
-        false, undefined, slot, undefined, 0, true, false,
-        { skipInitialization: false, skipLutCreation: false }
-      )
-    )
-  }
-
-  explorerUrl(hash) {
-    return `${this.config.explorer}/tx/${hash}`
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// EVAA ADAPTER (TON)
-// Uses @ton/ton SDK for supply/borrow on EVAA Protocol
-// ═══════════════════════════════════════════════════════════════
-
-const EVAA_CONFIG = {
-  // EVAA master contract on TON mainnet
-  masterAddress: 'EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr',
-  markets: {
-    TON: {
-      poolId: 0,
-      decimals: 9,
-      collateralFactor: 0.75,
-      liquidationThreshold: 0.82,
-    },
-    USDT: {
-      // jUSDT jetton on TON
-      jettonMaster: 'EQBynBO23ywHy_CgarY9NK9FTz0yDRg00_EXvfg5LMGdig',
-      poolId: 1,
-      decimals: 6,
-      collateralFactor: 0.85,
-      liquidationThreshold: 0.90,
-    },
-    USDC: {
-      // jUSDC jetton on TON
-      jettonMaster: 'EQB-MPwrd1G6WKNkLz_VnV6WCz-4XhR3vKEcqIwuwMY-anon',
-      poolId: 2,
-      decimals: 6,
-      collateralFactor: 0.85,
-      liquidationThreshold: 0.90,
-    },
-    stTON: {
-      jettonMaster: 'EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k',
-      poolId: 3,
-      decimals: 9,
-      collateralFactor: 0.65,
-      liquidationThreshold: 0.75,
-    },
-  },
-}
-
-/**
- * EVAA Protocol lending adapter for TON.
- * Uses @ton/ton TonClient for RPC and the EVAA SDK for building
- * supply/withdraw/borrow/repay messages on the TON blockchain.
- * @extends ILendingAdapter
- */
-class EvaaAdapter extends ILendingAdapter {
-  constructor() {
-    super(CHAINS.TON)
-    this._client = null
-    this.vaults = TON_VAULT_REGISTRY
-  }
-
-  get protocolName() { return 'EVAA Protocol' }
-
-  getVaultForAsset(symbol) { return this.vaults[symbol] || null }
-
-  isReady() {
-    return !!this._getProvider()
-  }
-
-  _getProvider() {
-    // TonConnect or TON wallet injected by Reown AppKit
-    return window.tonConnectUI || window.ton || null
-  }
-
-  _getTonClient() {
-    if (!this._client) {
-      this._client = new TonClient({ endpoint: this.config.rpc })
-    }
-    return this._client
-  }
-
-  async getAddress() {
-    const provider = this._getProvider()
-    if (!provider) return null
-    // TonConnect stores connected wallet
-    // TonConnect UI: account is at provider.account (standard) or provider.connector?.account (TonConnect SDK v2)
-    if (provider.account?.address) return provider.account.address
-    if (provider.connector?.account?.address) return provider.connector.account.address
-    return null
-  }
-
-  async getMarkets() {
-    try {
-      const res = await fetch(`/api/lending/markets?chain=${this.chain}`)
-      if (res.ok) return await res.json()
-    } catch { /* fall through */ }
-
-    // Fallback: return config-based skeleton
-    const markets = {}
-    for (const [symbol, config] of Object.entries(EVAA_CONFIG.markets)) {
-      markets[symbol] = {
-        symbol,
-        supplyApy: 0,
-        borrowApy: 0,
-        utilization: 0,
-        totalSupply: 0,
-        totalBorrow: 0,
-        collateralFactor: config.collateralFactor,
-        liquidationThreshold: config.liquidationThreshold,
-        decimals: config.decimals,
-      }
-    }
-    return markets
-  }
-
-  async getPositions(address) {
-    const position = {
-      chain: this.chain,
-      protocol: 'evaa',
-      supplies: [],
-      borrows: [],
-      healthFactor: null,
-      totalCollateralUsd: 0,
-      totalDebtUsd: 0,
-      netApy: 0,
-    }
-
-    try {
-      const res = await fetch(`/api/lending/positions/${address}?chain=${this.chain}`)
-      if (res.ok) {
-        const data = await res.json()
-        position.supplies = data.supplies || []
-        position.borrows = data.borrows || []
-        position.healthFactor = data.healthFactor
-        position.totalCollateralUsd = data.totalCollateralUsd || 0
-        position.totalDebtUsd = data.totalDebtUsd || 0
-        position.netApy = data.netApy || 0
-      }
-    } catch { /* degrade gracefully */ }
-
-    return position
-  }
-
-  async getIdleBalance(address) {
-    const client = this._getTonClient()
-    if (!client || !address) return 0
-
-    try {
-      const addr = Address.parse(address)
-      const balance = await client.getBalance(addr)
-      return Number(balance) / 1e9
-    } catch { /* degrade */ }
-    return 0
-  }
-
-  // ─── Transaction methods (EVAA SDK) ─────────────────────────
-
-  /**
-   * Map an asset symbol to the EVAA SDK pool asset constant.
-   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
-   * @returns {Promise<Object>} EVAA pool asset constant for SDK calls
-   * @throws {Error} If the asset is not configured for EVAA
-   * @private
-   */
-  async _getPoolAsset(asset) {
-    const sdk = await loadEvaaSdk()
-    const map = {
-      TON: sdk.TON_MAINNET,
-      USDT: sdk.JUSDT_MAINNET,
-      USDC: sdk.JUSDC_MAINNET,
-      stTON: sdk.STTON_MAINNET,
-    }
-    const poolAsset = map[asset]
-    if (!poolAsset) throw new Error(`EVAA asset config not found for ${asset}`)
-    return poolAsset
-  }
-
-  /**
-   * Create an EVAA master contract instance for pool interactions.
-   * @returns {Promise<EvaaMasterClassic>} Initialized EVAA master contract
-   * @private
-   */
-  async _getMaster() {
-    const { EvaaMasterClassic, MAINNET_POOL_CONFIG } = await loadEvaaSdk()
-    return new EvaaMasterClassic({ poolConfig: MAINNET_POOL_CONFIG })
-  }
-
-  /**
-   * Get a TonConnect sender instance for signing and sending transactions.
-   * @returns {Promise<Object>} TonConnect sender compatible with EVAA SDK
-   * @throws {Error} If TON wallet is not connected
-   * @private
-   */
-  async _getSender() {
-    const { getTonConnectSender } = await loadEvaaSdk()
-    const provider = this._getProvider()
-    if (!provider) throw new Error('TON wallet not connected')
-    return getTonConnectSender(provider)
-  }
-
-  /**
-   * Supply an asset to the EVAA lending pool on TON.
-   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Last sent BOC (bag of cells) as transaction proof
-   */
-  async supply(asset, amount) {
-    const sdk = await loadEvaaSdk()
-    const config = EVAA_CONFIG.markets[asset]
-    if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    const poolAsset = await this._getPoolAsset(asset)
-    const sender = await this._getSender()
-    const userAddr = Address.parse(await this.getAddress())
-    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
-
-    const master = await this._getMaster()
-    const client = this._getTonClient()
-    const contract = client.open(master)
-
-    await contract.sendSupply(sender, toNano('0.3'), {
-      asset: poolAsset,
-      queryID: 0n,
-      includeUserCode: true,
-      amount: rawAmount,
-      userAddress: userAddr,
-      responseAddress: userAddr,
-      payload: beginCell().endCell(),
-    })
-
-    return sdk.getLastSentBoc()
-  }
-
-  /**
-   * Withdraw a previously supplied asset from the EVAA lending pool.
-   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Last sent BOC as transaction proof
-   */
-  async withdraw(asset, amount) {
-    const sdk = await loadEvaaSdk()
-    const config = EVAA_CONFIG.markets[asset]
-    if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    const poolAsset = await this._getPoolAsset(asset)
-    const sender = await this._getSender()
-    const userAddr = Address.parse(await this.getAddress())
-    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
-
-    const master = await this._getMaster()
-    const client = this._getTonClient()
-    const contract = client.open(master)
-
-    await contract.sendWithdraw(sender, toNano('0.5'), {
-      queryID: 0n,
-      amount: rawAmount,
-      userAddress: userAddr,
-      includeUserCode: true,
-      asset: poolAsset,
-      payload: beginCell().endCell(),
-      amountToTransfer: rawAmount,
-      customPayloadSaturationFlag: false,
-      returnRepayRemainingsFlag: false,
-    })
-
-    return sdk.getLastSentBoc()
-  }
-
-  /**
-   * Borrow an asset from the EVAA lending pool against deposited collateral.
-   * EVAA implements borrowing as a combined supply-withdraw operation:
-   * supply 0 TON, withdraw the desired borrow asset.
-   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Last sent BOC as transaction proof
-   */
-  async borrow(asset, amount) {
-    const sdk = await loadEvaaSdk()
-    const config = EVAA_CONFIG.markets[asset]
-    if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    const poolAsset = await this._getPoolAsset(asset)
-    const sender = await this._getSender()
-    const userAddr = Address.parse(await this.getAddress())
-    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
-
-    // EVAA borrow = supply-withdraw with 0 supply, withdraw the borrowed asset
-    const master = await this._getMaster()
-    const client = this._getTonClient()
-    const contract = client.open(master)
-
-    await contract.sendSupplyWithdraw(sender, toNano('0.5'), {
-      queryID: 0n,
-      supplyAmount: 0n,
-      supplyAsset: sdk.TON_MAINNET,
-      withdrawAmount: rawAmount,
-      withdrawAsset: poolAsset,
-      withdrawRecipient: userAddr,
-      includeUserCode: true,
-      payload: beginCell().endCell(),
-    })
-
-    return sdk.getLastSentBoc()
-  }
-
-  /**
-   * Repay a borrowed asset on the EVAA lending pool.
-   * EVAA implements repayment as a supply operation with the returnRepayRemainings
-   * flag set, which returns any excess amount after debt is settled.
-   * @param {string} asset - Asset symbol ('TON', 'USDT', 'USDC', 'stTON')
-   * @param {number} amount - Amount in human-readable units
-   * @returns {Promise<string>} Last sent BOC as transaction proof
-   */
-  async repay(asset, amount) {
-    const sdk = await loadEvaaSdk()
-    const config = EVAA_CONFIG.markets[asset]
-    if (!config) throw new Error(`EVAA market not found for ${asset}`)
-    const poolAsset = await this._getPoolAsset(asset)
-    const sender = await this._getSender()
-    const userAddr = Address.parse(await this.getAddress())
-    const rawAmount = BigInt(Math.floor(amount * 10 ** config.decimals))
-
-    // EVAA repay = supply the debt asset back (same as supply operation)
-    const master = await this._getMaster()
-    const client = this._getTonClient()
-    const contract = client.open(master)
-
-    await contract.sendSupply(sender, toNano('0.3'), {
-      asset: poolAsset,
-      queryID: 0n,
-      includeUserCode: true,
-      amount: rawAmount,
-      userAddress: userAddr,
-      responseAddress: userAddr,
-      payload: beginCell().endCell(),
-      returnRepayRemainingsFlag: true,
-    })
-
-    return sdk.getLastSentBoc()
-  }
-
-  explorerUrl(hash) {
-    return `${this.config.explorer}/tx/${hash}`
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
 // ADAPTER REGISTRY — factory + manager for all chain adapters
 // ═══════════════════════════════════════════════════════════════
 
@@ -1156,7 +461,7 @@ class EvaaAdapter extends ILendingAdapter {
  *
  * Usage:
  *   const registry = new LendingAdapterRegistry().init()
- *   registry.setActiveChain('solana')
+ *   registry.setActiveChain('ethereum')
  *   const adapter = registry.active()
  *   const markets = await adapter.getMarkets()
  */
@@ -1167,14 +472,12 @@ class LendingAdapterRegistry {
   }
 
   /**
-   * Register all supported chain adapters (Euler V2, Kamino, EVAA).
+   * Register all supported chain adapters (Euler V2 on Ink Sepolia + Ethereum Sepolia).
    * @returns {LendingAdapterRegistry} This instance for chaining
    */
   init() {
     this._adapters.set(CHAINS.INK_SEPOLIA, new EulerV2Adapter(CHAINS.INK_SEPOLIA))
     this._adapters.set(CHAINS.ETHEREUM, new EulerV2Adapter(CHAINS.ETHEREUM))
-    this._adapters.set(CHAINS.SOLANA, new KaminoAdapter())
-    this._adapters.set(CHAINS.TON, new EvaaAdapter())
     return this
   }
 
@@ -1291,14 +594,12 @@ class LendingAdapterRegistry {
   /**
    * Map Reown AppKit network change events to xLever chain IDs.
    * Called from nav.js when the user switches networks in the wallet.
-   * @param {number|string} networkIdOrCaip - Numeric chain ID (e.g., 763373) or CAIP identifier (e.g., 'solana:mainnet')
+   * @param {number|string} networkIdOrCaip - Numeric chain ID (e.g., 763373, 11155111)
    * @returns {string|null} Matching CHAINS enum value, or null if unrecognized
    */
   resolveChainFromNetwork(networkIdOrCaip) {
     if (networkIdOrCaip === 763373) return CHAINS.INK_SEPOLIA
-    if (networkIdOrCaip === 1) return CHAINS.ETHEREUM
-    if (networkIdOrCaip === 'solana:mainnet') return CHAINS.SOLANA
-    if (networkIdOrCaip === 'ton:mainnet') return CHAINS.TON
+    if (networkIdOrCaip === 1 || networkIdOrCaip === 11155111) return CHAINS.ETHEREUM
     return null
   }
 }
@@ -1311,12 +612,10 @@ window.xLeverLendingAdapters = registry
 export {
   ILendingAdapter,
   EulerV2Adapter,
-  KaminoAdapter,
-  EvaaAdapter,
   LendingAdapterRegistry,
-  KAMINO_CONFIG,
-  EVAA_CONFIG,
   EULER_ADDRESSES,
+  CHAINS,
+  CHAIN_CONFIG,
 }
 
 export default registry
