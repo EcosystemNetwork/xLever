@@ -88,11 +88,11 @@ const XNav = (() => {
 
       #xnav .nav-link {
         font-family: 'DM Sans', sans-serif;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 500;
         color: #6b7094;
         text-decoration: none;
-        padding: 6px 14px;
+        padding: 8px 18px;
         border-radius: 6px;
         transition: color 0.15s, background 0.15s;
         white-space: nowrap;
@@ -112,9 +112,9 @@ const XNav = (() => {
         background: #7c4dff;
         color: #fff;
         font-family: 'DM Sans', sans-serif;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
-        padding: 8px 20px;
+        padding: 10px 24px;
         border-radius: 8px;
         text-decoration: none;
         transition: all 0.2s;

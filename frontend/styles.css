@@ -781,7 +781,7 @@ body.mode-research [data-mode="trade"] { display: none !important; }
 .btn-primary {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--accent); color: #fff; border: none; border-radius: 10px;
-  padding: 12px 28px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  padding: 14px 36px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600;
   letter-spacing: 0.01em; cursor: pointer; text-decoration: none; transition: all 0.2s;
   box-shadow: 0 0 20px var(--accent-dim), 0 2px 8px rgba(0,0,0,0.3);
 }
@@ -789,7 +789,7 @@ body.mode-research [data-mode="trade"] { display: none !important; }
 .btn-secondary {
   display: inline-flex; align-items: center; gap: 8px;
   background: rgba(255,255,255,0.04); color: var(--text-primary); border: 1px solid #1e2030;
-  border-radius: 10px; padding: 12px 28px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+  border-radius: 10px; padding: 14px 36px; font-family: 'DM Sans', sans-serif; font-size: 16px;
   font-weight: 600; letter-spacing: 0.01em; cursor: pointer; text-decoration: none; transition: all 0.2s;
   backdrop-filter: blur(8px);
 }
