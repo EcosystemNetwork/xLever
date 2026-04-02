@@ -152,11 +152,14 @@ export const ERC20_ABI = [
 ]
 
 export const VAULT_ABI = [
-  // Write functions — VaultSimple interface (no Pyth oracle, not payable)
-  { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }], outputs: [{ name: 'positionValue', type: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'nonpayable' },
+  // Write functions — Canonical Vault (Pyth oracle, payable for oracle fee)
+  { type: 'function', name: 'deposit', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'positionValue', type: 'uint256' }], stateMutability: 'payable' },
+  { type: 'function', name: 'withdraw', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'minReceived', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }], stateMutability: 'payable' },
+  { type: 'function', name: 'adjustLeverage', inputs: [{ name: 'newLeverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
   { type: 'function', name: 'depositJunior', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'shares', type: 'uint256' }], stateMutability: 'nonpayable' },
   { type: 'function', name: 'withdrawJunior', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ name: 'amount', type: 'uint256' }], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'updateOracle', inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' },
+  { type: 'function', name: 'initializeOracle', inputs: [{ name: 'startPrice', type: 'uint128' }], outputs: [], stateMutability: 'nonpayable' },
 
   // Read functions
   { type: 'function', name: 'getPosition', inputs: [{ name: 'user', type: 'address' }], outputs: [{
@@ -170,6 +173,7 @@ export const VAULT_ABI = [
       { name: 'isActive', type: 'bool' },
     ]
   }], stateMutability: 'view' },
+  { type: 'function', name: 'getPositionValue', inputs: [{ name: 'user', type: 'address' }], outputs: [{ name: 'value', type: 'uint256' }, { name: 'pnl', type: 'int256' }], stateMutability: 'view' },
   { type: 'function', name: 'getPoolState', inputs: [], outputs: [{
     name: '', type: 'tuple', components: [
       { name: 'totalSeniorDeposits', type: 'uint128' },
@@ -184,13 +188,53 @@ export const VAULT_ABI = [
       { name: 'protocolState', type: 'uint8' },
     ]
   }], stateMutability: 'view' },
+  { type: 'function', name: 'getCurrentTWAP', inputs: [], outputs: [{ name: 'twap', type: 'uint128' }, { name: 'spreadBps', type: 'uint16' }], stateMutability: 'view' },
+  { type: 'function', name: 'getOracleState', inputs: [], outputs: [{
+    name: '', type: 'tuple', components: [
+      { name: 'executionPrice', type: 'uint128' },
+      { name: 'displayPrice', type: 'uint128' },
+      { name: 'riskPrice', type: 'uint128' },
+      { name: 'divergenceBps', type: 'uint16' },
+      { name: 'spreadBps', type: 'uint16' },
+      { name: 'isFresh', type: 'bool' },
+      { name: 'isCircuitBroken', type: 'bool' },
+      { name: 'lastUpdateTime', type: 'uint64' },
+      { name: 'updateCount', type: 'uint32' },
+    ]
+  }], stateMutability: 'view' },
+  { type: 'function', name: 'getMaxLeverage', inputs: [], outputs: [{ name: 'maxLeverageBps', type: 'int32' }], stateMutability: 'view' },
+  { type: 'function', name: 'getFundingRate', inputs: [], outputs: [{ name: 'rateBps', type: 'int256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getJuniorValue', inputs: [], outputs: [{ name: 'totalValue', type: 'uint256' }, { name: 'sharePrice', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getFeeConfig', inputs: [], outputs: [{
+    name: '', type: 'tuple', components: [
+      { name: 'baseEntryFeeBps', type: 'uint16' },
+      { name: 'baseExitFeeBps', type: 'uint16' },
+      { name: 'protocolSpreadBps', type: 'uint16' },
+      { name: 'maxFundingRateBps', type: 'uint16' },
+      { name: 'fundingInterval', type: 'uint32' },
+      { name: 'juniorFeeSplit', type: 'uint16' },
+      { name: 'insuranceFeeSplit', type: 'uint16' },
+      { name: 'treasuryFeeSplit', type: 'uint16' },
+    ]
+  }], stateMutability: 'view' },
+  { type: 'function', name: 'getHealthScore', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getRiskState', inputs: [], outputs: [
+    { name: 'protocolState', type: 'uint8' },
+    { name: 'healthScore', type: 'uint256' },
+    { name: 'juniorRatioBps', type: 'uint256' },
+    { name: 'currentMaxLeverageBps', type: 'uint32' },
+    { name: 'oracleStale', type: 'bool' },
+    { name: 'circuitBroken', type: 'bool' },
+  ], stateMutability: 'view' },
+  { type: 'function', name: 'juniorTranche', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
   { type: 'function', name: 'usdc', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
   { type: 'function', name: 'asset', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
   { type: 'function', name: 'admin', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
 
   // Events
-  { type: 'event', name: 'Deposit', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'leverage', type: 'int32' }] },
-  { type: 'event', name: 'Withdraw', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }] },
+  { type: 'event', name: 'Deposit', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'leverage', type: 'int32' }, { name: 'isSenior', type: 'bool' }] },
+  { type: 'event', name: 'Withdraw', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'positionValue', type: 'uint256' }] },
+  { type: 'event', name: 'OracleUpdate', inputs: [{ name: 'executionPrice', type: 'uint128' }, { name: 'displayPrice', type: 'uint128' }, { name: 'divergenceBps', type: 'uint16' }, { name: 'isFresh', type: 'bool' }, { name: 'isCircuitBroken', type: 'bool' }] },
 ]
 
 export const PYTH_ADAPTER_ABI = [
@@ -377,12 +421,10 @@ export async function getPosition(userAddress) {
  * @returns {Promise<{value: bigint, pnl: bigint}>} Position value and P&L in USDC base units (6 decimals)
  */
 export async function getPositionValue(userAddress) {
-  // VaultSimple doesn't have getPositionValue — derive from deposit amount
   if (!ADDRESSES.vault) return { value: 0n, pnl: 0n }
   try {
-    const pos = await getPosition(userAddress)
-    if (!pos || !pos.isActive) return { value: 0n, pnl: 0n }
-    return { value: pos.depositAmount, pnl: 0n }
+    const result = await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPositionValue', args: [userAddress] })
+    return { value: result[0], pnl: result[1] }
   } catch { return { value: 0n, pnl: 0n } }
 }
 
@@ -403,37 +445,59 @@ export async function getPoolState() {
  * @returns {Promise<{twap: bigint, spreadBps: number}>} TWAP in 8-decimal fixed-point, spread in basis points
  */
 export async function getTWAP() {
-  // VaultSimple uses placeholder TWAP (100e8)
-  return { twap: 10000000000n, spreadBps: 0 }
+  if (!ADDRESSES.vault) return { twap: 0n, spreadBps: 0 }
+  try {
+    const result = await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getCurrentTWAP' })
+    return { twap: result[0], spreadBps: Number(result[1]) }
+  } catch { return { twap: 0n, spreadBps: 0 } }
 }
 
 export async function getOnChainOracleState() {
-  // VaultSimple has no oracle — return mock "ready" state
-  return { executionPrice: 100, displayPrice: 100, riskPrice: 100, divergenceBps: 0, spreadBps: 0, isFresh: true, isCircuitBroken: false, lastUpdateTime: Math.floor(Date.now() / 1000), updateCount: 255 }
+  if (!ADDRESSES.vault) return { executionPrice: 0, displayPrice: 0, riskPrice: 0, divergenceBps: 0, spreadBps: 0, isFresh: false, isCircuitBroken: false, lastUpdateTime: 0, updateCount: 0 }
+  try {
+    const state = await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState' })
+    return {
+      executionPrice: Number(state.executionPrice) / 1e8,
+      displayPrice: Number(state.displayPrice) / 1e8,
+      riskPrice: Number(state.riskPrice) / 1e8,
+      divergenceBps: Number(state.divergenceBps),
+      spreadBps: Number(state.spreadBps),
+      isFresh: state.isFresh,
+      isCircuitBroken: state.isCircuitBroken,
+      lastUpdateTime: Number(state.lastUpdateTime),
+      updateCount: Number(state.updateCount),
+    }
+  } catch { return { executionPrice: 0, displayPrice: 0, riskPrice: 0, divergenceBps: 0, spreadBps: 0, isFresh: false, isCircuitBroken: false, lastUpdateTime: 0, updateCount: 0 } }
 }
 
 export async function getMaxLeverage() {
-  // VaultSimple hardcodes 3.5x (35000 bps)
-  if (!ADDRESSES.vault) return 35000
+  if (!ADDRESSES.vault) return 40000
   try {
-    const pool = await getPoolState()
-    return pool?.currentMaxLeverageBps || 35000
-  } catch { return 35000 }
+    const result = await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getMaxLeverage' })
+    return Number(result)
+  } catch { return 40000 }
 }
 
-export async function getFundingRate() { return 0n }
+export async function getFundingRate() {
+  if (!ADDRESSES.vault) return 0n
+  try {
+    return await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getFundingRate' })
+  } catch { return 0n }
+}
 
 export async function getJuniorValue() {
   if (!ADDRESSES.vault) return { totalValue: 0n, sharePrice: 0n }
   try {
-    const pool = await getPoolState()
-    return { totalValue: pool?.totalJuniorDeposits || 0n, sharePrice: 1000000n }
+    const result = await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getJuniorValue' })
+    return { totalValue: result[0], sharePrice: result[1] }
   } catch { return { totalValue: 0n, sharePrice: 0n } }
 }
 
 export async function readFeeConfig() {
-  // VaultSimple has no fees
-  return { baseEntryFeeBps: 0, baseExitFeeBps: 0, protocolSpreadBps: 0, maxFundingRateBps: 0, fundingInterval: 0, juniorFeeSplit: 0, insuranceFeeSplit: 0, treasuryFeeSplit: 0 }
+  if (!ADDRESSES.vault) return { baseEntryFeeBps: 0, baseExitFeeBps: 0, protocolSpreadBps: 0, maxFundingRateBps: 0, fundingInterval: 0, juniorFeeSplit: 0, insuranceFeeSplit: 0, treasuryFeeSplit: 0 }
+  try {
+    return await getPublicClient().readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getFeeConfig' })
+  } catch { return { baseEntryFeeBps: 0, baseExitFeeBps: 0, protocolSpreadBps: 0, maxFundingRateBps: 0, fundingInterval: 0, juniorFeeSplit: 0, insuranceFeeSplit: 0, treasuryFeeSplit: 0 } }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -492,9 +556,11 @@ export async function openPosition(amountUsdc, leverage) {
     await approveToken(ADDRESSES.usdc, ADDRESSES.vault, amount)
   }
 
+  const { updateData, fee } = await fetchPythUpdate()
+
   const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'deposit',
-    args: [amount, leverageBps], account, chain: getActiveChainConfig().chain,
+    args: [amount, leverageBps, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -508,16 +574,18 @@ export async function openPosition(amountUsdc, leverage) {
  * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>} Transaction result
  * @throws {Error} If vault not deployed or wallet not connected
  */
-export async function closePosition(amountUsdc) {
+export async function closePosition(amountUsdc, slippageBps = 50) {
   if (!ADDRESSES.vault) throw new Error('Vault not deployed')
   const account = await getAccount()
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
   const amount = parseUnits(amountUsdc, 6)
+  const minReceived = amount - (amount * BigInt(slippageBps) / 10000n)
+  const { updateData, fee } = await fetchPythUpdate()
 
   const hash = await wc.writeContract({
     address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'withdraw',
-    args: [amount], account, chain: getActiveChainConfig().chain,
+    args: [amount, minReceived, updateData], value: fee, account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
 }
@@ -531,8 +599,18 @@ export async function closePosition(amountUsdc) {
  * @throws {Error} If vault not deployed or wallet not connected
  */
 export async function adjustLeverage(newLeverage) {
-  // VaultSimple does not support adjustLeverage — close and re-open with new leverage
-  throw new Error('Adjust leverage not supported on VaultSimple. Close position and re-open with desired leverage.')
+  if (!ADDRESSES.vault) throw new Error('Vault not deployed')
+  const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
+  const newLeverageBps = Math.round(newLeverage * 10000)
+  const { updateData, fee } = await fetchPythUpdate()
+
+  const hash = await wc.writeContract({
+    address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'adjustLeverage',
+    args: [newLeverageBps, updateData], value: fee, account, chain: getActiveChainConfig().chain,
+  })
+  return waitForTx(hash)
 }
 
 /**
@@ -622,10 +700,8 @@ export async function initializeOracle(startPrice) {
   const wc = getWalletClient()
   if (!wc) throw new Error('No wallet connected')
 
-  const INIT_ORACLE_ABI = [{ type: 'function', name: 'initializeOracle', inputs: [{ name: 'startPrice', type: 'uint128' }], outputs: [], stateMutability: 'nonpayable' }]
-
   const hash = await wc.writeContract({
-    address: ADDRESSES.vault, abi: INIT_ORACLE_ABI, functionName: 'initializeOracle',
+    address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'initializeOracle',
     args: [BigInt(startPrice)], account, chain: getActiveChainConfig().chain,
   })
   return waitForTx(hash)
@@ -668,14 +744,30 @@ export async function checkVaultReadiness() {
     checks.push({ label: 'Pool State', ok: false, detail: e.shortMessage || e.message })
   }
 
-  // VaultSimple has no oracle — always ready
+  // Check oracle state from canonical Vault
+  let oracleState = null
+  let oracleInitialized = false
+  let oracleReady = false
+  let oracleUpdates = 0
+  try {
+    oracleState = await pc.readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState' })
+    oracleInitialized = Number(oracleState.updateCount) > 0
+    oracleUpdates = Number(oracleState.updateCount)
+    oracleReady = oracleState.isFresh && !oracleState.isCircuitBroken && oracleUpdates >= 5
+    checks.push({ label: 'Oracle Initialized', ok: oracleInitialized, detail: oracleInitialized ? `${oracleUpdates} updates` : 'Not initialized' })
+    checks.push({ label: 'Oracle Fresh', ok: oracleState.isFresh, detail: oracleState.isFresh ? 'Fresh' : 'Stale' })
+    checks.push({ label: 'Circuit Breaker', ok: !oracleState.isCircuitBroken, detail: oracleState.isCircuitBroken ? 'TRIPPED' : 'OK' })
+  } catch (e) {
+    checks.push({ label: 'Oracle', ok: false, detail: e.shortMessage || e.message })
+  }
+
   const hasLiquidity = poolState ? Number(poolState.totalJuniorDeposits) > 0 : false
   const isActive = poolState ? poolState.protocolState === 0 : false
 
   return {
-    oracleReady: true,
-    oracleUpdates: 255,
-    oracleInitialized: true,
+    oracleReady,
+    oracleUpdates,
+    oracleInitialized,
     hasLiquidity,
     juniorTVL: poolState ? formatUnits(poolState.totalJuniorDeposits, 6) : '0',
     maxLeverage: poolState ? Number(poolState.currentMaxLeverageBps) / 10000 : 0,
