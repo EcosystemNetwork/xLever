@@ -3,30 +3,23 @@
  */
 const XNav = (() => {
   const PAGES = [
-    { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html',              mode: 'trade' },
-    { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html',       mode: 'trade' },
-    { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html',    mode: 'research' },
-    { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html',       mode: 'trade' },
-    { id: 'risk',       label: 'Risk',        href: '05-risk-management.html',        mode: 'trade' },
-    { id: 'analytics',  label: 'Analytics',   href: '06-analytics-backtesting.html',  mode: 'research' },
-    { id: 'operations', label: 'Operations',  href: '07-operations-control.html',     mode: 'research' },
-    { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html',      mode: 'trade' },
-    { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html',        mode: null },
+    { id: 'dashboard',  label: 'Dashboard',  href: '01-dashboard.html' },
+    { id: 'trading',    label: 'Trading',     href: '02-trading-terminal.html' },
+    { id: 'agents',     label: 'AI Agents',   href: '03-ai-agent-operations.html' },
+    { id: 'vaults',     label: 'Vaults',      href: '04-vault-management.html' },
+    { id: 'lending',    label: 'Lending',     href: '09-lending-borrowing.html' },
+    { id: 'admin',      label: 'Admin',       href: '08-admin-dashboard.html' },
   ];
 
   let _activePageId = null;
   let _isLanding = false;
   let _isJudgeMode = false;
 
-  function getMode() {
-    return localStorage.getItem('xlever-mode') || 'trade';
-  }
-
-  function pagesForMode(mode) {
+  function getVisiblePages() {
     if (window.JudgeMode && window.JudgeMode.isActive()) {
       return window.JudgeMode.filterPages(PAGES);
     }
-    return PAGES.filter(p => p.mode === mode || p.mode === null);
+    return PAGES;
   }
 
   function injectFavicon() {
@@ -44,16 +37,12 @@ const XNav = (() => {
     _isLanding = (activePageId === null);
     _isJudgeMode = !!(window.JudgeMode && window.JudgeMode.isActive());
 
-    const mode = getMode();
-    document.body.classList.add(`mode-${mode}`);
-
     injectFavicon();
     injectNavStyles();
     renderNav(activePageId);
     renderMobileDrawer(activePageId);
     wireUpMobileMenu();
     wireUpNetworkSwitcher();
-    wireUpModeToggle(activePageId);
   }
 
   function enterApp() {
@@ -66,7 +55,6 @@ const XNav = (() => {
     renderNav(_activePageId);
     renderMobileDrawer(_activePageId);
     wireUpMobileMenu();
-    wireUpModeToggle(_activePageId);
   }
 
   /** Inject scoped nav styles once */
@@ -162,29 +150,6 @@ const XNav = (() => {
       }
       @keyframes xnav-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-      #xnav .mode-toggle {
-        display: flex;
-        gap: 2px;
-        background: #0e1017;
-        border: 1px solid #1e2030;
-        border-radius: 8px;
-        padding: 3px;
-      }
-      #xnav .mode-toggle button {
-        font-family: 'DM Sans', sans-serif;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 5px 14px;
-        border-radius: 6px;
-        border: none;
-        cursor: pointer;
-        transition: all 0.15s;
-        background: transparent;
-        color: #555970;
-      }
-      #xnav .mode-toggle button.active-trade { background: #00e676; color: #0a0b0e; }
-      #xnav .mode-toggle button.active-research { background: #7c4dff; color: #fff; }
-
       #xnav .nav-left, #xnav .nav-right {
         display: flex;
         align-items: center;
@@ -207,7 +172,7 @@ const XNav = (() => {
       }
       #xnav .hamburger:hover { color: #e3e2e6; }
       @media (max-width: 768px) {
-        #xnav .nav-links, #xnav .nav-network, #xnav .mode-toggle, #xnav .desktop-only { display: none !important; }
+        #xnav .nav-links, #xnav .nav-network, #xnav .desktop-only { display: none !important; }
         #xnav .hamburger { display: flex; }
       }
 
@@ -257,7 +222,6 @@ const XNav = (() => {
   }
 
   function renderNav(activeId) {
-    const mode = getMode();
     const nav = document.createElement('nav');
     nav.id = 'xnav';
 
@@ -279,18 +243,13 @@ const XNav = (() => {
         </div>
       `;
     } else {
-      const visiblePages = pagesForMode(mode);
-      const modeToggle = _isJudgeMode
-        ? '<div class="judge-demo-badge">Live Demo</div>'
-        : `<div class="mode-toggle">
-            <button class="nav-mode-btn${mode === 'trade' ? ' active-trade' : ''}" data-mode="trade">Trade</button>
-            <button class="nav-mode-btn${mode === 'research' ? ' active-research' : ''}" data-mode="research">Research</button>
-          </div>`;
+      const visiblePages = getVisiblePages();
+      const judgeBadge = _isJudgeMode ? '<div class="judge-demo-badge">Live Demo</div>' : '';
 
       nav.innerHTML = `
         <div class="nav-left">
           <a href="index.html" class="nav-logo"><img src="/logowors.png" alt="xLever"></a>
-          ${modeToggle}
+          ${judgeBadge}
           <div class="nav-links" id="navLinks">
             ${visiblePages.map(p => navLink(p, p.id === activeId)).join('')}
           </div>
@@ -333,7 +292,6 @@ const XNav = (() => {
   }
 
   function renderMobileDrawer(activeId) {
-    const mode = getMode();
     const drawer = document.createElement('div');
     drawer.id = 'mobileNav';
     drawer.className = 'hidden';
@@ -346,7 +304,7 @@ const XNav = (() => {
         <a href="#" id="mobileLaunchAppBtn" style="color:#7c4dff;font-weight:600">Launch App →</a>
       `;
     } else {
-      const visiblePages = pagesForMode(mode);
+      const visiblePages = getVisiblePages();
       drawer.innerHTML = `
         <div id="mobileNavLinks">
           ${visiblePages.map(p => mobileLink(p, p.id === activeId)).join('')}
@@ -394,35 +352,6 @@ const XNav = (() => {
         }
       });
     }
-  }
-
-  function wireUpModeToggle(activeId) {
-    document.querySelectorAll('.nav-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const newMode = btn.dataset.mode;
-        localStorage.setItem('xlever-mode', newMode);
-
-        document.querySelectorAll('.nav-mode-btn').forEach(b => {
-          b.classList.remove('active-trade', 'active-research');
-        });
-        btn.classList.add(newMode === 'trade' ? 'active-trade' : 'active-research');
-
-        const visiblePages = pagesForMode(newMode);
-        const navLinks = document.getElementById('navLinks');
-        if (navLinks) {
-          navLinks.innerHTML = visiblePages.map(p => navLink(p, p.id === activeId)).join('');
-        }
-        const mobileNavLinks = document.getElementById('mobileNavLinks');
-        if (mobileNavLinks) {
-          mobileNavLinks.innerHTML = visiblePages.map(p => mobileLink(p, p.id === activeId)).join('');
-        }
-
-        if (window.XMode) window.XMode.set(newMode);
-
-        document.body.classList.remove('mode-trade', 'mode-research');
-        document.body.classList.add(`mode-${newMode}`);
-      });
-    });
   }
 
   function wireUpMobileMenu() {
