@@ -897,7 +897,7 @@ async function loadTickerData(ticker) { // Main data loading pipeline: cache-fir
           cacheValid = true;
         }
       } catch (e) {
-        console.warn('Corrupt cache for', ticker, '— fetching fresh data'); // Malformed JSON in localStorage — clear it and refetch
+
         localStorage.removeItem(cacheKey);
         localStorage.removeItem(cacheTimeKey);
       }
