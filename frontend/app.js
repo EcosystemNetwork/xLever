@@ -616,8 +616,14 @@ function initWalletListeners() {
     if (event?.data?.event === 'CONNECT_SUCCESS') {
       connectedAddress = modal.getAddress();
       const { createWalletClient, createPublicClient, custom, http, inkSepolia, ethSepolia } = window.viem;
-      // Resolve the chain the wallet is actually on
-      const walletChainHex = window.ethereum ? await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null) : null;
+      // Resolve the chain the wallet is actually on — use eth_accounts first to avoid prompting a locked wallet
+      let walletChainHex = null;
+      if (window.ethereum) {
+        const accts = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => []);
+        if (accts && accts.length > 0) {
+          walletChainHex = await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null);
+        }
+      }
       const walletChainId = walletChainHex ? parseInt(walletChainHex, 16) : 763373;
       const connChain = walletChainId === 11155111 ? ethSepolia : inkSepolia;
       publicClient = createPublicClient({
@@ -677,7 +683,14 @@ function initWalletListeners() {
     if (!connectedAddress) { sessionRestored = false; return; }
 
     const { createWalletClient: cwc, createPublicClient, custom: cst, http, inkSepolia: inkS, ethSepolia: ethS } = window.viem;
-    const restoreChainHex = window.ethereum ? await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null) : null;
+    // Use eth_accounts (passive, no popup) to verify wallet is unlocked before calling eth_chainId
+    let restoreChainHex = null;
+    if (window.ethereum) {
+      const accts = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => []);
+      if (accts && accts.length > 0) {
+        restoreChainHex = await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null);
+      }
+    }
     const restoreChainId = restoreChainHex ? parseInt(restoreChainHex, 16) : 763373;
     const restoreChain = restoreChainId === 11155111 ? ethS : inkS;
     publicClient = createPublicClient({
@@ -711,11 +724,16 @@ function initWalletListeners() {
   // Subscribe to state changes — catches session restore that happens AFTER our initial check.
   // Reown hydrates from localStorage asynchronously, so getIsConnectedState() may return false
   // on the first check but flip to true shortly after. This listener catches that transition.
+  // IMPORTANT: only react to actual connect/disconnect transitions, not every internal state emission.
   if (typeof modal.subscribeState === 'function') {
+    let _lastConnected = null; // Track previous state to detect transitions only
     const unsubRestore = modal.subscribeState((state) => {
       const nowConnected = typeof modal.getIsConnectedState === 'function'
         ? modal.getIsConnectedState()
         : modal.getIsConnected?.();
+      // Skip if the connected state hasn't actually changed (avoids reacting to relay heartbeats, pings, etc.)
+      if (nowConnected === _lastConnected) return;
+      _lastConnected = nowConnected;
       if (nowConnected && !sessionRestored) {
         restoreSession();
       }

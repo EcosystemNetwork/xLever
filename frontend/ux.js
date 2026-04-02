@@ -1023,9 +1023,13 @@ const XAuthGate = (() => {
       _applyState();
       // Clean up previous subscription if any (e.g. hot reload)
       if (_unsubscribe) { try { _unsubscribe(); } catch {} }
-      // Subscribe once to connection state changes (not raw events) to toggle UI
+      // Subscribe once to connection state changes — only react to actual transitions, not every emission
+      var _uxLastConnected = null;
       if (typeof w.subscribeState === 'function') {
         _unsubscribe = w.subscribeState((state) => {
+          var nowConn = _isConnected();
+          if (nowConn === _uxLastConnected) return; // Skip non-transition emissions
+          _uxLastConnected = nowConn;
           _applyState();
         });
       } else if (typeof w.subscribeEvents === 'function') {
