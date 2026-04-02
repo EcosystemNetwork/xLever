@@ -48,6 +48,7 @@ function escapeHTML(str) {
 
 let connectedAddress = null; // Track wallet address globally so balance fetching and UI updates can reference it without re-querying the modal
 let publicClient = null; // viem public client for Ink Sepolia RPC — kept global so we create it once on connect instead of per-call
+let walletClient = null; // viem wallet client for write transactions — must be created on every connection path (MetaMask direct + Reown AppKit)
 
 // Token addresses — single source of truth is contracts.js ADDRESSES
 const TOKEN_ADDRESSES = window.xLeverContracts
@@ -57,245 +58,31 @@ const TOKEN_ADDRESSES = window.xLeverContracts
 // Vault contract addresses — sourced from config via contracts.js
 const VAULT_ADDRESSES = window.xLeverContracts
   ? { wSPYx: window.xLeverContracts.ADDRESSES.spyVault, wQQQx: window.xLeverContracts.ADDRESSES.qqqVault }
-  : { wSPYx: '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228', wQQQx: '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6' };
+  : { wSPYx: '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd', wQQQx: '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b' };
 
-// Minimal ERC-20 ABI for balance display — balanceOf, decimals, and approve
-const ERC20_ABI = [
+// ABIs — single source of truth is contracts.js, accessed via window.xLeverContracts
+// Fallback inline ABIs only used if contracts.js hasn't loaded yet (shouldn't happen in normal flow)
+const ERC20_ABI = window.xLeverContracts?.ERC20_ABI || [
   { name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: 'balance', type: 'uint256' }] },
   { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint8' }] },
   { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }
 ];
-
-// Vault ABI — canonical Vault with Pyth oracle integration, fees, junior tranche
-const VAULT_ABI = [
-  // Write functions (Pyth pull-oracle: deposit/withdraw/adjust accept priceUpdateData + msg.value)
-  {
-    name: 'deposit',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [
-      { name: 'amount', type: 'uint256' },
-      { name: 'leverageBps', type: 'int32' },
-      { name: 'priceUpdateData', type: 'bytes[]' }
-    ],
-    outputs: [{ name: 'positionValue', type: 'uint256' }]
-  },
-  {
-    name: 'withdraw',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [
-      { name: 'amount', type: 'uint256' },
-      { name: 'minReceived', type: 'uint256' },
-      { name: 'priceUpdateData', type: 'bytes[]' }
-    ],
-    outputs: [{ name: 'received', type: 'uint256' }]
-  },
-  {
-    name: 'adjustLeverage',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [
-      { name: 'newLeverageBps', type: 'int32' },
-      { name: 'priceUpdateData', type: 'bytes[]' }
-    ],
-    outputs: []
-  },
-  {
-    name: 'depositJunior',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'amount', type: 'uint256' }],
-    outputs: [{ name: 'shares', type: 'uint256' }]
-  },
-  {
-    name: 'withdrawJunior',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'shares', type: 'uint256' }],
-    outputs: [{ name: 'amount', type: 'uint256' }]
-  },
-  {
-    name: 'updateOracle',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }],
-    outputs: []
-  },
-  // Read functions
-  {
-    name: 'getPosition',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'user', type: 'address' }],
-    outputs: [{
-      name: '',
-      type: 'tuple',
-      components: [
-        { name: 'depositAmount', type: 'uint128' },
-        { name: 'leverageBps', type: 'int32' },
-        { name: 'entryTWAP', type: 'uint128' },
-        { name: 'lastFeeTimestamp', type: 'uint64' },
-        { name: 'settledFees', type: 'uint128' },
-        { name: 'leverageLockExpiry', type: 'uint32' },
-        { name: 'isActive', type: 'bool' }
-      ]
-    }]
-  },
-  {
-    name: 'getPositionValue',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'user', type: 'address' }],
-    outputs: [
-      { name: 'value', type: 'uint256' },
-      { name: 'pnl', type: 'int256' }
-    ]
-  },
-  {
-    name: 'getPoolState',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{
-      name: '',
-      type: 'tuple',
-      components: [
-        { name: 'totalSeniorDeposits', type: 'uint128' },
-        { name: 'totalJuniorDeposits', type: 'uint128' },
-        { name: 'insuranceFund', type: 'uint128' },
-        { name: 'netExposure', type: 'int256' },
-        { name: 'grossLongExposure', type: 'uint128' },
-        { name: 'grossShortExposure', type: 'uint128' },
-        { name: 'lastRebalanceTime', type: 'uint64' },
-        { name: 'currentMaxLeverageBps', type: 'uint32' },
-        { name: 'fundingRateBps', type: 'int64' },
-        { name: 'protocolState', type: 'uint8' }
-      ]
-    }]
-  },
-  {
-    name: 'getCurrentTWAP',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [
-      { name: 'twap', type: 'uint128' },
-      { name: 'spreadBps', type: 'uint16' }
-    ]
-  },
-  {
-    name: 'getOracleState',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{
-      name: '',
-      type: 'tuple',
-      components: [
-        { name: 'executionPrice', type: 'uint128' },
-        { name: 'displayPrice', type: 'uint128' },
-        { name: 'riskPrice', type: 'uint128' },
-        { name: 'divergenceBps', type: 'uint256' },
-        { name: 'spreadBps', type: 'uint16' },
-        { name: 'isFresh', type: 'bool' },
-        { name: 'isCircuitBroken', type: 'bool' },
-        { name: 'lastUpdateTime', type: 'uint64' },
-        { name: 'updateCount', type: 'uint8' }
-      ]
-    }]
-  },
-  {
-    name: 'getJuniorValue',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [
-      { name: 'totalValue', type: 'uint256' },
-      { name: 'sharePrice', type: 'uint256' }
-    ]
-  },
-  {
-    name: 'getMaxLeverage',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: 'maxLeverageBps', type: 'int32' }]
-  },
-  {
-    name: 'getFundingRate',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: 'rateBps', type: 'int256' }]
-  },
-  {
-    name: 'getCarryRate',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: 'annualBps', type: 'uint256' }]
-  },
-  {
-    name: 'getRiskState',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [
-      { name: 'protocolState', type: 'uint8' },
-      { name: 'healthScore', type: 'uint256' },
-      { name: 'juniorRatioBps', type: 'uint256' },
-      { name: 'currentMaxLeverageBps', type: 'uint32' },
-      { name: 'oracleStale', type: 'bool' },
-      { name: 'circuitBroken', type: 'bool' }
-    ]
-  },
-  {
-    name: 'juniorTranche',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }]
-  }
+const VAULT_ABI = window.xLeverContracts?.VAULT_ABI || [
+  { name: 'deposit', type: 'function', stateMutability: 'payable', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'leverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'positionValue', type: 'uint256' }] },
+  { name: 'withdraw', type: 'function', stateMutability: 'payable', inputs: [{ name: 'amount', type: 'uint256' }, { name: 'minReceived', type: 'uint256' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'received', type: 'uint256' }] },
+  { name: 'adjustLeverage', type: 'function', stateMutability: 'payable', inputs: [{ name: 'newLeverageBps', type: 'int32' }, { name: 'priceUpdateData', type: 'bytes[]' }], outputs: [] },
+  { name: 'depositJunior', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [{ name: 'shares', type: 'uint256' }] },
+  { name: 'withdrawJunior', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ name: 'amount', type: 'uint256' }] },
+  { name: 'getPosition', type: 'function', stateMutability: 'view', inputs: [{ name: 'user', type: 'address' }], outputs: [{ name: '', type: 'tuple', components: [{ name: 'depositAmount', type: 'uint128' }, { name: 'leverageBps', type: 'int32' }, { name: 'entryTWAP', type: 'uint128' }, { name: 'lastFeeTimestamp', type: 'uint64' }, { name: 'settledFees', type: 'uint128' }, { name: 'leverageLockExpiry', type: 'uint32' }, { name: 'isActive', type: 'bool' }] }] },
+  { name: 'getPoolState', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'tuple', components: [{ name: 'totalSeniorDeposits', type: 'uint128' }, { name: 'totalJuniorDeposits', type: 'uint128' }, { name: 'insuranceFund', type: 'uint128' }, { name: 'netExposure', type: 'int256' }, { name: 'grossLongExposure', type: 'uint128' }, { name: 'grossShortExposure', type: 'uint128' }, { name: 'lastRebalanceTime', type: 'uint64' }, { name: 'currentMaxLeverageBps', type: 'uint32' }, { name: 'fundingRateBps', type: 'int64' }, { name: 'protocolState', type: 'uint8' }] }] },
+  { name: 'juniorTranche', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
 ];
-
-// Junior Tranche ABI
-const JUNIOR_TRANCHE_ABI = [
-  {
-    name: 'getShares',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'user', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  {
-    name: 'getUserValue',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'user', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  {
-    name: 'getSharePrice',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: 'price', type: 'uint256' }]
-  },
-  {
-    name: 'getTotalValue',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: 'value', type: 'uint256' }]
-  },
-  {
-    name: 'totalShares',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }]
-  }
+const JUNIOR_TRANCHE_ABI = window.xLeverContracts?.JUNIOR_TRANCHE_ABI || [
+  { name: 'getShares', type: 'function', stateMutability: 'view', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'getUserValue', type: 'function', stateMutability: 'view', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'getSharePrice', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: 'price', type: 'uint256' }] },
+  { name: 'getTotalValue', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: 'value', type: 'uint256' }] },
+  { name: 'totalShares', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
 ];
 
 /**
@@ -525,7 +312,8 @@ async function depositJunior() {
       abi: ERC20_ABI,
       functionName: 'approve',
       args: [vaultAddress, amount],
-      account: connectedAddress
+      account: connectedAddress,
+      chain: window.viem.inkSepolia
     });
 
     console.log('Waiting for approval confirmation...');
@@ -538,7 +326,8 @@ async function depositJunior() {
       abi: VAULT_ABI,
       functionName: 'depositJunior',
       args: [amount],
-      account: connectedAddress
+      account: connectedAddress,
+      chain: window.viem.inkSepolia
     });
 
     console.log('Waiting for deposit confirmation...');
@@ -581,24 +370,17 @@ async function withdrawJunior() {
     const { parseUnits } = window.viem;
     const vaultAddress = VAULT_ADDRESSES.wQQQx;
 
-    // Check if vault supports junior tranche
-    const juniorTrancheCheck = await publicClient.readContract({
+    // Check if vault supports junior tranche (reuse result as the address)
+    const juniorTrancheAddress = await publicClient.readContract({
       address: vaultAddress,
       abi: VAULT_ABI,
       functionName: 'juniorTranche'
     }).catch(() => null);
 
-    if (!juniorTrancheCheck) {
+    if (!juniorTrancheAddress) {
       alert('⚠️ Junior tranche not available on current vaults.\n\nThe deployed vaults are using VaultSimple which doesn\'t support junior liquidity.\n\nYou need to deploy the full Vault contract with junior tranche support.');
       return;
     }
-
-    // Get junior tranche address
-    const juniorTrancheAddress = await publicClient.readContract({
-      address: vaultAddress,
-      abi: VAULT_ABI,
-      functionName: 'juniorTranche'
-    });
 
     // Get share price to calculate shares needed
     const sharePrice = await publicClient.readContract({
@@ -617,7 +399,8 @@ async function withdrawJunior() {
       abi: VAULT_ABI,
       functionName: 'withdrawJunior',
       args: [shares],
-      account: connectedAddress
+      account: connectedAddress,
+      chain: window.viem.inkSepolia
     });
 
     console.log('Waiting for withdrawal confirmation...');
@@ -666,7 +449,7 @@ async function switchToInkSepolia() {
               symbol: 'ETH',
               decimals: 18
             },
-            rpcUrls: ['https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc'],
+            rpcUrls: [window.viem?.inkSepolia?.rpcUrls?.default?.http?.[0] || 'https://rpc-gel-sepolia.inkonchain.com'],
             blockExplorerUrls: ['https://explorer-sepolia.inkonchain.com']
           }]
         });
@@ -734,7 +517,7 @@ async function connectWallet() {
 
     publicClient = createPublicClient({
       chain: inkSepolia,
-      transport: http('https://lb.drpc.org/ogrpc?network=ink-sepolia&dkey=AmNgmLfXikwWhpaarzWUjEmU59gkRdwR8ImsKlzbRHZc')
+      transport: http(inkSepolia.rpcUrls.default.http[0])
     });
 
     connectedAddress = accounts[0];
@@ -819,11 +602,18 @@ function initWalletListeners() {
   modal.subscribeEvents(async (event) => {
     if (event?.data?.event === 'CONNECT_SUCCESS') {
       connectedAddress = modal.getAddress();
-      const { createPublicClient, http, inkSepolia } = window.viem;
+      const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
       publicClient = createPublicClient({
         chain: inkSepolia,
         transport: http(inkSepolia.rpcUrls.default.http[0])
       });
+      // Create wallet client for write transactions (junior tranche deposits/withdrawals)
+      if (window.ethereum) {
+        walletClient = createWalletClient({
+          chain: inkSepolia,
+          transport: custom(window.ethereum)
+        });
+      }
       // Close the Reown modal immediately so the spinner doesn't linger after connection
       modal.close();
 
@@ -849,6 +639,7 @@ function initWalletListeners() {
     if (event?.data?.event === 'DISCONNECT_SUCCESS') {
       connectedAddress = null;
       publicClient = null;
+      walletClient = null;
       updateWalletUI();
       if (typeof XToast !== 'undefined') XToast.show('Wallet disconnected', 'info');
     }
@@ -867,11 +658,15 @@ function initWalletListeners() {
       connectedAddress = typeof modal.getAddress === 'function'
         ? modal.getAddress()               // Standard Reown v3 getter
         : modal.getAddress?.();            // Defensive fallback — same reason as above
-      const { createPublicClient, http, inkSepolia } = window.viem; // Re-import here because this code path runs independently of the event handler
+      const { createWalletClient: cwc, createPublicClient, custom: cst, http, inkSepolia } = window.viem; // Re-import here because this code path runs independently of the event handler
       publicClient = createPublicClient({
         chain: inkSepolia, // Same chain as in CONNECT_SUCCESS — must match deployed contracts
         transport: http(inkSepolia.rpcUrls.default.http[0])
       });
+      // Restore wallet client for write transactions on session resume
+      if (window.ethereum) {
+        walletClient = cwc({ chain: inkSepolia, transport: cst(window.ethereum) });
+      }
       updateWalletUI(); // Show wallet panel immediately on page load if session persists
       fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
       window.dispatchEvent(new CustomEvent('appkit:connected'));

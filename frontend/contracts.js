@@ -10,7 +10,7 @@
 import { createPublicClient, createWalletClient, http, custom, parseUnits, formatUnits, encodeFunctionData, parseEther } from 'viem'
 import { getPriceForFeed } from './pyth.js'
 import { PYTH_FEEDS, ASSET_FEED_MAP } from './assets.js'
-import { CONTRACT_ADDRESSES, VAULT_REGISTRY_CONFIG, RPC_URLS, CHAIN_ID } from './config.js'
+import { CONTRACT_ADDRESSES, VAULT_REGISTRY_CONFIG, CHAIN_VAULT_REGISTRIES, RPC_URLS, CHAIN_ID } from './config.js'
 
 // ═══════════════════════════════════════════════════════════════
 // CHAIN CONFIG
@@ -50,11 +50,10 @@ export const CHAIN_CONFIGS = {
     chain: inkSepolia,
     vaults: null, // populated below from VAULT_REGISTRY (default)
   },
-  // Ethereum Sepolia (11155111)
-  // Ethereum Sepolia (11155111) — no vaults deployed yet, populate after deployment
+  // Ethereum Sepolia (11155111) — cloned vault registry from Ink Sepolia
   11155111: {
     chain: ethSepolia,
-    vaults: {},
+    vaults: CHAIN_VAULT_REGISTRIES[11155111] || {},
   },
 }
 
@@ -92,7 +91,7 @@ export function getActiveChainConfig() { return CHAIN_CONFIGS[activeChainId] }
 
 export const ADDRESSES = {
   ...CONTRACT_ADDRESSES,
-  vault: CONTRACT_ADDRESSES.qqqVault || '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',  // Active vault (switches with asset)
+  vault: CONTRACT_ADDRESSES.qqqVault || '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b',  // Active vault (switches with asset)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -103,7 +102,7 @@ export const ADDRESSES = {
 export const VAULT_REGISTRY = VAULT_REGISTRY_CONFIG
 
 // Backfill: Ink Sepolia uses VAULT_REGISTRY as its vault map
-CHAIN_CONFIGS[763373].vaults = VAULT_REGISTRY
+CHAIN_CONFIGS[763373].vaults = CHAIN_VAULT_REGISTRIES[763373] || VAULT_REGISTRY
 
 /**
  * Look up the deployed vault address for a given asset symbol on the active chain.
@@ -219,6 +218,9 @@ export const VAULT_ABI = [
     ]
   }], stateMutability: 'view' },
 
+  { type: 'function', name: 'getRiskState', inputs: [], outputs: [{ name: 'protocolState', type: 'uint8' }, { name: 'healthScore', type: 'uint256' }, { name: 'juniorRatioBps', type: 'uint256' }, { name: 'currentMaxLeverageBps', type: 'uint32' }, { name: 'oracleStale', type: 'bool' }, { name: 'circuitBroken', type: 'bool' }], stateMutability: 'view' },
+  { type: 'function', name: 'juniorTranche', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
+
   // Events
   { type: 'event', name: 'Deposit', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'leverage', type: 'int32' }, { name: 'isSenior', type: 'bool' }] },
   { type: 'event', name: 'Withdraw', inputs: [{ name: 'user', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }, { name: 'pnl', type: 'uint256' }] },
@@ -230,6 +232,14 @@ export const PYTH_ADAPTER_ABI = [
   { type: 'function', name: 'getUpdateFee', inputs: [{ name: 'priceUpdateData', type: 'bytes[]' }], outputs: [{ name: 'fee', type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'readPrice', inputs: [{ name: 'feedId', type: 'bytes32' }, { name: 'maxAgeSec', type: 'uint256' }], outputs: [{ name: 'price', type: 'int64' }, { name: 'conf', type: 'uint64' }, { name: 'publishTime', type: 'uint64' }], stateMutability: 'view' },
   { type: 'function', name: 'isStale', inputs: [{ name: 'feedId', type: 'bytes32' }, { name: 'maxAgeSec', type: 'uint256' }], outputs: [{ type: 'bool' }], stateMutability: 'view' },
+]
+
+export const JUNIOR_TRANCHE_ABI = [
+  { type: 'function', name: 'getShares', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getUserValue', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getSharePrice', inputs: [], outputs: [{ name: 'price', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'getTotalValue', inputs: [], outputs: [{ name: 'value', type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'totalShares', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ]
 
 // Re-export so existing consumers keep working
@@ -285,7 +295,8 @@ let walletClient = null
  */
 export function getPublicClient() {
   if (!publicClient) {
-    publicClient = createPublicClient({ chain: inkSepolia, transport: http() })
+    const config = CHAIN_CONFIGS[activeChainId]
+    publicClient = createPublicClient({ chain: config?.chain || inkSepolia, transport: http() })
   }
   return publicClient
 }
@@ -298,7 +309,8 @@ export function getPublicClient() {
  */
 export function getWalletClient() {
   if (!walletClient && window.ethereum) {
-    walletClient = createWalletClient({ chain: inkSepolia, transport: custom(window.ethereum) })
+    const config = CHAIN_CONFIGS[activeChainId]
+    walletClient = createWalletClient({ chain: config?.chain || inkSepolia, transport: custom(window.ethereum) })
   }
   return walletClient
 }
@@ -984,6 +996,7 @@ export async function runPreflight() {
 // Expose globally for non-module scripts
 window.xLeverContracts = {
   ADDRESSES, setAddress, VAULT_REGISTRY, CHAIN_CONFIGS,
+  ERC20_ABI, VAULT_ABI, JUNIOR_TRANCHE_ABI, PYTH_ADAPTER_ABI,
   ASSET_FEED_MAP, setActiveAsset, getActiveAsset, getActiveFeedId,
   getVaultForAsset, isVaultDeployed,
   switchChain, getActiveChainId, getActiveChainConfig,

@@ -29,7 +29,7 @@ const XNav = (() => {
       const link = document.createElement('link');
       link.rel = 'icon';
       link.type = 'image/png';
-      link.href = 'public/xlogo.png';
+      link.href = '/xlogo.png';
       document.head.appendChild(link);
     }
   }
@@ -259,7 +259,7 @@ const XNav = (() => {
     if (_isLanding) {
       nav.innerHTML = `
         <div class="nav-left">
-          <a href="index.html" class="nav-logo"><img src="public/logowors.png" alt="xLever"></a>
+          <a href="index.html" class="nav-logo"><img src="/logowors.png" alt="xLever"></a>
           <div class="nav-links desktop-only">
             <a class="nav-link" href="#features">Features</a>
             <a class="nav-link" href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
@@ -284,7 +284,7 @@ const XNav = (() => {
 
       nav.innerHTML = `
         <div class="nav-left">
-          <a href="index.html" class="nav-logo"><img src="public/logowors.png" alt="xLever"></a>
+          <a href="index.html" class="nav-logo"><img src="/logowors.png" alt="xLever"></a>
           ${modeToggle}
           <div class="nav-links" id="navLinks">
             ${visiblePages.map(p => navLink(p, p.id === activeId)).join('')}

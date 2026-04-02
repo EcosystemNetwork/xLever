@@ -29,8 +29,8 @@ export const CONTRACT_ADDRESSES = {
   usdc:        '0x6b57475467cd854d36Be7FB614caDa5207838943',
   wSPYx:       '0x9eF9f9B22d3CA9769e28e769e2AAA3C2B0072D0e',
   wQQQx:       '0x267ED9BC43B16D832cB9Aaf0e3445f0cC9f536d9',
-  spyVault:    '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
-  qqqVault:    '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
+  spyVault:    '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd',
+  qqqVault:    '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b',
   pyth:        '0x2880aB155794e7179c9eE2e38200202908C17B43',
   pythAdapter: '0xEB2B470D2A8dD2192e33e94Db4c7Dd9fb937f38f',
   euler: {
@@ -52,10 +52,10 @@ export const CONTRACT_ADDRESSES = {
  * Override via window.__XLEVER_CONFIG__.vaultRegistry
  * @type {Object<string, string>}
  */
-export const VAULT_REGISTRY_CONFIG = injected.vaultRegistry || {
+const INK_SEPOLIA_VAULTS = {
   // ── Index ETFs ──
-  QQQ:  '0x3E66D6feAEeb68b43E76CF4152154B4F30553ca6',
-  SPY:  '0xC110E3bB1a898E1A4bd8Cc75a913603601e7c228',
+  QQQ:  '0xd76378af8494eafa6251d13dcbcaa4f39e70b90b',
+  SPY:  '0x6bbb5fe4f82b14bd29fd8d7b9cc1f45a6e19c3dd',
   VUG:  '0x09F7D7717a67783298d5Ca6C0fe036C39951D337',
   VGK:  '0x5a446C69c8C635ae473Ed859b1853Bd580F671B7',
   VXUS: '0x5FA09F20C04533a8564F280A9127Cf63aDE08621',
@@ -94,6 +94,41 @@ export const VAULT_REGISTRY_CONFIG = injected.vaultRegistry || {
   STRK: '0x5fcAbBc1e9ab0bEca3d6cd9EF0257F2369230D12',
   BTGO: '0x0a66152096f37F83D41c56534022e746B159b052',
 }
+
+// Default: Ink Sepolia is the canonical source; override per-chain via injected config
+export const VAULT_REGISTRY_CONFIG = injected.vaultRegistry || INK_SEPOLIA_VAULTS
+
+/**
+ * Per-chain vault registries — clones the full Ink Sepolia vault set to every
+ * supported EVM chain so asset selection is consistent across chains.
+ * Override individual chains via window.__XLEVER_CONFIG__.chainVaults[chainId].
+ * @type {Object<number, Object<string, string>>}
+ */
+const injectedChainVaults = injected.chainVaults || {}
+export const CHAIN_VAULT_REGISTRIES = {
+  763373:   injectedChainVaults[763373]   || { ...INK_SEPOLIA_VAULTS },
+  11155111: injectedChainVaults[11155111] || { ...INK_SEPOLIA_VAULTS },
+}
+
+/**
+ * Solana vault program IDs — maps ticker symbol to on-chain program address.
+ * Kamino adapter uses these for position management on Solana.
+ * Override via window.__XLEVER_CONFIG__.solanaVaults
+ * @type {Object<string, string>}
+ */
+export const SOLANA_VAULT_REGISTRY = injected.solanaVaults || Object.fromEntries(
+  Object.keys(INK_SEPOLIA_VAULTS).map(sym => [sym, `xlever_${sym.toLowerCase()}_solana`])
+)
+
+/**
+ * TON vault contract addresses — maps ticker symbol to TON contract address.
+ * EVAA adapter uses these for position management on TON.
+ * Override via window.__XLEVER_CONFIG__.tonVaults
+ * @type {Object<string, string>}
+ */
+export const TON_VAULT_REGISTRY = injected.tonVaults || Object.fromEntries(
+  Object.keys(INK_SEPOLIA_VAULTS).map(sym => [sym, `xlever_${sym.toLowerCase()}_ton`])
+)
 
 /**
  * RPC URLs per chain. Override via window.__XLEVER_CONFIG__.rpcUrls

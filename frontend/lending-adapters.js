@@ -880,8 +880,9 @@ class EvaaAdapter extends ILendingAdapter {
     const provider = this._getProvider()
     if (!provider) return null
     // TonConnect stores connected wallet
+    // TonConnect UI: account is at provider.account (standard) or provider.connector?.account (TonConnect SDK v2)
     if (provider.account?.address) return provider.account.address
-    if (provider.wallet?.account?.address) return provider.wallet.account.address
+    if (provider.connector?.account?.address) return provider.connector.account.address
     return null
   }
 

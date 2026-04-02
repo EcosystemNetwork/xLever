@@ -129,7 +129,10 @@ const SwarmBridge = (() => {
       description: 'Approve a pending trading decision for execution.',
       parameters: { decision_id: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/agent/approve/${params.decision_id}`, 'POST', { approved: true })
+        if (!params.decision_id || !/^[a-f0-9-]{8,36}$/i.test(params.decision_id)) {
+          return { error: 'Invalid decision_id format (expected UUID)' }
+        }
+        return await apiCall(`/agent/approve/${encodeURIComponent(params.decision_id)}`, 'POST', { approved: true })
       }
     },
 
@@ -138,7 +141,10 @@ const SwarmBridge = (() => {
       description: 'Reject a pending trading decision with an optional reason.',
       parameters: { decision_id: 'string (required)', reason: 'string (optional)' },
       async execute(params) {
-        return await apiCall(`/agent/approve/${params.decision_id}`, 'POST', { approved: false, reason: params.reason || '' })
+        if (!params.decision_id || !/^[a-f0-9-]{8,36}$/i.test(params.decision_id)) {
+          return { error: 'Invalid decision_id format (expected UUID)' }
+        }
+        return await apiCall(`/agent/approve/${encodeURIComponent(params.decision_id)}`, 'POST', { approved: false, reason: params.reason || '' })
       }
     },
 
@@ -147,7 +153,7 @@ const SwarmBridge = (() => {
       description: 'Get recent trading decisions made by the agent.',
       parameters: { limit: 'number (default 50)' },
       async execute(params = {}) {
-        return await apiCall(`/decisions?limit=${params.limit || 50}`)
+        return await apiCall(`/decisions?${new URLSearchParams({ limit: params.limit || 50 })}`)
       }
     },
 
@@ -157,11 +163,12 @@ const SwarmBridge = (() => {
       description: 'Get all positions for a wallet address, optionally filtered by status (open/closed) and asset.',
       parameters: { wallet_address: 'string (required)', status: 'string (open|closed)', asset: 'string' },
       async execute(params) {
-        let url = `/positions/${params.wallet_address}`
-        const qs = []
-        if (params.status) qs.push(`status=${params.status}`)
-        if (params.asset) qs.push(`asset=${params.asset}`)
-        if (qs.length) url += '?' + qs.join('&')
+        let url = `/positions/${encodeURIComponent(params.wallet_address)}`
+        const qs = new URLSearchParams()
+        if (params.status) qs.set('status', params.status)
+        if (params.asset) qs.set('asset', params.asset)
+        const qsStr = qs.toString()
+        if (qsStr) url += '?' + qsStr
         return await apiCall(url)
       }
     },
@@ -171,7 +178,7 @@ const SwarmBridge = (() => {
       description: 'Get all currently open positions for a wallet.',
       parameters: { wallet_address: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/positions/${params.wallet_address}/active`)
+        return await apiCall(`/positions/${encodeURIComponent(params.wallet_address)}/active`)
       }
     },
 
@@ -180,7 +187,7 @@ const SwarmBridge = (() => {
       description: 'Get aggregate statistics for a wallet\'s trading history (total PnL, win rate, etc.).',
       parameters: { wallet_address: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/positions/stats/${params.wallet_address}`)
+        return await apiCall(`/positions/stats/${encodeURIComponent(params.wallet_address)}`)
       }
     },
 
@@ -190,9 +197,8 @@ const SwarmBridge = (() => {
       description: 'Get historical OHLCV price data for a symbol (e.g. QQQ, ETH, BTC). Supports periods like 1d, 5d, 1mo, 3mo, 1y, 5y, max.',
       parameters: { symbol: 'string (required)', period: 'string (default 1y)', interval: 'string (default 1d)' },
       async execute(params) {
-        const period = params.period || '1y'
-        const interval = params.interval || '1d'
-        return await apiCall(`/prices/${params.symbol}?period=${period}&interval=${interval}`)
+        const qs = new URLSearchParams({ period: params.period || '1y', interval: params.interval || '1d' })
+        return await apiCall(`/prices/${encodeURIComponent(params.symbol)}?${qs}`)
       }
     },
 
@@ -201,7 +207,7 @@ const SwarmBridge = (() => {
       description: 'Get the current/latest price for a symbol.',
       parameters: { symbol: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/prices/${params.symbol}/latest`)
+        return await apiCall(`/prices/${encodeURIComponent(params.symbol)}/latest`)
       }
     },
 
@@ -229,7 +235,7 @@ const SwarmBridge = (() => {
       description: 'Get technical analysis for a symbol (moving averages, RSI, MACD, Bollinger Bands, etc.).',
       parameters: { symbol: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/intelligence/technicals/${params.symbol}`)
+        return await apiCall(`/intelligence/technicals/${encodeURIComponent(params.symbol)}`)
       }
     },
 
@@ -238,7 +244,7 @@ const SwarmBridge = (() => {
       description: 'Get options chain data for a symbol (calls, puts, IV, Greeks).',
       parameters: { symbol: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/intelligence/options/${params.symbol}`)
+        return await apiCall(`/intelligence/options/${encodeURIComponent(params.symbol)}`)
       }
     },
 
@@ -249,7 +255,7 @@ const SwarmBridge = (() => {
       parameters: { since: 'string (ISO timestamp, optional)' },
       async execute(params = {}) {
         const since = params.since || new Date(Date.now() - 3600000).toISOString()
-        return await apiCall(`/news/poll?since=${since}`)
+        return await apiCall(`/news/poll?${new URLSearchParams({ since })}`)
       }
     },
 
@@ -327,7 +333,7 @@ const SwarmBridge = (() => {
       description: 'Get a wallet\'s lending/borrowing positions across all Euler V2 markets.',
       parameters: { wallet_address: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/lending/positions/${params.wallet_address}`)
+        return await apiCall(`/lending/positions/${encodeURIComponent(params.wallet_address)}`)
       }
     },
 
@@ -337,7 +343,7 @@ const SwarmBridge = (() => {
       description: 'Get all active alerts for a wallet.',
       parameters: { wallet_address: 'string (required)' },
       async execute(params) {
-        return await apiCall(`/alerts/${params.wallet_address}`)
+        return await apiCall(`/alerts/${encodeURIComponent(params.wallet_address)}`)
       }
     },
 
@@ -793,9 +799,8 @@ const SwarmBridge = (() => {
 
       try {
         // Poll for new messages
-        const resp = await fetch(
-          `${CONFIG.SWARM_HUB}/api/v1/messages?agent=${CONFIG.AGENT_ID}&since=${_lastPollTimestamp}`
-        )
+        const pollQs = new URLSearchParams({ agent: CONFIG.AGENT_ID, since: _lastPollTimestamp })
+        const resp = await fetch(`${CONFIG.SWARM_HUB}/api/v1/messages?${pollQs}`)
         if (!resp.ok) return
 
         const data = await resp.json()

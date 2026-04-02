@@ -22,5 +22,6 @@ python-multipart==0.0.12
 # Web3 for on-chain reads
 web3>=7.0,<8.0
 
-# OpenBB data streams
-openbb>=4.5.0,<4.8.0
+# OpenBB data streams (core + yfinance only — full openbb[all] causes build timeouts)
+openbb-core>=1.5.1,<2.0.0
+openbb-yfinance>=1.5.0,<2.0.0

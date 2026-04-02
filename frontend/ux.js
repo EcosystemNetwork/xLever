@@ -1003,19 +1003,31 @@ const XAuthGate = (() => {
    * Retries every 300ms until the wallet module is available, then subscribes to state/events.
    * @private
    */
+  var _unsubscribe = null; // Store unsubscribe fn to prevent duplicate subscriptions
+
   function _pollWallet() {
+    var attempts = 0;
+    var maxAttempts = 50; // 50 * 300ms = 15s max wait for Reown to load
     var check = () => {
       var w = window.xLeverWallet;
-      if (!w) return setTimeout(check, 300);
+      if (!w) {
+        if (++attempts >= maxAttempts) {
+          console.warn('[XAuthGate] Reown AppKit not available after 15s, stopping poll');
+          return;
+        }
+        return setTimeout(check, 300);
+      }
       _applyState();
+      // Clean up previous subscription if any (e.g. hot reload)
+      if (_unsubscribe) { try { _unsubscribe(); } catch {} }
       // Subscribe once to connection state changes (not raw events) to toggle UI
       if (typeof w.subscribeState === 'function') {
-        w.subscribeState((state) => {
+        _unsubscribe = w.subscribeState((state) => {
           _applyState();
         });
       } else if (typeof w.subscribeEvents === 'function') {
         // Fallback for older Reown versions without subscribeState
-        w.subscribeEvents((event) => {
+        _unsubscribe = w.subscribeEvents((event) => {
           var evt = event?.data?.event;
           if (evt === 'CONNECT_SUCCESS' || evt === 'DISCONNECT_SUCCESS') {
             _applyState();

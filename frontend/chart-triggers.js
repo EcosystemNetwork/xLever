@@ -352,7 +352,7 @@ const ChartTriggers = (() => {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(`xLever Trigger: ${trigger.action.toUpperCase()}`, {
         body: `${trigger.label}\nPrice: $${currentPrice.toFixed(2)}`,
-        icon: '/favicon.ico',
+        icon: '/xlogo.png',
       })
     }
   }
