@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/assets/xlever-logo.svg" alt="xLever" width="80" />
+  <img src="frontend/public/logowors.png" alt="xLever" width="80" />
 </p>
 
 <h1 align="center">xLever</h1>
