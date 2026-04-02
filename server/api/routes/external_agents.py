@@ -332,7 +332,7 @@ async def execute_action(
     )
     agent_obj = agent_result.scalar_one_or_none()
     if agent_obj and agent_obj.webhook_url:
-        fire_webhook(db, agent_obj, "action_recorded", {
+        fire_webhook(agent_obj.id, agent_obj.webhook_url, agent_obj.webhook_secret, "action_recorded", {
             "run_id": run.id,
             "action_id": action.id,
             "action_type": body.action_type,
