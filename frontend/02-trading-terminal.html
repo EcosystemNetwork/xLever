@@ -1483,17 +1483,46 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ═══════════════════════════════════════════
-  // ORDER TYPE TABS
+  // ORDER TYPE TABS — Market is live, Limit/Stop coming soon
   // ═══════════════════════════════════════════
   const orderTabs = document.querySelectorAll('.border-b.border-outline-variant\\/10.pb-1 button');
+  const openPosBtn = document.getElementById('open-position-btn');
   orderTabs.forEach(tab => {
     tab.addEventListener('click', () => {
+      const label = tab.textContent.trim();
       orderTabs.forEach(t => {
         t.classList.remove('text-primary', 'border-b-2', 'border-primary');
         t.classList.add('text-outline');
       });
       tab.classList.add('text-primary', 'border-b-2', 'border-primary');
       tab.classList.remove('text-outline');
+
+      // Limit/Stop orders not yet supported — disable trade button and show notice
+      const comingSoonEl = document.getElementById('order-coming-soon');
+      if (label === 'Limit' || label === 'Stop') {
+        if (openPosBtn) {
+          openPosBtn.disabled = true;
+          openPosBtn.style.opacity = '0.4';
+          openPosBtn.textContent = label + ' Orders — Coming Soon';
+        }
+        if (!comingSoonEl) {
+          const notice = document.createElement('div');
+          notice.id = 'order-coming-soon';
+          notice.style.cssText = 'text-align:center;padding:8px 12px;margin-top:8px;background:#7c4dff10;border:1px solid #7c4dff30;border-radius:4px;';
+          notice.innerHTML = '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:#cdbdff;">' + label + ' orders require an off-chain order book — shipping soon</span>';
+          openPosBtn?.parentElement?.insertBefore(notice, openPosBtn);
+        } else {
+          comingSoonEl.querySelector('span').textContent = label + ' orders require an off-chain order book — shipping soon';
+        }
+      } else {
+        // Market tab — restore button
+        if (openPosBtn) {
+          openPosBtn.disabled = false;
+          openPosBtn.style.opacity = '';
+          openPosBtn.textContent = 'Open Position';
+        }
+        if (comingSoonEl) comingSoonEl.remove();
+      }
     });
   });
 

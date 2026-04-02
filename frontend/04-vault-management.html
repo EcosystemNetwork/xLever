@@ -600,29 +600,52 @@ document.addEventListener('DOMContentLoaded', () => { XAuthGate.init({ mode: 'bl
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Make Confirm Deposit button interactive
+  // Wire Confirm Deposit button to real contract call
   document.querySelectorAll('button').forEach(btn => {
     if (btn.textContent.trim() === 'Confirm Deposit') {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
+        const amount = document.getElementById('deposit-amount')?.value;
+        if (!amount || parseFloat(amount) <= 0) {
+          XToast.show('Enter a valid deposit amount', 'error');
+          return;
+        }
+        const contracts = window.xLeverContracts;
+        if (!contracts) {
+          XToast.show('Contracts not initialized — connect wallet first', 'error');
+          return;
+        }
+        if (!contracts.ADDRESSES.vault) {
+          XToast.show('No vault selected — pick an asset first', 'error');
+          return;
+        }
         const original = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;animation:spin 0.8s linear infinite;">progress_activity</span> Processing Deposit...</span>';
+        btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;animation:spin 0.8s linear infinite;">progress_activity</span> Approving USDC...</span>';
 
-        // Animate the transaction sequence steps
-        const steps = btn.closest('.space-y-5, div')?.parentElement?.querySelectorAll('.flex.gap-4');
-
-        setTimeout(() => {
+        try {
+          btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;animation:spin 0.8s linear infinite;">progress_activity</span> Processing Deposit...</span>';
+          const result = await contracts.depositJunior(amount);
           btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-symbols-outlined" style="font-size:16px;color:#00e676;font-variation-settings:\'FILL\' 1;">check_circle</span> Deposit Confirmed</span>';
           btn.style.background = '#00e676';
           btn.style.color = '#003918';
-          XToast.show('Vault deposit confirmed', 'success');
+          const explorerLink = result.explorerUrl ? ` <a href="${result.explorerUrl}" target="_blank" style="text-decoration:underline;">View tx</a>` : '';
+          XToast.show('Vault deposit confirmed!' + explorerLink, 'success', 5000);
           setTimeout(() => {
             btn.innerHTML = original;
             btn.style.background = '';
             btn.style.color = '';
             btn.disabled = false;
           }, 3000);
-        }, 2500);
+          // Refresh balance display
+          refreshDepositBalance();
+        } catch (err) {
+          const classified = contracts.classifyTxError ? contracts.classifyTxError(err) : { label: 'Error', detail: err.shortMessage || err.message };
+          XToast.show('Deposit failed: ' + (classified.detail || err.message), 'error');
+          btn.innerHTML = original;
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.disabled = false;
+        }
       });
     }
     // Make vault card "Deposit" buttons show toast
@@ -632,6 +655,51 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
+
+  // ═══════════════════════════════════════════
+  // BALANCE DISPLAY — reads on-chain USDC balance
+  // ═══════════════════════════════════════════
+  async function refreshDepositBalance() {
+    const contracts = window.xLeverContracts;
+    if (!contracts) return;
+    try {
+      const wc = contracts.getWalletClient();
+      if (!wc) return;
+      const [account] = await wc.getAddresses();
+      if (!account) return;
+      const bal = await contracts.getBalance(contracts.ADDRESSES.usdc, account);
+      const el = document.getElementById('deposit-balance');
+      if (el) el.textContent = 'Balance: ' + parseFloat(bal.formatted).toFixed(2) + ' USDC';
+    } catch (e) { /* wallet not connected yet */ }
+  }
+
+  async function refreshWithdrawBalance(withdrawType) {
+    const contracts = window.xLeverContracts;
+    if (!contracts) return;
+    try {
+      const wc = contracts.getWalletClient();
+      if (!wc) return;
+      const [account] = await wc.getAddresses();
+      if (!account) return;
+      const el = document.getElementById('withdraw-balance');
+      if (withdrawType === 'junior') {
+        const junior = await contracts.getJuniorValue();
+        if (el) el.textContent = 'Available: ' + parseFloat(junior?.formatted || '0').toFixed(2) + ' shares';
+      } else {
+        const pos = await contracts.getPosition(account);
+        const amt = pos?.depositAmount ? (Number(pos.depositAmount) / 1e6).toFixed(2) : '0.00';
+        if (el) el.textContent = 'Available: ' + amt + ' USDC';
+      }
+    } catch (e) { /* wallet not connected yet */ }
+  }
+
+  // Poll for wallet connection and refresh balance
+  refreshDepositBalance();
+  const balanceInterval = setInterval(() => {
+    refreshDepositBalance();
+  }, 15000);
+  // Also refresh when wallet connects
+  window.addEventListener('xlever:wallet-connected', refreshDepositBalance);
 
   // Deposit/Withdraw tab toggle
   const depositTab = document.querySelector('button.border-b-2.border-primary');
@@ -682,6 +750,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Wire up withdraw vault type toggle
       let withdrawType = 'senior';
+      // Fetch real balance for initial type
+      refreshWithdrawBalance(withdrawType);
       depositPanel.querySelectorAll('.withdraw-vault-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           depositPanel.querySelectorAll('.withdraw-vault-btn').forEach(b => {
@@ -691,6 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
           btn.classList.add('border-primary', 'text-primary', 'bg-surface-container-high');
           btn.classList.remove('border-outline-variant/30', 'text-outline', 'bg-surface-container-lowest');
           withdrawType = btn.dataset.vault;
+          refreshWithdrawBalance(withdrawType);
         });
       });
 

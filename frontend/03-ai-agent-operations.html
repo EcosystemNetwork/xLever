@@ -670,7 +670,7 @@ tailwind.config = {
           <div class="mt-2 space-y-1.5">
             <div>
               <label class="font-mono text-[8px] text-on-surface-variant uppercase block mb-0.5">Server API</label>
-              <input type="text" id="endpointServer" placeholder="http://localhost:8080/api" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded px-2 py-1 font-mono text-[10px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
+              <input type="text" id="endpointServer" placeholder="auto: /api → api.xlever.markets (or localhost:8080)" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded px-2 py-1 font-mono text-[10px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50">
             </div>
             <div>
               <label class="font-mono text-[8px] text-on-surface-variant uppercase block mb-0.5">Python Agent WS</label>
@@ -2058,6 +2058,15 @@ function setConnectorStatus(key, connected, url) {
 }
 
 // ── Server API ──
+function _resolveApiBase() {
+  const override = document.getElementById('endpointServer')?.value.trim();
+  if (override) return override;
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+  // On Vercel (x-lever.vercel.app / xlever.markets), use /api which rewrites to api.xlever.markets
+  // Locally, hit the dev server directly
+  return isLocal ? 'http://localhost:8080/api' : '/api';
+}
+
 async function toggleServerConnection() {
   if (ConnectorState.server.connected) {
     ConnectorState.server.connected = false;
@@ -2065,30 +2074,33 @@ async function toggleServerConnection() {
     logAction('CONNECTOR', 'Disconnected from Server API', 'yellow-500');
     return;
   }
-  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
-  const override = document.getElementById('endpointServer')?.value.trim();
-  const baseUrl = override || (isLocal ? 'http://localhost:8080/api' : 'https://api.xlever.markets/api');
-  logAction('CONNECTOR', `Connecting to Server API at ${baseUrl}...`, 'primary');
+  const baseUrl = _resolveApiBase();
+  const displayUrl = baseUrl === '/api' ? `${window.location.origin}/api → api.xlever.markets` : baseUrl;
+  logAction('CONNECTOR', `Connecting to Server API at ${displayUrl}...`, 'primary');
   try {
-    const res = await fetch(`${baseUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(5000) }).catch(() => null);
+    // Try /health first
+    const res = await fetch(`${baseUrl}/health`, { method: 'GET', credentials: 'include', signal: AbortSignal.timeout(5000) }).catch(() => null);
     if (res && res.ok) {
       ConnectorState.server.baseUrl = baseUrl;
-      setConnectorStatus('server', true, baseUrl);
-      logAction('CONNECTOR', `✓ Server API connected — ${baseUrl}`, 'secondary');
+      setConnectorStatus('server', true, displayUrl);
+      logAction('CONNECTOR', `✓ Server API connected — ${displayUrl}`, 'secondary');
+      // Auto-refresh registry on connect
+      refreshAgentList();
+      return;
+    }
+    // Fallback: try any known endpoint (404 still means server is up)
+    const res2 = await fetch(`${baseUrl}/external-agents/`, { method: 'GET', credentials: 'include', signal: AbortSignal.timeout(5000) }).catch(() => null);
+    if (res2 && res2.status < 500) {
+      ConnectorState.server.baseUrl = baseUrl;
+      setConnectorStatus('server', true, displayUrl);
+      logAction('CONNECTOR', `✓ Server API connected — ${displayUrl}`, 'secondary');
+      refreshAgentList();
     } else {
-      // Try the agents endpoint as fallback health check
-      const res2 = await fetch(`${baseUrl}/agents/health`, { method: 'GET', signal: AbortSignal.timeout(5000) }).catch(() => null);
-      if (res2 && (res2.ok || res2.status === 404)) {
-        ConnectorState.server.baseUrl = baseUrl;
-        setConnectorStatus('server', true, baseUrl);
-        logAction('CONNECTOR', `✓ Server API connected (no /health) — ${baseUrl}`, 'secondary');
-      } else {
-        setConnectorStatus('server', false, baseUrl);
-        logAction('CONNECTOR', `✗ Server API unreachable at ${baseUrl}`, 'error');
-      }
+      setConnectorStatus('server', false, displayUrl);
+      logAction('CONNECTOR', `✗ Server API unreachable at ${displayUrl}`, 'error');
     }
   } catch (err) {
-    setConnectorStatus('server', false, baseUrl);
+    setConnectorStatus('server', false, displayUrl);
     logAction('CONNECTOR', `✗ Server API error: ${err.message}`, 'error');
   }
 }
