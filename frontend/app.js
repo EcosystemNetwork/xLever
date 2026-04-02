@@ -139,7 +139,8 @@ async function fetchBalances() {
     document.getElementById('wspyxBalance').textContent = parseFloat(formatUnits(wspyxBalance, 18)).toFixed(4); // Same 18-decimal format as wQQQx
 
   } catch (error) {
-    // Non-fatal: UI still works, user just sees stale balances
+    console.warn('[xLever] Failed to fetch balances:', error.message || error);
+    if (typeof showToast === 'function') showToast('Failed to load balances — check your network connection.', 'warning', 4000);
   }
 }
 
@@ -308,13 +309,14 @@ async function depositJunior() {
 
     // First approve USDC
 
+    const activeChain = walletClient.chain || publicClient?.chain;
     const approveTx = await walletClient.writeContract({
       address: TOKEN_ADDRESSES.USDC,
       abi: ERC20_ABI,
       functionName: 'approve',
       args: [vaultAddress, amount],
       account: connectedAddress,
-      chain: publicClient.chain
+      chain: activeChain
     });
 
 
@@ -328,7 +330,7 @@ async function depositJunior() {
       functionName: 'depositJunior',
       args: [amount],
       account: connectedAddress,
-      chain: publicClient.chain
+      chain: activeChain
     });
 
 
@@ -344,7 +346,8 @@ async function depositJunior() {
     document.getElementById('depositAmount').value = '';
   } catch (error) {
 
-    alert('Deposit failed: ' + (error.message || 'Unknown error'));
+    const msg = error?.shortMessage || error?.message || 'Unknown error';
+    alert('Deposit failed: ' + msg);
   }
 }
 
@@ -395,13 +398,14 @@ async function withdrawJunior() {
     const shares = (amountInUsdc * BigInt(1e6)) / sharePrice;
 
 
+    const activeChain = walletClient.chain || publicClient?.chain;
     const withdrawTx = await walletClient.writeContract({
       address: vaultAddress,
       abi: VAULT_ABI,
       functionName: 'withdrawJunior',
       args: [shares],
       account: connectedAddress,
-      chain: publicClient.chain
+      chain: activeChain
     });
 
 
@@ -417,7 +421,8 @@ async function withdrawJunior() {
     document.getElementById('withdrawAmount').value = '';
   } catch (error) {
 
-    alert('Withdrawal failed: ' + (error.message || 'Unknown error'));
+    const msg = error?.shortMessage || error?.message || 'Unknown error';
+    alert('Withdrawal failed: ' + msg);
   }
 }
 
@@ -581,9 +586,13 @@ function updateWalletUI() {
  * connect/disconnect buttons, and handles session restoration on page reload.
  * Retries every 200ms if the Reown modal is not yet available.
  */
+let _walletListenerRetries = 0;
 function initWalletListeners() {
   const modal = window.xLeverWallet; // Reown modal instance set up in wallet.js — may not be ready yet on first call
-  if (!modal) return setTimeout(initWalletListeners, 200); // Retry every 200ms because Reown SDK loads asynchronously and may initialize after app.js runs
+  if (!modal) {
+    if (++_walletListenerRetries > 50) { console.warn('[xLever] Reown modal not available after 10s — giving up'); return; }
+    return setTimeout(initWalletListeners, 200); // Retry every 200ms because Reown SDK loads asynchronously and may initialize after app.js runs
+  }
 
   // Wire the landing-page "Connect Wallet" button to open the Reown modal
   const connectBtn = document.getElementById('connectWalletBtn');
@@ -679,7 +688,7 @@ function initWalletListeners() {
       walletClient = cwc({ chain: restoreChain, transport: cst(window.ethereum) });
     }
     updateWalletUI();
-    fetchBalances();
+    await fetchBalances();
     localStorage.setItem('walletConnected', 'true');
     window.dispatchEvent(new CustomEvent('appkit:connected'));
 
@@ -736,13 +745,17 @@ initWalletListeners(); // Start the initialization loop — will retry until Reo
  * so the UI reflects the latest on-chain data without polling.
  * Retries every 300ms if contracts module is not yet available.
  */
+let _txListenerRetries = 0;
 function initTxEventListeners() {
   const contracts = window.xLeverContracts;
-  if (!contracts?.txEvents) return setTimeout(initTxEventListeners, 300);
+  if (!contracts?.txEvents) {
+    if (++_txListenerRetries > 50) { console.warn('[xLever] contracts.txEvents not available after 15s — giving up'); return; }
+    return setTimeout(initTxEventListeners, 300);
+  }
 
-  contracts.txEvents.on('confirmed', () => {
+  contracts.txEvents.on('confirmed', async () => {
     // Reload balances from confirmed chain state
-    if (connectedAddress && publicClient) fetchBalances();
+    if (connectedAddress && publicClient) await fetchBalances();
   });
 }
 initTxEventListeners();
