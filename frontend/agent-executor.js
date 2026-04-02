@@ -47,6 +47,7 @@ const AgentExecutor = (() => {
     safe: {
       canIncreaseLeverage: false,  // Blocked because safe mode's purpose is protection, not growth
       canOpenNew: false,           // Blocked because opening new positions contradicts risk-reduction intent
+      canDeposit: false,           // Blocked because safe mode focuses on protection, not adding capital
       canWithdraw: false,          // Blocked to prevent premature capital removal during stress
       canReduceLeverage: true,     // Allowed because delevering is the core safe-mode action
       canClose: true,              // Allowed because full exit is the ultimate risk-reduction action
@@ -55,6 +56,7 @@ const AgentExecutor = (() => {
     target: {
       canIncreaseLeverage: true,   // Allowed but only within the target band — checked at execution time
       canOpenNew: false,           // Blocked because target mode manages existing positions, not new ones
+      canDeposit: false,           // Blocked because target mode manages exposure, not capital flow
       canWithdraw: false,          // Blocked to keep capital in the protocol for rebalancing
       canReduceLeverage: true,     // Allowed because rebalancing downward is part of maintaining the target
       canClose: false,             // Blocked because target mode should rebalance, not close
@@ -63,6 +65,7 @@ const AgentExecutor = (() => {
     accumulate: {
       canIncreaseLeverage: false,  // Blocked because accumulate mode buys at fixed leverage, not adjustable
       canOpenNew: true,            // Allowed because DCA buying is the core accumulate-mode action; bounded by buyAmount
+      canDeposit: true,            // Allowed because depositing into the junior tranche is how accumulate mode compounds
       canWithdraw: false,          // Blocked to keep accumulated capital compounding
       canReduceLeverage: false,    // Blocked because accumulate mode doesn't manage leverage on existing positions
       canClose: false,             // Blocked unless profit-take triggers — checked separately in decideAccumulate
@@ -602,6 +605,66 @@ const AgentExecutor = (() => {
       // Always dry-run for now — partial close logic is not yet implemented on-chain
       _log('EXECUTOR', `[DRY-RUN] Would take partial profit. ${action.reason}`, action.severity)
       return true
+    }
+
+    // Handle vault deposit (junior tranche)
+    if (action.type === 'deposit') {
+      if (!perms.canDeposit) {
+        _log('POLICY', `BLOCKED: deposit not permitted by ${_policy.mode} policy.`, 'error')
+        return false
+      }
+
+      if (_dryRun || !contracts || !contracts.ADDRESSES.vault) {
+        _log('EXECUTOR', `[DRY-RUN] Would deposit $${action.amount} USDC into junior tranche. Reason: ${action.reason}`, action.severity)
+        return true
+      }
+
+      _log('EXECUTOR', `Depositing $${action.amount} USDC into junior tranche. ${action.reason}`, action.severity)
+      try {
+        const result = await contracts.depositJunior(String(action.amount))
+        const url = contracts.getExplorerUrl(result.hash)
+        _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
+        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
+        _log('AGENT', `Deposited $${action.amount} USDC into junior tranche.`, 'secondary')
+        return true
+      } catch (e) {
+        const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }
+        _log('SYSTEM', `${classified.label}: ${classified.detail}`, 'error')
+        return false
+      }
+    }
+
+    // Handle vault withdrawal (junior tranche shares or senior position)
+    if (action.type === 'withdraw') {
+      if (!perms.canWithdraw) {
+        _log('POLICY', `BLOCKED: withdraw not permitted by ${_policy.mode} policy.`, 'error')
+        return false
+      }
+
+      if (_dryRun || !contracts || !contracts.ADDRESSES.vault) {
+        _log('EXECUTOR', `[DRY-RUN] Would withdraw ${action.amount} from ${action.vault || 'junior'} tranche. Reason: ${action.reason}`, action.severity)
+        return true
+      }
+
+      const tranche = action.vault || 'junior'
+      _log('EXECUTOR', `Withdrawing ${action.amount} from ${tranche} tranche. ${action.reason}`, action.severity)
+      try {
+        let result
+        if (tranche === 'junior') {
+          result = await contracts.withdrawJunior(String(action.amount))
+        } else {
+          result = await contracts.closePosition(String(action.amount))
+        }
+        const url = contracts.getExplorerUrl(result.hash)
+        _log('SYSTEM', `TX confirmed: ${result.hash}`, 'primary')
+        _log('SYSTEM', `Explorer: ${url}`, 'secondary')
+        _log('AGENT', `Withdrew ${action.amount} from ${tranche} tranche.`, 'secondary')
+        return true
+      } catch (e) {
+        const classified = contracts.classifyTxError?.(e) || { label: 'TX failed', detail: e.shortMessage || e.message }
+        _log('SYSTEM', `${classified.label}: ${classified.detail}`, 'error')
+        return false
+      }
     }
 
     // Unknown action type — return false so the caller knows it wasn't handled

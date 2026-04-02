@@ -217,6 +217,10 @@ if (typeof tailwind !== 'undefined') tailwind.config = {
               <span class="font-mono text-[10px] text-on-surface">Can open new positions</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermDeposit" class="accent-primary w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-on-surface">Can deposit to vaults</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" id="regPermWithdraw" class="accent-error w-3.5 h-3.5">
               <span class="font-mono text-[10px] text-error">Can withdraw funds</span>
             </label>
@@ -1250,6 +1254,7 @@ rm -rf /tmp/swarm-audit</pre>
                 <option value="close-partial">Close Partial</option>
                 <option value="adjust">Adjust Leverage</option>
                 <option value="deleverage">Deleverage</option>
+                <option value="deposit">Deposit to Vault</option>
                 <option value="withdraw">Withdraw</option>
               </select>
             </div>
@@ -1488,6 +1493,7 @@ function showActivePolicy(policy) {
       ${policy.autoReentry ? '<div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Re-open position at original leverage after recovery</span></div>' : ''}
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot increase leverage beyond original</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot open new positions</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot deposit to vaults</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
   } else if (policy.mode === 'target') {
     rulesHTML = `
@@ -1504,6 +1510,7 @@ function showActivePolicy(policy) {
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Rebalance up to ${policy.maxRebalSize}% of position per action</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot exceed ${(policy.targetLev + policy.band).toFixed(2)}× leverage</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot change asset allocation</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot deposit to vaults</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
   } else {
     rulesHTML = `
@@ -1518,6 +1525,7 @@ function showActivePolicy(policy) {
     permsHTML = `
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Open new leveraged buy orders up to $${policy.buyAmount} per ${policy.interval} period</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Fixed leverage: ${policy.leverage}× only</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Deposit USDC into junior vault tranche</span></div>
       ${policy.profitTake ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Sell 50% of position when profit exceeds ${policy.profitThreshold}%</span></div>` : ''}
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot exceed $${policy.buyAmount} per buy</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot change leverage after setup</span></div>
@@ -2919,6 +2927,7 @@ function _populateOpenClawInstructions(name, apiKey, agentId, permissions, allow
   if (permissions.canClose) permFlags.push('close');
   if (permissions.canIncreaseLeverage) permFlags.push('increase-leverage');
   if (permissions.canOpenNew) permFlags.push('open-new');
+  if (permissions.canDeposit) permFlags.push('deposit');
   if (permissions.canWithdraw) permFlags.push('withdraw');
 
   const configLines = [
@@ -2982,6 +2991,7 @@ async function registerAgent() {
     canClose: document.getElementById('regPermClose').checked,
     canIncreaseLeverage: document.getElementById('regPermIncrease').checked,
     canOpenNew: document.getElementById('regPermOpen').checked,
+    canDeposit: document.getElementById('regPermDeposit').checked,
     canWithdraw: document.getElementById('regPermWithdraw').checked,
   };
 
@@ -3038,7 +3048,7 @@ async function registerAgent() {
   // Add to local agent list display
   const container = document.getElementById('agentListContainer');
   const created = new Date().toLocaleDateString();
-  const permNames = { canReduceLeverage: 'Reduce', canClose: 'Close', canIncreaseLeverage: 'Increase', canOpenNew: 'Open', canWithdraw: 'Withdraw' };
+  const permNames = { canReduceLeverage: 'Reduce', canClose: 'Close', canIncreaseLeverage: 'Increase', canOpenNew: 'Open', canDeposit: 'Deposit', canWithdraw: 'Withdraw' };
   const permBadges = Object.entries(permissions).filter(([,v]) => v).map(([k]) =>
     `<span class="px-1.5 py-0.5 rounded bg-secondary/10 text-secondary font-mono text-[8px] font-bold uppercase">${permNames[k]}</span>`
   ).join('');
@@ -3545,13 +3555,13 @@ async function checkPermissions() {
       // Offline: simulate against local PERMISSIONS
       const mode = STATE.activeMode || 'safe';
       const perms = {
-        safe: { canIncreaseLeverage: false, canOpenNew: false, canWithdraw: false, canReduceLeverage: true, canClose: true },
-        target: { canIncreaseLeverage: true, canOpenNew: false, canWithdraw: false, canReduceLeverage: true, canClose: false },
-        accumulate: { canIncreaseLeverage: false, canOpenNew: true, canWithdraw: false, canReduceLeverage: false, canClose: false },
+        safe: { canIncreaseLeverage: false, canOpenNew: false, canDeposit: false, canWithdraw: false, canReduceLeverage: true, canClose: true },
+        target: { canIncreaseLeverage: true, canOpenNew: false, canDeposit: false, canWithdraw: false, canReduceLeverage: true, canClose: false },
+        accumulate: { canIncreaseLeverage: false, canOpenNew: true, canDeposit: true, canWithdraw: false, canReduceLeverage: false, canClose: false },
       }[mode];
 
       const actionPermMap = {
-        buy: 'canOpenNew', close: 'canClose', 'close-partial': 'canClose', withdraw: 'canWithdraw',
+        buy: 'canOpenNew', close: 'canClose', 'close-partial': 'canClose', deposit: 'canDeposit', withdraw: 'canWithdraw',
         adjust: body.target_leverage > body.current_leverage ? 'canIncreaseLeverage' : 'canReduceLeverage',
         deleverage: 'canReduceLeverage',
       };
