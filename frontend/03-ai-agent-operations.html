@@ -2767,6 +2767,87 @@ function _apiHeaders(apiKey) {
   return h;
 }
 
+// ── SIWE Authentication ──
+
+let _siweToken = null; // Bearer token from SIWE verify — used instead of cookies (secure=true breaks localhost)
+
+function _authHeaders(extraHeaders = {}) {
+  const h = { 'Content-Type': 'application/json', ...extraHeaders };
+  if (_siweToken) h['Authorization'] = `Bearer ${_siweToken}`;
+  return h;
+}
+
+async function ensureSiweAuth() {
+  const base = _apiBase();
+  if (!base) throw new Error('Server API not connected');
+
+  // Check if existing token is still valid
+  if (_siweToken) {
+    try {
+      const me = await fetch(`${base}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${_siweToken}` },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (me.ok) return true;
+    } catch {}
+    _siweToken = null;
+  }
+
+  // Need to sign in — get wallet client
+  const contracts = window.xLeverContracts;
+  if (!contracts) throw new Error('Contracts not loaded — refresh the page');
+
+  const wc = contracts.getWalletClient();
+  if (!wc) throw new Error('No wallet connected — connect your wallet first');
+
+  const [address] = await wc.getAddresses();
+  if (!address) throw new Error('No wallet address found — connect your wallet first');
+
+  logAction('REGISTRY', 'Signing in with wallet...', 'primary');
+
+  // 1. Get nonce
+  const nonceRes = await fetch(`${base}/auth/nonce`, { signal: AbortSignal.timeout(5000) });
+  if (!nonceRes.ok) throw new Error('Failed to get auth nonce');
+  const { nonce } = await nonceRes.json();
+
+  // 2. Build SIWE message (EIP-4361)
+  const domain = window.location.host;
+  const origin = window.location.origin;
+  const issuedAt = new Date().toISOString();
+  const message = [
+    `${domain} wants you to sign in with your Ethereum account:`,
+    address,
+    '',
+    'Sign in to xLever',
+    '',
+    `URI: ${origin}`,
+    `Version: 1`,
+    `Chain ID: 1`,
+    `Nonce: ${nonce}`,
+    `Issued At: ${issuedAt}`,
+  ].join('\n');
+
+  // 3. Sign with wallet
+  const signature = await wc.signMessage({ account: address, message });
+
+  // 4. Verify with server — response includes token for Bearer auth
+  const verifyRes = await fetch(`${base}/auth/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, signature }),
+  });
+
+  if (!verifyRes.ok) {
+    const err = await verifyRes.json().catch(() => ({}));
+    throw new Error(err.detail || 'SIWE verification failed');
+  }
+
+  const { token } = await verifyRes.json();
+  _siweToken = token;
+  logAction('REGISTRY', `Wallet authenticated: ${address.slice(0, 6)}...${address.slice(-4)}`, 'secondary');
+  return true;
+}
+
 // ── Agent Registration ──
 
 async function registerAgent() {
@@ -2780,6 +2861,15 @@ async function registerAgent() {
   const name = document.getElementById('regAgentName').value.trim();
   if (!name) {
     logAction('REGISTRY', 'Agent name is required', 'error');
+    return;
+  }
+
+  // Ensure SIWE auth before registration
+  try {
+    await ensureSiweAuth();
+  } catch (authErr) {
+    logAction('REGISTRY', `Auth failed: ${authErr.message}`, 'error');
+    if (typeof XToast !== 'undefined') XToast.show(authErr.message, 'error');
     return;
   }
 
@@ -2807,9 +2897,8 @@ async function registerAgent() {
   try {
     const res = await fetch(`${base}/external-agents/register`, {
       method: 'POST',
-      headers: _apiHeaders(),
+      headers: _authHeaders(),
       body: JSON.stringify(body),
-      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -2859,8 +2948,9 @@ async function refreshAgentList() {
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="material-symbols-outlined text-on-surface-variant/50 animate-spin">progress_activity</span></div>';
 
   try {
+    const headers = _siweToken ? { 'Authorization': `Bearer ${_siweToken}` } : {};
     const res = await fetch(`${base}/external-agents/`, {
-      credentials: 'include',
+      headers,
       signal: AbortSignal.timeout(8000),
     });
 
