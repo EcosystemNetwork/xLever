@@ -1126,13 +1126,13 @@ async function sendChatMessage(message) {
   try {
     let responseText = '';
 
-    // Route through SwarmConnector → OpenClaw (primary path)
-    if (window.SwarmConnector) {
+    // Route through SwarmConnector → OpenClaw when connected (primary path)
+    if (window.SwarmConnector && ConnectorState.claw.connected) {
       const result = await SwarmConnector.chat(message);
 
       if (result.error && result.error.includes('unreachable')) {
-        // OpenClaw is down — fall back to local processing
-        responseText = processLocalFallback(message);
+        // OpenClaw is down — fall back to local/server processing
+        responseText = await Promise.resolve(processLocalFallback(message));
       } else if (result.response) {
         responseText = result.response;
       } else if (result.openclaw_response) {
@@ -1149,11 +1149,11 @@ async function sendChatMessage(message) {
       } else if (result.available_tools) {
         responseText = `I have ${result.available_tools.length} tools available. Try asking about positions, prices, risk, or trading.`;
       } else {
-        responseText = processLocalFallback(message);
+        responseText = await Promise.resolve(processLocalFallback(message));
       }
     } else {
-      // No SwarmConnector — local fallback only
-      responseText = processLocalFallback(message);
+      // No OpenClaw — use local + server API fallback
+      responseText = await Promise.resolve(processLocalFallback(message));
     }
 
     // Remove typing indicator and show response
@@ -1289,7 +1289,15 @@ function processLocalFallback(prompt) {
     return 'No active position to close.';
   }
 
-  return `I'm currently running in offline mode (OpenClaw not connected). I can handle basic commands like "risk status", "pause", "resume", and "close". Connect OpenClaw for full AI trading capabilities.`;
+  // Show connection-aware status
+  const routes = [];
+  if (ConnectorState.server.connected) routes.push('Server API');
+  if (ConnectorState.python.connected) routes.push('Python Agent');
+  if (ConnectorState.claw.connected) routes.push('OpenClaw');
+  if (ConnectorState.swarm.connected) routes.push('Swarm');
+  const routeStr = routes.length ? `Connected to: ${routes.join(', ')}` : 'All backends offline';
+
+  return `${routeStr}. I can handle: "risk status", "pause", "resume", "close", "pending decisions", "agent status", "start agent", "stop agent", "set mode safe/target". Use the **Agent Connector** panel to connect backends for full capabilities.`;
 }
 
 // Master toggle

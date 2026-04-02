@@ -394,7 +394,7 @@ async function withdrawJunior() {
     const amountInUsdc = parseUnits(withdrawAmount, 6);
     const shares = (amountInUsdc * BigInt(1e6)) / sharePrice;
 
-    console.log('Withdrawing from junior tranche...');
+
     const withdrawTx = await walletClient.writeContract({
       address: vaultAddress,
       abi: VAULT_ABI,
@@ -404,7 +404,7 @@ async function withdrawJunior() {
       chain: publicClient.chain
     });
 
-    console.log('Waiting for withdrawal confirmation...');
+
     await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
 
     alert('✓ Junior withdrawal successful!');
@@ -416,7 +416,7 @@ async function withdrawJunior() {
     // Clear input
     document.getElementById('withdrawAmount').value = '';
   } catch (error) {
-    console.error('Junior withdrawal failed:', error);
+
     alert('Withdrawal failed: ' + (error.message || 'Unknown error'));
   }
 }
@@ -434,7 +434,7 @@ async function switchToInkSepolia() {
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: '0xBA6ED' }],
     });
-    console.log('✓ Switched to Ink Sepolia');
+
     return true;
   } catch (switchError) {
     // If network not added (error 4902), add it
@@ -454,17 +454,17 @@ async function switchToInkSepolia() {
             blockExplorerUrls: ['https://explorer-sepolia.inkonchain.com']
           }]
         });
-        console.log('✓ Added and switched to Ink Sepolia');
+
         return true;
       } catch (addError) {
-        console.error('Failed to add network:', addError);
+
         return false;
       }
     } else if (switchError.code === 4001) {
-      console.log('User rejected network switch');
+
       return false;
     } else {
-      console.error('Network switch error:', switchError);
+
       return false;
     }
   }
@@ -498,7 +498,7 @@ async function connectWallet() {
     const currentChainId = parseInt(chainId, 16);
 
     if (!SUPPORTED_CHAINS[currentChainId]) {
-      console.log(`Current network: ${currentChainId}, switching to Ink Sepolia (763373)...`);
+
       const switched = await switchToInkSepolia();
 
       if (!switched) {
@@ -506,7 +506,7 @@ async function connectWallet() {
         return;
       }
     } else {
-      console.log(`✓ Already on ${SUPPORTED_CHAINS[currentChainId]}`);
+
     }
 
     // Resolve chain config for whichever supported chain the wallet is on
@@ -531,11 +531,11 @@ async function connectWallet() {
     await updateJuniorUI();
 
     localStorage.setItem('walletConnected', 'true');
-    console.log('✓ Wallet connected:', connectedAddress);
+
     window.dispatchEvent(new CustomEvent('appkit:connected'));
     
   } catch (error) {
-    console.error('Failed to connect wallet:', error);
+
     showToast('Failed to connect wallet. Please try again.', 'error');
   }
 }
@@ -549,7 +549,7 @@ function disconnectWallet() {
   connectedAddress = null;
   localStorage.removeItem('walletConnected');
   updateWalletUI();
-  console.log('✓ Wallet disconnected');
+
 }
 
 /**
@@ -690,7 +690,7 @@ function initWalletListeners() {
       }
     }
   } catch (e) {
-    console.warn('Wallet reconnect check skipped:', e.message); // Non-fatal: user can manually reconnect via the AppKit button
+
   }
 }
 initWalletListeners(); // Start the initialization loop — will retry until Reown modal is available
