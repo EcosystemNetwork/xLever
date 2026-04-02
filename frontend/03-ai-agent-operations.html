@@ -181,6 +181,131 @@ tailwind.config = {
   </div>
 </header>
 
+<!-- ===== TOP SECTION: Registration Flow + Agent Prompt Window ===== -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+
+  <!-- Register New Agent Form -->
+  <div class="lg:col-span-4">
+    <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
+      <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-base">add_circle</span>
+        <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Register External Agent</span>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Agent Name</label>
+          <input type="text" id="regAgentName" placeholder="e.g. OpenClaw-Trading-v1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="100">
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Permissions</label>
+          <div class="space-y-2 bg-surface-container-highest/20 rounded-lg p-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermReduce" checked class="accent-primary w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-on-surface">Can reduce leverage</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermClose" checked class="accent-primary w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-on-surface">Can close positions</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermIncrease" class="accent-primary w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-on-surface">Can increase leverage</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermOpen" class="accent-primary w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-on-surface">Can open new positions</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermWithdraw" class="accent-error w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-error">Can withdraw funds</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Allowed Assets <span class="text-on-surface-variant/50">(comma-separated, blank = all)</span></label>
+          <input type="text" id="regAgentAssets" placeholder="QQQ, SPY, ETH, BTC" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Rate Limit <span class="text-on-surface-variant/50">(actions/min)</span></label>
+          <div class="flex items-center gap-3">
+            <input type="range" min="1" max="60" value="10" class="slider-track flex-1" id="regRateLimit" oninput="document.getElementById('regRateLimitVal').textContent=this.value+'/min'">
+            <span class="font-mono text-xs text-on-surface w-14 text-right" id="regRateLimitVal">10/min</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Webhook URL <span class="text-on-surface-variant/50">(optional)</span></label>
+          <input type="text" id="regWebhookUrl" placeholder="https://your-server.com/webhook" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+        </div>
+
+        <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2" onclick="registerAgent()" id="regSubmitBtn">
+          <span class="material-symbols-outlined text-base">app_registration</span>
+          Register Agent
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent Chat / Prompt Window -->
+  <div class="lg:col-span-8">
+    <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 flex flex-col shadow-2xl" style="min-height: 420px;">
+      <!-- Chat Header -->
+      <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">xLever Agent</span>
+          <div class="w-2 h-2 rounded-full bg-secondary/70 animate-pulse" id="agentChatDot"></div>
+          <span class="font-mono text-[9px] text-secondary/70" id="agentChatStatus">Online</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="font-mono text-[9px] text-on-surface-variant hover:text-on-surface uppercase tracking-wider" onclick="clearChat()" title="Clear chat">Clear</button>
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-3" id="agentChatMessages" style="scroll-behavior: smooth;">
+        <!-- Welcome message -->
+        <div class="flex gap-2 items-start">
+          <div class="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="material-symbols-outlined text-on-primary-container" style="font-size: 14px;">smart_toy</span>
+          </div>
+          <div class="bg-surface-container-highest/40 rounded-lg rounded-tl-sm px-3 py-2 max-w-[85%]">
+            <p class="font-mono text-[11px] text-on-surface leading-relaxed">Welcome to xLever Agent. Use the <strong>Agent Connector</strong> panel above to connect backends, then send commands here.</p>
+            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Try: "agent status", "pending decisions", "start agent", or "set mode safe"</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Chips -->
+      <div class="px-3 py-2 border-t border-outline-variant/10">
+        <div class="flex flex-wrap gap-1.5" id="chatQuickPrompts">
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Agent status')">Status</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Risk status')">Risk</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Pending decisions')">Pending</button>
+          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Show agent runs history')">Runs</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Start agent')">Start</button>
+          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Set mode safe')">Safe Mode</button>
+          <button class="px-2 py-1 bg-error/10 hover:bg-error/20 border border-error/10 rounded-full text-[9px] font-mono text-error transition-colors" onclick="sendChatMessage('Stop agent')">Stop</button>
+        </div>
+      </div>
+
+      <!-- Chat Input -->
+      <div class="border-t border-outline-variant/20 p-3">
+        <form id="agentChatForm" class="flex gap-2" onsubmit="handleChatSubmit(event)">
+          <input type="text" id="agentChatInput" placeholder="Message xLever Agent..." class="flex-1 bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-[11px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" autocomplete="off">
+          <button type="submit" id="agentChatSendBtn" class="px-3 py-2.5 bg-primary-container hover:bg-primary-container/80 text-on-primary-container rounded-lg transition-colors flex items-center gap-1" title="Send message">
+            <span class="material-symbols-outlined text-base">send</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
   <!-- ===== LEFT COLUMN (5/12): Strategy Modes + Policy Config ===== -->
@@ -896,60 +1021,7 @@ rm -rf /tmp/swarm-audit</pre>
       </div>
     </div>
 
-    <!-- Agent Chat / Prompt Channel -->
-    <div class="bg-surface-container-lowest flex-1 rounded-lg border border-outline-variant/20 flex flex-col shadow-2xl" style="min-height: 420px;">
-      <!-- Chat Header -->
-      <div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant/20 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
-          <span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">xLever Agent</span>
-          <div class="w-2 h-2 rounded-full bg-secondary/70 animate-pulse" id="agentChatDot"></div>
-          <span class="font-mono text-[9px] text-secondary/70" id="agentChatStatus">Online</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="font-mono text-[9px] text-on-surface-variant hover:text-on-surface uppercase tracking-wider" onclick="clearChat()" title="Clear chat">Clear</button>
-        </div>
-      </div>
-
-      <!-- Chat Messages -->
-      <div class="flex-1 overflow-y-auto p-3 space-y-3" id="agentChatMessages" style="scroll-behavior: smooth;">
-        <!-- Welcome message -->
-        <div class="flex gap-2 items-start">
-          <div class="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span class="material-symbols-outlined text-on-primary-container" style="font-size: 14px;">smart_toy</span>
-          </div>
-          <div class="bg-surface-container-highest/40 rounded-lg rounded-tl-sm px-3 py-2 max-w-[85%]">
-            <p class="font-mono text-[11px] text-on-surface leading-relaxed">Welcome to xLever Agent. Use the <strong>Agent Connector</strong> panel above to connect backends, then send commands here.</p>
-            <p class="font-mono text-[9px] text-on-surface-variant mt-1">Try: "agent status", "pending decisions", "start agent", or "set mode safe"</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Quick Action Chips -->
-      <div class="px-3 py-2 border-t border-outline-variant/10">
-        <div class="flex flex-wrap gap-1.5" id="chatQuickPrompts">
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Agent status')">Status</button>
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Risk status')">Risk</button>
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Pending decisions')">Pending</button>
-          <button class="px-2 py-1 bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/10 rounded-full text-[9px] font-mono text-on-surface-variant transition-colors" onclick="sendChatMessage('Show agent runs history')">Runs</button>
-          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Start agent')">Start</button>
-          <button class="px-2 py-1 bg-tertiary-container/20 hover:bg-tertiary-container/40 border border-tertiary/10 rounded-full text-[9px] font-mono text-tertiary transition-colors" onclick="sendChatMessage('Set mode safe')">Safe Mode</button>
-          <button class="px-2 py-1 bg-error/10 hover:bg-error/20 border border-error/10 rounded-full text-[9px] font-mono text-error transition-colors" onclick="sendChatMessage('Stop agent')">Stop</button>
-        </div>
-      </div>
-
-      <!-- Chat Input -->
-      <div class="border-t border-outline-variant/20 p-3">
-        <form id="agentChatForm" class="flex gap-2" onsubmit="handleChatSubmit(event)">
-          <input type="text" id="agentChatInput" placeholder="Message xLever Agent..." class="flex-1 bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-[11px] text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" autocomplete="off">
-          <button type="submit" id="agentChatSendBtn" class="px-3 py-2.5 bg-primary-container hover:bg-primary-container/80 text-on-primary-container rounded-lg transition-colors flex items-center gap-1" title="Send message">
-            <span class="material-symbols-outlined text-base">send</span>
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <!-- Compact Action Log (below chat) -->
+    <!-- Compact Action Log -->
     <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/20 flex flex-col mt-2 shadow-lg" style="height: 200px;">
       <div class="bg-surface-container-high px-3 py-1.5 border-b border-outline-variant/20 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -998,73 +1070,8 @@ rm -rf /tmp/swarm-audit</pre>
   <div class="agent-tab-content" id="tab-registry">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-      <!-- Register New Agent Form -->
-      <div class="lg:col-span-4">
-        <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
-          <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary text-base">add_circle</span>
-            <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Register External Agent</span>
-          </div>
-          <div class="p-5 space-y-4">
-            <div>
-              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Agent Name</label>
-              <input type="text" id="regAgentName" placeholder="e.g. OpenClaw-Trading-v1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="100">
-            </div>
-
-            <div>
-              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Permissions</label>
-              <div class="space-y-2 bg-surface-container-highest/20 rounded-lg p-3">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="regPermReduce" checked class="accent-primary w-3.5 h-3.5">
-                  <span class="font-mono text-[10px] text-on-surface">Can reduce leverage</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="regPermClose" checked class="accent-primary w-3.5 h-3.5">
-                  <span class="font-mono text-[10px] text-on-surface">Can close positions</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="regPermIncrease" class="accent-primary w-3.5 h-3.5">
-                  <span class="font-mono text-[10px] text-on-surface">Can increase leverage</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="regPermOpen" class="accent-primary w-3.5 h-3.5">
-                  <span class="font-mono text-[10px] text-on-surface">Can open new positions</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="regPermWithdraw" class="accent-error w-3.5 h-3.5">
-                  <span class="font-mono text-[10px] text-error">Can withdraw funds</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Allowed Assets <span class="text-on-surface-variant/50">(comma-separated, blank = all)</span></label>
-              <input type="text" id="regAgentAssets" placeholder="QQQ, SPY, ETH, BTC" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
-            </div>
-
-            <div>
-              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Rate Limit <span class="text-on-surface-variant/50">(actions/min)</span></label>
-              <div class="flex items-center gap-3">
-                <input type="range" min="1" max="60" value="10" class="slider-track flex-1" id="regRateLimit" oninput="document.getElementById('regRateLimitVal').textContent=this.value+'/min'">
-                <span class="font-mono text-xs text-on-surface w-14 text-right" id="regRateLimitVal">10/min</span>
-              </div>
-            </div>
-
-            <div>
-              <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Webhook URL <span class="text-on-surface-variant/50">(optional)</span></label>
-              <input type="text" id="regWebhookUrl" placeholder="https://your-server.com/webhook" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
-            </div>
-
-            <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2" onclick="registerAgent()" id="regSubmitBtn">
-              <span class="material-symbols-outlined text-base">app_registration</span>
-              Register Agent
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- Registered Agents List -->
-      <div class="lg:col-span-8">
+      <div class="lg:col-span-12">
         <div class="bg-surface-container-low rounded-lg border border-outline-variant/20 overflow-hidden">
           <div class="bg-surface-container-high px-5 py-3 border-b border-outline-variant/10 flex items-center justify-between">
             <div class="flex items-center gap-2">

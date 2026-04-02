@@ -964,10 +964,12 @@ const XAuthGate = (() => {
    */
   function _isConnected() {
     var w = window.xLeverWallet;
-    if (!w) return false;
-    if (typeof w.getIsConnectedState === 'function') return w.getIsConnectedState();
-    if (typeof w.getIsConnected === 'function') return w.getIsConnected();
-    return false;
+    if (w) {
+      if (typeof w.getIsConnectedState === 'function' && w.getIsConnectedState()) return true;
+      if (typeof w.getIsConnected === 'function' && w.getIsConnected()) return true;
+    }
+    // Fast-path: check localStorage flag so the gate doesn't flash while Reown hydrates
+    return localStorage.getItem('walletConnected') === 'true';
   }
 
   /**
@@ -979,6 +981,14 @@ const XAuthGate = (() => {
    */
   function _applyState() {
     var connected = _isConnected();
+    // Keep localStorage flag in sync so other pages don't flash the gate
+    if (connected) {
+      localStorage.setItem('walletConnected', 'true');
+    } else if (window.xLeverWallet) {
+      // Only clear when Reown has loaded and confirms disconnected — avoids
+      // clearing the flag during the async hydration window on page load
+      localStorage.removeItem('walletConnected');
+    }
     if (_mode === 'block') {
       if (_gateEl) _gateEl.style.display = connected ? 'none' : '';
       if (_mainEl) _mainEl.style.display = connected ? '' : 'none';
