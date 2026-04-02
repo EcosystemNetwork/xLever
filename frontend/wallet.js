@@ -4,8 +4,8 @@ import { createAppKit } from '@reown/appkit'
 import { mainnet } from '@reown/appkit/networks'
 // Import Wagmi adapter — bridges Reown's modal to wagmi hooks so the rest of the app can use standard wagmi APIs
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-// Import Ink Sepolia chain config — single source of truth in contracts.js
-import { inkSepolia } from './contracts.js'
+// Import chain configs — single source of truth in contracts.js
+import { inkSepolia, ethSepolia } from './contracts.js'
 
 // Reown Cloud project ID authorizes our app with WalletConnect relay servers
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID
@@ -13,8 +13,8 @@ if (!projectId) {
   console.warn('[xLever] VITE_REOWN_PROJECT_ID not set — wallet connection will fail. Set it in your .env file.')
 }
 
-// EVM-only: Ink Sepolia is the primary chain
-const networks = [inkSepolia]
+// EVM-only: Ink Sepolia (primary) + Ethereum Sepolia
+const networks = [inkSepolia, ethSepolia]
 
 // Create Wagmi adapter — this translates Reown modal events into wagmi-compatible hooks and providers
 const wagmiAdapter = new WagmiAdapter({

@@ -37,7 +37,7 @@ import { createWalletClient, createPublicClient, custom, http, formatEther, form
 // Import mainnet chain definition — required by viem clients to know chain ID, RPC URLs, and block explorer links
 import { mainnet } from 'viem/chains'
 // Import Ink Sepolia chain definition from our contracts config — keeps chain config in one canonical source
-import { inkSepolia } from './contracts.js'
+import { inkSepolia, ethSepolia } from './contracts.js'
 
 // Attach all viem utilities to window.viem so non-module scripts (app.js, inline handlers) can access them globally
 // This bridge pattern is necessary because legacy scripts loaded without type="module" cannot use ES import syntax
@@ -58,4 +58,6 @@ window.viem = {
   mainnet,
   // Expose Ink Sepolia chain config — needed when creating clients that target xLever's primary deployment chain
   inkSepolia,
+  // Expose Eth Sepolia chain config — secondary supported chain
+  ethSepolia,
 }

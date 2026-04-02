@@ -124,8 +124,9 @@ async function ensureCorrectNetwork() {
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
     const currentChainId = parseInt(chainId, 16);
 
-    if (currentChainId !== 763373) {
-      showToast(`Wrong Network!\n\nPlease switch to Ink Sepolia in MetaMask.\n\nChain ID: 763373\nCurrent: ${currentChainId}`, 'warning', 6000);
+    const SUPPORTED = { 763373: 'Ink Sepolia', 11155111: 'Ethereum Sepolia' };
+    if (!SUPPORTED[currentChainId]) {
+      showToast(`Wrong Network!\n\nPlease switch to Ink Sepolia or Ethereum Sepolia.\n\nCurrent: ${currentChainId}`, 'warning', 6000);
       return false;
     }
     return true;

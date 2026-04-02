@@ -313,7 +313,7 @@ async function depositJunior() {
       functionName: 'approve',
       args: [vaultAddress, amount],
       account: connectedAddress,
-      chain: window.viem.inkSepolia
+      chain: publicClient.chain
     });
 
     console.log('Waiting for approval confirmation...');
@@ -327,7 +327,7 @@ async function depositJunior() {
       functionName: 'depositJunior',
       args: [amount],
       account: connectedAddress,
-      chain: window.viem.inkSepolia
+      chain: publicClient.chain
     });
 
     console.log('Waiting for deposit confirmation...');
@@ -400,7 +400,7 @@ async function withdrawJunior() {
       functionName: 'withdrawJunior',
       args: [shares],
       account: connectedAddress,
-      chain: window.viem.inkSepolia
+      chain: publicClient.chain
     });
 
     console.log('Waiting for withdrawal confirmation...');
@@ -491,33 +491,36 @@ async function connectWallet() {
       throw new Error('No accounts found');
     }
 
-    // Check current network
+    // Check current network — accept both supported chains
+    const SUPPORTED_CHAINS = { 763373: 'Ink Sepolia', 11155111: 'Ethereum Sepolia' };
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
     const currentChainId = parseInt(chainId, 16);
-    
-    // Only switch if not already on Ink Sepolia
-    if (currentChainId !== 763373) {
+
+    if (!SUPPORTED_CHAINS[currentChainId]) {
       console.log(`Current network: ${currentChainId}, switching to Ink Sepolia (763373)...`);
       const switched = await switchToInkSepolia();
-      
+
       if (!switched) {
-        showToast('Please switch to Ink Sepolia network in MetaMask.\n\nChain ID: 763373', 'warning', 6000);
+        showToast('Please switch to Ink Sepolia or Ethereum Sepolia in your wallet.', 'warning', 6000);
         return;
       }
     } else {
-      console.log('✓ Already on Ink Sepolia');
+      console.log(`✓ Already on ${SUPPORTED_CHAINS[currentChainId]}`);
     }
 
-    const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
-    
+    // Resolve chain config for whichever supported chain the wallet is on
+    const resolvedChainId = SUPPORTED_CHAINS[currentChainId] ? currentChainId : 763373;
+    const { createWalletClient, createPublicClient, custom, http, inkSepolia, ethSepolia } = window.viem;
+    const activeChain = resolvedChainId === 11155111 ? ethSepolia : inkSepolia;
+
     walletClient = createWalletClient({
-      chain: inkSepolia,
+      chain: activeChain,
       transport: custom(window.ethereum)
     });
 
     publicClient = createPublicClient({
-      chain: inkSepolia,
-      transport: http(inkSepolia.rpcUrls.default.http[0])
+      chain: activeChain,
+      transport: http(activeChain.rpcUrls.default.http[0])
     });
 
     connectedAddress = accounts[0];
@@ -602,15 +605,19 @@ function initWalletListeners() {
   modal.subscribeEvents(async (event) => {
     if (event?.data?.event === 'CONNECT_SUCCESS') {
       connectedAddress = modal.getAddress();
-      const { createWalletClient, createPublicClient, custom, http, inkSepolia } = window.viem;
+      const { createWalletClient, createPublicClient, custom, http, inkSepolia, ethSepolia } = window.viem;
+      // Resolve the chain the wallet is actually on
+      const walletChainHex = window.ethereum ? await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null) : null;
+      const walletChainId = walletChainHex ? parseInt(walletChainHex, 16) : 763373;
+      const connChain = walletChainId === 11155111 ? ethSepolia : inkSepolia;
       publicClient = createPublicClient({
-        chain: inkSepolia,
-        transport: http(inkSepolia.rpcUrls.default.http[0])
+        chain: connChain,
+        transport: http(connChain.rpcUrls.default.http[0])
       });
       // Create wallet client for write transactions (junior tranche deposits/withdrawals)
       if (window.ethereum) {
         walletClient = createWalletClient({
-          chain: inkSepolia,
+          chain: connChain,
           transport: custom(window.ethereum)
         });
       }
@@ -658,14 +665,18 @@ function initWalletListeners() {
       connectedAddress = typeof modal.getAddress === 'function'
         ? modal.getAddress()               // Standard Reown v3 getter
         : modal.getAddress?.();            // Defensive fallback — same reason as above
-      const { createWalletClient: cwc, createPublicClient, custom: cst, http, inkSepolia } = window.viem; // Re-import here because this code path runs independently of the event handler
+      const { createWalletClient: cwc, createPublicClient, custom: cst, http, inkSepolia: inkS, ethSepolia: ethS } = window.viem;
+      // Resolve the chain the wallet is actually on for session restore
+      const restoreChainHex = window.ethereum ? await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null) : null;
+      const restoreChainId = restoreChainHex ? parseInt(restoreChainHex, 16) : 763373;
+      const restoreChain = restoreChainId === 11155111 ? ethS : inkS;
       publicClient = createPublicClient({
-        chain: inkSepolia, // Same chain as in CONNECT_SUCCESS — must match deployed contracts
-        transport: http(inkSepolia.rpcUrls.default.http[0])
+        chain: restoreChain,
+        transport: http(restoreChain.rpcUrls.default.http[0])
       });
       // Restore wallet client for write transactions on session resume
       if (window.ethereum) {
-        walletClient = cwc({ chain: inkSepolia, transport: cst(window.ethereum) });
+        walletClient = cwc({ chain: restoreChain, transport: cst(window.ethereum) });
       }
       updateWalletUI(); // Show wallet panel immediately on page load if session persists
       fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances

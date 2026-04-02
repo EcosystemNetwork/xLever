@@ -669,6 +669,174 @@ export async function withdrawJunior(shares) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// VAULT SETUP — Oracle initialization + warmup + liquidity seeding
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Push a Pyth oracle update to the vault without trading.
+ * Used to warm up the TWAP oracle (needs 5+ updates before trading is allowed).
+ *
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>}
+ */
+export async function updateOracle() {
+  if (!ADDRESSES.vault) throw new Error('Vault not deployed')
+  const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
+  const { updateData, fee } = await fetchPythUpdate()
+
+  const hash = await wc.writeContract({
+    address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'updateOracle',
+    args: [updateData], value: fee, account, chain: getActiveChainConfig().chain,
+  })
+  return waitForTx(hash)
+}
+
+/**
+ * Initialize the TWAP oracle buffer with a starting price (admin only).
+ * Must be called once after vault deployment before any trading can happen.
+ * Fills all 75 buffer slots with startPrice so TWAP is immediately valid.
+ *
+ * @param {number} startPrice — Starting price in 8-decimal format (e.g., 48000000000 for $480.00)
+ * @returns {Promise<{hash: string, receipt: Object, explorerUrl: string}>}
+ */
+export async function initializeOracle(startPrice) {
+  if (!ADDRESSES.vault) throw new Error('Vault not deployed')
+  const account = await getAccount()
+  const wc = getWalletClient()
+  if (!wc) throw new Error('No wallet connected')
+
+  const INIT_ORACLE_ABI = [{ type: 'function', name: 'initializeOracle', inputs: [{ name: 'startPrice', type: 'uint128' }], outputs: [], stateMutability: 'nonpayable' }]
+
+  const hash = await wc.writeContract({
+    address: ADDRESSES.vault, abi: INIT_ORACLE_ABI, functionName: 'initializeOracle',
+    args: [BigInt(startPrice)], account, chain: getActiveChainConfig().chain,
+  })
+  return waitForTx(hash)
+}
+
+/**
+ * Check vault readiness for trading. Returns status of oracle, liquidity, and protocol state.
+ *
+ * @returns {Promise<{oracleReady: boolean, oracleUpdates: number, hasLiquidity: boolean,
+ *   juniorTVL: string, maxLeverage: number, protocolState: string, isActive: boolean,
+ *   oracleInitialized: boolean, checks: Object[]}>}
+ */
+export async function checkVaultReadiness() {
+  if (!ADDRESSES.vault) return { oracleReady: false, hasLiquidity: false, isActive: false, checks: [{ label: 'No vault', ok: false }] }
+
+  const pc = getPublicClient()
+  const checks = []
+
+  // Check pool state (includes junior deposits, max leverage, protocol state)
+  let poolState = null
+  try {
+    poolState = await pc.readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getPoolState' })
+    const formatted = formatPoolState(poolState)
+    checks.push({ label: 'Protocol Active', ok: poolState.protocolState === 0, detail: formatted.state })
+    checks.push({ label: 'Junior Liquidity', ok: Number(poolState.totalJuniorDeposits) > 0, detail: `$${formatted.juniorTVL} USDC` })
+    checks.push({ label: 'Max Leverage', ok: Number(poolState.currentMaxLeverageBps) >= 10000, detail: `${formatted.maxLeverage}x` })
+  } catch (e) {
+    checks.push({ label: 'Pool State', ok: false, detail: e.shortMessage || e.message })
+  }
+
+  // Check oracle state
+  let oracleState = null
+  try {
+    oracleState = await pc.readContract({ address: ADDRESSES.vault, abi: VAULT_ABI, functionName: 'getOracleState' })
+    const initialized = Number(oracleState.executionPrice) > 0
+    const updateCount = Number(oracleState.updateCount)
+    const isFresh = oracleState.isFresh
+    const isCircuitBroken = oracleState.isCircuitBroken
+    checks.push({ label: 'Oracle Initialized', ok: initialized, detail: initialized ? `Price: $${(Number(oracleState.displayPrice) / 1e8).toFixed(2)}` : 'Buffer empty' })
+    checks.push({ label: 'Oracle Updates (≥5)', ok: updateCount >= 5, detail: `${updateCount} updates` })
+    checks.push({ label: 'Oracle Fresh', ok: isFresh, detail: isFresh ? 'Fresh' : 'Stale' })
+    checks.push({ label: 'Circuit Breaker', ok: !isCircuitBroken, detail: isCircuitBroken ? 'TRIPPED' : 'OK' })
+  } catch (e) {
+    checks.push({ label: 'Oracle State', ok: false, detail: e.shortMessage || e.message })
+  }
+
+  const oracleInitialized = oracleState ? Number(oracleState.executionPrice) > 0 : false
+  const oracleUpdates = oracleState ? Number(oracleState.updateCount) : 0
+  const oracleReady = oracleInitialized && oracleUpdates >= 5 && (oracleState?.isFresh ?? false)
+  const hasLiquidity = poolState ? Number(poolState.totalJuniorDeposits) > 0 : false
+  const isActive = poolState ? poolState.protocolState === 0 : false
+
+  return {
+    oracleReady,
+    oracleUpdates,
+    oracleInitialized,
+    hasLiquidity,
+    juniorTVL: poolState ? formatUnits(poolState.totalJuniorDeposits, 6) : '0',
+    maxLeverage: poolState ? Number(poolState.currentMaxLeverageBps) / 10000 : 0,
+    protocolState: poolState ? ['Active', 'Stressed', 'Paused', 'Emergency'][poolState.protocolState] : 'Unknown',
+    isActive,
+    checks,
+  }
+}
+
+/**
+ * Full vault setup sequence: initialize oracle + warm up with 5 Pyth updates + seed junior liquidity.
+ * Emits progress events via a callback.
+ *
+ * @param {Object} opts
+ * @param {number} opts.startPrice — Oracle start price (8 decimals). If 0, fetches from Pyth.
+ * @param {string} [opts.juniorAmount] — USDC amount to seed into junior tranche (human-readable, e.g., "1000")
+ * @param {function} [opts.onProgress] — Callback: (step, total, message) => void
+ * @returns {Promise<{success: boolean, steps: string[]}>}
+ */
+export async function setupVault(opts = {}) {
+  const { startPrice, juniorAmount, onProgress } = opts
+  const steps = []
+  const log = (step, total, msg) => {
+    steps.push(msg)
+    if (onProgress) onProgress(step, total, msg)
+  }
+
+  const totalSteps = 2 + 5 + (juniorAmount ? 1 : 0) // init + 5 warmups + optional junior
+  let currentStep = 0
+
+  // Step 1: Get oracle start price from Pyth if not provided
+  let price = startPrice
+  if (!price) {
+    log(++currentStep, totalSteps, 'Fetching current price from Pyth...')
+    const feedId = getActiveFeedId()
+    const { price: pythPrice } = await getPriceForFeed(feedId)
+    price = Math.round(pythPrice * 1e8) // Convert to 8-decimal integer
+    log(currentStep, totalSteps, `Price: $${pythPrice.toFixed(2)} (${price} raw)`)
+  }
+
+  // Step 2: Initialize oracle buffer (admin only — will revert if already initialized)
+  try {
+    log(++currentStep, totalSteps, 'Initializing oracle buffer...')
+    await initializeOracle(price)
+    log(currentStep, totalSteps, 'Oracle buffer initialized')
+  } catch (e) {
+    if (e.message?.includes('Already initialized')) {
+      log(currentStep, totalSteps, 'Oracle already initialized — skipping')
+    } else {
+      throw e
+    }
+  }
+
+  // Steps 3-7: Push 5 Pyth oracle updates to warm up the update counter
+  for (let i = 0; i < 5; i++) {
+    log(++currentStep, totalSteps, `Pushing oracle update ${i + 1}/5...`)
+    await updateOracle()
+    log(currentStep, totalSteps, `Oracle update ${i + 1}/5 confirmed`)
+  }
+
+  // Step 8 (optional): Seed junior tranche with liquidity
+  if (juniorAmount) {
+    log(++currentStep, totalSteps, `Seeding junior tranche with ${juniorAmount} USDC...`)
+    await depositJunior(juniorAmount)
+    log(currentStep, totalSteps, `Junior tranche seeded with ${juniorAmount} USDC`)
+  }
+
+  return { success: true, steps }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ORACLE HEALTH
 // ═══════════════════════════════════════════════════════════════
 
@@ -1003,6 +1171,7 @@ window.xLeverContracts = {
   getBalance, getAllowance, approveToken,
   getPosition, getPositionValue, getPoolState, getTWAP, getMaxLeverage, getFundingRate, getJuniorValue,
   openPosition, closePosition, adjustLeverage, depositJunior, withdrawJunior,
+  updateOracle, initializeOracle, checkVaultReadiness, setupVault,
   getOracleHealth, readOnChainPrice, getOnChainOracleState,
   getExplorerUrl, getAddressExplorerUrl,
   formatPosition, formatPoolState,

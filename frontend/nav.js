@@ -340,6 +340,12 @@ const XNav = (() => {
         const name = CHAIN_NAMES[newNetwork.id] || CHAIN_NAMES[newNetwork.caipNetworkId] || newNetwork.name || 'Unknown';
         updateNetworkBadge(name);
 
+        // Switch contracts module to the new chain
+        const numericId = typeof newNetwork.id === 'number' ? newNetwork.id : parseInt(newNetwork.id, 10);
+        if (CHAIN_NAMES[numericId] && window.xLeverContracts?.switchChain) {
+          try { window.xLeverContracts.switchChain(numericId); } catch (e) { console.warn('[nav] switchChain failed:', e); }
+        }
+
         const registry = window.xLeverLendingAdapters;
         if (registry) {
           const chain = registry.resolveChainFromNetwork(newNetwork.id) || registry.resolveChainFromNetwork(newNetwork.caipNetworkId);

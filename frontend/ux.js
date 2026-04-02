@@ -443,6 +443,8 @@ const XModal = (() => {
     `;
     document.getElementById('x-modal-done')?.addEventListener('click', close);
     XToast.show(`${escapeHTML(details.asset)} ${sideLabel} position opened successfully`, 'success');
+    // Dispatch event so positions table can refresh with on-chain data
+    window.dispatchEvent(new CustomEvent('xlever:position-opened', { detail: { hash: txHash, isLive } }));
   }
 
   // Generates a short random hex string to simulate a transaction hash in demo mode

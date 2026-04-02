@@ -476,6 +476,24 @@
 <span class="font-medium">No liquidation risk — socialized via Junior tranche</span>
 </div>
 
+<!-- Vault Readiness Panel -->
+<div id="vault-readiness-panel" class="bg-surface-container-lowest border border-outline-variant/20 rounded-sm p-3 space-y-2" style="display:none;">
+  <div class="flex items-center justify-between">
+    <span class="text-[10px] uppercase font-bold text-outline tracking-wider">Vault Status</span>
+    <button id="vault-refresh-btn" class="text-[9px] mono text-primary hover:text-primary-fixed transition-colors">Refresh</button>
+  </div>
+  <div id="vault-checks" class="space-y-1"></div>
+  <button id="vault-setup-btn" class="w-full py-2.5 bg-primary-container text-on-primary-container font-bold uppercase tracking-widest text-[11px] hover:brightness-110 active:scale-[0.98] transition-all rounded-sm" style="display:none;">
+    Setup Vault for Trading
+  </button>
+  <div id="vault-setup-progress" class="space-y-1" style="display:none;">
+    <div class="text-[10px] mono text-primary" id="vault-setup-status">Preparing...</div>
+    <div class="w-full h-1 bg-surface-dim rounded-full overflow-hidden">
+      <div class="h-full bg-primary-container transition-all duration-300" id="vault-setup-bar" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
 <!-- CTA Button -->
 <button id="open-position-btn" class="w-full py-4 bg-tertiary text-on-tertiary font-bold uppercase tracking-widest text-base hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-tertiary/20">
 Open Position
@@ -1418,6 +1436,117 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ═══════════════════════════════════════════
+  // VAULT READINESS — Check and setup flow
+  // ═══════════════════════════════════════════
+  const vaultPanel = document.getElementById('vault-readiness-panel');
+  const vaultChecksEl = document.getElementById('vault-checks');
+  const vaultSetupBtn = document.getElementById('vault-setup-btn');
+  const vaultRefreshBtn = document.getElementById('vault-refresh-btn');
+  const vaultSetupProgress = document.getElementById('vault-setup-progress');
+  const vaultSetupStatus = document.getElementById('vault-setup-status');
+  const vaultSetupBar = document.getElementById('vault-setup-bar');
+
+  let lastVaultReady = false;
+
+  async function checkVaultReady() {
+    const contracts = window.xLeverContracts;
+    if (!contracts) return;
+
+    vaultPanel.style.display = '';
+    vaultChecksEl.innerHTML = '<div class="text-[9px] mono text-outline animate-pulse">Checking vault...</div>';
+
+    try {
+      const status = await contracts.checkVaultReadiness();
+      vaultChecksEl.innerHTML = '';
+
+      status.checks.forEach(c => {
+        const dot = c.ok ? '<span style="color:#00e676;">&#9679;</span>' : '<span style="color:#ff5252;">&#9679;</span>';
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between text-[9px]';
+        row.innerHTML = `<span class="text-outline">${dot} ${c.label}</span><span class="mono text-on-surface">${c.detail || ''}</span>`;
+        vaultChecksEl.appendChild(row);
+      });
+
+      const allGood = status.oracleReady && status.hasLiquidity && status.isActive;
+      lastVaultReady = allGood;
+
+      if (allGood) {
+        vaultSetupBtn.style.display = 'none';
+        vaultPanel.style.borderColor = '#00e67640';
+      } else {
+        vaultSetupBtn.style.display = '';
+        vaultSetupBtn.textContent = !status.oracleInitialized
+          ? 'Initialize Oracle + Seed Liquidity'
+          : !status.oracleReady
+          ? `Warm Up Oracle (${status.oracleUpdates}/5 updates)`
+          : !status.hasLiquidity
+          ? 'Seed Junior Tranche Liquidity'
+          : 'Setup Vault for Trading';
+        vaultPanel.style.borderColor = '#ff525240';
+      }
+    } catch (e) {
+      vaultChecksEl.innerHTML = `<div class="text-[9px] text-error">${e.shortMessage || e.message}</div>`;
+    }
+  }
+
+  // Setup vault button handler
+  if (vaultSetupBtn) {
+    vaultSetupBtn.addEventListener('click', async () => {
+      const contracts = window.xLeverContracts;
+      if (!contracts) return;
+
+      vaultSetupBtn.style.display = 'none';
+      vaultSetupProgress.style.display = '';
+
+      try {
+        // Prompt for junior amount
+        const juniorInput = prompt('Enter USDC amount to seed into junior tranche (LP liquidity):', '1000');
+        if (!juniorInput) {
+          vaultSetupBtn.style.display = '';
+          vaultSetupProgress.style.display = 'none';
+          return;
+        }
+
+        await contracts.setupVault({
+          juniorAmount: juniorInput,
+          onProgress: (step, total, msg) => {
+            const pct = Math.round((step / total) * 100);
+            vaultSetupBar.style.width = pct + '%';
+            vaultSetupStatus.textContent = msg;
+          }
+        });
+
+        vaultSetupStatus.textContent = 'Vault ready for trading!';
+        vaultSetupStatus.style.color = '#00e676';
+        XToast.show('Vault setup complete — trading is now live', 'success');
+
+        // Refresh status
+        setTimeout(() => {
+          vaultSetupProgress.style.display = 'none';
+          checkVaultReady();
+        }, 2000);
+      } catch (e) {
+        vaultSetupStatus.textContent = 'Setup failed: ' + (e.shortMessage || e.message);
+        vaultSetupStatus.style.color = '#ff5252';
+        vaultSetupBtn.style.display = '';
+        XToast.show('Vault setup failed: ' + (e.shortMessage || e.message), 'error');
+      }
+    });
+  }
+
+  if (vaultRefreshBtn) {
+    vaultRefreshBtn.addEventListener('click', checkVaultReady);
+  }
+
+  // Check vault readiness on load + when wallet connects
+  setTimeout(checkVaultReady, 2000);
+
+  // Refresh positions when a trade is confirmed
+  window.addEventListener('xlever:position-opened', () => {
+    setTimeout(loadPositionFromChain, 1500);
+  });
+
+  // ═══════════════════════════════════════════
   // ORDER TYPE TABS
   // ═══════════════════════════════════════════
   const orderTabs = document.querySelectorAll('.border-b.border-outline-variant\\/10.pb-1 button');
@@ -1454,13 +1583,108 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Load active position from chain and display in positions table
+  async function loadPositionFromChain() {
+    const contracts = window.xLeverContracts;
+    if (!contracts) return;
+    try {
+      const wc = contracts.getWalletClient();
+      if (!wc) return;
+      const [account] = await wc.getAddresses();
+      if (!account) return;
+
+      // Update USDC balance display
+      try {
+        const bal = await contracts.getBalance(contracts.ADDRESSES.usdc, account);
+        const balLabel = document.getElementById('balanceLabel');
+        if (balLabel) balLabel.textContent = 'Bal: ' + parseFloat(bal.formatted).toLocaleString(undefined, {maximumFractionDigits: 2});
+        const bpDisplay = document.getElementById('buyingPowerDisplay');
+        if (bpDisplay) bpDisplay.textContent = '$' + parseFloat(bal.formatted).toLocaleString(undefined, {maximumFractionDigits: 2});
+      } catch (e) { /* balance read may fail if not connected */ }
+
+      const pos = await contracts.getPosition(account);
+      const formatted = contracts.formatPosition(pos);
+      if (!formatted) return;
+
+      // Get PnL
+      let pnl = { value: 0n, pnl: 0n };
+      try { pnl = await contracts.getPositionValue(account); } catch (e) { /* ok */ }
+
+      const pnlFloat = Number(pnl.pnl) / 1e6;
+      const pnlColor = pnlFloat >= 0 ? '#00e676' : '#ff5252';
+      const pnlSign = pnlFloat >= 0 ? '+' : '';
+
+      const posBody = document.getElementById('positionsBody');
+      if (posBody) {
+        posBody.innerHTML = `
+          <table class="w-full text-[10px] mono" id="positionsTable">
+            <thead><tr class="text-outline uppercase tracking-wider">
+              <th class="text-left px-4 py-1.5 font-medium">Asset</th>
+              <th class="text-left px-2 py-1.5 font-medium">Side</th>
+              <th class="text-right px-2 py-1.5 font-medium">Size</th>
+              <th class="text-right px-2 py-1.5 font-medium">Leverage</th>
+              <th class="text-right px-2 py-1.5 font-medium">Entry</th>
+              <th class="text-right px-2 py-1.5 font-medium">P&L</th>
+              <th class="text-right px-4 py-1.5 font-medium">Actions</th>
+            </tr></thead>
+            <tbody>
+              <tr class="border-t border-outline-variant/5 hover:bg-surface-container/50">
+                <td class="px-4 py-2 text-on-surface font-bold">${activeSym}x</td>
+                <td class="px-2 py-2"><span style="color:${formatted.isLong ? '#00e676' : '#ff5252'};font-weight:700;">${formatted.isLong ? 'LONG' : 'SHORT'}</span></td>
+                <td class="px-2 py-2 text-right text-on-surface">$${parseFloat(formatted.deposit).toLocaleString()}</td>
+                <td class="px-2 py-2 text-right text-on-surface">${formatted.leverageDisplay}</td>
+                <td class="px-2 py-2 text-right text-on-surface">$${parseFloat(formatted.entryPrice).toFixed(2)}</td>
+                <td class="px-2 py-2 text-right" style="color:${pnlColor}">${pnlSign}$${Math.abs(pnlFloat).toFixed(2)}</td>
+                <td class="px-4 py-2 text-right">
+                  <button class="text-[9px] text-primary hover:text-primary-fixed mr-2 pos-adjust-btn">Adjust</button>
+                  <button class="text-[9px] text-error hover:text-error/80 pos-close-btn">Close</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>`;
+        document.getElementById('posCount').textContent = '1';
+
+        // Wire adjust button
+        posBody.querySelector('.pos-adjust-btn')?.addEventListener('click', async () => {
+          const input = prompt('Enter new leverage (e.g. 2.0 for 2x long, -1.5 for 1.5x short):');
+          if (!input) return;
+          const newLev = parseFloat(input);
+          if (isNaN(newLev) || Math.abs(newLev) > 4) { XToast.show('Invalid leverage: must be between -4.0 and 4.0', 'error'); return; }
+          try {
+            XToast.show('Adjusting leverage...', 'info', 3000);
+            const result = await contracts.adjustLeverage(newLev);
+            XToast.show('Leverage adjusted — tx: ' + result.hash.slice(0, 10) + '...', 'success');
+            loadPositionFromChain();
+          } catch (err) { XToast.show('Adjust failed: ' + (err.shortMessage || err.message), 'error'); }
+        });
+
+        // Wire close button
+        posBody.querySelector('.pos-close-btn')?.addEventListener('click', async () => {
+          if (!confirm('Close this position?')) return;
+          try {
+            XToast.show('Closing position...', 'info', 3000);
+            const result = await contracts.closePosition(formatted.deposit);
+            XToast.show('Position closed — tx: ' + result.hash.slice(0, 10) + '...', 'success');
+            loadPositionFromChain();
+          } catch (err) { XToast.show('Close failed: ' + (err.shortMessage || err.message), 'error'); }
+        });
+      }
+    } catch (e) {
+      console.warn('Position load failed:', e.message);
+    }
+  }
+
   // Listen for wallet connection events
   const walletCheck = setInterval(() => {
     if (window.xLeverWallet) {
       clearInterval(walletCheck);
       const modal = window.xLeverWallet;
       modal.subscribeEvents(ev => {
-        if (ev.data?.event === 'CONNECT_SUCCESS') updatePositionsState(true);
+        if (ev.data?.event === 'CONNECT_SUCCESS') {
+          updatePositionsState(true);
+          checkVaultReady();
+          loadPositionFromChain();
+        }
         if (ev.data?.event === 'DISCONNECT_SUCCESS') updatePositionsState(false);
       });
     }

@@ -51,7 +51,21 @@
     },
   });
   
-  window.viem = { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits, parseUnits, encodeFunctionData, mainnet, inkSepolia };
+  const ethSepolia = defineChain({
+    id: 11155111,
+    name: 'Ethereum Sepolia',
+    network: 'eth-sepolia',
+    nativeCurrency: { decimals: 18, name: 'ETH', symbol: 'ETH' },
+    rpcUrls: {
+      default: { http: ['https://ethereum-sepolia-rpc.publicnode.com'] },
+      public: { http: ['https://ethereum-sepolia-rpc.publicnode.com'] },
+    },
+    blockExplorers: {
+      default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' },
+    },
+  });
+
+  window.viem = { createWalletClient, createPublicClient, custom, http, formatEther, formatUnits, parseUnits, encodeFunctionData, mainnet, inkSepolia, ethSepolia };
 </script>
 </head>
 <body>
