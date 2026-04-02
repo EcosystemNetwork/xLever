@@ -919,7 +919,7 @@ const XAuthGate = (() => {
     _gateEl.style.minHeight = '70vh';
     _gateEl.innerHTML = `
       <div style="background:#1f1f23; padding:40px; border:1px solid rgba(73,68,85,0.15); border-radius:8px; text-align:center; max-width:420px; width:100%;">
-        <span class="material-symbols-outlined" style="font-size:48px; color:#cdbdff; margin-bottom:16px; display:block;">account_balance_wallet</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 -960 960 960" fill="#cdbdff" style="margin-bottom:16px; display:block; margin-left:auto; margin-right:auto;"><path d="M240-160q-33 0-56.5-23.5T160-240v-480q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v80h-80v-80H240v480h480v-80h80v80q0 33-23.5 56.5T720-160H240Zm320-160q-33 0-56.5-23.5T480-400v-160q0-33 23.5-56.5T560-640h200q33 0 56.5 23.5T840-560v160q0 33-23.5 56.5T760-320H560Zm200-80v-160H560v160h200Zm-40-40q17 0 28.5-11.5T760-480q0-17-11.5-28.5T720-520q-17 0-28.5 11.5T680-480q0 17 11.5 28.5T720-440Z"/></svg>
         <h2 style="font-size:20px; font-weight:700; color:#e3e2e6; margin-bottom:8px; font-family:'Space Grotesk',sans-serif;">Connect Your Wallet</h2>
         <p style="font-size:14px; color:#cac3d8; margin-bottom:24px; font-family:'DM Sans',sans-serif;">Connect a wallet to access this page.</p>
         <appkit-button size="md"></appkit-button>

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://docs.openclaw.ai/config/schema.json",
+  "agent": {
+    "name": "xLever Trading Agent",
+    "persona": "You are a bounded leverage trading assistant for xLever protocol. You manage SPY and QQQ positions on Ink Sepolia through policy-enforced tools. You are NOT an autonomous trader — you operate within strict leverage bounds and policy modes set by the user.",
+    "model": "claude-sonnet-4-6",
+    "systemPromptFile": "frontend/swarm-openclaw-prompt.md"
+  },
+
+  "gateway": {
+    "channels": {
+      "telegram": {
+        "enabled": true,
+        "token": "${TELEGRAM_BOT_TOKEN}",
+        "allowedUsers": "${TELEGRAM_ALLOWED_USERS}",
+        "parseMode": "Markdown"
+      },
+      "whatsapp": {
+        "enabled": false,
+        "provider": "twilio",
+        "accountSid": "${TWILIO_ACCOUNT_SID}",
+        "authToken": "${TWILIO_AUTH_TOKEN}",
+        "fromNumber": "${TWILIO_WHATSAPP_FROM}"
+      },
+      "discord": {
+        "enabled": false,
+        "token": "${DISCORD_BOT_TOKEN}",
+        "allowedChannels": "${DISCORD_ALLOWED_CHANNELS}"
+      },
+      "web": {
+        "enabled": true,
+        "port": 3000,
+        "cors": ["http://localhost:8080", "https://xlever.markets"]
+      }
+    }
+  },
+
+  "skills": [
+    {
+      "name": "xlever-trading",
+      "path": "skills/xlever-trading",
+      "enabled": true,
+      "env": {
+        "XLEVER_PRIVATE_KEY": "${XLEVER_PRIVATE_KEY}",
+        "RPC_URL": "https://rpc-gel-sepolia.inkonchain.com",
+        "CHAIN_ID": "763373"
+      }
+    }
+  ],
+
+  "tools": {
+    "xlever_get_balances": {
+      "description": "Get wallet USDC and ETH balances",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py balances --chain ink-sepolia",
+      "timeout": 15000,
+      "safe": true
+    },
+    "xlever_get_positions": {
+      "description": "Get all open positions on SPY and QQQ vaults",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py portfolio --chain ink-sepolia",
+      "timeout": 30000,
+      "safe": true
+    },
+    "xlever_get_position": {
+      "description": "Get position for a specific asset",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py position --asset {{asset}} --chain ink-sepolia",
+      "params": { "asset": "string (SPY or QQQ)" },
+      "timeout": 15000,
+      "safe": true
+    },
+    "xlever_open_position": {
+      "description": "Open a leveraged position (policy-enforced)",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py deposit --asset {{asset}} --amount {{amount}} --leverage {{leverage}} --chain ink-sepolia",
+      "params": {
+        "asset": "string (SPY or QQQ)",
+        "amount": "string (USDC amount)",
+        "leverage": "string (-4.0 to 4.0)"
+      },
+      "timeout": 120000,
+      "safe": false,
+      "requiresConfirmation": true
+    },
+    "xlever_close_position": {
+      "description": "Close or reduce a position",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py withdraw --asset {{asset}} --amount {{amount}} --chain ink-sepolia",
+      "params": {
+        "asset": "string (SPY or QQQ)",
+        "amount": "string (USDC amount or 'max')"
+      },
+      "timeout": 120000,
+      "safe": false,
+      "requiresConfirmation": true
+    },
+    "xlever_get_risk_state": {
+      "description": "Get risk state, oracle health, vault status, and policy mode",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py risk --chain ink-sepolia",
+      "timeout": 30000,
+      "safe": true
+    },
+    "xlever_get_supported_assets": {
+      "description": "List all available tradeable assets",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py assets",
+      "timeout": 5000,
+      "safe": true
+    },
+    "xlever_get_price": {
+      "description": "Get current Pyth oracle price for an asset",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py price {{ticker}}",
+      "params": { "ticker": "string (e.g. QQQ, SPY)" },
+      "timeout": 15000,
+      "safe": true
+    },
+    "xlever_get_mode": {
+      "description": "Get current agent policy mode (safe/target/manual)",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py mode",
+      "timeout": 5000,
+      "safe": true
+    },
+    "xlever_set_mode": {
+      "description": "Set agent policy mode",
+      "exec": "python3 skills/xlever-trading/xlever_cli.py mode --set {{mode}}",
+      "params": { "mode": "string (safe, target, or manual)" },
+      "timeout": 5000,
+      "safe": false,
+      "requiresConfirmation": true
+    }
+  },
+
+  "heartbeat": {
+    "enabled": true,
+    "interval": "30m",
+    "checklistFile": "skills/xlever-trading/HEARTBEAT.md",
+    "notifyOnOkay": false,
+    "notifyChannel": "telegram"
+  },
+
+  "cron": [
+    {
+      "name": "morning-risk-check",
+      "schedule": "0 9 * * 1-5",
+      "timezone": "UTC",
+      "prompt": "Run xlever_get_risk_state and xlever_get_positions. Summarize the current portfolio exposure, any risk warnings, and oracle health. If anything needs attention, flag it.",
+      "channel": "telegram"
+    },
+    {
+      "name": "eod-summary",
+      "schedule": "0 21 * * 1-5",
+      "timezone": "UTC",
+      "prompt": "Run xlever_get_positions, xlever_get_balances, and xlever_get_risk_state. Provide an end-of-day portfolio summary: positions, balances, PnL direction, and any risk flags.",
+      "channel": "telegram"
+    }
+  ],
+
+  "memory": {
+    "provider": "jsonl",
+    "path": "skills/xlever-trading/memory",
+    "summaryEnabled": true
+  },
+
+  "security": {
+    "confirmBeforeExecution": ["xlever_open_position", "xlever_close_position", "xlever_set_mode"],
+    "maxToolCallsPerMessage": 5,
+    "blocklistPatterns": ["rm -rf", "curl.*|.*sh", "eval("]
+  }
+}

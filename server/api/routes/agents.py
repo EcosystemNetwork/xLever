@@ -296,10 +296,11 @@ async def submit_agent_action(
 
     # If dry-run, return permitted without recording
     if body.dry_run:
+        policy_label = auth.name if is_external else mode
         return AgentActionResponse(
             permitted=True,
             action_id=None,
-            message=f"Action '{body.action_type}' permitted by '{mode}' policy (dry-run)",
+            message=f"Action '{body.action_type}' permitted by '{policy_label}' policy (dry-run)",
             dry_run=True,
         )
 
