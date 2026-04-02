@@ -49,10 +49,11 @@ contract JuniorTranche {
     }
 
     /// @notice Deposit USDC into junior tranche
+    /// @param depositor The actual user depositing (passed by vault)
     /// @param assets Amount of USDC to deposit
     /// @return sharesIssued Number of shares minted
     // Mints proportional shares based on current share price (totalAssets / totalShares)
-    function deposit(uint256 assets) external onlyVault returns (uint256 sharesIssued) {
+    function deposit(address depositor, uint256 assets) external onlyVault returns (uint256 sharesIssued) {
         // Reject zero deposits to prevent minting zero shares
         require(assets > 0, "Zero deposit");
 
@@ -66,39 +67,40 @@ contract JuniorTranche {
             sharesIssued = assets * totalShares / totalAssets;
         }
 
-        // Credit shares to the vault (which tracks the actual depositor externally)
-        shares[msg.sender] += sharesIssued;
+        // Credit shares to the actual depositor, not the vault
+        shares[depositor] += sharesIssued;
         // Increase total shares outstanding
         totalShares += sharesIssued;
         // Increase total assets under management
         totalAssets += assets;
 
         // Emit event for off-chain tracking of junior deposits
-        emit Deposit(msg.sender, assets, sharesIssued);
+        emit Deposit(depositor, assets, sharesIssued);
     }
 
     /// @notice Withdraw USDC from junior tranche
+    /// @param withdrawer The actual user withdrawing (passed by vault)
     /// @param sharesToBurn Number of shares to redeem
     /// @return assetsReturned Amount of USDC returned
     // Burns shares and returns proportional USDC — may be less than deposited if losses were absorbed
-    function withdraw(uint256 sharesToBurn) external onlyVault returns (uint256 assetsReturned) {
+    function withdraw(address withdrawer, uint256 sharesToBurn) external onlyVault returns (uint256 assetsReturned) {
         // Reject zero withdrawals
         require(sharesToBurn > 0, "Zero withdrawal");
-        // Ensure the vault has enough shares to burn (vault manages per-user balances)
-        require(shares[msg.sender] >= sharesToBurn, "Insufficient shares");
+        // Ensure the user has enough shares to burn
+        require(shares[withdrawer] >= sharesToBurn, "Insufficient shares");
 
         // Calculate USDC to return: shares * (totalAssets / totalShares) = proportional value
         assetsReturned = sharesToBurn * totalAssets / totalShares;
 
-        // Deduct shares from the vault's balance
-        shares[msg.sender] -= sharesToBurn;
+        // Deduct shares from the user's balance
+        shares[withdrawer] -= sharesToBurn;
         // Reduce total shares outstanding
         totalShares -= sharesToBurn;
         // Reduce total assets (the USDC leaves the pool)
         totalAssets -= assetsReturned;
 
         // Emit event for off-chain tracking of junior withdrawals
-        emit Withdraw(msg.sender, sharesToBurn, assetsReturned);
+        emit Withdraw(withdrawer, sharesToBurn, assetsReturned);
     }
 
     /// @notice Absorb losses from senior tranche

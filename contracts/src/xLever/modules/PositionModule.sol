@@ -76,6 +76,17 @@ contract PositionModule {
         delete positions[user];
     }
     
+    /// @notice Reduce a position's deposit amount for partial withdrawals
+    function reducePosition(address user, uint128 depositReduction) external onlyVault {
+        DataTypes.Position storage pos = positions[user];
+        require(pos.isActive, "No position");
+        require(depositReduction < pos.depositAmount, "Use closePosition for full withdrawal");
+
+        pos.depositAmount -= depositReduction;
+        // Reset entry TWAP to current — partial close settles PnL up to this point
+        pos.entryTWAP = oracle.getTWAP();
+    }
+
     /// @notice Adjust leverage with lock checks
     function adjustLeverage(address user, int32 newLeverageBps) external onlyVault {
         DataTypes.Position storage pos = positions[user];
@@ -153,11 +164,12 @@ contract PositionModule {
     function applyDeleverage(address user, int32 newLeverageBps) external onlyVault {
         DataTypes.Position storage pos = positions[user];
         require(pos.isActive, "No position");
-        
+
+        int32 oldLeverageBps = pos.leverageBps;
         pos.leverageBps = newLeverageBps;
         pos.entryTWAP = oracle.getTWAP();
-        
-        emit PositionAdjusted(user, pos.leverageBps, newLeverageBps);
+
+        emit PositionAdjusted(user, oldLeverageBps, newLeverageBps);
     }
     
     function _abs(int32 x) internal pure returns (int32) {

@@ -76,7 +76,7 @@ contract RiskModule {
     }
 
     /// @notice Check pool health and determine state
-    /// @param healthScore Current Euler health score (1e18 = 100%)
+    /// @param healthScore Health score in basis points (10000 = 1.0x, 15000 = 1.5x)
     /// @param juniorRatioBps Junior tranche ratio
     /// @return protocolState 0=active, 1=stressed, 2=paused, 3=emergency
     // Called by vault after trades to determine if risk state needs to change

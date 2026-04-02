@@ -656,41 +656,70 @@ function initWalletListeners() {
   // Mark session restore as complete after Reown has had time to restore from localStorage
   setTimeout(() => { hasRestoredSession = true; }, 3000);
 
-  // Check if already connected (e.g. page reload with active session) — Reown persists sessions in localStorage
-  // so the user shouldn't have to reconnect after every page refresh
+  // Helper: restore wallet clients and UI when a session is detected (either immediately or via subscribeState)
+  let sessionRestored = false;
+  async function restoreSession() {
+    if (sessionRestored) return; // Only restore once per page load
+    sessionRestored = true;
+
+    connectedAddress = typeof modal.getAddress === 'function'
+      ? modal.getAddress()
+      : modal.getAddress?.();
+    if (!connectedAddress) { sessionRestored = false; return; }
+
+    const { createWalletClient: cwc, createPublicClient, custom: cst, http, inkSepolia: inkS, ethSepolia: ethS } = window.viem;
+    const restoreChainHex = window.ethereum ? await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null) : null;
+    const restoreChainId = restoreChainHex ? parseInt(restoreChainHex, 16) : 763373;
+    const restoreChain = restoreChainId === 11155111 ? ethS : inkS;
+    publicClient = createPublicClient({
+      chain: restoreChain,
+      transport: http(restoreChain.rpcUrls.default.http[0])
+    });
+    if (window.ethereum) {
+      walletClient = cwc({ chain: restoreChain, transport: cst(window.ethereum) });
+    }
+    updateWalletUI();
+    fetchBalances();
+    localStorage.setItem('walletConnected', 'true');
+    window.dispatchEvent(new CustomEvent('appkit:connected'));
+
+    if (document.getElementById('landingPage')) {
+      window.location.href = '01-dashboard.html';
+      return;
+    }
+  }
+
+  // Check if already connected immediately (fast path for persisted sessions)
   try {
     const isConnected = typeof modal.getIsConnectedState === 'function'
-      ? modal.getIsConnectedState()        // Reown AppKit v1.8+ API
-      : modal.getIsConnected?.();          // Fallback for older Reown versions
+      ? modal.getIsConnectedState()
+      : modal.getIsConnected?.();
     if (isConnected) {
-      connectedAddress = typeof modal.getAddress === 'function'
-        ? modal.getAddress()               // Standard Reown v3 getter
-        : modal.getAddress?.();            // Defensive fallback — same reason as above
-      const { createWalletClient: cwc, createPublicClient, custom: cst, http, inkSepolia: inkS, ethSepolia: ethS } = window.viem;
-      // Resolve the chain the wallet is actually on for session restore
-      const restoreChainHex = window.ethereum ? await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null) : null;
-      const restoreChainId = restoreChainHex ? parseInt(restoreChainHex, 16) : 763373;
-      const restoreChain = restoreChainId === 11155111 ? ethS : inkS;
-      publicClient = createPublicClient({
-        chain: restoreChain,
-        transport: http(restoreChain.rpcUrls.default.http[0])
-      });
-      // Restore wallet client for write transactions on session resume
-      if (window.ethereum) {
-        walletClient = cwc({ chain: restoreChain, transport: cst(window.ethereum) });
-      }
-      updateWalletUI(); // Show wallet panel immediately on page load if session persists
-      fetchBalances(); // Fire-and-forget (no await) because we don't need to block page rendering for balances
-      window.dispatchEvent(new CustomEvent('appkit:connected'));
-
-      // Skip landing page — user already has an active wallet session, go straight to dashboard
-      if (document.getElementById('landingPage')) {
-        window.location.href = '01-dashboard.html';
-        return;
-      }
+      restoreSession();
     }
-  } catch (e) {
+  } catch (e) {}
 
+  // Subscribe to state changes — catches session restore that happens AFTER our initial check.
+  // Reown hydrates from localStorage asynchronously, so getIsConnectedState() may return false
+  // on the first check but flip to true shortly after. This listener catches that transition.
+  if (typeof modal.subscribeState === 'function') {
+    const unsubRestore = modal.subscribeState((state) => {
+      const nowConnected = typeof modal.getIsConnectedState === 'function'
+        ? modal.getIsConnectedState()
+        : modal.getIsConnected?.();
+      if (nowConnected && !sessionRestored) {
+        restoreSession();
+      }
+      // If disconnected after being connected, clear state
+      if (!nowConnected && sessionRestored) {
+        sessionRestored = false;
+        connectedAddress = null;
+        publicClient = null;
+        walletClient = null;
+        localStorage.removeItem('walletConnected');
+        updateWalletUI();
+      }
+    });
   }
 }
 initWalletListeners(); // Start the initialization loop — will retry until Reown modal is available

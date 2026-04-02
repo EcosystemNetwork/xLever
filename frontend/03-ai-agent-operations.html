@@ -651,8 +651,217 @@ tailwind.config = {
             <span class="font-mono text-[10px] text-on-surface font-bold block">Swarm Protocol</span>
             <span class="font-mono text-[9px] text-on-surface-variant truncate block" id="connSwarmUrl">—</span>
           </div>
-          <button class="px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors" id="connSwarmBtn" onclick="toggleSwarmConnection()">Connect</button>
+          <button class="px-2 py-1 rounded text-[9px] font-mono font-bold uppercase bg-surface-container-highest hover:bg-surface-bright transition-colors" id="connSwarmBtn" onclick="openSwarmRegistration()">Connect</button>
         </div>
+
+    <!-- ═══ Swarm Registration Modal ═══ -->
+    <div id="swarmRegModal" class="fixed inset-0 z-[9999] hidden" onclick="if(event.target===this)closeSwarmRegistration()">
+      <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+      <div class="relative flex items-center justify-center min-h-screen p-4">
+        <div class="bg-surface-container-low border border-outline-variant/30 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
+          <!-- Modal Header -->
+          <div class="bg-surface-container-high px-6 py-4 border-b border-outline-variant/20 rounded-t-2xl flex items-center justify-between sticky top-0 z-10">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-[#f7931a]/20 flex items-center justify-center">
+                <span class="text-base">🟠</span>
+              </div>
+              <div>
+                <h3 class="font-mono text-sm font-bold text-on-surface tracking-wide">Swarm Connect</h3>
+                <p class="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">Agent Registration</p>
+              </div>
+            </div>
+            <button onclick="closeSwarmRegistration()" class="w-7 h-7 rounded-full bg-surface-container-highest/50 hover:bg-error/20 flex items-center justify-center transition-colors">
+              <span class="material-symbols-outlined text-on-surface-variant text-sm">close</span>
+            </button>
+          </div>
+
+          <!-- Step Indicator -->
+          <div class="px-6 pt-4 pb-2">
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1" id="swarmStep1Ind">
+                <span class="w-5 h-5 rounded-full bg-primary text-on-primary text-[9px] font-bold flex items-center justify-center">1</span>
+                <span class="font-mono text-[9px] text-primary font-bold uppercase">Install</span>
+              </div>
+              <div class="flex-1 h-px bg-outline-variant/30"></div>
+              <div class="flex items-center gap-1" id="swarmStep2Ind">
+                <span class="w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant text-[9px] font-bold flex items-center justify-center">2</span>
+                <span class="font-mono text-[9px] text-on-surface-variant uppercase">Configure</span>
+              </div>
+              <div class="flex-1 h-px bg-outline-variant/30"></div>
+              <div class="flex items-center gap-1" id="swarmStep3Ind">
+                <span class="w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant text-[9px] font-bold flex items-center justify-center">3</span>
+                <span class="font-mono text-[9px] text-on-surface-variant uppercase">Connect</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1: Install -->
+          <div class="p-6 space-y-4" id="swarmRegStep1">
+            <div class="bg-surface-container-highest/30 rounded-lg p-4 border border-outline-variant/10">
+              <p class="font-mono text-[11px] text-on-surface leading-relaxed mb-3">Install the Swarm agent skill to enable Ed25519 signed communication with the Swarm network.</p>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1.5">Option A — npm (recommended)</label>
+                  <div class="relative group">
+                    <pre class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10">npm install -g @swarmprotocol/agent-skill</pre>
+                    <button onclick="copySwarmCmd(this,'npm install -g @swarmprotocol/agent-skill')" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1.5">Option B — git clone (audit first)</label>
+                  <div class="relative group">
+                    <pre class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap">git clone https://github.com/The-Swarm-Protocol/Swarm.git /tmp/swarm-audit
+cat /tmp/swarm-audit/SwarmConnect/scripts/swarm.mjs
+mkdir -p ~/.openclaw/skills/swarm-connect
+cp -r /tmp/swarm-audit/SwarmConnect/* ~/.openclaw/skills/swarm-connect/
+rm -rf /tmp/swarm-audit</pre>
+                    <button onclick="copySwarmCmd(this,'git clone https://github.com/The-Swarm-Protocol/Swarm.git /tmp/swarm-audit && cat /tmp/swarm-audit/SwarmConnect/scripts/swarm.mjs && mkdir -p ~/.openclaw/skills/swarm-connect && cp -r /tmp/swarm-audit/SwarmConnect/* ~/.openclaw/skills/swarm-connect/ && rm -rf /tmp/swarm-audit')" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3 flex items-start gap-2 bg-primary-container/10 rounded p-2 border border-primary/10">
+                <span class="material-symbols-outlined text-primary text-sm mt-0.5">security</span>
+                <p class="font-mono text-[9px] text-on-surface-variant leading-relaxed"><strong class="text-on-surface">Security:</strong> Ed25519 keypair generated locally. Private key never leaves <code class="text-secondary">./keys/</code>. No API keys or tokens — all requests are cryptographically signed with replay protection.</p>
+              </div>
+            </div>
+
+            <button onclick="swarmRegNextStep(2)" class="w-full py-2.5 rounded-lg bg-primary-container text-on-primary-container font-bold text-[11px] font-mono uppercase tracking-wider hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+              Next: Configure Agent
+              <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          </div>
+
+          <!-- Step 2: Configure -->
+          <div class="p-6 space-y-4 hidden" id="swarmRegStep2">
+            <div class="space-y-3">
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Agent Name</label>
+                <input type="text" id="swarmRegName" value="xLever-Agent" placeholder="e.g. xLever-Agent" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="50">
+              </div>
+
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Agent Type</label>
+                <select id="swarmRegType" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+                  <option value="Operations">Operations</option>
+                  <option value="Trading" selected>Trading</option>
+                  <option value="Research">Research</option>
+                  <option value="Risk">Risk Management</option>
+                  <option value="Intelligence">Intelligence</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Hub URL</label>
+                <input type="text" id="swarmRegHub" value="https://swarmprotocol.fun" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" readonly>
+              </div>
+
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Organization</label>
+                <input type="text" id="swarmRegOrg" value="j95uItPsN8LYriQFU2lI" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+                <p class="font-mono text-[8px] text-on-surface-variant mt-0.5">Org: Heaven — Invite Code: WY2AGK</p>
+              </div>
+
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Skills <span class="text-on-surface-variant/50">(comma-separated)</span></label>
+                <input type="text" id="swarmRegSkills" value="trading,defi,leverage,risk-management,market-intelligence" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+              </div>
+
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Bio</label>
+                <input type="text" id="swarmRegBio" value="xLever leveraged trading agent — DeFi, risk management, market intelligence" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="200">
+              </div>
+
+              <div>
+                <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">OpenClaw URL <span class="text-on-surface-variant/50">(runtime bridge)</span></label>
+                <input type="text" id="swarmRegOpenClaw" placeholder="http://localhost:3000/chat" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20">
+                <p class="font-mono text-[8px] text-on-surface-variant mt-0.5">Leave blank to auto-detect. Used by the runtime bridge to forward messages.</p>
+              </div>
+            </div>
+
+            <!-- Generated CLI command preview -->
+            <div class="bg-surface-container-highest/30 rounded-lg p-3 border border-outline-variant/10">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider">Generated Registration Command</span>
+                <button onclick="copySwarmRegCmd()" class="px-2 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant transition-colors">Copy</button>
+              </div>
+              <pre id="swarmRegCmdPreview" class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap"></pre>
+            </div>
+
+            <div class="flex gap-2">
+              <button onclick="swarmRegNextStep(1)" class="flex-1 py-2.5 rounded-lg bg-surface-container-highest text-on-surface-variant font-bold text-[11px] font-mono uppercase tracking-wider hover:bg-surface-bright transition-colors flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-sm">arrow_back</span>
+                Back
+              </button>
+              <button onclick="swarmRegNextStep(3)" class="flex-[2] py-2.5 rounded-lg bg-primary-container text-on-primary-container font-bold text-[11px] font-mono uppercase tracking-wider hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+                Connect to Swarm
+                <span class="material-symbols-outlined text-sm">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Connect -->
+          <div class="p-6 space-y-4 hidden" id="swarmRegStep3">
+            <div class="flex flex-col items-center text-center py-4">
+              <div class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center mb-3" id="swarmRegSpinner">
+                <span class="material-symbols-outlined text-primary text-2xl animate-spin">progress_activity</span>
+              </div>
+              <p class="font-mono text-[11px] text-on-surface font-bold" id="swarmRegStatusText">Connecting to Swarm...</p>
+              <p class="font-mono text-[9px] text-on-surface-variant mt-1" id="swarmRegSubStatus">Generating Ed25519 keypair & registering with hub</p>
+            </div>
+
+            <!-- Connection result details -->
+            <div id="swarmRegResult" class="hidden space-y-2">
+              <div class="bg-surface-container-highest/30 rounded-lg p-3 border border-outline-variant/10 space-y-1.5">
+                <div class="flex justify-between">
+                  <span class="font-mono text-[9px] text-on-surface-variant uppercase">Status</span>
+                  <span class="font-mono text-[10px] font-bold" id="swarmResStatus">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-mono text-[9px] text-on-surface-variant uppercase">Agent ID</span>
+                  <span class="font-mono text-[10px] text-secondary" id="swarmResAgentId">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-mono text-[9px] text-on-surface-variant uppercase">Tools Available</span>
+                  <span class="font-mono text-[10px] text-on-surface" id="swarmResTools">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-mono text-[9px] text-on-surface-variant uppercase">Hub</span>
+                  <span class="font-mono text-[10px] text-on-surface" id="swarmResHub">—</span>
+                </div>
+              </div>
+
+              <!-- Post-connect: daemon & bridge commands -->
+              <div class="bg-surface-container-highest/20 rounded-lg p-3 border border-outline-variant/10">
+                <p class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider mb-2">Next Steps (CLI)</p>
+                <div class="space-y-1.5">
+                  <div class="relative group">
+                    <pre class="bg-surface-container-highest rounded px-2.5 py-1.5 font-mono text-[9px] text-secondary border border-outline-variant/10">swarm daemon --interval 30</pre>
+                    <button onclick="copySwarmCmd(this,'swarm daemon --interval 30')" class="absolute top-1 right-1 px-1 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[7px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                  <div class="relative group">
+                    <pre class="bg-surface-container-highest rounded px-2.5 py-1.5 font-mono text-[9px] text-secondary border border-outline-variant/10">swarm status</pre>
+                    <button onclick="copySwarmCmd(this,'swarm status')" class="absolute top-1 right-1 px-1 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[7px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                  <div class="relative group">
+                    <pre class="bg-surface-container-highest rounded px-2.5 py-1.5 font-mono text-[9px] text-secondary border border-outline-variant/10">swarm discover</pre>
+                    <button onclick="copySwarmCmd(this,'swarm discover')" class="absolute top-1 right-1 px-1 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[7px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button onclick="closeSwarmRegistration()" class="w-full py-2.5 rounded-lg bg-primary-container text-on-primary-container font-bold text-[11px] font-mono uppercase tracking-wider hover:brightness-110 active:scale-[0.99] transition-all hidden" id="swarmRegDoneBtn">
+              Done
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
 
         <!-- OpenClaw AI -->
         <div class="flex items-center gap-2 p-2 bg-surface-container-highest/20 rounded">
@@ -2129,10 +2338,190 @@ function toggleSwarmConnection() {
     swarmConnected = false;
     setConnectorStatus('swarm', false);
     logAction('CONNECTOR', 'Disconnected from Swarm Protocol', 'yellow-500');
+    // Reset button back to "Connect" which opens registration
+    const btn = document.getElementById('connSwarmBtn');
+    if (btn) { btn.textContent = 'Connect'; btn.onclick = openSwarmRegistration; }
     return;
   }
   initSwarmConnector();
   logAction('CONNECTOR', 'Attempting Swarm connection...', 'primary');
+}
+
+// ═══ Swarm Registration Modal ═══
+
+let _swarmRegStep = 1;
+
+function openSwarmRegistration() {
+  // If already connected, just disconnect
+  if (ConnectorState.swarm.connected) {
+    toggleSwarmConnection();
+    return;
+  }
+  _swarmRegStep = 1;
+  document.getElementById('swarmRegModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  swarmRegNextStep(1);
+  updateSwarmRegCmd();
+  // Bind live preview updates
+  ['swarmRegName','swarmRegType','swarmRegOrg','swarmRegSkills','swarmRegBio'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateSwarmRegCmd);
+  });
+}
+
+function closeSwarmRegistration() {
+  document.getElementById('swarmRegModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function swarmRegNextStep(step) {
+  _swarmRegStep = step;
+  // Hide all steps
+  document.getElementById('swarmRegStep1').classList.add('hidden');
+  document.getElementById('swarmRegStep2').classList.add('hidden');
+  document.getElementById('swarmRegStep3').classList.add('hidden');
+  // Show target step
+  document.getElementById('swarmRegStep' + step).classList.remove('hidden');
+  // Update indicators
+  for (let i = 1; i <= 3; i++) {
+    const ind = document.getElementById('swarmStep' + i + 'Ind');
+    if (!ind) continue;
+    const dot = ind.querySelector('span:first-child');
+    const label = ind.querySelector('span:last-child');
+    if (i <= step) {
+      dot.className = 'w-5 h-5 rounded-full bg-primary text-on-primary text-[9px] font-bold flex items-center justify-center';
+      label.className = 'font-mono text-[9px] text-primary font-bold uppercase';
+    } else {
+      dot.className = 'w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant text-[9px] font-bold flex items-center justify-center';
+      label.className = 'font-mono text-[9px] text-on-surface-variant uppercase';
+    }
+  }
+  // If step 3, trigger connection
+  if (step === 3) executeSwarmRegistration();
+}
+
+function updateSwarmRegCmd() {
+  const name = document.getElementById('swarmRegName')?.value || 'xLever-Agent';
+  const type = document.getElementById('swarmRegType')?.value || 'Trading';
+  const org = document.getElementById('swarmRegOrg')?.value || 'j95uItPsN8LYriQFU2lI';
+  const skills = document.getElementById('swarmRegSkills')?.value || 'trading,defi,leverage';
+  const bio = document.getElementById('swarmRegBio')?.value || '';
+  const cmd = `swarm register \\
+  --hub https://swarmprotocol.fun \\
+  --org ${org} \\
+  --name "${name}" \\
+  --type "${type}" \\
+  --skills "${skills}" \\
+  --bio "${bio}" \\
+  --greeting "🟠 ${name} online. ${type} ready."`;
+  const preview = document.getElementById('swarmRegCmdPreview');
+  if (preview) preview.textContent = cmd;
+}
+
+function copySwarmCmd(btn, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('text-secondary');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('text-secondary'); }, 1500);
+  });
+}
+
+function copySwarmRegCmd() {
+  const preview = document.getElementById('swarmRegCmdPreview');
+  if (preview) navigator.clipboard.writeText(preview.textContent);
+}
+
+async function executeSwarmRegistration() {
+  const statusText = document.getElementById('swarmRegStatusText');
+  const subStatus = document.getElementById('swarmRegSubStatus');
+  const spinner = document.getElementById('swarmRegSpinner');
+  const result = document.getElementById('swarmRegResult');
+  const doneBtn = document.getElementById('swarmRegDoneBtn');
+
+  statusText.textContent = 'Connecting to Swarm...';
+  subStatus.textContent = 'Generating Ed25519 keypair & registering with hub';
+  result.classList.add('hidden');
+  doneBtn.classList.add('hidden');
+  spinner.querySelector('span').className = 'material-symbols-outlined text-primary text-2xl animate-spin';
+
+  const name = document.getElementById('swarmRegName')?.value || 'xLever-Agent';
+  const openclawUrl = document.getElementById('swarmRegOpenClaw')?.value.trim() || null;
+  const hub = document.getElementById('swarmRegHub')?.value || 'https://swarmprotocol.fun';
+
+  // Use the existing initSwarmConnector flow but with custom params
+  if (!window.SwarmConnector) {
+    statusText.textContent = 'Connection Failed';
+    subStatus.textContent = 'SwarmConnector module not loaded';
+    spinner.querySelector('span').className = 'material-symbols-outlined text-error text-2xl';
+    spinner.querySelector('span').textContent = 'error';
+    doneBtn.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+    const clawUrl = openclawUrl || (isLocal ? 'http://localhost:3000/chat' : null);
+
+    const res = await SwarmConnector.connect({
+      hub: hub,
+      name: name,
+      openclawUrl: clawUrl,
+      log: logAction,
+      onMessage: (msg) => {
+        logAction('SWARM', `← ${msg.from || 'agent'}: ${(msg.text || '').slice(0, 80)}`, 'primary');
+      },
+    });
+
+    if (res && !res.error) {
+      swarmConnected = true;
+      // Update connector panel
+      setConnectorStatus('swarm', true, hub);
+      const swarmDot = document.getElementById('swarmDot');
+      const swarmLabel = document.getElementById('swarmLabel');
+      if (swarmDot) swarmDot.style.background = '#05e777';
+      if (swarmLabel) { swarmLabel.textContent = 'Swarm: Online'; swarmLabel.className = 'font-mono text-[10px] uppercase text-secondary'; }
+      // Update button to Disconnect
+      const btn = document.getElementById('connSwarmBtn');
+      if (btn) { btn.textContent = 'Disconnect'; btn.onclick = toggleSwarmConnection; }
+
+      // Show success
+      spinner.querySelector('span').className = 'material-symbols-outlined text-secondary text-2xl';
+      spinner.querySelector('span').textContent = 'check_circle';
+      statusText.textContent = 'Connected to Swarm';
+      statusText.classList.add('text-secondary');
+      subStatus.textContent = `Registered as "${name}" — ${res.tools || 0} tools available`;
+
+      document.getElementById('swarmResStatus').textContent = '● Online';
+      document.getElementById('swarmResStatus').classList.add('text-secondary');
+      document.getElementById('swarmResAgentId').textContent = res.agentId || 'assigned';
+      document.getElementById('swarmResTools').textContent = (res.tools || 0) + ' tools';
+      document.getElementById('swarmResHub').textContent = hub;
+    } else {
+      // Offline mode
+      spinner.querySelector('span').className = 'material-symbols-outlined text-yellow-500 text-2xl';
+      spinner.querySelector('span').textContent = 'cloud_off';
+      statusText.textContent = 'Offline Mode';
+      statusText.classList.add('text-yellow-500');
+      subStatus.textContent = res?.error || 'Hub unreachable — tools available locally';
+
+      document.getElementById('swarmResStatus').textContent = '● Offline';
+      document.getElementById('swarmResStatus').classList.add('text-yellow-500');
+      document.getElementById('swarmResAgentId').textContent = '—';
+      document.getElementById('swarmResTools').textContent = (window.SwarmBridge?.getToolList()?.length || 0) + ' tools (local)';
+      document.getElementById('swarmResHub').textContent = hub;
+    }
+
+    result.classList.remove('hidden');
+    doneBtn.classList.remove('hidden');
+
+  } catch (err) {
+    spinner.querySelector('span').className = 'material-symbols-outlined text-error text-2xl';
+    spinner.querySelector('span').textContent = 'error';
+    statusText.textContent = 'Connection Failed';
+    subStatus.textContent = err.message;
+    doneBtn.classList.remove('hidden');
+  }
 }
 
 // ── OpenClaw AI ──

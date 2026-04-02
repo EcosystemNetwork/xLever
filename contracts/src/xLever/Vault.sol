@@ -246,22 +246,34 @@ contract Vault is IVault {
         (uint256 positionValue, ) = positionModule.calculatePositionValue(msg.sender);
         require(amount <= positionValue, "Insufficient balance");
 
-        // Calculate exit fee
+        // Determine if this is a full or partial withdrawal
+        bool isFullClose = (amount == positionValue);
+
+        // Pro-rata fraction of position being withdrawn (basis points)
+        uint256 withdrawFraction = isFullClose ? 10000 : (amount * 10000 / positionValue);
+
+        // Calculate exit fee on the withdrawn portion only
         uint256 notional = uint256(pos.depositAmount) * uint256(_absInt32(pos.leverageBps)) / 10000;
-        uint256 exitFee = feeEngine.calculateDynamicFee(notional, false);
+        uint256 withdrawnNotional = notional * withdrawFraction / 10000;
+        uint256 exitFee = feeEngine.calculateDynamicFee(withdrawnNotional, false);
 
-        // Close position
-        positionModule.closePosition(msg.sender);
-
-        // Update pool state
-        poolState.totalSeniorDeposits -= uint128(pos.depositAmount);
+        if (isFullClose) {
+            // Full close — remove entire position
+            positionModule.closePosition(msg.sender);
+            poolState.totalSeniorDeposits -= uint128(pos.depositAmount);
+        } else {
+            // Partial close — reduce deposit proportionally
+            uint128 depositReduction = uint128(uint256(pos.depositAmount) * withdrawFraction / 10000);
+            positionModule.reducePosition(msg.sender, depositReduction);
+            poolState.totalSeniorDeposits -= depositReduction;
+        }
 
         if (pos.leverageBps > 0) {
-            poolState.grossLongExposure -= uint128(notional);
-            poolState.netExposure -= int256(notional);
+            poolState.grossLongExposure -= uint128(withdrawnNotional);
+            poolState.netExposure -= int256(withdrawnNotional);
         } else if (pos.leverageBps < 0) {
-            poolState.grossShortExposure -= uint128(notional);
-            poolState.netExposure += int256(notional);
+            poolState.grossShortExposure -= uint128(withdrawnNotional);
+            poolState.netExposure += int256(withdrawnNotional);
         }
 
         // Calculate net amount after fees
@@ -342,7 +354,7 @@ contract Vault is IVault {
 
         require(usdc.transferFrom(msg.sender, address(this), amount), "Transfer failed");
 
-        shares = juniorTranche.deposit(amount);
+        shares = juniorTranche.deposit(msg.sender, amount);
         poolState.totalJuniorDeposits += uint128(amount);
 
         // Update max leverage based on new junior ratio
@@ -353,7 +365,7 @@ contract Vault is IVault {
 
     /// @notice Withdraw from junior tranche (blocked during emergency to protect first-loss capital)
     function withdrawJunior(uint256 shares) external whenNotEmergency returns (uint256 amount) {
-        amount = juniorTranche.withdraw(shares);
+        amount = juniorTranche.withdraw(msg.sender, shares);
         poolState.totalJuniorDeposits -= uint128(amount);
 
         require(usdc.transfer(msg.sender, amount), "Transfer failed");
