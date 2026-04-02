@@ -1,107 +1,109 @@
 # xLever Demo Script
 
 **Target duration: 2 minutes (120 seconds)**
+**Record at:** 1920x1080, dark theme (default)
 
 ---
 
-## Shot List
+## Shot 1 -- The Problem (0:00-0:15)
 
-### Opening — The Problem (0:00–0:15)
-
-**Visual:** Title card with xLever logo, then quick cut to TQQQ volatility decay chart
+**Visual:** Title card with xLever logo, then quick comparison chart showing volatility decay
 
 **Script:**
-> "Leveraged ETFs like TQQQ lose value over time due to daily rebalancing. In a volatile sideways market, 3x leverage can actually lose money even when the underlying asset is flat. xLever fixes this with fixed-entry leverage — your leverage is locked at entry, so there's no volatility decay."
+> "Leveraged ETFs like TQQQ lose value over time because they reset daily. In a volatile sideways market, 3x leverage can lose money even when the underlying is flat. xLever fixes this: your leverage is locked at entry, not rebalanced daily."
 
 ---
 
-### The Solution — Protocol Overview (0:15–0:30)
+## Shot 2 -- Connect Wallet (0:15-0:30)
 
-**Visual:** Landing page ([index.html](frontend/index.html)), scroll through feature cards
-
-**Script:**
-> "xLever is a leveraged tokenized asset protocol built on Euler V2. Users pick any leverage from -3.5x to +3.5x. There's no liquidation risk — a junior tranche of LP capital absorbs losses first. And because leverage is fixed at entry, not rebalanced daily, you keep your edge in trending markets."
-
----
-
-### Live Demo — Dashboard (0:30–0:45)
-
-**Visual:** [01-dashboard.html](frontend/01-dashboard.html) — portfolio overview, health metrics
-
-**Script:**
-> "Here's the xLever dashboard. You can see portfolio allocation, protocol health, and market sentiment at a glance. The Bloomberg-style interface gives institutional-grade visibility into every position."
-
----
-
-### Live Demo — Trading Terminal (0:45–1:05)
-
-**Visual:** [02-trading-terminal.html](frontend/02-trading-terminal.html) — TradingView chart, leverage slider
+**Visual:** [xlever.markets](https://xlever.markets) landing page
 
 **Actions:**
-1. Show real QQQ chart loading with live data
-2. Drag leverage slider from 1x to 4x, then to -2x (short)
-3. Show position sizing and fee calculation updating in real-time
+1. Click **Connect Wallet** (top right)
+2. Select MetaMask
+3. Switch to **Ink Sepolia** when prompted
+4. Show wallet address appear in nav
 
 **Script:**
-> "The trading terminal pulls real market data. You drag the leverage slider — here's 4x long, here's 2x short. The fee model is transparent: half a percent base plus half a percent per unit of leverage. No hidden costs."
+> "Let's demo the live product. We connect a wallet to Ink Sepolia, where our 33 vault contracts are deployed."
 
 ---
 
-### Live Demo — Backtesting Proof (1:05–1:30)
+## Shot 3 -- Open a Position (0:30-1:00)
 
-**Visual:** [06-analytics-backtesting.html](frontend/06-analytics-backtesting.html) — run a backtest
+**Visual:** Trading Terminal (Screen 2)
+
+**Actions:**
+1. Select **QQQ** asset
+2. Point out the green "Live Pyth Feed" badge -- prices are real
+3. Drag leverage slider to **2.0x**
+4. Enter USDC amount (e.g. 10 USDC)
+5. Click **Open Position**
+6. Show button lifecycle: Approving USDC -> Tx Submitted -> Confirming -> Confirmed
+7. Position card appears below with on-chain data
+
+**Script:**
+> "On the trading terminal, we select QQQ with 2x leverage. These are live Pyth oracle prices. We deposit 10 USDC -- this is a real on-chain transaction on Ink Sepolia. The button tracks the full transaction lifecycle. And here's our confirmed position."
+
+---
+
+## Shot 4 -- Close Position (1:00-1:20)
+
+**Visual:** Trading Terminal, position card visible
+
+**Actions:**
+1. Click **Close Position** on the position card
+2. Confirm in wallet
+3. Show toast with explorer link
+4. Position card disappears
+
+**Script:**
+> "Closing is just as simple. One click, confirm in wallet, and the USDC is returned. Every action is verifiable on the block explorer."
+
+---
+
+## Shot 5 -- Backtest Proof (1:20-1:50)
+
+**Visual:** Analytics screen (Screen 6)
 
 **Actions:**
 1. Select QQQ, 3x leverage, 1-year timeframe
-2. Run backtest — show LTAP vs daily-reset comparison
-3. Point out the performance difference
-4. Click "Invest" on a backtest result
+2. Click **Run Backtest**
+3. Point out the two lines: green (LTAP) vs red (daily-reset)
+4. Highlight the performance difference
 
 **Script:**
-> "This is the proof. We're backtesting 3x leverage on QQQ over the last year using real Yahoo Finance data. The green line is xLever's fixed-entry approach. The red line is daily-rebalanced like TQQQ. In a trending market, fixed-entry leverage significantly outperforms. And you can click any result to invest directly."
+> "Here's the proof. We backtest 3x leverage on QQQ over the last year using real Yahoo Finance data. The green line is xLever's fixed-entry approach. The red line is daily-rebalanced like TQQQ. In a trending market, fixed-entry leverage significantly outperforms."
 
 ---
 
-### Architecture — How It Works (1:30–1:45)
+## Shot 6 -- Closing (1:50-2:00)
 
-**Visual:** [04-vault-management.html](frontend/04-vault-management.html), then [05-risk-management.html](frontend/05-risk-management.html)
+**Visual:** Landing page or title card
 
 **Script:**
-> "Under the hood, Euler V2's vault architecture handles lending and borrowing in a single atomic transaction — no flash loans needed. Senior users get leveraged exposure, junior LPs earn fees as first-loss capital. The risk engine monitors health across the entire protocol and auto-deleverages before problems cascade."
+> "xLever. Fixed-entry leverage on tokenized assets. No volatility decay. 33 assets live on Ink Sepolia. Try it at xlever.markets."
 
 ---
 
-### AI Agent (1:45–1:55)
+## Pre-Recording Checklist
 
-**Visual:** [03-ai-agent-operations.html](frontend/03-ai-agent-operations.html) — agent status panel
+- [ ] Wallet has Ink Sepolia ETH for gas
+- [ ] Wallet has test USDC (faucet or pre-funded)
+- [ ] Data proxy running (`cd server && python3 server.py`)
+- [ ] Frontend running (`npm run dev`)
+- [ ] Test the full flow once before recording: connect -> open -> close
+- [ ] Pre-load chart data by visiting trading terminal once (caches for 24h)
 
-**Script:**
-> "We've also built an AI agent powered by Perplexity that can monitor markets and manage positions autonomously — setting leverage, timing entries, and adjusting risk based on real-time market intelligence."
+## If Something Breaks During Recording
 
----
+- **RPC error on open/close:** The retry logic (5 attempts, exponential backoff) handles transient failures. Wait for it to resolve or re-record the shot.
+- **Pyth price stale:** Refresh the page. Pyth Hermes reconnects automatically.
+- **Chart not loading:** Data proxy may be down. The backtest engine works with cached data. Ensure `server.py` is running.
 
-### Closing (1:55–2:00)
+## Do NOT Show
 
-**Visual:** Landing page hero with tagline
-
-**Script:**
-> "xLever. Fixed-entry leverage, no liquidation, powered by Euler V2. Try it at our GitHub repo."
-
----
-
-## Fallback Plan
-
-If the live server is down during recording:
-
-1. **Pre-cache data**: Load all screens once before recording so localStorage has 24h of cached data. The frontend works fully offline with cached data.
-2. **Pre-record screen captures**: Record each screen individually, then edit together.
-3. **Static screenshots**: If all else fails, use screen recordings from development. The backtesting engine works entirely client-side once data is cached.
-
-## Recording Tips
-
-- Use 1920x1080 resolution
-- Dark theme works best for screen recording (already default)
-- Record each section separately for clean editing
-- Keep mouse movements deliberate and slow
-- Use the leverage slider interaction as the "wow moment"
-- The backtesting comparison (LTAP vs daily-reset) is the strongest proof point — spend the most time here
+- Dashboard screen (demo data until real positions exist)
+- AI agent executing real trades (it's dry-run only)
+- Risk sentinel claiming on-chain enforcement (it's client-side only)
+- The full LTAP protocol story (modular Vault.sol, junior tranche, Euler hedging) -- this is designed but not deployed

@@ -128,6 +128,8 @@ async function ensureCorrectNetwork() {
     }
     return true;
   } catch (error) {
+    console.warn('[position-manager] Network check failed:', error?.message || error);
+    showToast('Could not verify network — is your wallet connected?', 'warning', 4000);
     return false;
   }
 }
@@ -275,6 +277,8 @@ async function loadUserPositions() {
           });
         }
       } catch (error) {
+        // Log RPC errors so they surface during demo — don't silently swallow
+        console.warn(`[position-manager] Failed to read position from ${asset} vault (${vaultAddress}):`, error?.shortMessage || error?.message || error);
       }
     }
 
@@ -337,6 +341,11 @@ async function loadUserPositions() {
     });
 
   } catch (error) {
+    console.warn('[position-manager] Failed to load positions:', error?.shortMessage || error?.message || error);
+    // Show the error in UI so it's visible during demo recording
+    if (typeof showToast === 'function') {
+      showToast('Failed to load positions — check console', 'warning', 4000);
+    }
   }
 }
 

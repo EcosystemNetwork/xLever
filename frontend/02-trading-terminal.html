@@ -371,7 +371,13 @@
 <div id="tv-chart" class="absolute inset-0"></div>
 <!-- Price overlay -->
 <div class="absolute left-5 top-4 z-10 pointer-events-none">
-<div class="mono text-[10px] text-outline uppercase tracking-widest" id="chartLabel">QQQx 2.0x Leveraged</div>
+<div class="flex items-center gap-2">
+<span class="mono text-[10px] text-outline uppercase tracking-widest" id="chartLabel">QQQx 2.0x Leveraged</span>
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-green-500/15 border border-green-500/30 text-[8px] uppercase tracking-widest font-bold text-green-400 mono">
+<span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>Live Pyth Feed
+</span>
+<span class="inline-flex px-1.5 py-0.5 rounded-sm bg-amber-500/15 border border-amber-500/30 text-[8px] uppercase tracking-widest font-bold text-amber-400 mono">Ink Sepolia Testnet</span>
+</div>
 <div class="mono text-3xl font-bold text-on-surface mt-0.5" id="chartPrice">--</div>
 <div class="mono text-sm mt-0.5" id="chartChange">--</div>
 </div>

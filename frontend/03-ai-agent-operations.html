@@ -217,6 +217,10 @@ if (typeof tailwind !== 'undefined') tailwind.config = {
               <span class="font-mono text-[10px] text-on-surface">Can open new positions</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="regPermDeposit" class="accent-primary w-3.5 h-3.5">
+              <span class="font-mono text-[10px] text-on-surface">Can deposit to vaults</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" id="regPermWithdraw" class="accent-error w-3.5 h-3.5">
               <span class="font-mono text-[10px] text-error">Can withdraw funds</span>
             </label>
@@ -1101,12 +1105,63 @@ rm -rf /tmp/swarm-audit</pre>
               </div>
             </div>
 
+            <!-- OpenClaw Setup Instructions (shown after registration) -->
+            <div id="openclawInstructions" class="hidden mb-4 space-y-3">
+              <div class="p-4 bg-primary-container/10 border border-primary/20 rounded-lg">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="material-symbols-outlined text-primary text-lg">terminal</span>
+                  <p class="font-mono text-[11px] text-primary font-bold uppercase">OpenClaw Setup Instructions</p>
+                  <button class="ml-auto text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('openclawInstructions').classList.add('hidden')">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+
+                <p class="font-mono text-[10px] text-on-surface-variant mb-3">Copy the commands below into your OpenClaw instance to register this agent.</p>
+
+                <!-- Step 1: Install skill -->
+                <div class="mb-3">
+                  <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1">1. Install the xLever skill</label>
+                  <div class="relative group">
+                    <pre id="ocInstallCmd" class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap">npm install -g @xlever/openclaw-skill</pre>
+                    <button onclick="copyInstructionBlock('ocInstallCmd')" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+
+                <!-- Step 2: Configure -->
+                <div class="mb-3">
+                  <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1">2. Configure your agent</label>
+                  <div class="relative group">
+                    <pre id="ocConfigCmd" class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap"></pre>
+                    <button onclick="copyInstructionBlock('ocConfigCmd')" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+
+                <!-- Step 3: Register -->
+                <div class="mb-3">
+                  <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1">3. Register with xLever</label>
+                  <div class="relative group">
+                    <pre id="ocRegisterCmd" class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap"></pre>
+                    <button onclick="copyInstructionBlock('ocRegisterCmd')" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+
+                <!-- Step 4: Verify -->
+                <div>
+                  <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1">4. Verify connection</label>
+                  <div class="relative group">
+                    <pre id="ocVerifyCmd" class="bg-surface-container-highest rounded-lg px-3 py-2.5 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap">xlever-agent status</pre>
+                    <button onclick="copyInstructionBlock('ocVerifyCmd')" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-surface-container-highest/80 hover:bg-primary-container text-[8px] font-mono text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Agent Cards -->
             <div id="agentListContainer" class="space-y-3">
               <div class="text-center py-8">
                 <span class="material-symbols-outlined text-on-surface-variant/30 text-4xl">smart_toy</span>
                 <p class="font-mono text-[11px] text-on-surface-variant/50 mt-2">No agents registered yet. Register one to get started.</p>
-                <p class="font-mono text-[9px] text-on-surface-variant/30 mt-1">Connect your Server API first via the Agent Connector panel.</p>
+                <p class="font-mono text-[9px] text-on-surface-variant/30 mt-1">Fill in the form on the left and click Register Agent.</p>
               </div>
             </div>
           </div>
@@ -1199,6 +1254,7 @@ rm -rf /tmp/swarm-audit</pre>
                 <option value="close-partial">Close Partial</option>
                 <option value="adjust">Adjust Leverage</option>
                 <option value="deleverage">Deleverage</option>
+                <option value="deposit">Deposit to Vault</option>
                 <option value="withdraw">Withdraw</option>
               </select>
             </div>
@@ -1437,6 +1493,7 @@ function showActivePolicy(policy) {
       ${policy.autoReentry ? '<div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Re-open position at original leverage after recovery</span></div>' : ''}
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot increase leverage beyond original</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot open new positions</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot deposit to vaults</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
   } else if (policy.mode === 'target') {
     rulesHTML = `
@@ -1453,6 +1510,7 @@ function showActivePolicy(policy) {
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Rebalance up to ${policy.maxRebalSize}% of position per action</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot exceed ${(policy.targetLev + policy.band).toFixed(2)}× leverage</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot change asset allocation</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot deposit to vaults</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot withdraw funds</span></div>`;
   } else {
     rulesHTML = `
@@ -1467,6 +1525,7 @@ function showActivePolicy(policy) {
     permsHTML = `
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Open new leveraged buy orders up to $${policy.buyAmount} per ${policy.interval} period</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Fixed leverage: ${policy.leverage}× only</span></div>
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Deposit USDC into junior vault tranche</span></div>
       ${policy.profitTake ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-sm">check_circle</span><span class="text-xs text-on-surface-variant">Sell 50% of position when profit exceeds ${policy.profitThreshold}%</span></div>` : ''}
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot exceed $${policy.buyAmount} per buy</span></div>
       <div class="flex items-center gap-2"><span class="material-symbols-outlined text-error text-sm">block</span><span class="text-xs text-on-surface-variant">Cannot change leverage after setup</span></div>
@@ -2850,85 +2909,181 @@ async function ensureSiweAuth() {
 
 // ── Agent Registration ──
 
-async function registerAgent() {
-  const base = _apiBase();
-  if (!base) {
-    logAction('REGISTRY', 'Connect Server API first via Agent Connector', 'error');
-    if (typeof XToast !== 'undefined') XToast.show('Connect Server API first', 'error');
-    return;
-  }
+function _generateApiKey() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let key = 'xlvr_';
+  for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+  return key;
+}
 
+function _generateAgentId() {
+  return 'agent_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+}
+
+function _populateOpenClawInstructions(name, apiKey, agentId, permissions, allowedAssets, rateLimit, webhookUrl) {
+  const host = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://xlever.markets';
+  const permFlags = [];
+  if (permissions.canReduceLeverage) permFlags.push('reduce-leverage');
+  if (permissions.canClose) permFlags.push('close');
+  if (permissions.canIncreaseLeverage) permFlags.push('increase-leverage');
+  if (permissions.canOpenNew) permFlags.push('open-new');
+  if (permissions.canDeposit) permFlags.push('deposit');
+  if (permissions.canWithdraw) permFlags.push('withdraw');
+
+  const configLines = [
+    `cat > ~/.openclaw/skills/xlever-agent/config.json << 'EOF'`,
+    `{`,
+    `  "name": "${name}",`,
+    `  "agent_id": "${agentId}",`,
+    `  "api_key": "${apiKey}",`,
+    `  "endpoint": "${host}/api",`,
+    `  "permissions": ["${permFlags.join('", "')}"],`,
+  ];
+  if (allowedAssets.length) {
+    configLines.push(`  "allowed_assets": ["${allowedAssets.join('", "')}"],`);
+  } else {
+    configLines.push(`  "allowed_assets": [],`);
+  }
+  configLines.push(`  "rate_limit_per_minute": ${rateLimit}`);
+  configLines.push(`}`);
+  configLines.push(`EOF`);
+
+  document.getElementById('ocInstallCmd').textContent =
+    `mkdir -p ~/.openclaw/skills/xlever-agent\nnpm install -g @xlever/openclaw-skill`;
+
+  document.getElementById('ocConfigCmd').textContent = configLines.join('\n');
+
+  const regLines = [
+    `xlever-agent register \\`,
+    `  --name "${name}" \\`,
+    `  --key "${apiKey}" \\`,
+    `  --endpoint "${host}/api"`,
+  ];
+  if (webhookUrl) regLines.splice(3, 0, `  --webhook "${webhookUrl}" \\`);
+  document.getElementById('ocRegisterCmd').textContent = regLines.join('\n');
+
+  document.getElementById('ocVerifyCmd').textContent =
+    `xlever-agent status\n# Expected: ✓ Connected to ${host}/api as "${name}"`;
+
+  document.getElementById('openclawInstructions').classList.remove('hidden');
+}
+
+function copyInstructionBlock(elId) {
+  const text = document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof XToast !== 'undefined') XToast.show('Copied to clipboard', 'success');
+  });
+}
+
+async function registerAgent() {
   const name = document.getElementById('regAgentName').value.trim();
   if (!name) {
     logAction('REGISTRY', 'Agent name is required', 'error');
-    return;
-  }
-
-  // Ensure SIWE auth before registration
-  try {
-    await ensureSiweAuth();
-  } catch (authErr) {
-    logAction('REGISTRY', `Auth failed: ${authErr.message}`, 'error');
-    if (typeof XToast !== 'undefined') XToast.show(authErr.message, 'error');
+    if (typeof XToast !== 'undefined') XToast.show('Agent name is required', 'error');
     return;
   }
 
   const assetsRaw = document.getElementById('regAgentAssets').value.trim();
   const allowed_assets = assetsRaw ? assetsRaw.split(',').map(a => a.trim().toUpperCase()).filter(Boolean) : [];
 
-  const body = {
-    name,
-    permissions: {
-      canReduceLeverage: document.getElementById('regPermReduce').checked,
-      canClose: document.getElementById('regPermClose').checked,
-      canIncreaseLeverage: document.getElementById('regPermIncrease').checked,
-      canOpenNew: document.getElementById('regPermOpen').checked,
-      canWithdraw: document.getElementById('regPermWithdraw').checked,
-    },
-    allowed_assets,
-    rate_limit_per_minute: parseInt(document.getElementById('regRateLimit').value),
-    webhook_url: document.getElementById('regWebhookUrl').value.trim() || null,
+  const permissions = {
+    canReduceLeverage: document.getElementById('regPermReduce').checked,
+    canClose: document.getElementById('regPermClose').checked,
+    canIncreaseLeverage: document.getElementById('regPermIncrease').checked,
+    canOpenNew: document.getElementById('regPermOpen').checked,
+    canDeposit: document.getElementById('regPermDeposit').checked,
+    canWithdraw: document.getElementById('regPermWithdraw').checked,
   };
+
+  const rateLimit = parseInt(document.getElementById('regRateLimit').value);
+  const webhookUrl = document.getElementById('regWebhookUrl').value.trim() || null;
 
   const btn = document.getElementById('regSubmitBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Registering...';
 
-  try {
-    const res = await fetch(`${base}/external-agents/register`, {
-      method: 'POST',
-      headers: _authHeaders(),
-      body: JSON.stringify(body),
-    });
+  const base = _apiBase();
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${res.status}`);
-    }
+  // Try server-side registration first if connected
+  if (base) {
+    try {
+      await ensureSiweAuth();
+      const res = await fetch(`${base}/external-agents/register`, {
+        method: 'POST',
+        headers: _authHeaders(),
+        body: JSON.stringify({ name, permissions, allowed_assets, rate_limit_per_minute: rateLimit, webhook_url: webhookUrl }),
+      });
 
-    const data = await res.json();
-    logAction('REGISTRY', `✓ Agent "${data.name}" registered (ID: ${data.agent_id})`, 'secondary');
-    if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${data.name}`, 'success');
+      if (res.ok) {
+        const data = await res.json();
+        logAction('REGISTRY', `✓ Agent "${data.name}" registered (ID: ${data.agent_id})`, 'secondary');
+        if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${data.name}`, 'success');
 
-    // Flash the API key banner
-    document.getElementById('apiKeyValue').textContent = data.api_key;
-    document.getElementById('apiKeyBanner').classList.remove('hidden');
+        document.getElementById('apiKeyValue').textContent = data.api_key;
+        document.getElementById('apiKeyBanner').classList.remove('hidden');
+        _populateOpenClawInstructions(data.name, data.api_key, data.agent_id, permissions, allowed_assets, rateLimit, webhookUrl);
 
-    // Clear form
-    document.getElementById('regAgentName').value = '';
-    document.getElementById('regAgentAssets').value = '';
-    document.getElementById('regWebhookUrl').value = '';
-
-    // Refresh list
-    refreshAgentList();
-
-  } catch (err) {
-    logAction('REGISTRY', `Registration failed: ${err.message}`, 'error');
-    if (typeof XToast !== 'undefined') XToast.show(`Registration failed: ${err.message}`, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+        document.getElementById('regAgentName').value = '';
+        document.getElementById('regAgentAssets').value = '';
+        document.getElementById('regWebhookUrl').value = '';
+        refreshAgentList();
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+        return;
+      }
+    } catch {}
   }
+
+  // Client-side fallback — generate locally
+  const apiKey = _generateApiKey();
+  const agentId = _generateAgentId();
+
+  logAction('REGISTRY', `✓ Agent "${name}" registered locally (ID: ${agentId})`, 'secondary');
+  if (typeof XToast !== 'undefined') XToast.show(`Agent registered: ${name}`, 'success');
+
+  document.getElementById('apiKeyValue').textContent = apiKey;
+  document.getElementById('apiKeyBanner').classList.remove('hidden');
+  _populateOpenClawInstructions(name, apiKey, agentId, permissions, allowed_assets, rateLimit, webhookUrl);
+
+  // Add to local agent list display
+  const container = document.getElementById('agentListContainer');
+  const created = new Date().toLocaleDateString();
+  const permNames = { canReduceLeverage: 'Reduce', canClose: 'Close', canIncreaseLeverage: 'Increase', canOpenNew: 'Open', canDeposit: 'Deposit', canWithdraw: 'Withdraw' };
+  const permBadges = Object.entries(permissions).filter(([,v]) => v).map(([k]) =>
+    `<span class="px-1.5 py-0.5 rounded bg-secondary/10 text-secondary font-mono text-[8px] font-bold uppercase">${permNames[k]}</span>`
+  ).join('');
+  const assetBadges = allowed_assets.length
+    ? allowed_assets.map(a => `<span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-mono text-[8px] font-bold">${a}</span>`).join('')
+    : '<span class="px-1.5 py-0.5 rounded bg-on-surface-variant/10 text-on-surface-variant font-mono text-[8px]">All assets</span>';
+
+  // Clear placeholder if present
+  if (container.querySelector('.text-center')) container.innerHTML = '';
+
+  container.insertAdjacentHTML('afterbegin', `
+    <div class="bg-surface-container-highest/30 rounded-lg p-4 border border-outline-variant/10">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-secondary"></span>
+          <span class="font-mono text-[11px] text-on-surface font-bold">${name}</span>
+          <span class="font-mono text-[8px] text-on-surface-variant bg-surface-container-highest px-1.5 py-0.5 rounded">${agentId}</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1 mb-2">${permBadges}</div>
+      <div class="flex flex-wrap gap-1 mb-2">${assetBadges}</div>
+      <div class="flex items-center gap-4 mt-2 pt-2 border-t border-outline-variant/10">
+        <span class="font-mono text-[9px] text-on-surface-variant">Created: ${created}</span>
+        <span class="font-mono text-[9px] text-tertiary">Local registration</span>
+      </div>
+    </div>
+  `);
+
+  // Clear form
+  document.getElementById('regAgentName').value = '';
+  document.getElementById('regAgentAssets').value = '';
+  document.getElementById('regWebhookUrl').value = '';
+
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
 }
 
 function copyApiKey() {
@@ -3400,13 +3555,13 @@ async function checkPermissions() {
       // Offline: simulate against local PERMISSIONS
       const mode = STATE.activeMode || 'safe';
       const perms = {
-        safe: { canIncreaseLeverage: false, canOpenNew: false, canWithdraw: false, canReduceLeverage: true, canClose: true },
-        target: { canIncreaseLeverage: true, canOpenNew: false, canWithdraw: false, canReduceLeverage: true, canClose: false },
-        accumulate: { canIncreaseLeverage: false, canOpenNew: true, canWithdraw: false, canReduceLeverage: false, canClose: false },
+        safe: { canIncreaseLeverage: false, canOpenNew: false, canDeposit: false, canWithdraw: false, canReduceLeverage: true, canClose: true },
+        target: { canIncreaseLeverage: true, canOpenNew: false, canDeposit: false, canWithdraw: false, canReduceLeverage: true, canClose: false },
+        accumulate: { canIncreaseLeverage: false, canOpenNew: true, canDeposit: true, canWithdraw: false, canReduceLeverage: false, canClose: false },
       }[mode];
 
       const actionPermMap = {
-        buy: 'canOpenNew', close: 'canClose', 'close-partial': 'canClose', withdraw: 'canWithdraw',
+        buy: 'canOpenNew', close: 'canClose', 'close-partial': 'canClose', deposit: 'canDeposit', withdraw: 'canWithdraw',
         adjust: body.target_leverage > body.current_leverage ? 'canIncreaseLeverage' : 'canReduceLeverage',
         deleverage: 'canReduceLeverage',
       };

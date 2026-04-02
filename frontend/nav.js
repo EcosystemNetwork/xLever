@@ -228,7 +228,6 @@ const XNav = (() => {
         <div class="nav-left">
           <a href="index.html" class="nav-logo"><img src="/logowors.png" alt="xLever"></a>
           <div class="nav-links desktop-only">
-            <a class="nav-link" href="#features">Features</a>
             <a class="nav-link" href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
             <a class="nav-link" href="https://github.com/madschristensen99/xLever" target="_blank">GitHub</a>
           </div>
@@ -296,7 +295,6 @@ const XNav = (() => {
 
     if (_isLanding) {
       drawer.innerHTML = `
-        <a href="#features">Features</a>
         <a href="https://github.com/madschristensen99/xLever/tree/main/docs" target="_blank">Docs</a>
         <a href="https://github.com/madschristensen99/xLever" target="_blank">GitHub</a>
         <a href="#" id="mobileLaunchAppBtn" style="color:#7c4dff;font-weight:600">Launch App →</a>
