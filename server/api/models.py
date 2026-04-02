@@ -83,6 +83,12 @@ class AlertStatus(str, enum.Enum):
     DISMISSED = "dismissed" # User manually dismissed/deleted the alert
 
 
+# AgentSource distinguishes browser-initiated runs from external agent API runs
+class AgentSource(str, enum.Enum):
+    BROWSER = "browser"     # Run created from the xLever frontend
+    EXTERNAL = "external"   # Run created by an external agent via API key
+
+
 # TrancheType maps to xLever's two-tranche vault structure on Euler V2
 class TrancheType(str, enum.Enum):
     SENIOR = "senior" # Lower risk, lower return — gets paid first
@@ -114,6 +120,7 @@ class User(Base):
     agent_runs = relationship("AgentRun", back_populates="user")
     alerts = relationship("Alert", back_populates="user")
     sessions = relationship("UserSession", back_populates="user")
+    external_agents = relationship("ExternalAgent", back_populates="owner")
 
 
 # ─── Positions ──────────────────────────────────────────────────
@@ -199,6 +206,11 @@ class AgentRun(Base):
     # Which asset this agent run trades — agents are single-asset for simplicity
     asset = Column(String(10), nullable=False)
 
+    # Optional link to an external agent (null for browser-initiated runs)
+    external_agent_id = Column(Integer, ForeignKey("external_agents.id"), nullable=True)
+    # Whether this run was created from the browser or via external agent API
+    source = Column(Enum(AgentSource), default=AgentSource.BROWSER)
+
     # Current execution state — indexed because the UI frequently filters by running/completed
     status = Column(Enum(AgentStatus), default=AgentStatus.RUNNING, index=True)
     # When the agent started executing — server-side timestamp for consistency
@@ -217,6 +229,8 @@ class AgentRun(Base):
 
     # ORM link back to the user who owns this agent run
     user = relationship("User", back_populates="agent_runs")
+    # Link to external agent (if this run was created via API key)
+    external_agent = relationship("ExternalAgent", back_populates="runs")
     # Ordered child actions — order_by ensures chronological display in the UI
     actions = relationship("AgentAction", back_populates="run", order_by="AgentAction.executed_at")
 
@@ -344,3 +358,60 @@ class UserSession(Base):
     country = Column(String(100))
 
     user = relationship("User", back_populates="sessions")
+
+
+# ─── External Agents ───────────────────────────────────────────
+
+# ExternalAgent represents a registered AI agent (OpenClaw, AutoGPT, custom bot)
+# that can trade on behalf of a wallet owner via API key authentication.
+class ExternalAgent(Base):
+    __tablename__ = "external_agents"
+
+    id = Column(Integer, primary_key=True)
+    # SHA-256 hash of the API key — plaintext is never stored
+    api_key_hash = Column(String(64), unique=True, nullable=False, index=True)
+    # Human-readable agent name for display ("OpenClaw v2", "My Arb Bot")
+    name = Column(String(100), nullable=False)
+    # The wallet that registered this agent — only wallet owners can register agents
+    owner_wallet = Column(String(42), nullable=False, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Scoped permission flags — same keys as PERMISSIONS in agents.py
+    # e.g. {"canClose": true, "canReduceLeverage": true, "canOpenNew": false, ...}
+    permissions = Column(JSONB, nullable=False, default=dict)
+    # Asset whitelist — empty means all assets allowed
+    allowed_assets = Column(JSONB, default=list)
+    # Webhook URL for event notifications (action success/fail, position changes)
+    webhook_url = Column(String(500), nullable=True)
+    # HMAC secret for signing webhook payloads
+    webhook_secret = Column(String(64), nullable=True)
+    # Per-agent rate limit — owner can tune this
+    rate_limit_per_minute = Column(Integer, default=10)
+
+    # Soft kill switch — set to False to disable without deleting
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    last_used_at = Column(DateTime, nullable=True)
+
+    # ORM relationships
+    owner = relationship("User", back_populates="external_agents")
+    runs = relationship("AgentRun", back_populates="external_agent")
+
+
+# ─── Webhook Events ────────────────────────────────────────────
+
+# WebhookEvent logs delivery attempts for debugging webhook integrations
+class WebhookEvent(Base):
+    __tablename__ = "webhook_events"
+
+    id = Column(Integer, primary_key=True)
+    agent_id = Column(Integer, ForeignKey("external_agents.id"), nullable=False)
+    # Event type: "action_recorded", "action_success", "action_failed", "run_stopped"
+    event_type = Column(String(50), nullable=False)
+    # Full JSON payload that was sent
+    payload = Column(JSONB, nullable=False)
+    # HTTP status code from the webhook URL — null if delivery failed
+    status_code = Column(Integer, nullable=True)
+    # When the webhook was delivered (or attempted)
+    delivered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())

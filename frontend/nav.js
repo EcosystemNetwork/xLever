@@ -96,7 +96,7 @@ const XNav = (() => {
         align-items: center;
       }
       #xnav .nav-logo img {
-        height: 56px;
+        height: 112px;
         width: auto;
       }
 

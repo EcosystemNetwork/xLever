@@ -1,0 +1,11 @@
+{
+  "mode": "manual",
+  "max_leverage": 4.0,
+  "target_leverage": 2.0,
+  "target_band": 0.5,
+  "safe_mode_max_new": 0.0,
+  "allowed_assets": [
+    "SPY",
+    "QQQ"
+  ]
+}

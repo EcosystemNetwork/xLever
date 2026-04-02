@@ -22,7 +22,7 @@ from .config import get_settings
 # init_db creates tables on startup — avoids manual migration steps during early development
 from .database import init_db
 # Import all route modules to register their endpoints with the app
-from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending, auth_routes, live
+from .routes import users, positions, agents, prices, alerts, openbb, news, admin, lending, auth_routes, live, external_agents
 
 # Cache the settings singleton so we don't re-parse env vars on every access
 settings = get_settings()
@@ -126,7 +126,7 @@ app.add_middleware(
     # Explicit methods for security — only allow the HTTP verbs the API actually uses
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     # Explicit headers — only allow what the frontend actually sends
-    allow_headers=["Content-Type", "Authorization", "X-Admin-Key", "X-Requested-With"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Key", "X-API-Key", "X-Requested-With"],
 )
 
 # Security headers middleware — sets protective headers on every response
@@ -158,6 +158,8 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(lending.router, prefix="/api")
 # Live on-chain data — pool state, oracle, junior tranche, fees, positions, Pyth prices
 app.include_router(live.router, prefix="/api")
+# External agent API — registration, management, and trade execution for AI agents
+app.include_router(external_agents.router, prefix="/api")
 
 
 # Health check endpoint for Docker/k8s readiness probes and frontend connectivity tests

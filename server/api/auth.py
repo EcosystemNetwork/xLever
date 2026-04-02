@@ -3,14 +3,22 @@ Authentication dependencies for the xLever API.
 
 Implements SIWE (Sign-In with Ethereum) for wallet ownership verification.
 Flow: frontend calls /api/auth/nonce → user signs message → /api/auth/verify → session cookie.
+
+Also supports API key authentication for external agents (OpenClaw, AutoGPT, etc.).
 """
+import hashlib
 import os
 import re
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Cookie, Header, HTTPException, Request
+from fastapi import Cookie, Depends, Header, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from .database import get_db
 
 
 # ─── Admin API Key Auth ───────────────────────────────────────
@@ -140,3 +148,93 @@ def require_wallet_owner(wallet_address: str, authenticated_wallet: str) -> str:
     if addr != authenticated_wallet:
         raise HTTPException(status_code=403, detail="You can only access your own wallet data.")
     return addr
+
+
+# ─── External Agent API Key Auth ─────────────────────────────
+
+def hash_api_key(key: str) -> str:
+    """SHA-256 hash of an API key for storage (never store plaintext)."""
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def generate_api_key() -> tuple[str, str]:
+    """Generate an API key and its hash. Returns (plaintext_key, hash)."""
+    key = secrets.token_urlsafe(48)
+    return key, hash_api_key(key)
+
+
+@dataclass
+class AgentIdentity:
+    """Represents an authenticated external agent."""
+    agent_id: int
+    name: str
+    owner_wallet: str
+    permissions: dict
+    allowed_assets: list
+    rate_limit_per_minute: int
+
+
+async def require_agent_auth(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AgentIdentity:
+    """Dependency: require a valid API key from an external agent. Returns AgentIdentity."""
+    from .models import ExternalAgent  # deferred to avoid circular import
+
+    api_key = request.headers.get("X-API-Key", "")
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key required. Send X-API-Key header.")
+
+    key_hash = hash_api_key(api_key)
+    result = await db.execute(
+        select(ExternalAgent).where(ExternalAgent.api_key_hash == key_hash)
+    )
+    agent = result.scalar_one_or_none()
+
+    if not agent:
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+    if not agent.is_active:
+        raise HTTPException(status_code=403, detail="Agent is deactivated. Contact the wallet owner.")
+
+    # Update last_used_at
+    agent.last_used_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return AgentIdentity(
+        agent_id=agent.id,
+        name=agent.name,
+        owner_wallet=agent.owner_wallet,
+        permissions=agent.permissions or {},
+        allowed_assets=agent.allowed_assets or [],
+        rate_limit_per_minute=agent.rate_limit_per_minute or 10,
+    )
+
+
+async def require_auth_or_agent(
+    request: Request,
+    xlever_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE_NAME),
+    db: AsyncSession = Depends(get_db),
+) -> str | AgentIdentity:
+    """
+    Combined dependency: accepts either SIWE session OR API key.
+    Returns wallet address (str) for browser sessions, AgentIdentity for external agents.
+    """
+    # Try API key first (non-browser clients)
+    api_key = request.headers.get("X-API-Key", "")
+    if api_key:
+        return await require_agent_auth(request, db)
+
+    # Fall back to SIWE session
+    auth_header = request.headers.get("Authorization", "")
+    token = xlever_session
+    if not token and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required. Use wallet session or X-API-Key.")
+
+    wallet = get_session_wallet(token)
+    if not wallet:
+        raise HTTPException(status_code=401, detail="Session expired or invalid.")
+
+    return wallet

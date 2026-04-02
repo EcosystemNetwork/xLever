@@ -310,3 +310,76 @@ class PositionOverview(BaseModel):
     long_count: int
     short_count: int
     assets: dict[str, int]
+
+
+# ─── External Agents ──────────────────────────────────────────
+
+class ExternalAgentCreate(BaseModel):
+    """Register a new external agent (OpenClaw, AutoGPT, custom bot)."""
+    name: str = Field(min_length=1, max_length=100)
+    permissions: dict[str, bool] = Field(
+        default={
+            "canIncreaseLeverage": False,
+            "canOpenNew": False,
+            "canWithdraw": False,
+            "canReduceLeverage": True,
+            "canClose": True,
+        }
+    )
+    allowed_assets: list[str] = []
+    webhook_url: str | None = None
+    rate_limit_per_minute: int = Field(default=10, ge=1, le=60)
+
+
+class ExternalAgentOut(BaseModel):
+    """Response schema for an external agent — never exposes the API key."""
+    id: int
+    name: str
+    owner_wallet: str
+    permissions: dict[str, Any]
+    allowed_assets: list[str]
+    webhook_url: str | None
+    rate_limit_per_minute: int
+    is_active: bool
+    created_at: datetime
+    last_used_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class ExternalAgentRegisterResponse(BaseModel):
+    """Returned once at registration — the only time the raw API key is shown."""
+    agent_id: int
+    api_key: str
+    name: str
+
+
+class ExternalAgentUpdate(BaseModel):
+    """Partial update for an external agent."""
+    name: str | None = None
+    permissions: dict[str, bool] | None = None
+    allowed_assets: list[str] | None = None
+    webhook_url: str | None = None
+    rate_limit_per_minute: int | None = Field(default=None, ge=1, le=60)
+    is_active: bool | None = None
+
+
+class ExecuteActionRequest(BaseModel):
+    """External agent submits a trade action for validation and recording."""
+    action_type: str = Field(pattern=r"^(deleverage|adjust|close|buy|close-partial|withdraw)$")
+    asset: str = Field(min_length=1, max_length=10)
+    leverage: float | None = None
+    target_leverage: float | None = None
+    current_leverage: float | None = None
+    amount: float | None = None
+    reason: str = ""
+    tx_hash: str | None = None
+    price_at_action: float | None = None
+
+
+class ExecuteActionResponse(BaseModel):
+    """Response after an external agent submits an action."""
+    permitted: bool
+    action_id: int | None = None
+    run_id: int | None = None
+    message: str

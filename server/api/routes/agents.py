@@ -17,8 +17,8 @@ from ..database import get_db
 from ..models import AgentRun, AgentAction, AgentStatus, User
 # Request/response schemas for agent run creation and serialization
 from ..schemas import AgentRunCreate, AgentRunOut
-# Auth dependency for wallet ownership verification
-from ..auth import require_auth
+# Auth dependencies — wallet session for browser, API key for external agents
+from ..auth import require_auth, require_auth_or_agent, AgentIdentity
 
 logger = logging.getLogger("xlever.agents")
 
@@ -250,14 +250,17 @@ async def stop_agent_run(run_id: int, db: AsyncSession = Depends(get_db)):
 async def submit_agent_action(
     run_id: int,
     body: AgentActionRequest,
-    wallet: str = Depends(require_auth),
+    auth: str | AgentIdentity = Depends(require_auth_or_agent),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Validate and record an agent action with server-side permission enforcement.
-    The frontend submits proposed actions here BEFORE executing on-chain.
-    This ensures a compromised frontend cannot bypass policy boundaries.
+    Accepts both SIWE sessions (browser) and API keys (external agents).
     """
+    # Determine wallet from auth type
+    is_external = isinstance(auth, AgentIdentity)
+    wallet = auth.owner_wallet if is_external else auth
+
     # Fetch the run and verify ownership
     result = await db.execute(select(AgentRun).where(AgentRun.id == run_id))
     run = result.scalar_one_or_none()
@@ -268,21 +271,28 @@ async def submit_agent_action(
     if run.status != AgentStatus.RUNNING:
         raise HTTPException(400, f"Agent run is {run.status}, not running — cannot submit actions")
 
-    # Extract the policy mode from the run config
-    mode = (run.config or {}).get("mode", run.strategy)
-    if mode not in PERMISSIONS:
-        raise HTTPException(400, f"Unknown agent mode '{mode}' — must be safe, target, or accumulate")
-
-    # Enforce rate limits
-    _check_rate_limit(wallet)
-
-    # Enforce permission boundaries server-side
-    _validate_action_permissions(
-        mode=mode,
-        action_type=body.action_type,
-        current_leverage=body.current_leverage,
-        target_leverage=body.target_leverage,
-    )
+    if is_external:
+        # External agent: use scoped permissions from the agent's registration
+        from .external_agents import _check_agent_rate_limit, _validate_agent_permissions
+        _check_agent_rate_limit(auth.agent_id, auth.rate_limit_per_minute)
+        _validate_agent_permissions(
+            permissions=auth.permissions,
+            action_type=body.action_type,
+            current_leverage=body.current_leverage,
+            target_leverage=body.target_leverage,
+        )
+    else:
+        # Browser: use mode-based permissions from the run config
+        mode = (run.config or {}).get("mode", run.strategy)
+        if mode not in PERMISSIONS:
+            raise HTTPException(400, f"Unknown agent mode '{mode}' — must be safe, target, or accumulate")
+        _check_rate_limit(wallet)
+        _validate_action_permissions(
+            mode=mode,
+            action_type=body.action_type,
+            current_leverage=body.current_leverage,
+            target_leverage=body.target_leverage,
+        )
 
     # If dry-run, return permitted without recording
     if body.dry_run:
@@ -330,13 +340,15 @@ async def update_action_result(
     tx_hash: str | None = None,
     error: str | None = None,
     pnl: float | None = None,
-    wallet: str = Depends(require_auth),
+    auth: str | AgentIdentity = Depends(require_auth_or_agent),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Update an action with its on-chain result (success/failure, tx hash, PnL).
-    Called by the frontend after the transaction confirms or reverts.
+    Accepts both SIWE sessions (browser) and API keys (external agents).
     """
+    wallet = auth.owner_wallet if isinstance(auth, AgentIdentity) else auth
+
     result = await db.execute(
         select(AgentAction).where(AgentAction.id == action_id, AgentAction.run_id == run_id)
     )
