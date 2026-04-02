@@ -720,6 +720,8 @@ const XLeverage = (() => {
       btn.style.color = isLong ? '#003918' : '#fff';
       // Enable the button since we have a valid leverage value
       btn.disabled = false;
+      // Reset pointerEvents in case risk banner had set it to 'none'
+      btn.style.pointerEvents = '';
     }
   }
 

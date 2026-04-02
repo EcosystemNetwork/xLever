@@ -428,7 +428,7 @@
 <span class="text-[10px] text-outline mono" id="balanceLabel">Bal: 0</span>
 </div>
 <div class="relative">
-<input class="w-full bg-surface-container-lowest border-none focus:ring-0 mono text-xl p-3 rounded-sm text-on-surface" type="text" value="10,000"/>
+<input id="positionSizeInput" class="w-full bg-surface-container-lowest border-none focus:ring-0 mono text-xl p-3 rounded-sm text-on-surface" type="text" value="10,000"/>
 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-outline">USDC</span>
 </div>
 </div>
@@ -1363,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (leverage === 0) return;
 
       const ticker = activeSym + 'x';
-      const sizeInput = document.querySelector('input[type="text"]');
+      const sizeInput = document.getElementById('positionSizeInput');
       const sizeStr = sizeInput ? sizeInput.value.replace(/,/g, '') : '10000';
       const size = parseFloat(sizeStr) || 10000;
 
