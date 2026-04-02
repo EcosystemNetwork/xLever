@@ -614,8 +614,6 @@ export {
   EulerV2Adapter,
   LendingAdapterRegistry,
   EULER_ADDRESSES,
-  CHAINS,
-  CHAIN_CONFIG,
 }
 
 export default registry
