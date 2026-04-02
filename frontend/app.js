@@ -638,9 +638,9 @@ function initWalletListeners() {
 
       window.dispatchEvent(new CustomEvent('appkit:connected'));
 
-      // Redirect to dashboard after fresh wallet connection from the landing page
+      // Redirect to trading terminal after fresh wallet connection from the landing page
       if (document.getElementById('landingPage')) {
-        window.location.href = '01-dashboard.html';
+        window.location.href = '02-trading-terminal.html';
         return;
       }
     }
@@ -684,7 +684,7 @@ function initWalletListeners() {
     window.dispatchEvent(new CustomEvent('appkit:connected'));
 
     if (document.getElementById('landingPage')) {
-      window.location.href = '01-dashboard.html';
+      window.location.href = '02-trading-terminal.html';
       return;
     }
   }

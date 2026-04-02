@@ -181,6 +181,7 @@
      Non-overview tabs display iframes loading the corresponding page. -->
 <div class="flex gap-1 overflow-x-auto border-b border-[#252833] pb-0 -mb-px" id="adminTabs">
   <button class="admin-tab active" data-tab="overview">Overview</button>
+  <button class="admin-tab" data-tab="dashboard">Dashboard</button>
   <button class="admin-tab" data-tab="analytics">Analytics</button>
   <button class="admin-tab" data-tab="operations">Operations</button>
   <button class="admin-tab" data-tab="vaults">Vaults</button>
@@ -410,7 +411,11 @@
 
 <!-- ===== TAB PANELS: Iframe-based sub-pages =====
      Each non-overview tab loads its corresponding page in an iframe:
-     Analytics -> 06, Operations -> 07, Vaults -> 04, Risk -> 05, Lending -> 09 -->
+     Dashboard -> 01, Analytics -> 06, Operations -> 07, Vaults -> 04, Risk -> 05, Lending -> 09 -->
+<div class="admin-tab-panel hidden" id="panel-dashboard">
+  <iframe src="01-dashboard.html" class="admin-iframe" id="iframe-dashboard"></iframe>
+</div>
+
 <div class="admin-tab-panel hidden" id="panel-analytics">
   <iframe src="06-analytics-backtesting.html" class="admin-iframe" id="iframe-analytics"></iframe>
 </div>
