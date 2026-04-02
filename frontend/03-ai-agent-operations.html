@@ -192,9 +192,23 @@ if (typeof tailwind !== 'undefined') tailwind.config = {
         <span class="font-mono text-[11px] uppercase tracking-widest text-on-surface-variant">Register External Agent</span>
       </div>
       <div class="p-5 space-y-4">
+        <!-- Agent Type Toggle -->
+        <div>
+          <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-2">Agent Type</label>
+          <div class="flex rounded-lg overflow-hidden border border-outline-variant/20">
+            <button type="button" id="togglePlatform" class="flex-1 py-2.5 px-3 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors bg-primary text-on-primary" onclick="setAgentType('platform')">
+              <span class="material-symbols-outlined text-sm">memory</span>Platform Agent
+            </button>
+            <button type="button" id="toggleOpenClaw" class="flex-1 py-2.5 px-3 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors bg-surface-container-highest/50 text-on-surface-variant hover:text-on-surface" onclick="setAgentType('openclaw')">
+              <span class="material-symbols-outlined text-sm">link</span>OpenClaw Agent
+            </button>
+          </div>
+          <p class="font-mono text-[9px] text-on-surface-variant/60 mt-1" id="agentTypeHint">Uses your configured LLM providers (Groq, Ollama, etc.)</p>
+        </div>
+
         <div>
           <label class="block font-mono text-[10px] text-on-surface-variant uppercase tracking-wider mb-1">Agent Name</label>
-          <input type="text" id="regAgentName" placeholder="e.g. OpenClaw-Trading-v1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="100">
+          <input type="text" id="regAgentName" placeholder="e.g. My-Trading-Agent-v1" class="w-full bg-surface-container-highest/50 border border-outline-variant/20 rounded-lg px-3 py-2.5 font-mono text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20" maxlength="100">
         </div>
 
         <div>
@@ -246,8 +260,8 @@ if (typeof tailwind !== 'undefined') tailwind.config = {
         </div>
 
         <button class="w-full py-3 rounded-lg bg-primary-container text-on-primary-container font-bold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2" onclick="registerAgent()" id="regSubmitBtn">
-          <span class="material-symbols-outlined text-base">app_registration</span>
-          Register Agent
+          <span class="material-symbols-outlined text-base" id="regSubmitIcon">app_registration</span>
+          <span id="regSubmitLabel">Register Agent</span>
         </button>
       </div>
     </div>
@@ -984,6 +998,74 @@ rm -rf /tmp/swarm-audit</pre>
             </div>
 
             <button onclick="closeSwarmRegistration()" class="w-full py-2.5 rounded-lg bg-primary-container text-on-primary-container font-bold text-[11px] font-mono uppercase tracking-wider hover:brightness-110 active:scale-[0.99] transition-all hidden" id="swarmRegDoneBtn">
+              Done
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ OpenClaw Connection Prompt Modal ═══ -->
+    <div id="openclawPromptModal" class="fixed inset-0 z-[9999] hidden" onclick="if(event.target===this)closeOpenClawPromptModal()">
+      <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+      <div class="relative flex items-center justify-center min-h-screen p-4">
+        <div class="bg-surface-container-low border border-outline-variant/30 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
+          <!-- Modal Header -->
+          <div class="bg-surface-container-high px-6 py-4 border-b border-outline-variant/20 rounded-t-2xl flex items-center justify-between sticky top-0 z-10">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <span class="material-symbols-outlined text-primary text-base">link</span>
+              </div>
+              <div>
+                <h3 class="font-mono text-sm text-on-surface font-bold">OpenClaw Connection Prompt</h3>
+                <p class="font-mono text-[9px] text-on-surface-variant">Copy this prompt into your OpenClaw instance</p>
+              </div>
+            </div>
+            <button onclick="closeOpenClawPromptModal()" class="w-7 h-7 rounded-full bg-surface-container-highest/50 hover:bg-error/20 flex items-center justify-center transition-colors">
+              <span class="material-symbols-outlined text-on-surface-variant text-sm">close</span>
+            </button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="p-6 space-y-4">
+            <p class="font-mono text-[10px] text-on-surface-variant leading-relaxed">
+              Your agent has been registered on xLever. Copy the connection prompt below and paste it into your OpenClaw chat to link it with this agent.
+            </p>
+
+            <!-- Connection Prompt -->
+            <div class="relative group">
+              <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1.5">Connection Prompt</label>
+              <pre id="ocPromptContent" class="bg-surface-container-highest rounded-xl px-4 py-4 font-mono text-[10px] text-secondary overflow-x-auto border border-outline-variant/10 whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto"></pre>
+              <button onclick="copyOpenClawPrompt()" class="absolute top-7 right-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-[9px] font-mono font-bold uppercase tracking-wider hover:brightness-110 active:scale-[0.97] transition-all flex items-center gap-1 shadow-lg">
+                <span class="material-symbols-outlined text-sm">content_copy</span>Copy Prompt
+              </button>
+            </div>
+
+            <!-- Quick-copy agent ID & API key -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1">Agent ID</label>
+                <div class="flex items-center gap-1.5 bg-surface-container-highest/50 rounded-lg px-3 py-2 border border-outline-variant/10">
+                  <code class="font-mono text-[10px] text-on-surface flex-1 truncate select-all" id="ocPromptAgentId">—</code>
+                  <button onclick="navigator.clipboard.writeText(document.getElementById('ocPromptAgentId').textContent)" class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">content_copy</span></button>
+                </div>
+              </div>
+              <div>
+                <label class="font-mono text-[9px] text-on-surface-variant uppercase tracking-wider block mb-1">API Key</label>
+                <div class="flex items-center gap-1.5 bg-surface-container-highest/50 rounded-lg px-3 py-2 border border-outline-variant/10">
+                  <code class="font-mono text-[10px] text-on-surface flex-1 truncate select-all" id="ocPromptApiKey">—</code>
+                  <button onclick="navigator.clipboard.writeText(document.getElementById('ocPromptApiKey').textContent)" class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">content_copy</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between">
+            <p class="font-mono text-[9px] text-on-surface-variant/50">After pasting, your OpenClaw will auto-connect to xLever.</p>
+            <button onclick="closeOpenClawPromptModal()" class="px-5 py-2.5 rounded-lg bg-primary-container text-on-primary-container font-bold text-[11px] font-mono uppercase tracking-wider hover:brightness-110 active:scale-[0.99] transition-all">
               Done
             </button>
           </div>
@@ -2907,6 +2989,33 @@ async function ensureSiweAuth() {
   return true;
 }
 
+// ── Agent Type Toggle ──
+
+let _agentType = 'platform'; // 'platform' | 'openclaw'
+
+function setAgentType(type) {
+  _agentType = type;
+  const platformBtn = document.getElementById('togglePlatform');
+  const openclawBtn = document.getElementById('toggleOpenClaw');
+  const hint = document.getElementById('agentTypeHint');
+  const submitLabel = document.getElementById('regSubmitLabel');
+  const submitIcon = document.getElementById('regSubmitIcon');
+
+  if (type === 'platform') {
+    platformBtn.className = 'flex-1 py-2.5 px-3 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors bg-primary text-on-primary';
+    openclawBtn.className = 'flex-1 py-2.5 px-3 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors bg-surface-container-highest/50 text-on-surface-variant hover:text-on-surface';
+    hint.textContent = 'Uses your configured LLM providers (Groq, Ollama, etc.)';
+    submitLabel.textContent = 'Register Agent';
+    submitIcon.textContent = 'app_registration';
+  } else {
+    openclawBtn.className = 'flex-1 py-2.5 px-3 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors bg-primary text-on-primary';
+    platformBtn.className = 'flex-1 py-2.5 px-3 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors bg-surface-container-highest/50 text-on-surface-variant hover:text-on-surface';
+    hint.textContent = 'Connect to your external OpenClaw instance';
+    submitLabel.textContent = 'Register & Get Prompt';
+    submitIcon.textContent = 'link';
+  }
+}
+
 // ── Agent Registration ──
 
 function _generateApiKey() {
@@ -2968,6 +3077,60 @@ function _populateOpenClawInstructions(name, apiKey, agentId, permissions, allow
   document.getElementById('openclawInstructions').classList.remove('hidden');
 }
 
+// ── OpenClaw Prompt Modal ──
+
+function _showOpenClawPromptModal(name, apiKey, agentId, permissions, allowedAssets, rateLimit) {
+  const host = window.location.hostname === 'localhost' ? 'http://localhost:8080' : 'https://xlever.markets';
+
+  const permFlags = [];
+  if (permissions.canReduceLeverage) permFlags.push('reduce-leverage');
+  if (permissions.canClose) permFlags.push('close');
+  if (permissions.canIncreaseLeverage) permFlags.push('increase-leverage');
+  if (permissions.canOpenNew) permFlags.push('open-new');
+  if (permissions.canDeposit) permFlags.push('deposit');
+  if (permissions.canWithdraw) permFlags.push('withdraw');
+
+  const assetsStr = allowedAssets.length ? allowedAssets.join(', ') : 'all assets';
+
+  const prompt = [
+    `Connect to xLever as an external trading agent.`,
+    ``,
+    `Agent Name: ${name}`,
+    `Agent ID:   ${agentId}`,
+    `API Key:    ${apiKey}`,
+    `Endpoint:   ${host}/api`,
+    ``,
+    `Permissions: ${permFlags.join(', ')}`,
+    `Allowed Assets: ${assetsStr}`,
+    `Rate Limit: ${rateLimit} actions/min`,
+    ``,
+    `Use the X-API-Key header for authentication.`,
+    `Base URL for actions: ${host}/api/external-agents/${agentId}/actions/execute`,
+    ``,
+    `Action types: deleverage, adjust, close, buy, close-partial, withdraw`,
+    `Request body: { "action_type": "<type>", "asset": "<SYMBOL>", "leverage": <number>, "amount": <number>, "reason": "<your reasoning>" }`,
+    ``,
+    `Before executing any trade, always check current positions via ${host}/api/agents/{wallet}/runs.`,
+    `Respect the rate limit of ${rateLimit} actions/min and only use granted permissions.`,
+  ].join('\n');
+
+  document.getElementById('ocPromptContent').textContent = prompt;
+  document.getElementById('ocPromptAgentId').textContent = agentId;
+  document.getElementById('ocPromptApiKey').textContent = apiKey;
+  document.getElementById('openclawPromptModal').classList.remove('hidden');
+}
+
+function closeOpenClawPromptModal() {
+  document.getElementById('openclawPromptModal').classList.add('hidden');
+}
+
+function copyOpenClawPrompt() {
+  const text = document.getElementById('ocPromptContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof XToast !== 'undefined') XToast.show('Connection prompt copied to clipboard', 'success');
+  });
+}
+
 function copyInstructionBlock(elId) {
   const text = document.getElementById(elId).textContent;
   navigator.clipboard.writeText(text).then(() => {
@@ -3021,14 +3184,17 @@ async function registerAgent() {
 
         document.getElementById('apiKeyValue').textContent = data.api_key;
         document.getElementById('apiKeyBanner').classList.remove('hidden');
-        _populateOpenClawInstructions(data.name, data.api_key, data.agent_id, permissions, allowed_assets, rateLimit, webhookUrl);
+
+        if (_agentType === 'openclaw') {
+          _populateOpenClawInstructions(data.name, data.api_key, data.agent_id, permissions, allowed_assets, rateLimit, webhookUrl);
+          _showOpenClawPromptModal(data.name, data.api_key, data.agent_id, permissions, allowed_assets, rateLimit);
+        }
 
         document.getElementById('regAgentName').value = '';
         document.getElementById('regAgentAssets').value = '';
         document.getElementById('regWebhookUrl').value = '';
         refreshAgentList();
-        btn.disabled = false;
-        btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+        _resetRegBtn(btn);
         return;
       }
     } catch {}
@@ -3043,7 +3209,11 @@ async function registerAgent() {
 
   document.getElementById('apiKeyValue').textContent = apiKey;
   document.getElementById('apiKeyBanner').classList.remove('hidden');
-  _populateOpenClawInstructions(name, apiKey, agentId, permissions, allowed_assets, rateLimit, webhookUrl);
+
+  if (_agentType === 'openclaw') {
+    _populateOpenClawInstructions(name, apiKey, agentId, permissions, allowed_assets, rateLimit, webhookUrl);
+    _showOpenClawPromptModal(name, apiKey, agentId, permissions, allowed_assets, rateLimit);
+  }
 
   // Add to local agent list display
   const container = document.getElementById('agentListContainer');
@@ -3082,8 +3252,16 @@ async function registerAgent() {
   document.getElementById('regAgentAssets').value = '';
   document.getElementById('regWebhookUrl').value = '';
 
+  _resetRegBtn(btn);
+}
+
+function _resetRegBtn(btn) {
   btn.disabled = false;
-  btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> Register Agent';
+  if (_agentType === 'openclaw') {
+    btn.innerHTML = '<span class="material-symbols-outlined text-base">link</span> <span id="regSubmitLabel">Register & Get Prompt</span>';
+  } else {
+    btn.innerHTML = '<span class="material-symbols-outlined text-base">app_registration</span> <span id="regSubmitLabel">Register Agent</span>';
+  }
 }
 
 function copyApiKey() {
