@@ -502,10 +502,17 @@ const SwarmBridge = (() => {
 
     try {
       const response = await fetch(url, options)
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      if (!response.ok) {
+        const status = response.status
+        const errorType = status === 401 || status === 403 ? 'auth'
+          : status === 429 ? 'rate_limit'
+          : status >= 400 && status < 500 ? 'validation'
+          : 'server'
+        return { error: `HTTP ${status}: ${response.statusText}`, error_type: errorType, status }
+      }
       return await response.json()
     } catch (err) {
-      return { error: err.message }
+      return { error: err.message, error_type: 'network' }
     }
   }
 
@@ -532,6 +539,11 @@ const SwarmBridge = (() => {
 
     // 2. Parse natural language intent
     const intent = parseIntent(text)
+
+    // If parsing found a validation error (e.g. bad amount/leverage), return it
+    if (intent.error) {
+      return { error: intent.error, parsed_from: text }
+    }
 
     if (intent.tool && TOOLS[intent.tool]) {
       _log('SWARM', `Parsed intent: ${intent.tool} from "${text.slice(0, 60)}..."`, 'primary')
@@ -644,15 +656,29 @@ const SwarmBridge = (() => {
     if (/\bopen\b.*\bposition\b.*\$?\d/.test(lower)) {
       const amount = text.match(/\$?([\d,.]+)/)?.[1]?.replace(/,/g, '')
       const leverage = text.match(/(\d+(?:\.\d+)?)\s*x/i)?.[1]
-      return { tool: 'open_position', params: { amount: amount || '100', leverage: Number(leverage) || 2 } }
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        return { tool: null, params: {}, error: 'Could not parse a valid amount. Please specify e.g. "open position $500 at 3x".' }
+      }
+      const leverageNum = leverage ? Number(leverage) : null
+      if (leverageNum !== null && (isNaN(leverageNum) || leverageNum < 1 || leverageNum > 10)) {
+        return { tool: null, params: {}, error: `Invalid leverage: ${leverage}x. Must be between 1x and 10x.` }
+      }
+      return { tool: 'open_position', params: { amount, leverage: leverageNum || 2 } }
     }
     if (/\bclose\b.*\bposition/.test(lower)) {
-      const amount = text.match(/\$?([\d,.]+)/)?.[1]?.replace(/,/g, '') || 'max'
+      const amountMatch = text.match(/\$?([\d,.]+)/)
+      const amount = amountMatch ? amountMatch[1].replace(/,/g, '') : 'max'
+      if (amount !== 'max' && (isNaN(Number(amount)) || Number(amount) <= 0)) {
+        return { tool: null, params: {}, error: 'Could not parse a valid amount. Please specify e.g. "close position $500" or "close position max".' }
+      }
       return { tool: 'close_position', params: { amount } }
     }
     if (/\badjust\b.*\bleverage|\bset\b.*\bleverage|\bleverage\b.*\bto\b/.test(lower)) {
       const leverage = text.match(/(\d+(?:\.\d+)?)\s*x?/)?.[1]
-      return leverage ? { tool: 'adjust_leverage', params: { target_leverage: Number(leverage) } } : { tool: null, params: {} }
+      if (!leverage || isNaN(Number(leverage)) || Number(leverage) < 1 || Number(leverage) > 10) {
+        return { tool: null, params: {}, error: 'Invalid leverage. Must be between 1x and 10x.' }
+      }
+      return { tool: 'adjust_leverage', params: { target_leverage: Number(leverage) } }
     }
 
     return { tool: null, params: {} }
@@ -668,15 +694,30 @@ const SwarmBridge = (() => {
     return match ? match[0] : null
   }
 
+  // Known tickers to avoid matching noise words like "I", "A", "THE"
+  const KNOWN_TICKERS = new Set([
+    'QQQ', 'SPY', 'ETH', 'BTC', 'SOL', 'TON', 'NVDA', 'AAPL', 'MSFT', 'GOOG', 'GOOGL',
+    'AMZN', 'META', 'TSLA', 'AMD', 'INTC', 'AVGO', 'NFLX', 'CRM', 'ORCL', 'ADBE',
+    'USDC', 'USDT', 'DAI', 'WETH', 'WBTC', 'INK', 'ARB', 'OP', 'LINK', 'UNI',
+    'AAVE', 'MKR', 'SNX', 'COMP', 'DOGE', 'XRP', 'ADA', 'DOT', 'MATIC', 'AVAX',
+    'DIA', 'IWM', 'VTI', 'VOO', 'TQQQ', 'SQQQ', 'SOXL',
+  ])
+
   /**
-   * Extract a ticker symbol (1-5 uppercase letters) from text.
+   * Extract a ticker symbol from text. Prioritizes known tickers,
+   * then falls back to 2-5 uppercase letters (avoids single-char noise).
    * @param {string} text - Input text to search
    * @returns {string|null} Matched ticker symbol or null
    */
   function extractSymbol(text) {
-    // Match common ticker patterns (1-5 uppercase letters)
-    const match = text.match(/\b([A-Z]{1,5})\b/)
-    return match ? match[1] : null
+    // First pass: look for known tickers
+    const words = text.match(/\b[A-Z]{1,5}\b/g) || []
+    for (const w of words) {
+      if (KNOWN_TICKERS.has(w)) return w
+    }
+    // Fallback: any 2-5 uppercase word (skip single-char noise like "I", "A")
+    const fallback = text.match(/\b([A-Z]{2,5})\b/)
+    return fallback ? fallback[1] : null
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -726,13 +767,41 @@ const SwarmBridge = (() => {
       if (!resp.ok) throw new Error(`OpenClaw HTTP ${resp.status}`)
       const data = await resp.json()
 
-      // If OpenClaw responded with a tool call, execute it
-      if (data.tool_call && TOOLS[data.tool_call.name]) {
-        _log('OPENCLAW', `Tool call: ${data.tool_call.name}`, 'primary')
-        const toolResult = await TOOLS[data.tool_call.name].execute(data.tool_call.params || {})
+      // If OpenClaw responded with a tool call, validate and execute it
+      if (data.tool_call && typeof data.tool_call === 'object') {
+        const toolName = data.tool_call.name
+        const toolParams = data.tool_call.params || {}
+
+        // Validate tool exists
+        if (!toolName || !TOOLS[toolName]) {
+          _log('OPENCLAW', `Rejected unknown tool: ${toolName}`, 'error')
+          return { openclaw_response: data.response, error: `Unknown tool: ${toolName}` }
+        }
+
+        // Block high-risk financial tools from autonomous OpenClaw execution
+        const REQUIRE_CONFIRMATION = ['open_position', 'close_position', 'adjust_leverage', 'agent_start', 'agent_stop', 'agent_set_mode', 'approve_decision', 'reject_decision']
+        if (REQUIRE_CONFIRMATION.includes(toolName)) {
+          _log('OPENCLAW', `Tool "${toolName}" requires user confirmation — not auto-executing`, 'yellow-500')
+          return {
+            openclaw_response: data.response,
+            tool_call: toolName,
+            tool_params: toolParams,
+            requires_confirmation: true,
+            message: `OpenClaw wants to call "${toolName}" with params: ${JSON.stringify(toolParams)}. Confirm to execute.`,
+          }
+        }
+
+        // Validate params are a plain object (not array, not null prototype tricks)
+        if (typeof toolParams !== 'object' || Array.isArray(toolParams)) {
+          _log('OPENCLAW', `Rejected malformed params for ${toolName}`, 'error')
+          return { openclaw_response: data.response, error: 'Malformed tool_call params' }
+        }
+
+        _log('OPENCLAW', `Tool call: ${toolName}`, 'primary')
+        const toolResult = await TOOLS[toolName].execute(toolParams)
         return {
           openclaw_response: data.response,
-          tool_call: data.tool_call.name,
+          tool_call: toolName,
           tool_result: toolResult,
         }
       }
@@ -960,7 +1029,25 @@ const SwarmBridge = (() => {
 
     // OpenClaw
     /** @param {string} url - OpenClaw runtime URL to use for AI message forwarding */
-    setOpenClawUrl(url) { CONFIG.OPENCLAW_URL = url },
+    setOpenClawUrl(url) {
+      if (!url) { CONFIG.OPENCLAW_URL = null; return }
+      try {
+        const parsed = new URL(url)
+        // In production, require HTTPS (allow HTTP only for local dev)
+        if (!isLocal && parsed.protocol !== 'https:') {
+          _log('SWARM', `Rejected OpenClaw URL: HTTPS required in production (got ${parsed.protocol})`, 'error')
+          return
+        }
+        // Block javascript: and data: protocols
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          _log('SWARM', `Rejected OpenClaw URL: invalid protocol ${parsed.protocol}`, 'error')
+          return
+        }
+        CONFIG.OPENCLAW_URL = url
+      } catch {
+        _log('SWARM', `Rejected OpenClaw URL: invalid URL format`, 'error')
+      }
+    },
 
     // State
     get isRegistered() { return _registered },

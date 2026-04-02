@@ -40,6 +40,12 @@ const SwarmConnector = (() => {
   let _eventChannel = null    // Swarm channel for event relay
   const MAX_CHAT_HISTORY = 50
 
+  /** Redact sensitive data (wallet addresses) from text before storing in history */
+  function redactSensitive(text) {
+    if (typeof text !== 'string') return text
+    return text.replace(/0x[a-fA-F0-9]{40}/g, '0x\u2026redacted')
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // INITIALIZATION
   // ═══════════════════════════════════════════════════════════════
@@ -64,10 +70,14 @@ const SwarmConnector = (() => {
       return { error: 'SwarmBridge not loaded' }
     }
 
-    // Configure OpenClaw URL if provided
+    // Configure OpenClaw URL if provided (validated inside setOpenClawUrl)
     if (opts.openclawUrl) {
       bridge.setOpenClawUrl(opts.openclawUrl)
-      _log('SWARM', `OpenClaw runtime: ${opts.openclawUrl}`, 'on-surface-variant')
+      if (bridge.config.OPENCLAW_URL) {
+        _log('SWARM', `OpenClaw runtime configured`, 'on-surface-variant')
+      } else {
+        _log('SWARM', `OpenClaw URL rejected — see SwarmBridge logs`, 'error')
+      }
     }
 
     // Register with Swarm hub
@@ -140,8 +150,8 @@ const SwarmConnector = (() => {
     const bridge = window.SwarmBridge
     if (!bridge) return { error: 'SwarmBridge not loaded' }
 
-    // Add to conversation history for context
-    _chatHistory.push({ role: 'user', content: message, timestamp: Date.now() })
+    // Add to conversation history for context (redact sensitive data)
+    _chatHistory.push({ role: 'user', content: redactSensitive(message), timestamp: Date.now() })
     if (_chatHistory.length > MAX_CHAT_HISTORY) _chatHistory.shift()
 
     _log('CHAT', `User: ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`, 'on-surface-variant')
@@ -157,7 +167,7 @@ const SwarmConnector = (() => {
 
     // Add response to history
     const responseText = result.response || result.openclaw_response || formatToolResult(result)
-    _chatHistory.push({ role: 'assistant', content: responseText, timestamp: Date.now() })
+    _chatHistory.push({ role: 'assistant', content: redactSensitive(responseText), timestamp: Date.now() })
 
     _log('CHAT', `Agent: ${responseText.slice(0, 100)}${responseText.length > 100 ? '...' : ''}`, 'secondary')
 
@@ -219,15 +229,12 @@ const SwarmConnector = (() => {
    */
   function generateSystemPrompt() {
     const tools = getTools()
+    // Only expose non-sensitive operational state — no IDs, wallet addresses, or internal flags
     const state = {
       agent_running: window.AgentExecutor?.isRunning || false,
       agent_paused: window.AgentExecutor?.isPaused || false,
-      agent_dry_run: window.AgentExecutor?.isDryRun ?? true,
       risk_state: window.RiskLive?.state || 'unknown',
-      swarm_running: window.AgentCoordinator?.isRunning || false,
-      wallet: getConnectedWallet() || 'not connected',
       swarm_connected: _connected,
-      swarm_agent_id: window.SwarmBridge?.agentId || null,
     }
 
     return {
@@ -235,11 +242,10 @@ const SwarmConnector = (() => {
       content: `You are the xLever Trading Agent connected via the Swarm network. You have ${tools.length} tools available.
 
 Current state:
-- Agent: ${state.agent_running ? 'running' : 'stopped'}${state.agent_paused ? ' (paused)' : ''}${state.agent_dry_run ? ' [DRY-RUN]' : ' [LIVE]'}
+- Agent: ${state.agent_running ? 'running' : 'stopped'}${state.agent_paused ? ' (paused)' : ''}
 - Risk: ${state.risk_state}
-- Wallet: ${state.wallet}
-- Swarm: ${state.swarm_connected ? 'connected' : 'offline'} (ID: ${state.swarm_agent_id || 'none'})
-- News Swarm: ${state.swarm_running ? 'active' : 'inactive'}
+- Wallet: ${getConnectedWallet() ? 'connected' : 'not connected'}
+- Swarm: ${state.swarm_connected ? 'connected' : 'offline'}
 
 Respond with tool calls when the user requests data or actions. Always check risk state before recommending trades.`,
       tools: tools.map(t => `${t.name}: ${t.description}`).join('\n'),

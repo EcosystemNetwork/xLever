@@ -1515,11 +1515,15 @@ async function swarmChat(message) {
   return result;
 }
 
-// Connect an OpenClaw instance at runtime
+// Connect an OpenClaw instance at runtime (URL validated inside setOpenClawUrl)
 function connectOpenClaw(url) {
   if (!window.SwarmBridge) return;
   window.SwarmBridge.setOpenClawUrl(url);
-  logAction('OPENCLAW', `Connected to OpenClaw at ${url}`, 'secondary');
+  if (window.SwarmBridge.config.OPENCLAW_URL) {
+    logAction('OPENCLAW', `Connected to OpenClaw`, 'secondary');
+  } else {
+    logAction('OPENCLAW', `OpenClaw URL rejected — invalid or insecure`, 'error');
+  }
 }
 
 // Initialize Swarm connector after page loads
@@ -1530,6 +1534,13 @@ document.addEventListener('DOMContentLoaded', initSwarmConnector);
 // ═══════════════════════════════════════════════════════════
 
 function testInjectNews() {
+  // Only allow in local/dev environments — not production
+  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+  if (!isLocal) {
+    logAction('SYSTEM', 'Test news injection is disabled in production.', 'error');
+    return;
+  }
+
   const testHeadlines = [
     { headline: 'Fed announces emergency rate cut of 50bps amid market turmoil', body: 'The Federal Reserve made an unscheduled rate cut decision today as market volatility surged.', source: 'test' },
     { headline: 'NVDA earnings beat expectations, guidance raised for AI chips', body: 'NVIDIA reported Q4 earnings of $5.16 per share, beating estimates by 12%. Revenue guidance raised to $24B.', source: 'test' },

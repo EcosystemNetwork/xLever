@@ -13,6 +13,7 @@
 import { Connection, PublicKey, Transaction } from '@solana/web3.js'
 import { Address, beginCell, toNano } from '@ton/core'
 import { TonClient } from '@ton/ton'
+import { SOLANA_VAULT_REGISTRY, TON_VAULT_REGISTRY } from './config.js'
 
 // Heavy protocol SDKs are loaded dynamically to avoid WASM bundling issues
 // and reduce initial bundle size -- they're only needed for write operations.
@@ -571,9 +572,12 @@ class KaminoAdapter extends ILendingAdapter {
     super(CHAINS.SOLANA)
     this._connection = null
     this._wallet = null
+    this.vaults = SOLANA_VAULT_REGISTRY
   }
 
   get protocolName() { return 'Kamino Finance' }
+
+  getVaultForAsset(symbol) { return this.vaults[symbol] || null }
 
   isReady() {
     return !!this._getProvider()
@@ -856,9 +860,12 @@ class EvaaAdapter extends ILendingAdapter {
   constructor() {
     super(CHAINS.TON)
     this._client = null
+    this.vaults = TON_VAULT_REGISTRY
   }
 
   get protocolName() { return 'EVAA Protocol' }
+
+  getVaultForAsset(symbol) { return this.vaults[symbol] || null }
 
   isReady() {
     return !!this._getProvider()
@@ -1264,6 +1271,21 @@ class LendingAdapterRegistry {
       }
     }
     return marketsByChain
+  }
+
+  /**
+   * Look up the vault address for an asset on the active chain.
+   * Delegates to the active adapter's getVaultForAsset if available,
+   * otherwise falls back to the EVM VAULT_REGISTRY via contracts.js.
+   * @param {string} symbol - Ticker symbol (e.g., 'QQQ', 'SPY')
+   * @returns {string|null} Vault address/program ID, or null if not deployed
+   */
+  getVaultForAsset(symbol) {
+    const adapter = this.active()
+    if (typeof adapter.getVaultForAsset === 'function') return adapter.getVaultForAsset(symbol)
+    // EVM adapters fall through to contracts.js getVaultForAsset
+    if (window.xLeverContracts?.getVaultForAsset) return window.xLeverContracts.getVaultForAsset(symbol)
+    return null
   }
 
   /**
